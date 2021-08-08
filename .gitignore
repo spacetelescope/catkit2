@@ -1,0 +1,9 @@
+.vs
+*.egg-info/
+build/
+*.so
+*.pyd
+*.pyc
+__pycache__/
+CMakeFiles
+*CMakeCache.txt
