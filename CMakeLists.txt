@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 
 project(catkit2)
 
-SET(CMAKE_CXX_FLAGS "-std=c++14")
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED on)
 
 add_subdirectory(lib/data_streams_core)
 add_subdirectory(lib/pybind11)

@@ -7,8 +7,11 @@
 #include <atomic>
 #include <vector>
 
+#include <windows.h>
+
 #include "ComplexTraits.h"
 
+const char *CURRENT_VERSION = "0.1";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
 
 enum class DataType
@@ -47,7 +50,6 @@ struct DataFrame
 	size_t m_Id;
 
 	std::uint64_t m_TimeStamp;
-	double m_TimeDelta;
 
 	size_t m_Offset;
 };
@@ -66,50 +68,47 @@ struct DataStreamHeader
 	size_t m_NumElementsPerFrame;
 	size_t m_NumBytesPerFrame;
 
+	size_t m_NumBytesInBuffer;
+
 	size_t m_NumFramesInBuffer;
 	DataFrame m_Frames[MAX_NUM_FRAMES_IN_BUFFER];
 
 	std::atomic_size_t m_FirstId;
 	std::atomic_size_t m_LastId;
+	std::atomic_size_t m_NextRequestId;
 
-	std::mutex m_FrameWrittenMutex;
-	std::condition_variable m_FrameWritten;
+	std::atomic_size_t m_NumReadersWaiting;
+};
+
+enum BufferHandlingMode
+{
+	BM_NEWEST_ONLY,
+	BM_OLDEST_FIRST_OVERWRITE
 };
 
 class DataStream
 {
 private:
-	DataStream(size_t num_frames_in_buffer=2);
+	DataStream(HANDLE file_mapping, HANDLE semaphore);
 
 public:
 	~DataStream();
 
-	static Create(std::string name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
-	static Open(std::string name);
+	static std::shared_ptr<DataStream> Create(std::string name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Open(std::string name);
 
 	DataFrame *RequestNewFrame();
 	void SubmitFrame(size_t id);
 
-	bool WouldNewFrameDestroyOldFrames();
-	void MakeFrameUnavailable(size_t id);
-
-	std::array<size_t, 4> GetDimensions();
+	size_t *GetDimensions();
 	DataType GetDataType();
 
 	size_t GetNumFramesInBuffer();
-	size_t GetFrameSize();
+	size_t GetNumElementsPerFrame();
 	size_t GetNumDimensions();
 
-	void SetDimensions(std::initializer_list<size_t> dimensions);
-	void SetDimensions(std::array<size_t, 4> dimensions);
-	void SetDimensions(size_t *dimensions);
-	void SetDimensions(size_t d1, size_t d2=1, size_t d3=1, size_t d4=1);
-	void SetDataType(DataType type);
-	void SetNumFramesInBuffer(size_t num_frames_in_buffer);
-
-	void UpdateBuffers(bool force=false);
-
-	DataFrame *GetFrame(size_t id);
+	DataFrame *GetFrame(size_t id, bool wait=true);
+	DataFrame *GetNextFrame();
 	DataFrame *GetLastAvailableFrame();
 
 	bool IsFrameAvailable(size_t id);
@@ -119,11 +118,14 @@ public:
 	size_t GetOldestAvailableFrameId();
 
 private:
+	HANDLE m_FileMapping;
+	HANDLE m_FrameWritten;
+
 	DataStreamHeader *m_Header;
 	char *m_RawData;
 
 	size_t m_NextFrameIdToRead;
-	BufferReadingMode m_BufferReadingMode;
+	BufferHandlingMode m_BufferHandlingMode;
 };
 
 #include "DataStream.inl"

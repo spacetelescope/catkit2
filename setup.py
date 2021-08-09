@@ -85,5 +85,5 @@ setup(
     python_requires='>=3.6',
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
-    install_requires=['pandas>=1.0','sphinx>=3.1','numpy>=1.18','matplotlib>=3.2','pillow>=7.1']
+    install_requires=[]
 )

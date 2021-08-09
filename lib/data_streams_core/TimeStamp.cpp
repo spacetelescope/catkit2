@@ -14,18 +14,11 @@ uint64_t GetTimeStamp()
 
 string ConvertTimestampToString(uint64_t timestamp)
 {
-	auto tp = system_clock::to_time_t(system_clock::time_point(nanoseconds(timestamp)));
-	auto time = gmtime(&tp);
+	const auto time_since = duration_cast<system_clock::time_point::duration>(nanoseconds(timestamp));
+	auto tp = system_clock::to_time_t(system_clock::time_point(time_since));
 
 	stringstream ss("UTC ");
-	ss << time->tm_year + 1900 << "/";
-	ss << setfill('0') << setw(2);
-	ss << time->tm_mon << "/" << time->tm_mday;
-	ss << " ";
-	ss << time->tm_hour << ":" << time->tm_min << ":" << time->tm_sec;
-	ss << ".";
-	ss << setfill('0') << setw(9);
-	ss << (timestamp % 1000000000);
+	ss << tp;
 
 	return ss.str();
 }

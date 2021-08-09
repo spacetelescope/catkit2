@@ -1,6 +1,6 @@
 #include "DataStream.h"
 
-#include "Log.h"
+//#include "Log.h"
 #include "TimeStamp.h"
 
 #include <algorithm>
@@ -105,233 +105,194 @@ size_t GetSizeOfDataType(DataType type)
 	}
 }
 
-size_t DataFrame::GetSize()
+DataStream::DataStream(HANDLE file_mapping, HANDLE frame_written)
+	: m_FileMapping(file_mapping), m_FrameWritten(frame_written),
+	m_Header(nullptr), m_RawData(nullptr),
+	m_NextFrameIdToRead(0),
+	m_BufferHandlingMode(BM_NEWEST_ONLY)
 {
-	return dimensions[0] * dimensions[1] * dimensions[2] * dimensions[3];
-}
+	void *buffer = MapViewOfFile(m_FileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
-size_t DataFrame::GetSizeInBytes()
-{
-	return GetSize() * GetSizeOfDataType(type);
-}
+	if (!buffer)
+	{
+		// Something went wrong with the memory mapping.
+		return;
+	}
 
-size_t DataFrame::GetNumDimensions()
-{
-	size_t num_dimensions = 4;
-
-	while (dimensions[num_dimensions - 1] == 1 && num_dimensions > 1)
-		num_dimensions--;
-
-	return num_dimensions;
-}
-
-DataStream::DataStream(size_t num_frames_in_buffer)
-	: m_RawData(nullptr), m_Frames(nullptr),
-	m_FirstId(0), m_LastId(0), m_NumFramesInBuffer(num_frames_in_buffer),
-	m_Dimensions({1,1,1,1}), m_DataType(DataType::DT_UINT8)
-{
-	UpdateBuffers(true);
+	m_Header = (DataStreamHeader *) buffer;
+	m_RawData = ((char *)buffer) + sizeof(DataStreamHeader);
 }
 
 DataStream::~DataStream()
 {
-	for (auto &link : m_Links)
+	CloseHandle(m_FrameWritten);
+
+	UnmapViewOfFile(m_Header);
+	CloseHandle(m_FileMapping);
+}
+
+std::shared_ptr<DataStream> DataStream::Create(std::string name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+{
+	if (dimensions.size() > 4)
 	{
-		if (link->GetInputPort())
-			link->GetInputPort()->RemoveLink(link);
-	}
-
-	if (m_RawData)
-		delete[] m_RawData;
-
-	if (m_Frames)
-		delete[] m_Frames;
-}
-
-std::array<size_t, 4> DataStream::GetDimensions()
-{
-	return m_Dimensions;
-}
-
-DataType DataStream::GetDataType()
-{
-	return m_DataType;
-}
-
-size_t DataStream::GetFrameSize()
-{
-	return m_Dimensions[0] * m_Dimensions[1] * m_Dimensions[2] * m_Dimensions[3];
-}
-
-size_t DataStream::GetNumDimensions()
-{
-	size_t num_dimensions = m_Dimensions.size();
-
-	while (m_Dimensions[num_dimensions - 1] == 1 && num_dimensions > 1)
-		num_dimensions--;
-
-	return num_dimensions;
-}
-
-void DataStream::SetDimensions(initializer_list<size_t> dimensions)
-{
-	auto last = copy(dimensions.begin(), dimensions.end(), m_Dimensions.begin());
-	fill(last, m_Dimensions.end(), 1);
-
-	UpdateBuffers();
-}
-
-void DataStream::SetDimensions(array<size_t, 4> dimensions)
-{
-	m_Dimensions = dimensions;
-
-	UpdateBuffers();
-}
-
-void DataStream::SetDimensions(size_t *dimensions)
-{
-	copy(dimensions, dimensions + 4, m_Dimensions.begin());
-
-	UpdateBuffers();
-}
-
-void DataStream::SetDimensions(size_t d1, size_t d2, size_t d3, size_t d4)
-{
-	m_Dimensions[0] = d1;
-	m_Dimensions[1] = d2;
-	m_Dimensions[2] = d3;
-	m_Dimensions[3] = d4;
-
-	UpdateBuffers();
-}
-
-void DataStream::SetDataType(DataType type)
-{
-	m_DataType = type;
-
-	UpdateBuffers();
-}
-
-void DataStream::UpdateBuffers(bool force)
-{
-	// Check if buffer update is necessary
-	size_t num_bytes_per_frame = GetFrameSize() * GetSizeOfDataType(m_DataType);
-	if (num_bytes_per_frame == m_NumBytesPerFrame)
-		return;
-
-	if (num_bytes_per_frame <= m_NumBytesPerFrame
-		&& num_bytes_per_frame >= m_NumBytesPerFrame / 4
-		&& !force)
-	{
-		// Update is not needed; do nothing.
-		return;
-	}
-
-	// Delete all frames
-	m_FirstId = m_LastId.load();
-
-	// Deallocate memory
-	if (m_Frames)
-		delete[] m_Frames;
-
-	if (m_RawData)
-		delete[] m_RawData;
-
-	// Allocate memory
-	m_RawData = new char[num_bytes_per_frame * m_NumFramesInBuffer];
-	m_Frames = new DataFrame[m_NumFramesInBuffer];
-
-	// Add data to frames
-	for (size_t i = 0; i < m_NumFramesInBuffer; ++i)
-		m_Frames[i].raw_data = m_RawData + num_bytes_per_frame * i;
-
-	m_NumBytesPerFrame = num_bytes_per_frame;
-}
-
-// TODO: potential race condition: submitframe during request new frame may duplicate frames
-DataFrame *DataStream::RequestNewFrame()
-{
-	if (!m_Frames)
-	{
-		LOG_ERROR("Frame buffer is empty.");
+		// Too many dimensions.
 		return nullptr;
 	}
 
-	// Make old frame unavailable if frame buffer is full
-	if ((m_LastId - m_FirstId) == m_NumFramesInBuffer)
-		m_FirstId++;
+	size_t num_elements = 1;
+	for (auto d : dimensions)
+	{
+		num_elements *= d;
+	}
+
+	size_t num_bytes_per_frame = num_elements * GetSizeOfDataType(type) * num_frames_in_buffer;
+	size_t num_bytes = sizeof(DataStreamHeader) + num_bytes_per_frame;
+
+	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes, name.c_str());
+	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (name + "_sem").c_str());
+
+	auto data_stream = std::shared_ptr<DataStream>(new DataStream(file_mapping, semaphore));
+	auto header = data_stream->m_Header;
+
+	strcpy(header->m_Version, CURRENT_VERSION);
+
+	strcpy(header->m_Name, name.c_str());
+	header->m_TimeCreated = GetTimeStamp();
+	header->m_CreatorPID = GetCurrentProcessId();
+
+	header->m_DataType = type;
+	size_t *dims = header->m_Dimensions;
+	fill(dims, dims + 4, 1);
+	copy(dimensions.begin(), dimensions.end(), dims);
+
+	header->m_NumBytesPerFrame = num_bytes_per_frame;
+	header->m_NumBytesInBuffer = num_bytes_per_frame * GetSizeOfDataType(type);
+	header->m_NumFramesInBuffer = num_frames_in_buffer;
+
+	header->m_FirstId = 0;
+	header->m_LastId = 0;
+	header->m_NextRequestId = 0;
+
+	header->m_NumReadersWaiting = 0;
+
+	return data_stream;
+}
+
+std::shared_ptr<DataStream> DataStream::Open(std::string name)
+{
+	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name.c_str());
+	HANDLE semaphore = OpenSemaphore(NULL, FALSE, (name + "_sem").c_str());
+
+	auto data_stream = std::shared_ptr<DataStream>(new DataStream(file_mapping, semaphore));
+
+	if (!strcmp(data_stream->m_Header->m_Version, CURRENT_VERSION))
+	{
+		// DataStreams were made with different versions.
+		return nullptr;
+	}
+
+	// Don't read frames that already are available at the time the data stream is opened.
+	data_stream->m_NextFrameIdToRead = data_stream->m_Header->m_LastId;
+
+	return data_stream;
+}
+
+DataFrame *DataStream::RequestNewFrame()
+{
+	// If the frame buffer is full: make oldest frame unavailable.
+	if ((m_Header->m_LastId - m_Header->m_FirstId) == m_Header->m_NumFramesInBuffer)
+		m_Header->m_FirstId++;
+
+	size_t new_frame_id = m_Header->m_NextRequestId++;
 
 	// Get right frame and clean it
-	DataFrame *frame = m_Frames + (m_LastId % m_NumFramesInBuffer);
-	frame->id = m_LastId;
-
-	// Set frame data
-	frame->type = m_DataType;
-	copy(m_Dimensions.begin(), m_Dimensions.end(), frame->dimensions);
+	DataFrame *frame = m_Header->m_Frames + (new_frame_id % m_Header->m_NumFramesInBuffer);
+	frame->m_Id = new_frame_id;
+	frame->m_Offset = (new_frame_id % m_Header->m_NumFramesInBuffer) * m_Header->m_NumBytesPerFrame;
 
 	return frame;
 }
 
 void DataStream::SubmitFrame(size_t id)
 {
-	static TimeDelta time_delta;
-
-	// Get timing of this frame.
-	uint64_t time_stamp = GetTimeStamp();
-	double time_since_last_frame = time_delta.GetTimeDelta();
-
 	// Add timing information to frame.
-	DataFrame *frame = m_Frames + (id % m_NumFramesInBuffer);
-	frame->time_stamp = time_stamp;
-	frame->time_delta = time_since_last_frame;
+	DataFrame *frame = m_Header->m_Frames + (id % m_Header->m_NumFramesInBuffer);
+	frame->m_TimeStamp = GetTimeStamp();
 
 	// Make frame available.
-	m_LastId++;
+	m_Header->m_LastId++;
+
+	// Notify waiting processes.
+	size_t num_readers_waiting = m_Header->m_NumReadersWaiting.exchange(0);
+	ReleaseSemaphore(m_FrameWritten, (LONG) num_readers_waiting, NULL);
 }
 
-bool DataStream::WouldNewFrameDestroyOldFrames()
+size_t *DataStream::GetDimensions()
 {
-	return (m_LastId - m_FirstId) == m_NumFramesInBuffer;
+	return m_Header->m_Dimensions;
 }
 
-void DataStream::MakeFrameUnavailable(size_t id)
+DataType DataStream::GetDataType()
 {
-	if (!IsFrameAvailable(id))
-		return;
-
-	m_FirstId = id + 1;
+	return m_Header->m_DataType;
 }
 
 size_t DataStream::GetNumFramesInBuffer()
 {
-	return m_NumFramesInBuffer;
+	return m_Header->m_NumFramesInBuffer;
 }
 
-DataFrame *DataStream::GetFrame(size_t id)
+size_t DataStream::GetNumElementsPerFrame()
+{
+	return m_Header->m_NumElementsPerFrame;
+}
+
+size_t DataStream::GetNumDimensions()
+{
+	size_t num_dimensions = 4;
+
+	while (m_Header->m_Dimensions[num_dimensions - 1] == 1 && num_dimensions > 1)
+		num_dimensions--;
+
+	return num_dimensions;
+}
+
+DataFrame *DataStream::GetFrame(size_t id, bool wait)
 {
 	if (!IsFrameAvailable(id))
-		return nullptr;
+	{
+		if (!WillFrameBeAvailable(id))
+			return nullptr;
 
-	return m_Frames + id % m_NumFramesInBuffer;
-}
+		if (!wait)
+			return nullptr;
 
-DataFrame *DataStream::GetLastAvailableFrame()
-{
-	size_t id = GetLastAvailableFrameId();
-	return GetFrame(id);
+		while (m_Header->m_LastId <= id)
+		{
+			m_Header->m_NumReadersWaiting++;
+			WaitForSingleObject(m_FrameWritten, INFINITE);
+		}
+	}
+
+	return m_Header->m_Frames + id % m_Header->m_NumFramesInBuffer;
 }
 
 bool DataStream::IsFrameAvailable(size_t id)
 {
-	return (id >= m_FirstId) && (id < m_LastId);
+	return (id >= m_Header->m_FirstId) && (id < m_Header->m_LastId);
 }
 
 bool DataStream::WillFrameBeAvailable(size_t id)
 {
-	return id >= m_FirstId;
+	return id >= m_Header->m_FirstId;
 }
 
-size_t DataStream::GetLastAvailableFrameId()
+size_t DataStream::GetOldestAvailableFrameId()
 {
-	return m_LastId - 1;
+	return m_Header->m_FirstId;
+}
+
+size_t DataStream::GetNewestAvailableFrameId()
+{
+	return m_Header->m_LastId - 1;
 }

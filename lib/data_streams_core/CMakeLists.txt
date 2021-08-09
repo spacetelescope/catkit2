@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 
 project(data_streams_core)
 
-SET(CMAKE_CXX_FLAGS "-std=c++14")
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED on)
 
 add_library(data_streams_core STATIC DataStream.cpp TimeStamp.cpp)
 
