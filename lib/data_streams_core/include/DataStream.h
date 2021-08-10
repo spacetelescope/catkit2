@@ -11,7 +11,7 @@
 
 #include "ComplexTraits.h"
 
-const char *CURRENT_VERSION = "0.1";
+const char * const CURRENT_VERSION = "0.1";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
 
 enum class DataType
@@ -26,7 +26,6 @@ enum class DataType
 	DT_INT64,
 	DT_FLOAT32,
 	DT_FLOAT64,
-	DT_FLOAT128,
 	DT_COMPLEX64,
 	DT_COMPLEX128,
 	DT_UNKNOWN

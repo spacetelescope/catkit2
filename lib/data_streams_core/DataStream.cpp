@@ -12,31 +12,29 @@ const char *GetDataTypeAsString(DataType type)
 	switch (type)
 	{
 		case DataType::DT_UINT8:
-			return "uint8";
+			return "B";
 		case DataType::DT_UINT16:
-			return "uint16";
+			return "H";
 		case DataType::DT_UINT32:
-			return "uint32";
+			return "L";
 		case DataType::DT_UINT64:
-			return "uint64";
+			return "Q";
 		case DataType::DT_INT8:
-			return "int8";
+			return "b";
 		case DataType::DT_INT16:
-			return "int16";
+			return "h";
 		case DataType::DT_INT32:
-			return "int32";
+			return "l";
 		case DataType::DT_INT64:
-			return "int64";
+			return "q";
 		case DataType::DT_FLOAT32:
-			return "float32";
+			return "f";
 		case DataType::DT_FLOAT64:
-			return "float64";
-		case DataType::DT_FLOAT128:
-			return "float128";
+			return "d";
 		case DataType::DT_COMPLEX64:
-			return "complex64";
+			return "zf";
 		case DataType::DT_COMPLEX128:
-			return "complex128";
+			return "zd";
 		default:
 			return "unknown";
 	}
@@ -49,31 +47,29 @@ DataType GetDataTypeFromString(const char *type)
 
 DataType GetDataTypeFromString(string type)
 {
-	if (type == "uint8")
+	if (type == "B")
 		return DataType::DT_UINT8;
-	if (type == "uint16")
+	if (type == "H")
 		return DataType::DT_UINT16;
-	if (type == "uint32")
+	if (type == "L")
 		return DataType::DT_UINT32;
-	if (type == "uint64")
+	if (type == "Q")
 		return DataType::DT_UINT64;
-	if (type == "int8")
+	if (type == "b")
 		return DataType::DT_INT8;
-	if (type == "int16")
+	if (type == "h")
 		return DataType::DT_INT16;
-	if (type == "int32")
+	if (type == "l")
 		return DataType::DT_INT32;
-	if (type == "int64")
+	if (type == "q")
 		return DataType::DT_INT64;
-	if (type == "float32")
+	if (type == "f")
 		return DataType::DT_FLOAT32;
-	if (type == "float64")
+	if (type == "d")
 		return DataType::DT_FLOAT64;
-	if (type == "float128")
-		return DataType::DT_FLOAT128;
-	if (type == "complex64")
+	if (type == "zf")
 		return DataType::DT_COMPLEX64;
-	if (type == "complex128")
+	if (type == "zd")
 		return DataType::DT_COMPLEX128;
 	return DataType::DT_UNKNOWN;
 }
@@ -97,7 +93,6 @@ size_t GetSizeOfDataType(DataType type)
 		case DataType::DT_FLOAT64:
 		case DataType::DT_COMPLEX64:
 			return 8;
-		case DataType::DT_FLOAT128:
 		case DataType::DT_COMPLEX128:
 			return 16;
 		default:
