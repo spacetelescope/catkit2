@@ -69,8 +69,54 @@ PYBIND11_MODULE(data_streams, m)
 		})
 		.def("request_new_frame", &DataStream::RequestNewFrame)
 		.def("submit_frame", &DataStream::SubmitFrame)
-		.def("get_frame", &DataStream::GetFrame, py::arg("id"), py::arg("wait") = true)
-		.def("get_next_frame", &DataStream::GetNextFrame, py::arg("wait") = true)
+		.def("get_frame", [](DataStream &s, size_t id, bool wait, long wait_time_in_ms)
+		{
+			TimeDelta timer;
+
+			while (true)
+			{
+				try
+				{
+					return s.GetFrame(id, wait, 20);
+				}
+				catch (std::runtime_error err)
+				{
+					// Ignore only timout-related exceptions.
+					if (strcmp("Waiting time has expired.", err.what()) != 0)
+						throw;
+				}
+
+				if (wait && wait_time_in_ms >= 0 && timer.GetTimeDelta() > (wait_time_in_ms * 0.001))
+					throw std::runtime_error("Waiting time has expired.");
+
+				if (PyErr_CheckSignals() != 0)
+					throw py::error_already_set();
+			}
+		}, py::arg("id"), py::arg("wait") = true, py::arg("wait_time_in_ms") = -1)
+		.def("get_next_frame", [](DataStream &s, bool wait, long wait_time_in_ms)
+		{
+			TimeDelta timer;
+
+			while (true)
+			{
+				try
+				{
+					return s.GetNextFrame(wait, 20);
+				}
+				catch (std::runtime_error err)
+				{
+					// Ignore only timout-related exceptions.
+					if (strcmp("Waiting time has expired.", err.what()) != 0)
+						throw;
+				}
+
+				if (wait && wait_time_in_ms >= 0 && timer.GetTimeDelta() > (wait_time_in_ms * 0.001))
+					throw std::runtime_error("Waiting time has expired.");
+
+				if (PyErr_CheckSignals() != 0)
+					throw py::error_already_set();
+			}
+		}, py::arg("wait") = true, py::arg("wait_time_in_ms") = -1)
 		.def_property_readonly("dtype", [](DataStream &s)
 		{
 			return py::dtype(GetDataTypeAsString(s.GetDataType()));

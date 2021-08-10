@@ -119,8 +119,8 @@ public:
 	std::uint64_t GetTimeCreated();
 	unsigned long GetCreatorPID();
 
-	DataFrame GetFrame(size_t id, bool wait=true);
-	DataFrame GetNextFrame(bool wait=true);
+	DataFrame GetFrame(size_t id, bool wait=true, unsigned long wait_time_in_ms=INFINITE);
+	DataFrame GetNextFrame(bool wait=true, unsigned long wait_time_in_ms=INFINITE);
 
 	bool IsFrameAvailable(size_t id);
 	bool WillFrameBeAvailable(size_t id);

@@ -4,6 +4,7 @@
 #include "TimeStamp.h"
 
 #include <algorithm>
+#include <iostream>
 
 using namespace std;
 
@@ -129,10 +130,10 @@ DataStream::~DataStream()
 std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	if (dimensions.size() > 4)
-	{
-		// Too many dimensions.
-		return nullptr;
-	}
+		throw std::runtime_error("Maximum dimensionality of the frames is 4.");
+
+	if (num_frames_in_buffer > MAX_NUM_FRAMES_IN_BUFFER)
+		throw std::runtime_error("Too many frames requested for the buffer.");
 
 	size_t num_elements = 1;
 	for (auto d : dimensions)
@@ -140,8 +141,9 @@ std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type,
 		num_elements *= d;
 	}
 
-	size_t num_bytes_per_frame = num_elements * GetSizeOfDataType(type) * num_frames_in_buffer;
-	size_t num_bytes = sizeof(DataStreamHeader) + num_bytes_per_frame;
+	size_t num_bytes_per_frame = num_elements * GetSizeOfDataType(type);
+	size_t num_bytes = sizeof(DataStreamHeader) + num_bytes_per_frame * num_frames_in_buffer;
+	std::cout << "num bytes requested: " << num_bytes / 1024 / 1024 << " MB" << std::endl;
 
 	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes, name.c_str());
 	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (name + "_sem").c_str());
@@ -161,7 +163,7 @@ std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type,
 	copy(dimensions.begin(), dimensions.end(), dims);
 
 	header->m_NumBytesPerFrame = num_bytes_per_frame;
-	header->m_NumBytesInBuffer = num_bytes_per_frame * GetSizeOfDataType(type);
+	header->m_NumBytesInBuffer = num_bytes;
 	header->m_NumFramesInBuffer = num_frames_in_buffer;
 
 	header->m_FirstId = 0;
@@ -181,7 +183,7 @@ std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type,
 std::unique_ptr<DataStream> DataStream::Open(std::string &name)
 {
 	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name.c_str());
-	HANDLE semaphore = OpenSemaphore(NULL, FALSE, (name + "_sem").c_str());
+	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (name + "_sem").c_str());
 
 	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 
@@ -292,7 +294,7 @@ unsigned long DataStream::GetCreatorPID()
 	return m_Header->m_CreatorPID;
 }
 
-DataFrame DataStream::GetFrame(size_t id, bool wait)
+DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_ms)
 {
 	DataFrame frame;
 	frame.m_Id = 0;
@@ -305,10 +307,28 @@ DataFrame DataStream::GetFrame(size_t id, bool wait)
 		if (!wait)
 			throw std::runtime_error("Frame is not available yet.");
 
-		while (m_Header->m_LastId <= id)
+		m_Header->m_NumReadersWaiting++;
+		auto res = WaitForSingleObject(m_FrameWritten, wait_time_in_ms);
+
+		if (res == WAIT_TIMEOUT)
 		{
-			m_Header->m_NumReadersWaiting++;
-			WaitForSingleObject(m_FrameWritten, INFINITE);
+			throw std::runtime_error("Waiting time has expired.");
+		}
+		else if (m_Header->m_LastId <= id)
+		{
+			// Start a timer and keep looping.
+			// We can afford to take more time here, since we are for sure waiting
+			// on multiple frames now.
+			TimeDelta timer;
+
+			while (m_Header->m_LastId <= id)
+			{
+				m_Header->m_NumReadersWaiting++;
+				auto res = WaitForSingleObject(m_FrameWritten, wait_time_in_ms);
+
+				if (res == WAIT_TIMEOUT && timer.GetTimeDelta() > (wait_time_in_ms * 0.001))
+					throw std::runtime_error("Waiting time has expired.");
+			}
 		}
 	}
 
@@ -324,7 +344,7 @@ DataFrame DataStream::GetFrame(size_t id, bool wait)
 	return frame;
 }
 
-DataFrame DataStream::GetNextFrame(bool wait)
+DataFrame DataStream::GetNextFrame(bool wait, unsigned long wait_time_in_ms)
 {
 	size_t frame_id;
 
@@ -347,7 +367,7 @@ DataFrame DataStream::GetNextFrame(bool wait)
 		break;
 	}
 
-	auto frame = GetFrame(frame_id, wait);
+	auto frame = GetFrame(frame_id, wait, wait_time_in_ms);
 
 	m_NextFrameIdToRead = frame_id + 1;
 	return frame;
@@ -370,5 +390,9 @@ size_t DataStream::GetOldestAvailableFrameId()
 
 size_t DataStream::GetNewestAvailableFrameId()
 {
+	// Check if any frames are available, and if not, return the first one anyway.
+	if (m_Header->m_LastId == 0)
+		return 0;
+
 	return m_Header->m_LastId - 1;
 }
