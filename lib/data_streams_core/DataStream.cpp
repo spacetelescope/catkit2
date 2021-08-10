@@ -126,7 +126,7 @@ DataStream::~DataStream()
 	CloseHandle(m_FileMapping);
 }
 
-std::shared_ptr<DataStream> DataStream::Create(std::string name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	if (dimensions.size() > 4)
 	{
@@ -146,7 +146,7 @@ std::shared_ptr<DataStream> DataStream::Create(std::string name, DataType type, 
 	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes, name.c_str());
 	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (name + "_sem").c_str());
 
-	auto data_stream = std::shared_ptr<DataStream>(new DataStream(file_mapping, semaphore));
+	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 	auto header = data_stream->m_Header;
 
 	strcpy(header->m_Version, CURRENT_VERSION);
@@ -173,14 +173,19 @@ std::shared_ptr<DataStream> DataStream::Create(std::string name, DataType type, 
 	return data_stream;
 }
 
-std::shared_ptr<DataStream> DataStream::Open(std::string name)
+std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+{
+	return Create(name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
+}
+
+std::unique_ptr<DataStream> DataStream::Open(std::string &name)
 {
 	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name.c_str());
 	HANDLE semaphore = OpenSemaphore(NULL, FALSE, (name + "_sem").c_str());
 
-	auto data_stream = std::shared_ptr<DataStream>(new DataStream(file_mapping, semaphore));
+	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 
-	if (!strcmp(data_stream->m_Header->m_Version, CURRENT_VERSION))
+	if (strcmp(data_stream->m_Header->m_Version, CURRENT_VERSION) != 0)
 	{
 		// DataStreams were made with different versions.
 		return nullptr;
@@ -226,18 +231,20 @@ void DataStream::SubmitFrame(size_t id)
 	{
 		last_id = m_Header->m_LastId;
 
-		if (last_id > id + 1)
+		if (last_id >= id + 1)
 			break;
-	} while (m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
+	} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
 
 	// Notify waiting processes.
 	size_t num_readers_waiting = m_Header->m_NumReadersWaiting.exchange(0);
-	ReleaseSemaphore(m_FrameWritten, (LONG) num_readers_waiting, NULL);
+
+	if (num_readers_waiting > 0)
+		ReleaseSemaphore(m_FrameWritten, (LONG) num_readers_waiting, NULL);
 }
 
-size_t *DataStream::GetDimensions()
+std::vector<size_t> DataStream::GetDimensions()
 {
-	return m_Header->m_Dimensions;
+	return std::vector<size_t>(m_Header->m_Dimensions, m_Header->m_Dimensions + GetNumDimensions());
 }
 
 DataType DataStream::GetDataType()
@@ -265,6 +272,26 @@ size_t DataStream::GetNumDimensions()
 	return num_dimensions;
 }
 
+std::string DataStream::GetVersion()
+{
+	return m_Header->m_Version;
+}
+
+std::string DataStream::GetName()
+{
+	return m_Header->m_Name;
+}
+
+std::uint64_t DataStream::GetTimeCreated()
+{
+	return m_Header->m_TimeCreated;
+}
+
+unsigned long DataStream::GetCreatorPID()
+{
+	return m_Header->m_CreatorPID;
+}
+
 DataFrame DataStream::GetFrame(size_t id, bool wait)
 {
 	DataFrame frame;
@@ -273,10 +300,10 @@ DataFrame DataStream::GetFrame(size_t id, bool wait)
 	if (!IsFrameAvailable(id))
 	{
 		if (!WillFrameBeAvailable(id))
-			return frame;
+			throw std::runtime_error("Frame will never be available anymore.");
 
 		if (!wait)
-			return frame;
+			throw std::runtime_error("Frame is not available yet.");
 
 		while (m_Header->m_LastId <= id)
 		{
@@ -294,6 +321,35 @@ DataFrame DataStream::GetFrame(size_t id, bool wait)
 	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
 	frame.m_Data = m_Buffer + offset;
 
+	return frame;
+}
+
+DataFrame DataStream::GetNextFrame(bool wait)
+{
+	size_t frame_id;
+
+	switch (m_BufferHandlingMode)
+	{
+		case BM_NEWEST_ONLY:
+		frame_id = GetNewestAvailableFrameId();
+
+		if (frame_id < m_NextFrameIdToRead)
+			frame_id++;
+
+		break;
+
+		case BM_OLDEST_FIRST_OVERWRITE:
+		frame_id = m_NextFrameIdToRead;
+
+		if (!IsFrameAvailable(frame_id))
+			frame_id = GetOldestAvailableFrameId();
+
+		break;
+	}
+
+	auto frame = GetFrame(frame_id, wait);
+
+	m_NextFrameIdToRead = frame_id + 1;
 	return frame;
 }
 

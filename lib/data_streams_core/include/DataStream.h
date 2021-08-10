@@ -100,18 +100,24 @@ private:
 public:
 	~DataStream();
 
-	static std::shared_ptr<DataStream> Create(std::string name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::shared_ptr<DataStream> Open(std::string name);
+	static std::unique_ptr<DataStream> Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::unique_ptr<DataStream> Create(std::string &name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::unique_ptr<DataStream> Open(std::string &name);
 
 	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
 
-	size_t *GetDimensions();
+	std::vector<size_t> GetDimensions();
 	DataType GetDataType();
 
 	size_t GetNumFramesInBuffer();
 	size_t GetNumElementsPerFrame();
 	size_t GetNumDimensions();
+
+	std::string GetVersion();
+	std::string GetName();
+	std::uint64_t GetTimeCreated();
+	unsigned long GetCreatorPID();
 
 	DataFrame GetFrame(size_t id, bool wait=true);
 	DataFrame GetNextFrame(bool wait=true);
