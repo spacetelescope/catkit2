@@ -45,13 +45,9 @@ DataType GetDataTypeFromString(std::string type);
 
 size_t GetSizeOfDataType(DataType type);
 
-struct DataFrame
+struct DataFrameMetadata
 {
-	size_t m_Id;
-
 	std::uint64_t m_TimeStamp;
-
-	size_t m_Offset;
 };
 
 struct DataStreamHeader
@@ -71,13 +67,24 @@ struct DataStreamHeader
 	size_t m_NumBytesInBuffer;
 
 	size_t m_NumFramesInBuffer;
-	DataFrame m_Frames[MAX_NUM_FRAMES_IN_BUFFER];
+	DataFrameMetadata m_FrameMetadata[MAX_NUM_FRAMES_IN_BUFFER];
 
 	std::atomic_size_t m_FirstId;
 	std::atomic_size_t m_LastId;
 	std::atomic_size_t m_NextRequestId;
 
 	std::atomic_size_t m_NumReadersWaiting;
+};
+
+struct DataFrame
+{
+	size_t m_Id;
+	std::uint64_t m_TimeStamp;
+
+	DataType m_DataType;
+	size_t m_Dimensions[4];
+
+	char *m_Data;
 };
 
 enum BufferHandlingMode
@@ -97,7 +104,7 @@ public:
 	static std::shared_ptr<DataStream> Create(std::string name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
 	static std::shared_ptr<DataStream> Open(std::string name);
 
-	DataFrame *RequestNewFrame();
+	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
 
 	size_t *GetDimensions();
@@ -107,9 +114,8 @@ public:
 	size_t GetNumElementsPerFrame();
 	size_t GetNumDimensions();
 
-	DataFrame *GetFrame(size_t id, bool wait=true);
-	DataFrame *GetNextFrame();
-	DataFrame *GetLastAvailableFrame();
+	DataFrame GetFrame(size_t id, bool wait=true);
+	DataFrame GetNextFrame(bool wait=true);
 
 	bool IsFrameAvailable(size_t id);
 	bool WillFrameBeAvailable(size_t id);
@@ -122,7 +128,7 @@ private:
 	HANDLE m_FrameWritten;
 
 	DataStreamHeader *m_Header;
-	char *m_RawData;
+	char *m_Buffer;
 
 	size_t m_NextFrameIdToRead;
 	BufferHandlingMode m_BufferHandlingMode;

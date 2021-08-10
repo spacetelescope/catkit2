@@ -107,7 +107,7 @@ size_t GetSizeOfDataType(DataType type)
 
 DataStream::DataStream(HANDLE file_mapping, HANDLE frame_written)
 	: m_FileMapping(file_mapping), m_FrameWritten(frame_written),
-	m_Header(nullptr), m_RawData(nullptr),
+	m_Header(nullptr), m_Buffer(nullptr),
 	m_NextFrameIdToRead(0),
 	m_BufferHandlingMode(BM_NEWEST_ONLY)
 {
@@ -120,7 +120,7 @@ DataStream::DataStream(HANDLE file_mapping, HANDLE frame_written)
 	}
 
 	m_Header = (DataStreamHeader *) buffer;
-	m_RawData = ((char *)buffer) + sizeof(DataStreamHeader);
+	m_Buffer = ((char *)buffer) + sizeof(DataStreamHeader);
 }
 
 DataStream::~DataStream()
@@ -197,7 +197,7 @@ std::shared_ptr<DataStream> DataStream::Open(std::string name)
 	return data_stream;
 }
 
-DataFrame *DataStream::RequestNewFrame()
+DataFrame DataStream::RequestNewFrame()
 {
 	// If the frame buffer is full: make oldest frame unavailable.
 	if ((m_Header->m_LastId - m_Header->m_FirstId) == m_Header->m_NumFramesInBuffer)
@@ -205,22 +205,35 @@ DataFrame *DataStream::RequestNewFrame()
 
 	size_t new_frame_id = m_Header->m_NextRequestId++;
 
-	// Get right frame and clean it
-	DataFrame *frame = m_Header->m_Frames + (new_frame_id % m_Header->m_NumFramesInBuffer);
-	frame->m_Id = new_frame_id;
-	frame->m_Offset = (new_frame_id % m_Header->m_NumFramesInBuffer) * m_Header->m_NumBytesPerFrame;
+	size_t offset = (new_frame_id % m_Header->m_NumFramesInBuffer) * m_Header->m_NumBytesPerFrame;
+
+	// Build a DataFrame and return it.
+	DataFrame frame;
+	frame.m_Id = new_frame_id;
+	frame.m_TimeStamp = 0;
+	frame.m_DataType = m_Header->m_DataType;
+	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
+	frame.m_Data = m_Buffer + offset;
 
 	return frame;
 }
 
 void DataStream::SubmitFrame(size_t id)
 {
-	// Add timing information to frame.
-	DataFrame *frame = m_Header->m_Frames + (id % m_Header->m_NumFramesInBuffer);
-	frame->m_TimeStamp = GetTimeStamp();
+	// Save timing information to frame metadata.
+	DataFrameMetadata *meta = m_Header->m_FrameMetadata + (id % m_Header->m_NumFramesInBuffer);
+	meta->m_TimeStamp = GetTimeStamp();
 
-	// Make frame available.
-	m_Header->m_LastId++;
+	// Make frame available:
+	// Use a do-while loop to ensure we are never decrementing the last id.
+	size_t last_id;
+	do
+	{
+		last_id = m_Header->m_LastId;
+
+		if (last_id > id + 1)
+			break;
+	} while (m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
 
 	// Notify waiting processes.
 	size_t num_readers_waiting = m_Header->m_NumReadersWaiting.exchange(0);
@@ -257,15 +270,18 @@ size_t DataStream::GetNumDimensions()
 	return num_dimensions;
 }
 
-DataFrame *DataStream::GetFrame(size_t id, bool wait)
+DataFrame DataStream::GetFrame(size_t id, bool wait)
 {
+	DataFrame frame;
+	frame.m_Id = 0;
+
 	if (!IsFrameAvailable(id))
 	{
 		if (!WillFrameBeAvailable(id))
-			return nullptr;
+			return frame;
 
 		if (!wait)
-			return nullptr;
+			return frame;
 
 		while (m_Header->m_LastId <= id)
 		{
@@ -274,7 +290,16 @@ DataFrame *DataStream::GetFrame(size_t id, bool wait)
 		}
 	}
 
-	return m_Header->m_Frames + id % m_Header->m_NumFramesInBuffer;
+	size_t offset = (id % m_Header->m_NumFramesInBuffer) * m_Header->m_NumBytesPerFrame;
+
+	// Build a DataFrame and return it.
+	frame.m_Id = id;
+	frame.m_TimeStamp = m_Header->m_FrameMetadata[id % m_Header->m_NumFramesInBuffer].m_TimeStamp;
+	frame.m_DataType = m_Header->m_DataType;
+	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
+	frame.m_Data = m_Buffer + offset;
+
+	return frame;
 }
 
 bool DataStream::IsFrameAvailable(size_t id)

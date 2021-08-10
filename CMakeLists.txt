@@ -8,9 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED on)
 add_subdirectory(lib/data_streams_core)
 add_subdirectory(lib/pybind11)
 
-set(SOURCE_DIR "catkit2")
+set(SOURCEDIR "catkit2")
 
-set(SOURCES "${SOURCE_DIR}/data_streams_core_bindings.cpp")
+set(SOURCES "${SOURCEDIR}/data_streams_core_bindings.cpp")
 
 pybind11_add_module(data_streams ${SOURCES})
 

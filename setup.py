@@ -81,7 +81,7 @@ setup(
     classifiers=[
         "Programming Language :: Python :: 3"
     ],
-    ext_modules=[CMakeExtension('catkit2/data_streams_core')],
+    ext_modules=[CMakeExtension('data_streams_core')],
     python_requires='>=3.6',
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
