@@ -5,5 +5,4 @@ ds = DataStream.open('abcd')
 while True:
     f = ds.get_next_frame()
     if f.id % 1000 == 0:
-        print(f.id)
-        print('data', f.data[0,0], f.data.shape)
+        print(f.id, convert_timestamp_to_string(f.timestamp), f.data.shape)

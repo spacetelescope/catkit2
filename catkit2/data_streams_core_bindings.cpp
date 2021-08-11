@@ -132,6 +132,7 @@ PYBIND11_MODULE(data_streams, m)
 		.def_property_readonly("oldest_available_frame_id", &DataStream::GetOldestAvailableFrameId);
 
 	m.def("get_timestamp", &GetTimeStamp);
+	m.def("convert_timestamp_to_string", &ConvertTimestampToString);
 
 	m.def("get_dataframe", []()
 		{
