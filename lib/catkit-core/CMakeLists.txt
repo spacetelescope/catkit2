@@ -10,7 +10,8 @@ add_library(catkit-core STATIC
     TimeStamp.cpp
     Log.cpp
     LogConsole.cpp
-    LogFile.cpp)
+    LogFile.cpp
+    Serialization.cpp)
 
 target_include_directories(catkit-core PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
@@ -28,3 +29,7 @@ target_include_directories(catkit-core PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../../ex
 # Link Eigen
 set(EIGEN_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../../extern/eigen-3.3.9)
 target_include_directories(catkit-core PUBLIC ${EIGEN_INCLUDE_DIR})
+
+# Link nlohmann JSON
+set (JSON_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../../extern/json-3.9.1/include)
+target_include_directories(catkit-core PUBLIC ${JSON_INCLUDE_DIR})
