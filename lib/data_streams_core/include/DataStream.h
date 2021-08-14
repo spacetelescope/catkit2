@@ -72,7 +72,7 @@ struct DataStreamHeader
 	std::atomic_size_t m_LastId;
 	std::atomic_size_t m_NextRequestId;
 
-	std::atomic_size_t m_NumReadersWaiting;
+	std::atomic_long m_NumReadersWaiting;
 };
 
 struct DataFrame
@@ -119,8 +119,8 @@ public:
 	std::uint64_t GetTimeCreated();
 	unsigned long GetCreatorPID();
 
-	DataFrame GetFrame(size_t id, bool wait=true, unsigned long wait_time_in_ms=INFINITE);
-	DataFrame GetNextFrame(bool wait=true, unsigned long wait_time_in_ms=INFINITE);
+	DataFrame GetFrame(size_t id, bool wait=true, unsigned long wait_time_in_ms=INFINITE, void (*error_check)()=nullptr);
+	DataFrame GetNextFrame(bool wait=true, unsigned long wait_time_in_ms=INFINITE, void (*error_check)()=nullptr);
 
 	bool IsFrameAvailable(size_t id);
 	bool WillFrameBeAvailable(size_t id);

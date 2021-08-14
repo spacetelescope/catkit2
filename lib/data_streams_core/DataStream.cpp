@@ -238,7 +238,7 @@ void DataStream::SubmitFrame(size_t id)
 	} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
 
 	// Notify waiting processes.
-	size_t num_readers_waiting = m_Header->m_NumReadersWaiting.exchange(0);
+	long num_readers_waiting = m_Header->m_NumReadersWaiting.exchange(0);
 
 	if (num_readers_waiting > 0)
 		ReleaseSemaphore(m_FrameWritten, (LONG) num_readers_waiting, NULL);
@@ -294,7 +294,7 @@ unsigned long DataStream::GetCreatorPID()
 	return m_Header->m_CreatorPID;
 }
 
-DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_ms)
+DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_ms, void (*error_check)())
 {
 	DataFrame frame;
 	frame.m_Id = 0;
@@ -307,27 +307,34 @@ DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_
 		if (!wait)
 			throw std::runtime_error("Frame is not available yet.");
 
-		m_Header->m_NumReadersWaiting++;
-		auto res = WaitForSingleObject(m_FrameWritten, wait_time_in_ms);
+		TimeDelta timer;
+		DWORD res = WAIT_OBJECT_0;
 
-		if (res == WAIT_TIMEOUT)
+		while (m_Header->m_LastId <= id)
 		{
-			throw std::runtime_error("Waiting time has expired.");
-		}
-		else if (m_Header->m_LastId <= id)
-		{
-			// Start a timer and keep looping.
-			// We can afford to take more time here, since we are for sure waiting
-			// on multiple frames now.
-			TimeDelta timer;
-
-			while (m_Header->m_LastId <= id)
-			{
+			if (res == WAIT_OBJECT_0)
 				m_Header->m_NumReadersWaiting++;
-				auto res = WaitForSingleObject(m_FrameWritten, wait_time_in_ms);
 
-				if (res == WAIT_TIMEOUT && timer.GetTimeDelta() > (wait_time_in_ms * 0.001))
-					throw std::runtime_error("Waiting time has expired.");
+			// Wait for a maximum of 20ms to perform periodic error checking.
+			auto res = WaitForSingleObject(m_FrameWritten, min(20, wait_time_in_ms));
+
+			if (res == WAIT_TIMEOUT && timer.GetTimeDelta() > (wait_time_in_ms * 0.001))
+			{
+				m_Header->m_NumReadersWaiting--;
+				throw std::runtime_error("Waiting time has expired.");
+			}
+
+			if (error_check != nullptr)
+			{
+				try
+				{
+					error_check();
+				}
+				catch (...)
+				{
+					m_Header->m_NumReadersWaiting--;
+					throw;
+				}
 			}
 		}
 	}
@@ -344,7 +351,7 @@ DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_
 	return frame;
 }
 
-DataFrame DataStream::GetNextFrame(bool wait, unsigned long wait_time_in_ms)
+DataFrame DataStream::GetNextFrame(bool wait, unsigned long wait_time_in_ms, void (*error_check)())
 {
 	size_t frame_id;
 
@@ -367,7 +374,7 @@ DataFrame DataStream::GetNextFrame(bool wait, unsigned long wait_time_in_ms)
 		break;
 	}
 
-	auto frame = GetFrame(frame_id, wait, wait_time_in_ms);
+	auto frame = GetFrame(frame_id, wait, wait_time_in_ms, error_check);
 
 	m_NextFrameIdToRead = frame_id + 1;
 	return frame;

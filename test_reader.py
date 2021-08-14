@@ -2,7 +2,11 @@ from catkit2.data_streams import *
 
 ds = DataStream.open('abcd')
 
+k = 0
+
 while True:
     f = ds.get_next_frame()
-    if f.id % 1000 == 0:
-        print(f.id, convert_timestamp_to_string(f.timestamp), f.data.shape)
+    if k % 100 == 0:
+        print(f.id, convert_timestamp_to_string(f.timestamp), f.data[0,0])
+
+    k += 1
