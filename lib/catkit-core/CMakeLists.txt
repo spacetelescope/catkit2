@@ -11,7 +11,8 @@ add_library(catkit-core STATIC
     Log.cpp
     LogConsole.cpp
     LogFile.cpp
-    Serialization.cpp)
+    Serialization.cpp
+    HostName.cpp)
 
 target_include_directories(catkit-core PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
