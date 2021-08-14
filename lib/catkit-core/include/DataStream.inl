@@ -1,4 +1,4 @@
-//#include "Log.h"
+#include "Log.h"
 
 template<typename T>
 constexpr DataType GetDataType()
@@ -120,4 +120,89 @@ template<>
 constexpr const char *GetDataTypeAsString<std::complex<double>>()
 {
     return "complex128";
+}
+
+template<typename EigenType>
+void DataFrame::CopyInto(EigenType &out)
+{
+	using T = typename EigenType::Scalar;
+
+	switch (m_DataType)
+	{
+		case DataType::DT_UINT8:
+			out = AsArray<std::uint8_t, T>();
+			break;
+		case DataType::DT_UINT16:
+			out = AsArray<std::uint16_t, T>();
+			break;
+		case DataType::DT_UINT32:
+			out = AsArray<std::uint32_t, T>();
+			break;
+		case DataType::DT_UINT64:
+			out = AsArray<std::uint64_t, T>();
+			break;
+		case DataType::DT_INT8:
+			out = AsArray<std::int8_t, T>();
+			break;
+		case DataType::DT_INT16:
+			out = AsArray<std::int16_t, T>();
+			break;
+		case DataType::DT_INT32:
+			out = AsArray<std::int32_t, T>();
+			break;
+		case DataType::DT_INT64:
+			out = AsArray<std::int64_t, T>();
+			break;
+		case DataType::DT_FLOAT32:
+			out = AsArray<float, T>();
+			break;
+		case DataType::DT_FLOAT64:
+			out = AsArray<double, T>();
+			break;
+		case DataType::DT_FLOAT128:
+			out = AsArray<long double, T>();
+			break;
+		case DataType::DT_COMPLEX64:
+			out = AsArray<std::complex<float>, T>();
+			break;
+		case DataType::DT_COMPLEX128:
+			out = AsArray<std::complex<double>, T>();
+			break;
+		default:
+			throw std::runtime_error("Type of data frame unknown.");
+	}
+}
+
+template<typename T>
+Eigen::Map<Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>> DataFrame::AsArray()
+{
+	return AsArray<T,T>();
+}
+
+template<typename T_src, typename T_dest, typename std::enable_if<std::is_same<T_src, T_dest>::value, void>::type *dummy>
+auto DataFrame::AsArray()
+{
+	size_t d1 = m_Dimensions[0];
+	size_t d2 = m_Dimensions[1];
+
+	return Eigen::Map<Eigen::Array<T_src, Eigen::Dynamic, Eigen::Dynamic>>((T_src *) m_Data, d1, d2);
+}
+
+template<typename T_src, typename T_dest, typename std::enable_if<!std::is_same<T_src, T_dest>::value && is_complex<T_src>::value && !is_complex<T_dest>::value, void>::type *dummy>
+auto DataFrame::AsArray()
+{
+	size_t d1 = m_Dimensions[0];
+	size_t d2 = m_Dimensions[1];
+
+	LOG_WARNING("Discarding imaginary values in conversion to non-complex type.");
+	return Eigen::Map<Eigen::Array<T_src, Eigen::Dynamic, Eigen::Dynamic>>((T_src *) m_Dimensions, d1, d2).real().template cast<T_dest>();
+}
+
+template<typename T_src, typename T_dest, typename std::enable_if<!std::is_same<T_src, T_dest>::value && (!is_complex<T_src>::value || is_complex<T_dest>::value), void>::type *dummy>
+auto DataFrame::AsArray()
+{
+	size_t d1 = m_Dimensions[0];
+	size_t d2 = m_Dimensions[1];
+
+	return Eigen::Map<Eigen::Array<T_src, Eigen::Dynamic, Eigen::Dynamic>>((T_src *) m_Dimensions, d1, d2).template cast<T_dest>();
 }

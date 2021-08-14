@@ -1,6 +1,7 @@
 #ifndef DATASTREAM_H
 #define DATASTREAM_H
 
+#include <Eigen/Dense>
 #include <functional>
 #include <map>
 #include <memory>
@@ -84,6 +85,28 @@ struct DataFrame
 	size_t m_Dimensions[4];
 
 	char *m_Data;
+
+	// Convenience functions.
+	size_t GetNumElements();
+	size_t GetSizeInBytes();
+
+	size_t GetNumDimensions();
+
+	// Accessors for Eigen mapped arrays.
+	template<typename EigenType>
+	void CopyInto(EigenType &out);
+
+	template<typename T>
+	Eigen::Map<Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>> AsArray();
+
+	template<typename T_src, typename T_dest, typename std::enable_if<std::is_same<T_src, T_dest>::value, void>::type *dummy = nullptr>
+	auto AsArray();
+
+	template<typename T_src, typename T_dest, typename std::enable_if<!std::is_same<T_src, T_dest>::value && is_complex<T_src>::value && !is_complex<T_dest>::value, void>::type *dummy = nullptr>
+	auto AsArray();
+
+	template<typename T_src, typename T_dest, typename std::enable_if<!std::is_same<T_src, T_dest>::value && (!is_complex<T_src>::value || is_complex<T_dest>::value),void>::type *dummy = nullptr>
+	auto AsArray();
 };
 
 enum BufferHandlingMode

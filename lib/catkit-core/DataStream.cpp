@@ -101,6 +101,26 @@ size_t GetSizeOfDataType(DataType type)
 	}
 }
 
+size_t DataFrame::GetNumElements()
+{
+	return m_Dimensions[0] * m_Dimensions[1] * m_Dimensions[2] * m_Dimensions[3];
+}
+
+size_t DataFrame::GetSizeInBytes()
+{
+	return GetNumElements() * GetSizeOfDataType(m_DataType);
+}
+
+size_t DataFrame::GetNumDimensions()
+{
+	size_t num_dimensions = 4;
+
+	while (m_Dimensions[num_dimensions - 1] == 1 && num_dimensions > 1)
+		num_dimensions--;
+
+	return num_dimensions;
+}
+
 DataStream::DataStream(HANDLE file_mapping, HANDLE frame_written)
 	: m_FileMapping(file_mapping), m_FrameWritten(frame_written),
 	m_Header(nullptr), m_Buffer(nullptr),

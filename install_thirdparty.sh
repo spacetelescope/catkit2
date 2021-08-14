@@ -20,5 +20,10 @@ rm -f v4.7.1.tar.gz
 # Install pybind11
 git clone https://github.com/pybind/pybind11
 
+# Install Eigen
+curl -L https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.tar.gz -O
+tar xfs eigen-3.3.9.tar.gz
+rm -f eigen-3.3.9.tar.gz
+
 # Revert to original directory
 cd ..

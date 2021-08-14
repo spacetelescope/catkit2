@@ -24,3 +24,7 @@ target_link_libraries(catkit-core PUBLIC ${ZeroMQ_LIBRARY})
 
 # Add includes for cppzmq
 target_include_directories(catkit-core PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../../extern/cppzmq-4.7.1)
+
+# Link Eigen
+set(EIGEN_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../../extern/eigen-3.3.9)
+target_include_directories(catkit-core PUBLIC ${EIGEN_INCLUDE_DIR})
