@@ -1,4 +1,4 @@
-from catkit2.data_streams import *
+from catkit2.core import *
 import time
 import numpy as np
 
