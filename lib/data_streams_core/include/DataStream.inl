@@ -44,8 +44,6 @@ constexpr DataType GetDataType()
             return DataType::DT_FLOAT32;
         if (sizeof(T) == 8)
             return DataType::DT_FLOAT64;
-        if (sizeof(T) == 16)
-            return DataType::DT_FLOAT128;
     }
 
     return DataType::DT_UNKNOWN;
@@ -107,8 +105,6 @@ constexpr const char *GetDataTypeAsString()
             return "float32";
         if (sizeof(T) == 8)
             return "float64";
-        if (sizeof(T) == 16)
-            return "float128";
     }
 
     return "unknown";
