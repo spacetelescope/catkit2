@@ -2,6 +2,7 @@
 #define COMMAND_H
 
 #include <functional>
+#include <string>
 
 #include "Serialization.h"
 
@@ -9,12 +10,16 @@ class Command
 {
 public:
 	typedef std::function<void(const SerializedMessage &arguments, SerializedMessage &result)> CommandFunction;
-	
-	Command(CommandFunction command);
+
+	Command(std::string name, CommandFunction command);
 
 	void Execute(const SerializedMessage &arguments, SerializedMessage &result);
 
+	std::string GetName();
+
 protected:
+	std::string m_Name;
+
 	CommandFunction m_CommandFunction;
 };
 
