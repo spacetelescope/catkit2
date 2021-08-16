@@ -1,0 +1,400 @@
+#include "Module.h"
+
+#include "Log.h"
+
+#include <csignal>
+#include <algorithm>
+#include <string>
+#include <locale>
+#include <stdexcept>
+#include <cstring>
+#include <utility>
+#include <memory>
+#include <map>
+#include <array>
+
+using namespace zmq;
+using json = nlohmann::json;
+using namespace std::literals::string_literals;
+
+static sig_atomic_t interrupt_signal = 0;
+static void SignalHandler(int signal_value)
+{
+	interrupt_signal = 1;
+}
+
+Module::Module(std::string name, int port)
+	: m_Name(name), m_Port(port), m_IsRunning(false),
+	m_Context(nullptr), m_Shell(nullptr), m_Broadcast(nullptr)
+{
+	LOG_INFO("Starting module '"s + name + "' on port "s  + std::to_string(port) + ".");
+
+	// Start monitoring thread.
+	m_MonitoringThread = std::thread(&Module::Run, this);
+
+	// Catching Ctrl+C and similar process killers and shut down gracefully.
+	signal(SIGINT, SignalHandler);
+	signal(SIGTERM, SignalHandler);
+
+	// Set up SerializedMessage handlers.
+	m_MessageHandlers["execute_command_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleExecuteCommandRequest(request, reply);};
+
+	m_MessageHandlers["get_property_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleGetPropertyRequest(request, reply);};
+	m_MessageHandlers["set_property_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleSetPropertyRequest(request, reply);};
+
+	m_MessageHandlers["list_all_properties_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleListAllPropertiesRequest(request, reply);};
+	m_MessageHandlers["list_all_commands_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleListAllCommandsRequest(request, reply);};
+	m_MessageHandlers["list_all_data_streams_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleListAllDataStreamsRequest(request, reply);};
+
+	LOG_INFO("Module '"s + name + "' has started.");
+}
+
+Module::~Module()
+{
+	LOG_INFO("Module '"s + m_Name + "' is being destroyed.");
+
+	ShutDown();
+	m_MonitoringThread.join();
+
+	LOG_INFO("Module '"s + m_Name + "' has shut down.");
+}
+
+void Module::Run()
+{
+	m_Context = new context_t(1);
+	m_Shell = new socket_t(*m_Context, ZMQ_REP);
+	m_Broadcast = new socket_t(*m_Context, ZMQ_PUB);
+
+	m_Shell->bind("tcp://*:"s + std::to_string(m_Port));
+	m_Broadcast->bind("tcp://*:"s + std::to_string(m_Port + 1));
+
+	m_IsRunning = true;
+
+	while (m_IsRunning && !interrupt_signal)
+	{
+		message_t request;
+		message_t request_binary;
+		SerializedMessage module_message;
+
+		try
+		{
+			// TODO: check return value.
+			auto res = m_Shell->recv(request);
+
+			std::string json_string((const char *) request.data(), request.size());
+
+			// Check if binary data was included.
+			if (request.more())
+			{
+				// Receive binary data blob.
+				// TODO: check return value.
+				res = m_Shell->recv(request_binary);
+			}
+			else
+			{
+				// Message did not include binary data.
+				module_message.binary_data.clear();
+			}
+
+			// Discard further message parts.
+			while (request.more())
+			{
+				// TODO: check return value.
+				res = m_Shell->recv(request_binary);
+			}
+
+			LOG_DEBUG("Message received.");
+			LOG_DEBUG("JSON length: "s + std::to_string(json_string.size()));
+			LOG_DEBUG("Binary length: "s + std::to_string(module_message.binary_data.size()));
+
+			json message;
+			try
+			{
+				message = json::parse(json_string);
+			}
+			catch (...)
+			{
+				LOG_ERROR("Malformed JSON. Discarding.");
+
+				SerializedMessage reply;
+				reply.data["status"] = "error";
+				reply.data["status_description"] = "Malformed JSON.";
+
+				SendReplyMessage("module_error", reply);
+				continue;
+			}
+
+			LOG_DEBUG("Json decoded.");
+
+			// Parse message type
+			if (!message.count("message_type"))
+			{
+				LOG_ERROR("Module messages are required to contain a type. Discarding message.");
+
+				SerializedMessage reply;
+				reply.data["status"] = "error";
+				reply.data["status_description"] = "Message doesn't contain a message_type.";
+
+				SendReplyMessage("module_error", reply);
+				continue;
+			}
+
+			LOG_DEBUG("Message parsed.");
+
+			std::string message_type = message["message_type"].get<std::string>();
+
+			if (!message.count("message_data"))
+			{
+				module_message.data = json::object();
+			}
+			else
+			{
+				module_message.data = message["message_data"];
+			}
+
+			LOG_DEBUG("Message_type = " + message_type);
+
+			// Handle message according to message_type.
+			if (m_MessageHandlers.find(message_type) != m_MessageHandlers.end())
+			{
+				SerializedMessage reply;
+				try
+				{
+					m_MessageHandlers[message_type](module_message, reply);
+
+					reply.data["status"] = "ok";
+					SendReplyMessage(message_type.substr(0,message_type.size() - 7) + "reply", reply);
+				}
+				catch (SerializationError &e)
+				{
+					reply.data["status"] = "error";
+					reply.data["status_description"] = e.what();
+					SendReplyMessage(message_type.substr(0,message_type.size() - 7) + "reply", reply);
+				}
+			}
+			else
+			{
+				LOG_ERROR("Type of message (\""s + message_type + "\" not recognized. Discarding message.");
+
+				SerializedMessage reply;
+				reply.data["status"] = "error";
+				reply.data["status_description"] = "Type of message (\""s + message_type + "\" not recognized.";
+
+				SendReplyMessage("module_error", reply);
+				continue;
+			}
+		}
+		catch (zmq::error_t)
+		{
+			if (!interrupt_signal)
+				LOG_ERROR("Error while receiving message.");
+		}
+
+		LOG_DEBUG("Message handled.");
+	}
+
+	if (interrupt_signal)
+		LOG_INFO("Module interrupted by user. Shutting down.");
+	else
+		LOG_INFO("Module shut down by user.");
+
+	m_IsRunning = false;
+}
+
+Property *Module::GetProperty(const std::string &property_name)
+{
+	auto i = m_Properties.find(property_name);
+
+	if (i != m_Properties.end())
+		return i->second;
+	else
+		return nullptr;
+}
+
+Command *Module::GetCommand(const std::string &command_name)
+{
+	auto i = m_Commands.find(command_name);
+
+	if (i != m_Commands.end())
+		return i->second;
+	else
+		return nullptr;
+}
+
+DataStream *Module::GetDataStream(const std::string &stream_name)
+{
+	auto i = m_DataStreams.find(stream_name);
+
+	if (i != m_DataStreams.end())
+		return i->second;
+	else
+		return nullptr;
+}
+
+void Module::HandleExecuteCommandRequest(const SerializedMessage &request, SerializedMessage &reply)
+{
+	if (!request.data.count("command_name"))
+		throw SerializationError("Request must contain a command_name.");
+
+	std::string command_name = request.data["command_name"];
+	auto command = GetCommand(command_name);
+
+	if (!command)
+		throw SerializationError("Command \'"s + command_name + "\' does not exist.");
+
+	SerializedMessage arguments;
+	arguments.data = request.data["arguments"];
+	arguments.binary_data = std::move(request.binary_data);
+
+	command->Execute(arguments, reply);
+
+	// Broadcast executed command
+	SerializedMessage broadcast;
+	broadcast.data["command_name"] = command_name;
+
+	SendBroadcastMessage("execute_command_broadcast", broadcast);
+}
+
+void Module::HandleGetPropertyRequest(const SerializedMessage &request, SerializedMessage &reply)
+{
+	if (!request.data.count("property_name"))
+		throw SerializationError("Request must contain a property_name.");
+
+	std::string property_name = request.data["property_name"];
+	auto property = GetProperty(property_name);
+
+	if (!property)
+		throw SerializationError("Property \'"s + property_name + "\' does not exist.");
+
+	SerializedMessage value;
+	property->Get(value);
+
+	reply.binary_data = std::move(value.binary_data);
+	reply.data["value"] = value.data;
+}
+
+void Module::HandleSetPropertyRequest(const SerializedMessage &request, SerializedMessage &reply)
+{
+	if (!request.data.count("property_name"))
+		throw SerializationError("Request must contain a property_name.");
+
+	std::string property_name = request.data["property_name"];
+	auto property = GetProperty(property_name);
+
+	if (!property)
+		throw SerializationError("Property \'"s + property_name + "\' does not exist.");
+
+	SerializedMessage value;
+	value.data = request.data["value"];
+	value.binary_data = std::move(request.binary_data);
+
+	property->Set(value);
+
+	// Broadcast changed property
+	SerializedMessage broadcast;
+	broadcast.data["property_name"] = property_name;
+
+	SendBroadcastMessage("set_property_broadcast", broadcast);
+}
+
+void Module::HandleListAllPropertiesRequest(const SerializedMessage &request, SerializedMessage &reply)
+{
+	std::vector<std::string> properties;
+	for (auto const &i : m_Properties)
+		properties.push_back(i.first);
+
+	reply.data["value"] = properties;
+}
+
+void Module::HandleListAllCommandsRequest(const SerializedMessage &request, SerializedMessage &reply)
+{
+	std::vector<std::string> commands;
+	for (auto const &i : m_Commands)
+		commands.push_back(i.first);
+
+	reply.data["value"] = commands;
+}
+
+void Module::HandleListAllDataStreamsRequest(const SerializedMessage &request, SerializedMessage &reply)
+{
+	std::vector<std::string> data_streams;
+	for (auto const &i : m_DataStreams)
+		data_streams.push_back(i.first);
+
+	reply.data["value"] = data_streams;
+}
+
+void Module::SendReplyMessage(const std::string &type, const SerializedMessage &message)
+{
+	// Serialize reply message.
+	json reply_message;
+
+	reply_message["message_type"] = type;
+	reply_message["message_data"] = message.data;
+
+	std::string json_message = reply_message.dump();
+
+	// Construct and send message
+	message_t message_zmq(json_message.size());
+	char *message_zmq_data = (char *) message_zmq.data();
+	memcpy((char *) message_zmq.data(), json_message.data(), json_message.size());
+
+	if (message.binary_data.empty())
+	{
+		if (m_Shell)
+			m_Shell->send(message_zmq, send_flags::none);
+	}
+	else
+	{
+		if (m_Shell)
+			m_Shell->send(message_zmq, send_flags::sndmore);
+
+		message_t binary_zmq(message.binary_data.size());
+		memcpy((char *) binary_zmq.data(), message.binary_data.data(), message.binary_data.size());
+
+		if (m_Shell)
+			m_Shell->send(binary_zmq, send_flags::none);
+	}
+}
+
+void Module::SendBroadcastMessage(const std::string &type, const SerializedMessage &message)
+{
+	// Serialize broadcast message
+	json broadcast_message;
+
+	broadcast_message["message_type"] = type;
+	broadcast_message["message_data"] = message.data;
+
+	std::string json_message = broadcast_message.dump();
+
+	// Construct and send message
+	message_t message_zmq(json_message.size());
+	memcpy(message_zmq.data(), json_message.c_str(), json_message.size());
+
+	if (m_Broadcast)
+		m_Broadcast->send(message_zmq, send_flags::none);
+}
+
+void Module::RegisterProperty(Property *property)
+{
+	auto property_name = property->GetName();
+	m_Properties[property_name] = property;
+
+	LOG_DEBUG("Property \'"s + property_name + "\' registered.");
+}
+
+void Module::RegisterCommand(Command *command)
+{
+	auto command_name = command->GetName();
+	m_Commands[command_name] = command;
+
+	LOG_DEBUG("Command \'"s + command_name + "\' registered.");
+}
+
+void Module::RegisterDataStream(DataStream *stream)
+{
+	auto stream_name = stream->GetName();
+	m_DataStreams[stream_name] = stream;
+
+	LOG_DEBUG("DataStream \'"s + stream_name + "\' registered.");
+}

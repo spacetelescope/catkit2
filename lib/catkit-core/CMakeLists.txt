@@ -14,13 +14,14 @@ add_library(catkit-core STATIC
     Serialization.cpp
     HostName.cpp
     Command.cpp
-    Property.cpp)
+    Property.cpp
+    Module.cpp)
 
 target_include_directories(catkit-core PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
 # Use local version of ZeroMQ
 set(ZeroMQ_LIBRARY ${CMAKE_CURRENT_LIST_DIR}/../../extern/zeromq-4.2.1/build/lib/Release/libzmq-v142-mt-4_2_1.lib)
-set(ZeroMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../../extern/zeromq-4.2.1/build/include)
+set(ZeroMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../../extern/zeromq-4.2.1/include)
 
 # Link ZeroMQ
 target_include_directories(catkit-core PUBLIC ${ZeroMQ_INCLUDE_DIR})
