@@ -7,7 +7,7 @@ Eigen::Array<typename std::enable_if<is_complex<T>::value, T>::type, Eigen::Dyna
 {
 	if (!ContainsArrayValue())
 		throw SerializationError("The message does not contain an array.");
-	
+
 	auto dimensions = data["dimensions"];
 	std::string data_type = data["data_type"];
 
@@ -33,8 +33,6 @@ Eigen::Array<typename std::enable_if<is_complex<T>::value, T>::type, Eigen::Dyna
 			return Eigen::Map<Eigen::Array<float, Eigen::Dynamic, Eigen::Dynamic>>((float *) binary_data.data(), dimensions[0].get<size_t>(), 1).cast<T>();
 		else if (data_type == "float64")
 			return Eigen::Map<Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>>((double *) binary_data.data(), dimensions[0].get<size_t>(), 1).cast<T>();
-		else if (data_type == "float128")
-			return Eigen::Map<Eigen::Array<long double, Eigen::Dynamic, Eigen::Dynamic>>((long double *) binary_data.data(), dimensions[0].get<size_t>(), 1).cast<T>();
 		else if (data_type == "complex64")
 			return Eigen::Map<Eigen::Array<std::complex<float>, Eigen::Dynamic, Eigen::Dynamic>>((std::complex<float> *) binary_data.data(), dimensions[0].get<size_t>(), 1).cast<T>();
 		else if (data_type == "complex128")
@@ -62,8 +60,6 @@ Eigen::Array<typename std::enable_if<is_complex<T>::value, T>::type, Eigen::Dyna
 			return Eigen::Map<Eigen::Array<float, Eigen::Dynamic, Eigen::Dynamic>>((float *) binary_data.data(), dimensions[0].get<size_t>(), dimensions[1].get<size_t>()).cast<T>();
 		else if (data_type == "float64")
 			return Eigen::Map<Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>>((double *) binary_data.data(), dimensions[0].get<size_t>(), dimensions[1].get<size_t>()).cast<T>();
-		else if (data_type == "float128")
-			return Eigen::Map<Eigen::Array<long double, Eigen::Dynamic, Eigen::Dynamic>>((long double *) binary_data.data(), dimensions[0].get<size_t>(), dimensions[1].get<size_t>()).cast<T>();
 		else if (data_type == "complex64")
 			return Eigen::Map<Eigen::Array<std::complex<float>, Eigen::Dynamic, Eigen::Dynamic>>((std::complex<float> *) binary_data.data(), dimensions[0].get<size_t>(), dimensions[1].get<size_t>()).cast<T>();
 		else if (data_type == "complex128")
@@ -76,7 +72,7 @@ Eigen::Array<typename std::enable_if<!is_complex<T>::value, T>::type, Eigen::Dyn
 {
 	if (!ContainsArrayValue())
 		throw SerializationError("The message does not contain an array.");
-	
+
 	auto dimensions = data["dimensions"];
 	std::string data_type = data["data_type"];
 
@@ -102,8 +98,6 @@ Eigen::Array<typename std::enable_if<!is_complex<T>::value, T>::type, Eigen::Dyn
 			return Eigen::Map<Eigen::Array<float, Eigen::Dynamic, Eigen::Dynamic>>((float *) binary_data.data(), dimensions[0].get<size_t>(), 1).cast<T>();
 		else if (data_type == "float64")
 			return Eigen::Map<Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>>((double *) binary_data.data(), dimensions[0].get<size_t>(), 1).cast<T>();
-		else if (data_type == "float128")
-			return Eigen::Map<Eigen::Array<long double, Eigen::Dynamic, Eigen::Dynamic>>((long double *) binary_data.data(), dimensions[0].get<size_t>(), 1).cast<T>();
 		else if (data_type == "complex64")
 			return Eigen::Map<Eigen::Array<std::complex<float>, Eigen::Dynamic, Eigen::Dynamic>>((std::complex<float> *) binary_data.data(), dimensions[0].get<size_t>(), 1).real().cast<T>();
 		else if (data_type == "complex128")
@@ -131,8 +125,6 @@ Eigen::Array<typename std::enable_if<!is_complex<T>::value, T>::type, Eigen::Dyn
 			return Eigen::Map<Eigen::Array<float, Eigen::Dynamic, Eigen::Dynamic>>((float *) binary_data.data(), dimensions[0].get<size_t>(), dimensions[1].get<size_t>()).cast<T>();
 		else if (data_type == "float64")
 			return Eigen::Map<Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>>((double *) binary_data.data(), dimensions[0].get<size_t>(), dimensions[1].get<size_t>()).cast<T>();
-		else if (data_type == "float128")
-			return Eigen::Map<Eigen::Array<long double, Eigen::Dynamic, Eigen::Dynamic>>((long double *) binary_data.data(), dimensions[0].get<size_t>(), dimensions[1].get<size_t>()).cast<T>();
 		else if (data_type == "complex64")
 			return Eigen::Map<Eigen::Array<std::complex<float>, Eigen::Dynamic, Eigen::Dynamic>>((std::complex<float> *) binary_data.data(), dimensions[0].get<size_t>(), dimensions[1].get<size_t>()).real().cast<T>();
 		else if (data_type == "complex128")
