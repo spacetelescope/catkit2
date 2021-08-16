@@ -48,29 +48,29 @@ DataType GetDataTypeFromString(const char *type)
 
 DataType GetDataTypeFromString(string type)
 {
-	if (type == "B")
+	if (type == "B" || type == "uint8")
 		return DataType::DT_UINT8;
-	if (type == "H")
+	if (type == "H" || type == "uint16")
 		return DataType::DT_UINT16;
-	if (type == "L")
+	if (type == "L" || type == "uin32")
 		return DataType::DT_UINT32;
-	if (type == "Q")
+	if (type == "Q" || type == "uint64")
 		return DataType::DT_UINT64;
-	if (type == "b")
+	if (type == "b" || type == "int8")
 		return DataType::DT_INT8;
-	if (type == "h")
+	if (type == "h" || type == "int16")
 		return DataType::DT_INT16;
-	if (type == "l")
+	if (type == "l" || type == "int32")
 		return DataType::DT_INT32;
-	if (type == "q")
+	if (type == "q" || type == "int64")
 		return DataType::DT_INT64;
-	if (type == "f")
+	if (type == "f" || type == "float32")
 		return DataType::DT_FLOAT32;
-	if (type == "d")
+	if (type == "d" || type == "float64")
 		return DataType::DT_FLOAT64;
-	if (type == "zf")
+	if (type == "zf" || type == "complex64")
 		return DataType::DT_COMPLEX64;
-	if (type == "zd")
+	if (type == "zd" || type == "complex128")
 		return DataType::DT_COMPLEX128;
 	return DataType::DT_UNKNOWN;
 }
