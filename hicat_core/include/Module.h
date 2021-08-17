@@ -22,6 +22,8 @@ public:
 
 	void Run();
 
+	std::string GetName();
+
 	virtual void MainThread();
 	virtual void ShutDown();
 

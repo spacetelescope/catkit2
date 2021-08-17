@@ -218,6 +218,11 @@ void Module::Run()
 		LOG_INFO("Module shut down by user.");
 }
 
+std::string Module::GetName()
+{
+	return m_Name;
+}
+
 void Module::MainThread()
 {
 }

@@ -4,12 +4,36 @@
 
 #include "DataStream.h"
 #include "TimeStamp.h"
-//#include "Module.h"
+#include "Module.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
 namespace py = pybind11;
+
+class TrampolineModule : public Module
+{
+public:
+	using Module::Module;
+
+	void MainThread() override
+	{
+		PYBIND11_OVERRIDE(void, Module, MainThread,);
+	}
+
+	void ShutDown() override
+	{
+		PYBIND11_OVERRIDE(void, Module, ShutDown,);
+	}
+};
+
+class PublicistModule : public Module
+{
+public:
+	using Module::RegisterProperty;
+	using Module::RegisterCommand;
+	using Module::RegisterDataStream;
+};
 
 PYBIND11_MODULE(bindings, m)
 {
@@ -100,27 +124,17 @@ PYBIND11_MODULE(bindings, m)
 		.def_property_readonly("newest_available_frame_id", &DataStream::GetNewestAvailableFrameId)
 		.def_property_readonly("oldest_available_frame_id", &DataStream::GetOldestAvailableFrameId);
 
+	py::class_<Module, TrampolineModule>(m, "Module")
+		.def(py::init<std::string, int>())
+		.def_property_readonly("name", &Module::GetName)
+		.def("main_thread", &Module::MainThread)
+		.def("shut_down", &Module::ShutDown)
+		.def("register_property", &PublicistModule::RegisterProperty)
+		.def("register_command", &PublicistModule::RegisterCommand)
+		.def("register_data_stream", &PublicistModule::RegisterDataStream);
+
 	m.def("get_timestamp", &GetTimeStamp);
 	m.def("convert_timestamp_to_string", &ConvertTimestampToString);
-
-	m.def("get_dataframe", []()
-		{
-			DataFrame frame;
-			frame.m_Id = 5;
-			frame.m_TimeStamp = GetTimeStamp();
-
-			frame.m_Dimensions[0] = frame.m_Dimensions[1] = 4;
-			frame.m_Dimensions[2] = frame.m_Dimensions[3] = 1;
-
-			frame.m_DataType = DataType::DT_UINT16;
-
-			frame.m_Data = new char[32];
-			unsigned short *data = (unsigned short *) frame.m_Data;
-			for (size_t i = 0; i < 16; ++i)
-				data[i] = (unsigned short) i;
-
-			return frame;
-		});
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
