@@ -5,6 +5,6 @@ build/
 *.pyd
 *.pyc
 __pycache__/
-CMakeFiles
+*CMakeFiles
 *CMakeCache.txt
 extern/

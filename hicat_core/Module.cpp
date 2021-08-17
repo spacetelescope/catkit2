@@ -29,9 +29,6 @@ Module::Module(std::string name, int port)
 {
 	LOG_INFO("Starting module '"s + name + "' on port "s  + std::to_string(port) + ".");
 
-	// Start monitoring thread.
-	m_MonitoringThread = std::thread(&Module::Run, this);
-
 	// Catching Ctrl+C and similar process killers and shut down gracefully.
 	signal(SIGINT, SignalHandler);
 	signal(SIGTERM, SignalHandler);
@@ -53,10 +50,15 @@ Module::~Module()
 {
 	LOG_INFO("Module '"s + m_Name + "' is being destroyed.");
 
-	ShutDown();
-	m_MonitoringThread.join();
+	if (m_IsRunning)
+	{
+		LOG_ERROR("The module is still running. This should not happen.");
 
-	LOG_INFO("Module '"s + m_Name + "' has shut down.");
+		ShutDown();
+		m_MainThread.join();
+	}
+
+	LOG_INFO("Module '"s + m_Name + "' has been destroyed.");
 }
 
 void Module::Run()
@@ -69,6 +71,9 @@ void Module::Run()
 	m_Broadcast->bind("tcp://*:"s + std::to_string(m_Port + 1));
 
 	m_IsRunning = true;
+
+	// Starting main thread
+	m_MainThread = std::thread(&Module::MainThread, this);
 
 	while (m_IsRunning && !interrupt_signal)
 	{
@@ -193,15 +198,35 @@ void Module::Run()
 		LOG_DEBUG("Message handled.");
 	}
 
+	ShutDown();
+	m_MainThread.join();
+
+	m_IsRunning = false;
+
+	delete m_Broadcast;
+	m_Broadcast = nullptr;
+
+	delete m_Shell;
+	m_Shell = nullptr;
+
+	delete m_Context;
+	m_Context = nullptr;
+
 	if (interrupt_signal)
 		LOG_INFO("Module interrupted by user. Shutting down.");
 	else
 		LOG_INFO("Module shut down by user.");
-
-	m_IsRunning = false;
 }
 
-Property *Module::GetProperty(const std::string &property_name)
+void Module::MainThread()
+{
+}
+
+void Module::ShutDown()
+{
+}
+
+std::shared_ptr<Property> Module::GetProperty(const std::string &property_name)
 {
 	auto i = m_Properties.find(property_name);
 
@@ -211,7 +236,7 @@ Property *Module::GetProperty(const std::string &property_name)
 		return nullptr;
 }
 
-Command *Module::GetCommand(const std::string &command_name)
+std::shared_ptr<Command> Module::GetCommand(const std::string &command_name)
 {
 	auto i = m_Commands.find(command_name);
 
@@ -221,7 +246,7 @@ Command *Module::GetCommand(const std::string &command_name)
 		return nullptr;
 }
 
-DataStream *Module::GetDataStream(const std::string &stream_name)
+std::shared_ptr<DataStream> Module::GetDataStream(const std::string &stream_name)
 {
 	auto i = m_DataStreams.find(stream_name);
 
@@ -324,6 +349,11 @@ void Module::HandleListAllDataStreamsRequest(const SerializedMessage &request, S
 	reply.data["value"] = data_streams;
 }
 
+void Module::HandleShutdownRequest(const SerializedMessage &request, SerializedMessage &reply)
+{
+	m_IsRunning = false;
+}
+
 void Module::SendReplyMessage(const std::string &type, const SerializedMessage &message)
 {
 	// Serialize reply message.
@@ -375,7 +405,7 @@ void Module::SendBroadcastMessage(const std::string &type, const SerializedMessa
 		m_Broadcast->send(message_zmq, send_flags::none);
 }
 
-void Module::RegisterProperty(Property *property)
+void Module::RegisterProperty(std::shared_ptr<Property> property)
 {
 	auto property_name = property->GetName();
 	m_Properties[property_name] = property;
@@ -383,7 +413,7 @@ void Module::RegisterProperty(Property *property)
 	LOG_DEBUG("Property \'"s + property_name + "\' registered.");
 }
 
-void Module::RegisterCommand(Command *command)
+void Module::RegisterCommand(std::shared_ptr<Command> command)
 {
 	auto command_name = command->GetName();
 	m_Commands[command_name] = command;
@@ -391,7 +421,7 @@ void Module::RegisterCommand(Command *command)
 	LOG_DEBUG("Command \'"s + command_name + "\' registered.");
 }
 
-void Module::RegisterDataStream(DataStream *stream)
+void Module::RegisterDataStream(std::shared_ptr<DataStream> stream)
 {
 	auto stream_name = stream->GetName();
 	m_DataStreams[stream_name] = stream;

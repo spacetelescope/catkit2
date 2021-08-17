@@ -4,13 +4,14 @@
 
 #include "DataStream.h"
 #include "TimeStamp.h"
+//#include "Module.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(data_streams, m)
+PYBIND11_MODULE(bindings, m)
 {
 	py::class_<DataFrame>(m, "DataFrame")
 		.def_property_readonly("id", [](const DataFrame &f)
@@ -57,7 +58,7 @@ PYBIND11_MODULE(data_streams, m)
 					);
 			});
 
-	py::class_<DataStream>(m, "DataStream")
+	py::class_<DataStream, std::shared_ptr<DataStream>>(m, "DataStream")
 		.def_static("create", [](std::string &name, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 		{
 			DataType dtype = GetDataTypeFromString(type);

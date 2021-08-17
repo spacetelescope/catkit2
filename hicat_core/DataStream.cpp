@@ -147,7 +147,7 @@ DataStream::~DataStream()
 	CloseHandle(m_FileMapping);
 }
 
-std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	if (dimensions.size() > 4)
 		throw std::runtime_error("Maximum dimensionality of the frames is 4.");
@@ -195,12 +195,12 @@ std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type,
 	return data_stream;
 }
 
-std::unique_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	return Create(name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
 }
 
-std::unique_ptr<DataStream> DataStream::Open(std::string &name)
+std::shared_ptr<DataStream> DataStream::Open(std::string &name)
 {
 	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name.c_str());
 	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (name + "_sem").c_str());

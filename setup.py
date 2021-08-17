@@ -34,19 +34,12 @@ class CMakeBuild(build_ext):
             self.build_extension(ext)
 
     def build_extension(self, ext):
-        extdir = os.path.abspath(
-            os.path.dirname(self.get_ext_fullpath(ext.name)))
-
-        cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable]
+        cmake_args = ['-DPYTHON_EXECUTABLE=' + sys.executable]
 
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
 
         if platform.system() == "Windows":
-            cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(
-                cfg.upper(),
-                extdir)]
             if sys.maxsize > 2**32:
                 cmake_args += ['-A', 'x64']
             build_args += ['--', '/m']
@@ -69,19 +62,19 @@ with open("README.md", "r") as f:
     long_description = f.read()
 
 setup(
-    name="CatKit2",
+    name="hicat_hardware",
     version="0.0.1",
     author="Emiel Por",
     author_email="epor@stsci.edu",
     description="A library for controlling testbed hardware",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages("catkit2"),
-    package_dir={"": "catkit2"},
+    packages=setuptools.find_packages("hicat_hardware"),
+    package_dir={"": "hicat_hardware"},
     classifiers=[
         "Programming Language :: Python :: 3"
     ],
-    ext_modules=[CMakeExtension('catkit-core')],
+    ext_modules=[CMakeExtension('hicat_hardware.bindings')],
     python_requires='>=3.6',
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,

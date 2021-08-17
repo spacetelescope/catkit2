@@ -20,19 +20,21 @@ public:
 	Module(std::string name, int port);
 	virtual ~Module();
 
-	Property *GetProperty(const std::string &property_name);
-	Command *GetCommand(const std::string &command_name);
-	DataStream *GetDataStream(const std::string &stream_name);
+	void Run();
+
+	virtual void MainThread();
+	virtual void ShutDown();
+
+	std::shared_ptr<Property> GetProperty(const std::string &property_name);
+	std::shared_ptr<Command> GetCommand(const std::string &command_name);
+	std::shared_ptr<DataStream> GetDataStream(const std::string &stream_name);
 
 protected:
-	void RegisterProperty(Property *property);
-	void RegisterCommand(Command *command);
-	void RegisterDataStream(DataStream *stream);
+	void RegisterProperty(std::shared_ptr<Property> property);
+	void RegisterCommand(std::shared_ptr<Command> command);
+	void RegisterDataStream(std::shared_ptr<DataStream> stream);
 
 private:
-	void Run();
-	void ShutDown();
-
 	void HandleExecuteCommandRequest(const SerializedMessage &request, SerializedMessage &reply);
 
 	void HandleGetPropertyRequest(const SerializedMessage &request, SerializedMessage &reply);
@@ -41,6 +43,8 @@ private:
 	void HandleListAllPropertiesRequest(const SerializedMessage &request, SerializedMessage &reply);
 	void HandleListAllCommandsRequest(const SerializedMessage &request, SerializedMessage &reply);
 	void HandleListAllDataStreamsRequest(const SerializedMessage &request, SerializedMessage &reply);
+
+	void HandleShutdownRequest(const SerializedMessage &request, SerializedMessage &reply);
 
 	void SendReplyMessage(const std::string &type, const SerializedMessage &message);
 	void SendBroadcastMessage(const std::string &type, const SerializedMessage &message);
@@ -53,14 +57,14 @@ private:
 	int m_Port;
 	bool m_IsRunning;
 
-	std::thread m_MonitoringThread;
+	std::thread m_MainThread;
 
 	typedef std::function<void(const SerializedMessage &, SerializedMessage &)> MessageHandler;
 	std::map<std::string, MessageHandler> m_MessageHandlers;
 
-	std::map<std::string, Property *> m_Properties;
-	std::map<std::string, Command *> m_Commands;
-	std::map<std::string, DataStream *> m_DataStreams;
+	std::map<std::string, std::shared_ptr<Property>> m_Properties;
+	std::map<std::string, std::shared_ptr<Command>> m_Commands;
+	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
 };
 
 #endif // MODULE_H

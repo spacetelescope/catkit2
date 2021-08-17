@@ -1,4 +1,4 @@
-from catkit2.core import *
+from hicat_hardware import *
 import time
 import numpy as np
 

@@ -8,6 +8,7 @@
 #include <atomic>
 #include <vector>
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 #include "ComplexTraits.h"
@@ -123,9 +124,9 @@ private:
 public:
 	~DataStream();
 
-	static std::unique_ptr<DataStream> Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::unique_ptr<DataStream> Create(std::string &name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::unique_ptr<DataStream> Open(std::string &name);
+	static std::shared_ptr<DataStream> Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Create(std::string &name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Open(std::string &name);
 
 	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
