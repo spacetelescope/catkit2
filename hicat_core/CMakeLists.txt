@@ -9,6 +9,8 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt.")
 endif()
 
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP1>)
+
 add_library(hicat_core STATIC
     DataStream.cpp
     TimeStamp.cpp
@@ -24,12 +26,15 @@ add_library(hicat_core STATIC
 target_include_directories(hicat_core PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
 # Use local version of ZeroMQ
-set(ZeroMQ_LIBRARY ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/build/lib/Release/libzmq-v142-mt-4_2_1.lib)
+set(ZeroMQ_LIBRARY ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/build/lib/Release/libzmq-static-v142-mt-s-4_2_1.lib)
 set(ZeroMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/include)
+
+add_definitions(-DZMQ_STATIC)
 
 # Link ZeroMQ
 target_include_directories(hicat_core PUBLIC ${ZeroMQ_INCLUDE_DIR})
 target_link_libraries(hicat_core PUBLIC ${ZeroMQ_LIBRARY})
+target_link_libraries(hicat_core PUBLIC wsock32 ws2_32 Iphlpapi)
 
 # Add includes for cppzmq
 set(CPPZMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/cppzmq-4.7.1)

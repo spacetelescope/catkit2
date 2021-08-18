@@ -5,11 +5,13 @@
 
 #include <string>
 
-// Base class for all Properties.
 class Property
 {
 public:
-	Property(std::string name);
+	typedef std::function<void(SerializedMessage &)> Getter;
+	typedef std::function<void(const SerializedMessage &)> Setter;
+
+	Property(std::string name, Getter getter = nullptr, Setter setter = nullptr);
 	virtual ~Property();
 
 	virtual void Get(SerializedMessage &value);
@@ -19,21 +21,7 @@ public:
 
 private:
 	std::string m_Name;
-};
 
-// Helper class for simple Properties based on one/two functions.
-class PropertyFromFunctions : public Property
-{
-public:
-	typedef std::function<void(SerializedMessage &)> Getter;
-	typedef std::function<void(const SerializedMessage &)> Setter;
-
-	PropertyFromFunctions(std::string name, Getter getter = nullptr, Setter setter = nullptr);
-
-	virtual void Get(SerializedMessage &value);
-	virtual void Set(const SerializedMessage &value);
-
-private:
 	Getter m_Getter;
 	Setter m_Setter;
 };

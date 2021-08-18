@@ -12,6 +12,7 @@ public:
 	typedef std::function<void(const SerializedMessage &arguments, SerializedMessage &result)> CommandFunction;
 
 	Command(std::string name, CommandFunction command);
+	virtual ~Command();
 
 	void Execute(const SerializedMessage &arguments, SerializedMessage &result);
 

@@ -5,6 +5,8 @@
 #include "DataStream.h"
 #include "TimeStamp.h"
 #include "Module.h"
+#include "Command.h"
+#include "Property.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -16,14 +18,9 @@ class TrampolineModule : public Module
 public:
 	using Module::Module;
 
-	void MainThread() override
-	{
-		PYBIND11_OVERRIDE(void, Module, MainThread,);
-	}
-
 	void ShutDown() override
 	{
-		PYBIND11_OVERRIDE(void, Module, ShutDown,);
+		PYBIND11_OVERRIDE_NAME(void, Module, "shut_down", ShutDown,);
 	}
 };
 
@@ -37,6 +34,22 @@ public:
 
 PYBIND11_MODULE(bindings, m)
 {
+	py::class_<Module, TrampolineModule>(m, "Module")
+		.def(py::init<std::string, int>())
+		.def_property_readonly("name", &Module::GetName)
+		.def("shut_down", &Module::ShutDown)
+		.def("register_property", &PublicistModule::RegisterProperty)
+		.def("register_command", &PublicistModule::RegisterCommand)
+		.def("register_data_stream", &PublicistModule::RegisterDataStream);
+
+	py::class_<Command>(m, "Command")
+		.def(py::init<std::string, Command::CommandFunction>())
+		.def_property_readonly("name", &Command::GetName);
+
+	py::class_<Property>(m, "Property")
+		.def(py::init<std::string, Property::Getter, Property::Setter>())
+		.def_property_readonly("name", &Property::GetName);
+
 	py::class_<DataFrame>(m, "DataFrame")
 		.def_property_readonly("id", [](const DataFrame &f)
 			{
@@ -123,15 +136,6 @@ PYBIND11_MODULE(bindings, m)
 		.def("will_frame_be_available", &DataStream::WillFrameBeAvailable)
 		.def_property_readonly("newest_available_frame_id", &DataStream::GetNewestAvailableFrameId)
 		.def_property_readonly("oldest_available_frame_id", &DataStream::GetOldestAvailableFrameId);
-
-	py::class_<Module, TrampolineModule>(m, "Module")
-		.def(py::init<std::string, int>())
-		.def_property_readonly("name", &Module::GetName)
-		.def("main_thread", &Module::MainThread)
-		.def("shut_down", &Module::ShutDown)
-		.def("register_property", &PublicistModule::RegisterProperty)
-		.def("register_command", &PublicistModule::RegisterCommand)
-		.def("register_data_stream", &PublicistModule::RegisterDataStream);
 
 	m.def("get_timestamp", &GetTimeStamp);
 	m.def("convert_timestamp_to_string", &ConvertTimestampToString);

@@ -12,6 +12,7 @@
 #include <memory>
 #include <map>
 #include <array>
+#include <iostream>
 
 using namespace zmq;
 using json = nlohmann::json;
@@ -43,6 +44,8 @@ Module::Module(std::string name, int port)
 	m_MessageHandlers["list_all_commands_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleListAllCommandsRequest(request, reply);};
 	m_MessageHandlers["list_all_data_streams_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleListAllDataStreamsRequest(request, reply);};
 
+	m_MainThread = std::thread(&Module::Run, this);
+
 	LOG_INFO("Module '"s + name + "' has started.");
 }
 
@@ -52,10 +55,10 @@ Module::~Module()
 
 	if (m_IsRunning)
 	{
-		LOG_ERROR("The module is still running. This should not happen.");
+		m_IsRunning = false;
 
-		ShutDown();
-		m_MainThread.join();
+		if (m_MainThread.joinable())
+			m_MainThread.join();
 	}
 
 	LOG_INFO("Module '"s + m_Name + "' has been destroyed.");
@@ -63,17 +66,19 @@ Module::~Module()
 
 void Module::Run()
 {
+	std::cout << "Start run" << std::endl;
+
 	m_Context = new context_t(1);
 	m_Shell = new socket_t(*m_Context, ZMQ_REP);
 	m_Broadcast = new socket_t(*m_Context, ZMQ_PUB);
 
+	m_Shell->set(zmq::sockopt::rcvtimeo, 20);
+
 	m_Shell->bind("tcp://*:"s + std::to_string(m_Port));
 	m_Broadcast->bind("tcp://*:"s + std::to_string(m_Port + 1));
+	std::cout << "Ports created" << std::endl;
 
 	m_IsRunning = true;
-
-	// Starting main thread
-	m_MainThread = std::thread(&Module::MainThread, this);
 
 	while (m_IsRunning && !interrupt_signal)
 	{
@@ -85,6 +90,13 @@ void Module::Run()
 		{
 			// TODO: check return value.
 			auto res = m_Shell->recv(request);
+
+			if (!res.has_value())
+			{
+				// Socket timed out, so continue and try again.
+				// This is done to facilitate periodic error/shutdown/interrupt checking.
+				continue;
+			}
 
 			std::string json_string((const char *) request.data(), request.size());
 
@@ -198,10 +210,10 @@ void Module::Run()
 		LOG_DEBUG("Message handled.");
 	}
 
-	ShutDown();
-	m_MainThread.join();
+	std::cout << "Shutting down main thread" << std::endl;
 
 	m_IsRunning = false;
+	this->ShutDown();
 
 	delete m_Broadcast;
 	m_Broadcast = nullptr;
@@ -216,15 +228,14 @@ void Module::Run()
 		LOG_INFO("Module interrupted by user. Shutting down.");
 	else
 		LOG_INFO("Module shut down by user.");
+
+	if (interrupt_signal)
+		std::cout << "Getting interrupted." << std::endl;
 }
 
 std::string Module::GetName()
 {
 	return m_Name;
-}
-
-void Module::MainThread()
-{
 }
 
 void Module::ShutDown()

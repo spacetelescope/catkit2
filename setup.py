@@ -42,39 +42,34 @@ class CMakeBuild(build_ext):
         if platform.system() == "Windows":
             if sys.maxsize > 2**32:
                 cmake_args += ['-A', 'x64']
-            build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
-            build_args += ['--', '-j2']
+            build_args += ['--', '-j4']
 
         env = os.environ.copy()
-        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(
-            env.get('CXXFLAGS', ''),
-            self.distribution.get_version())
-        if not os.path.exists(self.build_temp):
-            os.makedirs(self.build_temp)
-        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args,
-                              cwd=self.build_temp, env=env)
-        subprocess.check_call(['cmake', '--build', '.'] + build_args,
-                              cwd=self.build_temp)
+        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''), self.distribution.get_version())
+
+        os.makedirs(self.build_temp, exist_ok=True)
+
+        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
+        subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
 with open("README.md", "r") as f:
     long_description = f.read()
 
 setup(
-    name="hicat_hardware",
+    name="hicat2",
     version="0.0.1",
     author="Emiel Por",
     author_email="epor@stsci.edu",
     description="A library for controlling testbed hardware",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages("hicat_hardware"),
-    package_dir={"": "hicat_hardware"},
+    packages=setuptools.find_packages("hicat2"),
     classifiers=[
         "Programming Language :: Python :: 3"
     ],
-    ext_modules=[CMakeExtension('hicat_hardware.bindings')],
+    ext_modules=[CMakeExtension('hicat2/bindings')],
     python_requires='>=3.6',
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,

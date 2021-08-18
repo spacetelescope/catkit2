@@ -1,4 +1,4 @@
-from hicat_hardware import *
+from hicat2.bindings import *
 import time
 import numpy as np
 

@@ -5,6 +5,10 @@ Command::Command(std::string name, CommandFunction command)
 {
 }
 
+Command::~Command()
+{
+}
+
 void Command::Execute(const SerializedMessage &arguments, SerializedMessage &result)
 {
 	m_CommandFunction(arguments, result);

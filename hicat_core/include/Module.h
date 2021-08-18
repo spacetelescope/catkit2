@@ -20,11 +20,8 @@ public:
 	Module(std::string name, int port);
 	virtual ~Module();
 
-	void Run();
-
 	std::string GetName();
 
-	virtual void MainThread();
 	virtual void ShutDown();
 
 	std::shared_ptr<Property> GetProperty(const std::string &property_name);
@@ -37,6 +34,8 @@ protected:
 	void RegisterDataStream(std::shared_ptr<DataStream> stream);
 
 private:
+	void Run();
+
 	void HandleExecuteCommandRequest(const SerializedMessage &request, SerializedMessage &reply);
 
 	void HandleGetPropertyRequest(const SerializedMessage &request, SerializedMessage &reply);
