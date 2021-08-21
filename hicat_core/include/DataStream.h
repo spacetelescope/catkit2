@@ -55,11 +55,13 @@ struct DataStreamHeader
 {
 	char m_Version[32];
 
-	char m_Name[256];
+	char m_StreamName[256];
+	char m_ModuleName[256];
 	std::uint64_t m_TimeCreated;
 	unsigned long m_CreatorPID;
 
 	DataType m_DataType;
+	size_t m_NumDimensions;
 	size_t m_Dimensions[4];
 
 	size_t m_NumElementsPerFrame;
@@ -83,6 +85,7 @@ struct DataFrame
 	std::uint64_t m_TimeStamp;
 
 	DataType m_DataType;
+	size_t m_NumDimensions;
 	size_t m_Dimensions[4];
 
 	char *m_Data;
@@ -90,8 +93,6 @@ struct DataFrame
 	// Convenience functions.
 	size_t GetNumElements();
 	size_t GetSizeInBytes();
-
-	size_t GetNumDimensions();
 
 	// Accessors for Eigen mapped arrays.
 	template<typename EigenType>
@@ -124,9 +125,9 @@ private:
 public:
 	~DataStream();
 
-	static std::shared_ptr<DataStream> Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::shared_ptr<DataStream> Create(std::string &name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::shared_ptr<DataStream> Open(std::string &name);
+	static std::shared_ptr<DataStream> Create(std::string &stream_name, std::string &module_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Create(std::string &name, std::string &module_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Open(std::string &name, std::string &module_name);
 
 	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
@@ -139,7 +140,8 @@ public:
 	size_t GetNumDimensions();
 
 	std::string GetVersion();
-	std::string GetName();
+	std::string GetStreamName();
+	std::string GetModuleName();
 	std::uint64_t GetTimeCreated();
 	unsigned long GetCreatorPID();
 

@@ -8,6 +8,11 @@
 
 using namespace std;
 
+std::string GetBaseName(const std::string &stream_name, const std::string &module_name)
+{
+	return module_name + "." + stream_name;
+}
+
 const char *GetDataTypeAsString(DataType type)
 {
 	switch (type)
@@ -111,16 +116,6 @@ size_t DataFrame::GetSizeInBytes()
 	return GetNumElements() * GetSizeOfDataType(m_DataType);
 }
 
-size_t DataFrame::GetNumDimensions()
-{
-	size_t num_dimensions = 4;
-
-	while (m_Dimensions[num_dimensions - 1] == 1 && num_dimensions > 1)
-		num_dimensions--;
-
-	return num_dimensions;
-}
-
 DataStream::DataStream(HANDLE file_mapping, HANDLE frame_written)
 	: m_FileMapping(file_mapping), m_FrameWritten(frame_written),
 	m_Header(nullptr), m_Buffer(nullptr),
@@ -147,7 +142,7 @@ DataStream::~DataStream()
 	CloseHandle(m_FileMapping);
 }
 
-std::shared_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::string &module_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	if (dimensions.size() > 4)
 		throw std::runtime_error("Maximum dimensionality of the frames is 4.");
@@ -165,23 +160,28 @@ std::shared_ptr<DataStream> DataStream::Create(std::string &name, DataType type,
 	size_t num_bytes = sizeof(DataStreamHeader) + num_bytes_per_frame * num_frames_in_buffer;
 	std::cout << "num bytes requested: " << num_bytes / 1024 / 1024 << " MB" << std::endl;
 
-	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes, name.c_str());
-	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (name + "_sem").c_str());
+	auto base_name = GetBaseName(stream_name, module_name);
+
+	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes, (base_name + ".mem").c_str());
+	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (base_name + ".sem").c_str());
 
 	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 	auto header = data_stream->m_Header;
 
 	strcpy(header->m_Version, CURRENT_VERSION);
 
-	strcpy(header->m_Name, name.c_str());
+	strcpy(header->m_StreamName, stream_name.c_str());
+	strcpy(header->m_ModuleName, module_name.c_str());
 	header->m_TimeCreated = GetTimeStamp();
 	header->m_CreatorPID = GetCurrentProcessId();
 
 	header->m_DataType = type;
+	header->m_NumDimensions = dimensions.size();
 	size_t *dims = header->m_Dimensions;
 	fill(dims, dims + 4, 1);
 	copy(dimensions.begin(), dimensions.end(), dims);
 
+	header->m_NumElementsPerFrame = num_elements;
 	header->m_NumBytesPerFrame = num_bytes_per_frame;
 	header->m_NumBytesInBuffer = num_bytes;
 	header->m_NumFramesInBuffer = num_frames_in_buffer;
@@ -195,15 +195,17 @@ std::shared_ptr<DataStream> DataStream::Create(std::string &name, DataType type,
 	return data_stream;
 }
 
-std::shared_ptr<DataStream> DataStream::Create(std::string &name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::string &module_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
 {
-	return Create(name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
+	return Create(stream_name, module_name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
 }
 
-std::shared_ptr<DataStream> DataStream::Open(std::string &name)
+std::shared_ptr<DataStream> DataStream::Open(std::string &stream_name, std::string &module_name)
 {
-	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name.c_str());
-	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (name + "_sem").c_str());
+	auto base_name = GetBaseName(stream_name, module_name);
+
+	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, (base_name + ".mem").c_str());
+	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (base_name + ".sem").c_str());
 
 	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 
@@ -234,6 +236,7 @@ DataFrame DataStream::RequestNewFrame()
 	frame.m_Id = new_frame_id;
 	frame.m_TimeStamp = 0;
 	frame.m_DataType = m_Header->m_DataType;
+	frame.m_NumDimensions = m_Header->m_NumDimensions;
 	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
 	frame.m_Data = m_Buffer + offset;
 
@@ -266,7 +269,7 @@ void DataStream::SubmitFrame(size_t id)
 
 std::vector<size_t> DataStream::GetDimensions()
 {
-	return std::vector<size_t>(m_Header->m_Dimensions, m_Header->m_Dimensions + GetNumDimensions());
+	return std::vector<size_t>(m_Header->m_Dimensions, m_Header->m_Dimensions + m_Header->m_NumDimensions);
 }
 
 DataType DataStream::GetDataType()
@@ -284,24 +287,19 @@ size_t DataStream::GetNumElementsPerFrame()
 	return m_Header->m_NumElementsPerFrame;
 }
 
-size_t DataStream::GetNumDimensions()
-{
-	size_t num_dimensions = 4;
-
-	while (m_Header->m_Dimensions[num_dimensions - 1] == 1 && num_dimensions > 1)
-		num_dimensions--;
-
-	return num_dimensions;
-}
-
 std::string DataStream::GetVersion()
 {
 	return m_Header->m_Version;
 }
 
-std::string DataStream::GetName()
+std::string DataStream::GetStreamName()
 {
-	return m_Header->m_Name;
+	return m_Header->m_StreamName;
+}
+
+std::string DataStream::GetModuleName()
+{
+	return m_Header->m_ModuleName;
 }
 
 std::uint64_t DataStream::GetTimeCreated()
@@ -365,6 +363,7 @@ DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_
 	frame.m_Id = id;
 	frame.m_TimeStamp = m_Header->m_FrameMetadata[id % m_Header->m_NumFramesInBuffer].m_TimeStamp;
 	frame.m_DataType = m_Header->m_DataType;
+	frame.m_NumDimensions = m_Header->m_NumDimensions;
 	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
 	frame.m_Data = m_Buffer + offset;
 

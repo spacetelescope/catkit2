@@ -44,6 +44,10 @@ Module::Module(std::string name, int port)
 	m_MessageHandlers["list_all_commands_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleListAllCommandsRequest(request, reply);};
 	m_MessageHandlers["list_all_data_streams_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleListAllDataStreamsRequest(request, reply);};
 
+	m_MessageHandlers["get_name_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleGetNameRequest(request, reply);};
+
+	m_MessageHandlers["shut_down_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleShutdownRequest(request, reply);};
+
 	m_MainThread = std::thread(&Module::Run, this);
 
 	LOG_INFO("Module '"s + name + "' has started.");
@@ -119,6 +123,8 @@ void Module::Run()
 				// TODO: check return value.
 				res = m_Shell->recv(request_binary);
 			}
+
+			std::cout << json_string << std::endl;
 
 			LOG_DEBUG("Message received.");
 			LOG_DEBUG("JSON length: "s + std::to_string(json_string.size()));
@@ -365,6 +371,11 @@ void Module::HandleListAllDataStreamsRequest(const SerializedMessage &request, S
 	reply.data["value"] = data_streams;
 }
 
+void Module::HandleGetNameRequest(const SerializedMessage &request, SerializedMessage &reply)
+{
+	reply.data["value"] = m_Name;
+}
+
 void Module::HandleShutdownRequest(const SerializedMessage &request, SerializedMessage &reply)
 {
 	m_IsRunning = false;
@@ -439,7 +450,7 @@ void Module::RegisterCommand(std::shared_ptr<Command> command)
 
 void Module::RegisterDataStream(std::shared_ptr<DataStream> stream)
 {
-	auto stream_name = stream->GetName();
+	auto stream_name = stream->GetStreamName();
 	m_DataStreams[stream_name] = stream;
 
 	LOG_DEBUG("DataStream \'"s + stream_name + "\' registered.");

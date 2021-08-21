@@ -63,24 +63,18 @@ PYBIND11_MODULE(bindings, m)
 			{
 				size_t item_size = GetSizeOfDataType(f.m_DataType);
 
-				size_t ndim = 4;
-				while (ndim > 0 && f.m_Dimensions[ndim - 1] == 1)
-				{
-					ndim--;
-				}
-
 				std::vector<py::ssize_t> shape;
-				for (size_t i = 0; i < ndim; ++i)
+				for (size_t i = 0; i < f.m_NumDimensions; ++i)
 				{
 					shape.push_back(f.m_Dimensions[i]);
 				}
 
 				std::vector<py::ssize_t> strides;
-				for (int i = 0; i < ndim; ++i)
+				for (int i = 0; i < f.m_NumDimensions; ++i)
 				{
 					size_t stride = item_size;
 
-					for (int j = int(ndim - 1); j > i; --j)
+					for (int j = int(f.m_NumDimensions - 1); j > i; --j)
 						stride *= shape[j];
 
 					strides.push_back(stride);
@@ -96,14 +90,14 @@ PYBIND11_MODULE(bindings, m)
 			});
 
 	py::class_<DataStream, std::shared_ptr<DataStream>>(m, "DataStream")
-		.def_static("create", [](std::string &name, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+		.def_static("create", [](std::string &stream_name, std::string &module_name, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 		{
 			DataType dtype = GetDataTypeFromString(type);
-			return DataStream::Create(name, dtype, dimensions, num_frames_in_buffer);
+			return DataStream::Create(stream_name, module_name, dtype, dimensions, num_frames_in_buffer);
 		})
-		.def_static("open", [](std::string &name)
+		.def_static("open", [](std::string &stream_name, std::string &module_name)
 		{
-			return DataStream::Open(name);
+			return DataStream::Open(stream_name, module_name);
 		})
 		.def("request_new_frame", &DataStream::RequestNewFrame)
 		.def("submit_frame", &DataStream::SubmitFrame)
@@ -129,7 +123,8 @@ PYBIND11_MODULE(bindings, m)
 		})
 		.def_property_readonly("shape", &DataStream::GetDimensions)
 		.def_property_readonly("version", &DataStream::GetVersion)
-		.def_property_readonly("name", &DataStream::GetName)
+		.def_property_readonly("stream_name", &DataStream::GetStreamName)
+		.def_property_readonly("module_name", &DataStream::GetModuleName)
 		.def_property_readonly("time_created", &DataStream::GetTimeCreated)
 		.def_property_readonly("creator_pid", &DataStream::GetCreatorPID)
 		.def("is_frame_available", &DataStream::IsFrameAvailable)

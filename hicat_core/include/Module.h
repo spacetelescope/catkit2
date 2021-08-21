@@ -45,6 +45,8 @@ private:
 	void HandleListAllCommandsRequest(const SerializedMessage &request, SerializedMessage &reply);
 	void HandleListAllDataStreamsRequest(const SerializedMessage &request, SerializedMessage &reply);
 
+	void HandleGetNameRequest(const SerializedMessage &request, SerializedMessage &reply);
+
 	void HandleShutdownRequest(const SerializedMessage &request, SerializedMessage &reply);
 
 	void SendReplyMessage(const std::string &type, const SerializedMessage &message);

@@ -1,6 +1,9 @@
-devices:
+testbed_server:
+  port: 8080
+
+modules:
   lopr_camera:
-    module_name: flir_camera
+    module_type: flir_camera
 
     serial_number: 21081906
     width: 128
@@ -11,8 +14,7 @@ devices:
     pixel_format: mono12p
 
   science_camera:
-    module_name: zwo_camera
-    is_python: yes
+    module_type: zwo_camera
 
     device_name: ZWO ASI178MM(3)
     subarray_x: 2614
@@ -21,7 +23,7 @@ devices:
     height: 712
 
   ta_camera:
-    module_name: zwo_camera
+    module_type: zwo_camera
 
     device_name: ZWO ASI290MM(1)
     subarray_x: 710
@@ -30,7 +32,7 @@ devices:
     height: 464
 
   zernike_camera:
-    module_name: zwo_camera
+    module_type: zwo_camera
 
     device_name: ZWO ASI178MM(2)
     subarray_x: 1808
@@ -39,27 +41,26 @@ devices:
     height: 1024
 
   pupil_camera:
-    module_name: zwo_camera
+    module_type: zwo_camera
 
     device_name: ZWO ASI178MM(4)
 
   boston_dm:
-    module_name: bmc_dm
+    module_type: bmc_dm
 
     serial_number: 25CW018#008
     number_of_actuators: 952
 
   iris_dm:
-    module_name: irisao_dm
+    module_type: irisao_dm
 
     mirror_serial: PWA37-05-04-0705
     driver_serial: 13130030
     usb_power_strip_id: web_power_switch_1
     usb_hub_outlet_id: iris_usb_hub
 
-
   newport_xps_q8:
-    module_name: xps_q8
+    module_type: xps_q8
 
     ip_address: 192.168.192.117
     port: 5001
@@ -87,60 +88,60 @@ devices:
         out_of_beam: 5
 
   beam_dump:
-    module_name: thorlabs_flip_mount
+    module_type: thorlabs_flip_mount
 
     serial_number: 37000085
     in_beam: 1
     out_of_beam: 2
 
   phase_retrieval_mirror:
-    module_name: thorlabs_flip_mount
+    module_type: thorlabs_flip_mount
 
     serial_number: 37001725
     in_beam: 1
     out_of_beam: 2
 
   fpm_illuminator:
-    module_name: thorlabs_flip_mount
+    module_type: thorlabs_flip_mount
 
     serial_number: 37871220
     in_beam: 2
     out_of_beam: 1
 
   pupil_illuminator:
-    module_name: thorlabs_flip_mount
+    module_type: thorlabs_flip_mount
 
     serial_number: 37002369
     in_beam: 2
     out_of_beam: 1
 
   tsp01_1:
-    module_name: thorlabs_tsp01
+    module_type: thorlabs_tsp01
 
     serial_number: M00542273
 
   tsp01_2:
-    module_name: thorlabs_tsp01
+    module_type: thorlabs_tsp01
 
     serial_number: M00685167
 
   tsp01_3:
-    module_name: thorlabs_tsp01
+    module_type: thorlabs_tsp01
 
     serial_number: M001546345
 
   omega_dm1:
-    module_name: omega_temperature_humidity
+    module_type: omega_temperature_humidity
 
     ip_address: 192.168.192.132
 
   omega_dm2:
-    module_name: omega_temperature_humidity
+    module_type: omega_temperature_humidity
 
     ip_address: 192.168.192.32
 
   blue_ups:
-    module_name: blue_ups
+    module_type: blue_ups
 
     ip_address: 10.128.242.6
     port: 161
@@ -149,7 +150,7 @@ devices:
     pass_status: 3
 
   lab_ups:
-    module_name: lab_ups
+    module_type: lab_ups
 
     ip_address: 192.168.192.20
     port: 161
@@ -158,22 +159,30 @@ devices:
     pass_status: 2
 
   web_power_switch_1:
-    module_name: web_power_switch
+    module_type: web_power_switch
 
     user: admin
     password: hicat
     ip_address: 192.168.192.11
     dns: webpowerswitch
-    # "all_off" and "all_on" values correspond to a line number of the Script listing (http://192.168.192.11/script.htm).
-    all_off: 34
-    all_on: 36
-    # Plugged-in devices with their outlet number:
-    npoint_tiptilt_lc_400: 1
-    iris_usb_hub: 2
-    newport_xps_q8: 3
-    iris_dm: 4
-    quad_cell: 5
-    air_valve: 6
-    pupil_led: 7
-    fpm_led: 8
 
+    channels:
+      # "all_off" and "all_on" values correspond to a line number of the Script listing (http://192.168.192.11/script.htm).
+      all_off: 34
+      all_on: 36
+
+      # Plugged-in devices with their outlet number:
+      npoint_tiptilt_lc_400: 1
+      iris_usb_hub: 2
+      newport_xps_q8: 3
+      iris_dm: 4
+      quad_cell: 5
+      air_valve: 6
+      pupil_led: 7
+      fpm_led: 8
+
+  a:
+    module_type: test_module_python
+
+  b:
+    module_type: test_module_cpp
