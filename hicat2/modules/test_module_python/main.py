@@ -1,22 +1,23 @@
 from hicat2.bindings import Module, DataStream
+from hicat2.testbed import parse_module_args
 import time
+import numpy as np
 
 class TestModule(Module):
     def __init__(self):
-        Module.__init__(self, 'test_module', 8080)
+        args = parse_module_args()
+        Module.__init__(self, args.module_name, args.module_port)
 
         self.shutdown_flag = False
 
-        self.temperature = DataStream.create(self.name + '_temperature', 'float64', [2], 20)
-        self.humidity = DataStream.create(self.name + '_humidity', 'float64', [2], 20)
+        self.temperature = DataStream.create('temperature', self.name, 'float64', [1], 20)
+        self.humidity = DataStream.create('humidity', self.name, 'float64', [1], 20)
 
         self.register_data_stream(self.temperature)
         self.register_data_stream(self.humidity)
 
     def main(self):
         self.open()
-
-        print('measured2')
 
         while not self.shutdown_flag:
             f = self.temperature.request_new_frame()
@@ -27,8 +28,7 @@ class TestModule(Module):
             f.data[:] = self.get_humidity()
             self.humidity.submit_frame(f.id)
 
-            print('measured')
-            time.sleep(1)
+            time.sleep(0.5)
 
         self.close()
 
@@ -40,10 +40,10 @@ class TestModule(Module):
         pass
 
     def get_temperature(self, channel):
-        return 0
+        return np.sin(time.time())
 
     def get_humidity(self):
-        return 0
+        return np.cos(time.time())
 
     def close(self):
         return 0
