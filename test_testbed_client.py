@@ -11,10 +11,10 @@ for i in range(20):
 
 # FIXED: name in DataStream
 # FIXED: num dimensions for 1 element data in datastream
+# FIXED: error checking HANDLES for shmem
 
 # search locations for module types
 # register new module names
 # helper/convenience functions (take_exposures, apply_shape, flip_in_beam, etc...)
 # shut down zmq sockets when main module function ends
 # logging broadcasting for modules
-# error checking HANDLES for shmem

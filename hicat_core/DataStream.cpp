@@ -163,7 +163,18 @@ std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::st
 	auto base_name = GetBaseName(stream_name, module_name);
 
 	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes, (base_name + ".mem").c_str());
+
+	if (file_mapping == NULL)
+		throw std::runtime_error("Something went wrong while creating shared memory.");
+
 	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (base_name + ".sem").c_str());
+
+	if (semaphore == NULL)
+	{
+		CloseHandle(file_mapping);
+
+		throw std::runtime_error("Something went wrong while creating semaphore.");
+	}
 
 	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 	auto header = data_stream->m_Header;
@@ -205,7 +216,18 @@ std::shared_ptr<DataStream> DataStream::Open(std::string &stream_name, std::stri
 	auto base_name = GetBaseName(stream_name, module_name);
 
 	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, (base_name + ".mem").c_str());
+
+	if (file_mapping == NULL)
+		throw std::runtime_error("Something went wrong while opening shared memory.");
+
 	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (base_name + ".sem").c_str());
+
+	if (semaphore == NULL)
+	{
+		CloseHandle(file_mapping);
+
+		throw std::runtime_error("Something went wrong while opening semaphore.");
+	}
 
 	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 
