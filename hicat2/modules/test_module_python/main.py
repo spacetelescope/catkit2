@@ -50,7 +50,7 @@ class TestModule(Module):
 
 def main():
     module = TestModule()
-    module.main()
+    module.run()
 
 if __name__ == '__main__':
     main()

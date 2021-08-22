@@ -164,7 +164,7 @@ class ModuleTSP01(Module):
 
 def main():
     module = ModuleTSP01()
-    module.main()
+    module.run()
 
 if __name__ == '__main__':
     main()

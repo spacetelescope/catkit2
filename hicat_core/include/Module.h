@@ -22,6 +22,9 @@ public:
 
 	std::string GetName();
 
+	void Run();
+
+	virtual void Main();
 	virtual void ShutDown();
 
 	std::shared_ptr<Property> GetProperty(const std::string &property_name);
@@ -34,8 +37,7 @@ protected:
 	void RegisterDataStream(std::shared_ptr<DataStream> stream);
 
 private:
-	void Run();
-
+	void MonitorInterface();
 	void HandleExecuteCommandRequest(const SerializedMessage &request, SerializedMessage &reply);
 
 	void HandleGetPropertyRequest(const SerializedMessage &request, SerializedMessage &reply);
@@ -60,7 +62,7 @@ private:
 	int m_Port;
 	bool m_IsRunning;
 
-	std::thread m_MainThread;
+	std::thread m_InterfaceThread;
 
 	typedef std::function<void(const SerializedMessage &, SerializedMessage &)> MessageHandler;
 	std::map<std::string, MessageHandler> m_MessageHandlers;

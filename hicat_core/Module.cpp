@@ -13,6 +13,7 @@
 #include <map>
 #include <array>
 #include <iostream>
+#include <functional>
 
 using namespace zmq;
 using json = nlohmann::json;
@@ -48,8 +49,6 @@ Module::Module(std::string name, int port)
 
 	m_MessageHandlers["shut_down_request"] = [this](const SerializedMessage &request, SerializedMessage &reply){this->HandleShutdownRequest(request, reply);};
 
-	m_MainThread = std::thread(&Module::Run, this);
-
 	LOG_INFO("Module '"s + name + "' has started.");
 }
 
@@ -61,17 +60,15 @@ Module::~Module()
 	{
 		m_IsRunning = false;
 
-		if (m_MainThread.joinable())
-			m_MainThread.join();
+		if (m_InterfaceThread.joinable())
+			m_InterfaceThread.join();
 	}
 
 	LOG_INFO("Module '"s + m_Name + "' has been destroyed.");
 }
 
-void Module::Run()
+void Module::MonitorInterface()
 {
-	std::cout << "Start run" << std::endl;
-
 	m_Context = new context_t(1);
 	m_Shell = new socket_t(*m_Context, ZMQ_REP);
 	m_Broadcast = new socket_t(*m_Context, ZMQ_PUB);
@@ -80,7 +77,6 @@ void Module::Run()
 
 	m_Shell->bind("tcp://*:"s + std::to_string(m_Port));
 	m_Broadcast->bind("tcp://*:"s + std::to_string(m_Port + 1));
-	std::cout << "Ports created" << std::endl;
 
 	m_IsRunning = true;
 
@@ -216,8 +212,6 @@ void Module::Run()
 		LOG_DEBUG("Message handled.");
 	}
 
-	std::cout << "Shutting down main thread" << std::endl;
-
 	m_IsRunning = false;
 	this->ShutDown();
 
@@ -234,14 +228,55 @@ void Module::Run()
 		LOG_INFO("Module interrupted by user. Shutting down.");
 	else
 		LOG_INFO("Module shut down by user.");
+}
 
-	if (interrupt_signal)
-		std::cout << "Getting interrupted." << std::endl;
+class Finally
+{
+public:
+	Finally(std::function<void()> func)
+		: m_Func(func)
+	{
+	}
+
+	~Finally()
+	{
+		m_Func();
+	}
+
+private:
+	std::function<void()> m_Func;
+};
+
+void Module::Run()
+{
+	m_InterfaceThread = std::thread(&Module::MonitorInterface, this);
+
+	// Shut down monitoring thread at the end of this function no matter what.
+	Finally finally([this]()
+		{
+			m_IsRunning = false;
+			if (m_InterfaceThread.joinable())
+				m_InterfaceThread.join();
+		});
+
+	try
+	{
+		this->Main();
+	}
+	catch (...)
+	{
+		LOG_ERROR("Caught exception in main function of Module. Exiting...");
+		throw;
+	}
 }
 
 std::string Module::GetName()
 {
 	return m_Name;
+}
+
+void Module::Main()
+{
 }
 
 void Module::ShutDown()

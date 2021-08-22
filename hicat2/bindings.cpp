@@ -18,6 +18,11 @@ class TrampolineModule : public Module
 public:
 	using Module::Module;
 
+	void Main() override
+	{
+		PYBIND11_OVERRIDE_NAME(void, Module, "main", Main);
+	}
+
 	void ShutDown() override
 	{
 		PYBIND11_OVERRIDE_NAME(void, Module, "shut_down", ShutDown,);
@@ -37,6 +42,8 @@ PYBIND11_MODULE(bindings, m)
 	py::class_<Module, TrampolineModule>(m, "Module")
 		.def(py::init<std::string, int>())
 		.def_property_readonly("name", &Module::GetName)
+		.def("run", &Module::Run)
+		.def("main", &Module::Main)
 		.def("shut_down", &Module::ShutDown)
 		.def("register_property", &PublicistModule::RegisterProperty)
 		.def("register_command", &PublicistModule::RegisterCommand)
