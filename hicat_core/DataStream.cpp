@@ -13,6 +13,25 @@ std::string GetBaseName(const std::string &stream_name, const std::string &modul
 	return module_name + "." + stream_name;
 }
 
+void CalculateBufferSize(DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer,
+	size_t &num_elements_per_frame, size_t &num_bytes_per_frame, size_t &num_bytes_in_buffer)
+{
+	if (dimensions.size() > 4)
+		throw std::runtime_error("Maximum dimensionality of the frames is 4.");
+
+	if (num_frames_in_buffer > MAX_NUM_FRAMES_IN_BUFFER)
+		throw std::runtime_error("Too many frames requested for the buffer.");
+
+	num_elements_per_frame = 1;
+	for (auto d : dimensions)
+	{
+		num_elements_per_frame *= d;
+	}
+
+	num_bytes_per_frame = num_elements_per_frame * GetSizeOfDataType(type);
+	num_bytes_in_buffer = sizeof(DataStreamHeader) + num_bytes_per_frame * num_frames_in_buffer;
+}
+
 const char *GetDataTypeAsString(DataType type)
 {
 	switch (type)
@@ -144,25 +163,16 @@ DataStream::~DataStream()
 
 std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::string &module_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
-	if (dimensions.size() > 4)
-		throw std::runtime_error("Maximum dimensionality of the frames is 4.");
+	size_t num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer;
 
-	if (num_frames_in_buffer > MAX_NUM_FRAMES_IN_BUFFER)
-		throw std::runtime_error("Too many frames requested for the buffer.");
+	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
+		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
 
-	size_t num_elements = 1;
-	for (auto d : dimensions)
-	{
-		num_elements *= d;
-	}
-
-	size_t num_bytes_per_frame = num_elements * GetSizeOfDataType(type);
-	size_t num_bytes = sizeof(DataStreamHeader) + num_bytes_per_frame * num_frames_in_buffer;
-	std::cout << "num bytes requested: " << num_bytes / 1024 / 1024 << " MB" << std::endl;
+	std::cout << "num bytes in buffer: " << num_bytes_in_buffer << " bytes" << std::endl;
 
 	auto base_name = GetBaseName(stream_name, module_name);
 
-	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes, (base_name + ".mem").c_str());
+	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes_in_buffer, (base_name + ".mem").c_str());
 
 	if (file_mapping == NULL)
 		throw std::runtime_error("Something went wrong while creating shared memory.");
@@ -186,22 +196,14 @@ std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::st
 	header->m_TimeCreated = GetTimeStamp();
 	header->m_CreatorPID = GetCurrentProcessId();
 
-	header->m_DataType = type;
-	header->m_NumDimensions = dimensions.size();
-	size_t *dims = header->m_Dimensions;
-	fill(dims, dims + 4, 1);
-	copy(dimensions.begin(), dimensions.end(), dims);
-
-	header->m_NumElementsPerFrame = num_elements;
-	header->m_NumBytesPerFrame = num_bytes_per_frame;
-	header->m_NumBytesInBuffer = num_bytes;
-	header->m_NumFramesInBuffer = num_frames_in_buffer;
-
 	header->m_FirstId = 0;
 	header->m_LastId = 0;
 	header->m_NextRequestId = 0;
-
 	header->m_NumReadersWaiting = 0;
+
+	header->m_NumBytesInBuffer = num_bytes_in_buffer;
+
+	data_stream->UpdateParameters(type, dimensions, num_frames_in_buffer);
 
 	return data_stream;
 }
@@ -307,6 +309,51 @@ size_t DataStream::GetNumFramesInBuffer()
 size_t DataStream::GetNumElementsPerFrame()
 {
 	return m_Header->m_NumElementsPerFrame;
+}
+
+size_t DataStream::GetNumDimensions()
+{
+	return m_Header->m_NumDimensions;
+}
+
+void DataStream::SetDataType(DataType type)
+{
+	UpdateParameters(type, GetDimensions(), GetNumFramesInBuffer());
+}
+
+void DataStream::SetDimensions(std::vector<size_t> dimensions)
+{
+	UpdateParameters(GetDataType(), dimensions, GetNumFramesInBuffer());
+}
+
+void DataStream::SetNumFramesInBuffer(size_t num_frames_in_buffer)
+{
+	UpdateParameters(GetDataType(), GetDimensions(), num_frames_in_buffer);
+}
+
+void DataStream::UpdateParameters(DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+{
+	size_t num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer;
+
+	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
+		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
+
+	if (num_bytes_in_buffer > m_Header->m_NumBytesInBuffer)
+		throw std::runtime_error("New parameters would exceed the allocated shared memory buffer size.");
+
+	// Make all frames unavailable.
+	m_Header->m_FirstId = m_Header->m_LastId.load();
+
+	// Set the parameters in the header.
+	m_Header->m_DataType = type;
+	m_Header->m_NumDimensions = dimensions.size();
+	size_t *dims = m_Header->m_Dimensions;
+	fill(dims, dims + 4, 1);
+	copy(dimensions.begin(), dimensions.end(), dims);
+
+	m_Header->m_NumElementsPerFrame = num_elements_per_frame;
+	m_Header->m_NumBytesPerFrame = num_bytes_per_frame;
+	m_Header->m_NumFramesInBuffer = num_frames_in_buffer;
 }
 
 std::string DataStream::GetVersion()

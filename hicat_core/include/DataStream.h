@@ -139,6 +139,12 @@ public:
 	size_t GetNumElementsPerFrame();
 	size_t GetNumDimensions();
 
+	void SetDataType(DataType type);
+	void SetDimensions(std::vector<size_t> dimensions);
+	void SetNumFramesInBuffer(size_t num_frames_in_buffer);
+
+	void UpdateParameters(DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+
 	std::string GetVersion();
 	std::string GetStreamName();
 	std::string GetModuleName();
