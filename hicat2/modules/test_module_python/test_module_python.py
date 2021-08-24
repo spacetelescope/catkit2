@@ -33,17 +33,16 @@ class TestModule(Module):
         self.close()
 
     def shut_down(self):
-        print('Got shutdown')
         self.shutdown_flag = True
 
     def open(self):
         pass
 
     def get_temperature(self, channel):
-        return np.sin(time.time())
+        return 20 + 3 * np.sin(0.1 * time.time())
 
     def get_humidity(self):
-        return np.cos(time.time())
+        return 10 + 2 * np.cos(0.1 * time.time())
 
     def close(self):
         return 0

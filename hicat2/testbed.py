@@ -28,7 +28,7 @@ class PropertyProxy:
 
         if val['value'] == dict():
             # Value is an array; convert to numpy array
-            return np.frombuffer(binary_data, val['data_type']).reshape(val['dimensions'])
+            return np.frombuffer(binary_data, val['dtype']).reshape(val['shape'])
         else:
             return val['value']
 
@@ -38,7 +38,7 @@ class PropertyProxy:
             binary_data = None
         else:
             value = np.ascontiguousarray(value)
-            val = {'value': None, 'data_type': str(value.dtype), 'dimensions': value.shape}
+            val = {'value': None, 'dtype': str(value.dtype), 'shape': value.shape}
             binary_data = value.tobytes()
 
         message_data = {'value': val, 'property_name': self.name}
@@ -58,8 +58,8 @@ class ModuleProxy:
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
 
-        # Give the module up to one minute to start up.
-        self.socket.RCVTIMEO = 60000
+        # Give the module up to five seconds to start up.
+        self.socket.RCVTIMEO = 5000
 
         self.socket.connect(f'tcp://localhost:{port}')
 
@@ -304,7 +304,8 @@ class TestbedServer:
 
     def get_module_reference(self, name, auto_start=True):
         if name in self.modules:
-            return self.modules[name]
+            if self.modules[name].is_alive:
+                return self.modules[name]
 
         if not auto_start:
             return None
@@ -327,12 +328,12 @@ class TestbedServer:
         dirname = self.resolve_module_type(module_type)
 
         # Find if Python or C++.
-        if os.path.exists(os.path.join(dirname, 'main.py')):
-            executable = [sys.executable, os.path.join(dirname, 'main.py')]
-        elif os.path.exists(os.path.join(dirname, 'main.exe')):
-            executable = [os.path.join(dirname, 'main.exe')]
-        elif os.path.exists(os.path.join(dirname, 'main')):
-            executable = [os.path.join(dirname, 'main')]
+        if os.path.exists(os.path.join(dirname, module_type + '.py')):
+            executable = [sys.executable, os.path.join(dirname, module_type + '.py')]
+        elif os.path.exists(os.path.join(dirname, module_type + '.exe')):
+            executable = [os.path.join(dirname, module_type + '.exe')]
+        elif os.path.exists(os.path.join(dirname, module_type)):
+            executable = [os.path.join(dirname, module_type)]
         else:
             raise ServerError(f"Module '{name}' is not Python or C++.")
 
