@@ -74,6 +74,8 @@ void Module::MonitorInterface()
 	m_Broadcast = new socket_t(*m_Context, ZMQ_PUB);
 
 	m_Shell->set(zmq::sockopt::rcvtimeo, 20);
+	m_Shell->set(zmq::sockopt::linger, 0);
+	m_Broadcast->set(zmq::sockopt::linger, 0);
 
 	m_Shell->bind("tcp://*:"s + std::to_string(m_Port));
 	m_Broadcast->bind("tcp://*:"s + std::to_string(m_Port + 1));
@@ -255,8 +257,14 @@ void Module::Run()
 	Finally finally([this]()
 		{
 			m_IsRunning = false;
-			if (m_InterfaceThread.joinable())
+			try
+			{
 				m_InterfaceThread.join();
+			}
+			catch (...)
+			{
+				// Ignore errors.
+			}
 		});
 
 	try
