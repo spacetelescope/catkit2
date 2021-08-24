@@ -186,3 +186,6 @@ modules:
 
   b:
     module_type: test_module_cpp
+
+  environment_viewer:
+    module_type: environment_viewer
