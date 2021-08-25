@@ -131,14 +131,16 @@ modules:
     serial_number: M001546345
 
   omega_dm1:
-    module_type: omega_temperature_humidity
+    module_type: omega_ithx_w3
 
     ip_address: 192.168.192.132
+    time_interval: 30
 
   omega_dm2:
-    module_type: omega_temperature_humidity
+    module_type: omega_ithx_w3
 
     ip_address: 192.168.192.32
+    time_interval: 30
 
   blue_ups:
     module_type: blue_ups
