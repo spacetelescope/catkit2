@@ -1,5 +1,7 @@
 #include "Command.h"
 
+using json = nlohmann::json;
+
 Command::Command(std::string name, CommandFunction command)
 	: m_Name(name), m_CommandFunction(command)
 {
@@ -9,9 +11,9 @@ Command::~Command()
 {
 }
 
-void Command::Execute(const SerializedMessage &arguments, SerializedMessage &result)
+json Command::Execute(const json &arguments)
 {
-	m_CommandFunction(arguments, result);
+	return m_CommandFunction(arguments);
 }
 
 std::string Command::GetName()

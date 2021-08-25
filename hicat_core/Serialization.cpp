@@ -3,6 +3,7 @@
 using namespace std;
 
 SerializedMessage::SerializedMessage()
+	: data({})
 {
 }
 
@@ -20,22 +21,22 @@ bool SerializedMessage::ContainsArrayValue() const
 {
 	if (!ContainsValue())
 		return false;
-	
+
 	if (!data["value"].is_null())
 		return false;
-	
+
 	if (!data.count("dimensions"))
 		return false;
 
 	if (!data["dimensions"].is_array())
 		return false;
-	
+
 	if (!data.count("data_type"))
 		return false;
 
 	if (binary_data.empty())
 		return false;
-	
+
 	return true;
 }
 
@@ -43,10 +44,10 @@ bool SerializedMessage::ContainsNonArrayValue() const
 {
 	if (!ContainsValue())
 		return false;
-	
+
 	if (data["value"].is_null())
 		return false;
-	
+
 	return true;
 }
 

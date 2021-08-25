@@ -5,9 +5,18 @@ import time
 testbed = Testbed(8080)
 a = testbed.a
 
+print(a.test_prop)
+a.test_prop = 3264
+print(a.test_prop)
+a.test_prop = {'a': 45}
+print(a.test_prop)
+
 for i in range(20):
     f = a.temperature.get_next_frame()
     print(f.id, convert_timestamp_to_string(f.timestamp), f.data)
+
+    print(a.test(string='asdfas'))
+
 
 # FIXED: name in DataStream
 # FIXED: num dimensions for 1 element data in datastream

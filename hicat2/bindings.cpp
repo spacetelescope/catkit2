@@ -1,6 +1,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <pybind11/functional.h>
+#include <pybind11_json/pybind11_json.hpp>
 
 #include "DataStream.h"
 #include "TimeStamp.h"
@@ -51,11 +53,11 @@ PYBIND11_MODULE(bindings, m)
 		.def("register_command", &PublicistModule::RegisterCommand)
 		.def("register_data_stream", &PublicistModule::RegisterDataStream);
 
-	py::class_<Command>(m, "Command")
+	py::class_<Command, std::shared_ptr<Command>>(m, "Command")
 		.def(py::init<std::string, Command::CommandFunction>())
 		.def_property_readonly("name", &Command::GetName);
 
-	py::class_<Property>(m, "Property")
+	py::class_<Property, std::shared_ptr<Property>>(m, "Property")
 		.def(py::init<std::string, Property::Getter, Property::Setter>())
 		.def_property_readonly("name", &Property::GetName);
 

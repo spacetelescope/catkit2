@@ -1,34 +1,29 @@
 #include "Property.h"
 
+using json = nlohmann::json;
+
 Property::Property(std::string name, Getter getter, Setter setter)
 	: m_Name(name), m_Getter(getter), m_Setter(setter)
 {
 }
 
-Property::~Property()
+json Property::Get()
 {
+	if (!m_Getter)
+		throw std::runtime_error("Property is not readable.");
+
+	return m_Getter();
+}
+
+void Property::Set(const json &value)
+{
+	if (!m_Setter)
+		throw std::runtime_error("Property is not writable.");
+
+	m_Setter(value);
 }
 
 std::string Property::GetName()
 {
 	return m_Name;
-}
-
-void Property::Get(SerializedMessage &value)
-{
-	if (!m_Getter)
-		throw SerializationError("Property is not readable.");
-
-	m_Getter(value);
-}
-
-void Property::Set(const SerializedMessage &value)
-{
-	if (!m_Setter)
-		throw SerializationError("Property is not writable.");
-
-	if (!value.ContainsValue())
-		throw SerializationError("A property setter requires a value.");
-
-	m_Setter(value);
 }

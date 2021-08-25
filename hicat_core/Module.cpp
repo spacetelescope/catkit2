@@ -186,7 +186,7 @@ void Module::MonitorInterface()
 					reply.data["status"] = "ok";
 					SendReplyMessage(message_type.substr(0,message_type.size() - 7) + "reply", reply);
 				}
-				catch (SerializationError &e)
+				catch (std::exception &e)
 				{
 					reply.data["status"] = "error";
 					reply.data["status_description"] = e.what();
@@ -332,11 +332,7 @@ void Module::HandleExecuteCommandRequest(const SerializedMessage &request, Seria
 	if (!command)
 		throw SerializationError("Command \'"s + command_name + "\' does not exist.");
 
-	SerializedMessage arguments;
-	arguments.data = request.data["arguments"];
-	arguments.binary_data = std::move(request.binary_data);
-
-	command->Execute(arguments, reply);
+	reply.data["result"] = command->Execute(request.data["arguments"]);
 
 	// Broadcast executed command
 	SerializedMessage broadcast;
@@ -356,11 +352,7 @@ void Module::HandleGetPropertyRequest(const SerializedMessage &request, Serializ
 	if (!property)
 		throw SerializationError("Property \'"s + property_name + "\' does not exist.");
 
-	SerializedMessage value;
-	property->Get(value);
-
-	reply.binary_data = std::move(value.binary_data);
-	reply.data["value"] = value.data;
+	reply.data["value"] = property->Get();
 }
 
 void Module::HandleSetPropertyRequest(const SerializedMessage &request, SerializedMessage &reply)
@@ -374,11 +366,10 @@ void Module::HandleSetPropertyRequest(const SerializedMessage &request, Serializ
 	if (!property)
 		throw SerializationError("Property \'"s + property_name + "\' does not exist.");
 
-	SerializedMessage value;
-	value.data = request.data["value"];
-	value.binary_data = std::move(request.binary_data);
+	if (!request.data.count("value"))
+		throw SerializationError("Tried to set property \'"s + property_name + "\' without a value.");
 
-	property->Set(value);
+	property->Set(request.data["value"]);
 
 	// Broadcast changed property
 	SerializedMessage broadcast;
@@ -433,6 +424,8 @@ void Module::SendReplyMessage(const std::string &type, const SerializedMessage &
 	reply_message["message_data"] = message.data;
 
 	std::string json_message = reply_message.dump();
+
+	std::cout << json_message << std::endl;
 
 	// Construct and send message
 	message_t message_zmq(json_message.size());

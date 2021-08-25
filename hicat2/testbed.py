@@ -24,25 +24,11 @@ class PropertyProxy:
         message_data = {'property_name': self.name}
         data, binary_data = self.module_proxy._make_request('get_property_request', message_data)
 
-        val = data['value']
-
-        if val['value'] == dict():
-            # Value is an array; convert to numpy array
-            return np.frombuffer(binary_data, val['dtype']).reshape(val['shape'])
-        else:
-            return val['value']
+        return data['value']
 
     def __set__(self, instance, value):
-        if np.isscalar(value):
-            val = {'value': value}
-            binary_data = None
-        else:
-            value = np.ascontiguousarray(value)
-            val = {'value': None, 'dtype': str(value.dtype), 'shape': value.shape}
-            binary_data = value.tobytes()
-
-        message_data = {'value': val, 'property_name': self.name}
-        self.module_proxy._make_request('set_property_request', message_data, binary_data)
+        message_data = {'value': value, 'property_name': self.name}
+        self.module_proxy._make_request('set_property_request', message_data)
 
 class CommandProxy:
     def __init__(self, command_name, module_proxy):
@@ -51,7 +37,9 @@ class CommandProxy:
 
     def __call__(self, **kwargs):
         message_data = {'arguments': kwargs, 'command_name': self.name}
-        self.module_proxy._make_request('execute_command_request', message_data)
+        data, binary_data = self.module_proxy._make_request('execute_command_request', message_data)
+
+        return data['result']
 
 class ModuleProxy:
     def __init__(self, port):

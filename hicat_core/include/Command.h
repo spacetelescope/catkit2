@@ -4,23 +4,21 @@
 #include <functional>
 #include <string>
 
-#include "Serialization.h"
+#include <nlohmann/json.hpp>
 
 class Command
 {
 public:
-	typedef std::function<void(const SerializedMessage &arguments, SerializedMessage &result)> CommandFunction;
+	typedef std::function<nlohmann::json(const nlohmann::json &arguments)> CommandFunction;
 
 	Command(std::string name, CommandFunction command);
-	virtual ~Command();
+	~Command();
 
-	void Execute(const SerializedMessage &arguments, SerializedMessage &result);
-
+	nlohmann::json Execute(const nlohmann::json &arguments);
 	std::string GetName();
 
-protected:
+private:
 	std::string m_Name;
-
 	CommandFunction m_CommandFunction;
 };
 

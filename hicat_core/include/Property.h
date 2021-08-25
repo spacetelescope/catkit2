@@ -1,21 +1,20 @@
 #ifndef PROPERTY_H
 #define PROPERTY_H
 
-#include "Serialization.h"
-
 #include <string>
+
+#include <nlohmann/json.hpp>
 
 class Property
 {
 public:
-	typedef std::function<void(SerializedMessage &)> Getter;
-	typedef std::function<void(const SerializedMessage &)> Setter;
+	typedef std::function<nlohmann::json()> Getter;
+	typedef std::function<void(const nlohmann::json &)> Setter;
 
 	Property(std::string name, Getter getter = nullptr, Setter setter = nullptr);
-	virtual ~Property();
 
-	virtual void Get(SerializedMessage &value);
-	virtual void Set(const SerializedMessage &value);
+	nlohmann::json Get();
+	void Set(const nlohmann::json &value);
 
 	std::string GetName();
 
