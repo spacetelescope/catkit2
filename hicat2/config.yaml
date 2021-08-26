@@ -88,28 +88,28 @@ modules:
         out_of_beam: 5
 
   beam_dump:
-    module_type: thorlabs_flip_mount
+    module_type: thorlabs_mff101
 
     serial_number: 37000085
     in_beam: 1
     out_of_beam: 2
 
   phase_retrieval_mirror:
-    module_type: thorlabs_flip_mount
+    module_type: thorlabs_mff101
 
     serial_number: 37001725
     in_beam: 1
     out_of_beam: 2
 
   fpm_illuminator:
-    module_type: thorlabs_flip_mount
+    module_type: thorlabs_mff101
 
     serial_number: 37871220
     in_beam: 2
     out_of_beam: 1
 
   pupil_illuminator:
-    module_type: thorlabs_flip_mount
+    module_type: thorlabs_mff101
 
     serial_number: 37002369
     in_beam: 2
@@ -182,6 +182,30 @@ modules:
       air_valve: 6
       pupil_led: 7
       fpm_led: 8
+
+  color_filter_wheel:
+    module_type: thorlabs_fw102c
+
+    visa_id: ASRL4::INSTR
+
+    filters:
+      610nm: 1
+      620nm: 2
+      640nm: 3
+      660nm: 4
+      670nm: 5
+      broadband: 6
+
+  nd_filter_wheel:
+    module_type: thorlabs_fw102c
+
+    visa_id: ASRL6::INSTR
+
+    filters:
+      clear: 1
+      2.8_percent: 2
+      12_percent: 3
+      9_percent: 4
 
   a:
     module_type: test_module_python
