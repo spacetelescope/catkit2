@@ -49,7 +49,16 @@ modules:
     module_type: bmc_dm
 
     serial_number: 25CW018#008
-    number_of_actuators: 952
+    command_length: 2048
+
+    channels:
+      - correction_howfs
+      - probe
+      - correction_lowfs
+      - aberration
+      - atmosphere
+      - poke
+      - astrogrid
 
   iris_dm:
     module_type: irisao_dm
@@ -58,6 +67,10 @@ modules:
     driver_serial: 13130030
     usb_power_strip_id: web_power_switch_1
     usb_hub_outlet_id: iris_usb_hub
+
+    channels:
+      - correction
+      - aberration
 
   newport_xps_q8:
     module_type: xps_q8

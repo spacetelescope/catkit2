@@ -468,6 +468,16 @@ DataFrame DataStream::GetNextFrame(bool wait, unsigned long wait_time_in_ms, voi
 	return frame;
 }
 
+DataFrame DataStream::GetLatestFrame()
+{
+	size_t id = GetNewestAvailableFrameId();
+
+	if (id == 0)
+		throw std::runtime_error("DataStream does not have any frames when trying to get the latest one.");
+
+	return GetFrame(id, false);
+}
+
 bool DataStream::IsFrameAvailable(size_t id)
 {
 	return (id >= m_Header->m_FirstId) && (id < m_Header->m_LastId);

@@ -116,18 +116,21 @@ PYBIND11_MODULE(bindings, m)
 		{
 			return s.GetFrame(id, wait, wait_time_in_ms, []()
 			{
+				py::gil_scoped_acquire acquire;
 				if (PyErr_CheckSignals() != 0)
 					throw py::error_already_set();
 			});
-		}, py::arg("id"), py::arg("wait") = true, py::arg("wait_time_in_ms") = INFINITE)
+		}, py::arg("id"), py::arg("wait") = true, py::arg("wait_time_in_ms") = INFINITE, py::call_guard<py::gil_scoped_release>())
 		.def("get_next_frame", [](DataStream &s, bool wait, unsigned long wait_time_in_ms)
 		{
 			return s.GetNextFrame(wait, wait_time_in_ms, []()
 			{
+				py::gil_scoped_acquire acquire;
 				if (PyErr_CheckSignals() != 0)
 					throw py::error_already_set();
 			});
-		}, py::arg("wait") = true, py::arg("wait_time_in_ms") = INFINITE)
+		}, py::arg("wait") = true, py::arg("wait_time_in_ms") = INFINITE, py::call_guard<py::gil_scoped_release>())
+		.def("get_latest_frame", &DataStream::GetLatestFrame, py::call_guard<py::gil_scoped_release>())
 		.def_property("dtype", [](DataStream &s)
 		{
 			return py::dtype(GetDataTypeAsString(s.GetDataType()));
