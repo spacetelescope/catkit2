@@ -6,7 +6,7 @@ from hicat2.testbed import parse_module_args
 from threading import Lock
 import time
 
-def _create_property(flir_property_name, read_only=False):
+def _create_property(flir_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
             return getattr(self.cam, flir_property_name).GetValue()
@@ -15,19 +15,21 @@ def _create_property(flir_property_name, read_only=False):
         setter = None
     else:
         def setter(self, value):
-            self.end_acquisition()
+            if stopped_acquisition:
+                self.end_acquisition()
 
-            while self.is_acquiring:
-                time.sleep(0.001)
+                while self.is_acquiring:
+                    time.sleep(0.001)
 
             with self.mutex:
                 getattr(self.cam, flir_property_name).SetValue(value)
 
-            self.start_acquisition()
+            if stopped_acquisition:
+                self.start_acquisition()
 
     return property(getter, setter)
 
-def _create_enum_property(flir_property_name, enum_name):
+def _create_enum_property(flir_property_name, enum_name, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
             value = getattr(self.cam, flir_property_name).GetValue()
@@ -42,15 +44,17 @@ def _create_enum_property(flir_property_name, enum_name):
     def setter(self, value):
         value = getattr(self, enum_name)[value]
 
-        self.end_acquisition()
+        if stopped_acquisition:
+            self.end_acquisition()
 
-        while self.is_acquiring:
-            time.sleep(0.001)
+            while self.is_acquiring:
+                time.sleep(0.001)
 
         with self.mutex:
             getattr(self.cam, flir_property_name).SetValue(value)
 
-        self.start_acquisition()
+        if stopped_acquisition:
+            self.start_acquisition()
 
     return property(getter, setter)
 
@@ -68,6 +72,9 @@ class FlirCameraModule(Module):
         self.shutdown_flag = False
         self.is_acquiring = False
         self.should_be_acquiring = True
+
+        # Create lock for camera access
+        self.mutex = Lock()
 
         self.system = PySpin.System.GetInstance()
         self.cam_list = self.system.GetCameras()
@@ -89,9 +96,6 @@ class FlirCameraModule(Module):
         self.cam.BlackLevel.SetValue(5 / 255 * 100)
         self.cam.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
         self.cam.TLStream.StreamBufferHandlingMode.SetValue(PySpin.StreamBufferHandlingMode_NewestOnly)
-
-        # Create lock for camera access
-        self.mutex = Lock()
 
         # Set properties from config.
         self.width = config['width']
@@ -206,13 +210,13 @@ class FlirCameraModule(Module):
     def shutdown(self):
         self.shutdown_flag = True
 
-    exposure_time = _create_property('ExposureTime')
-    gain = _create_property('Gain')
+    exposure_time = _create_property('ExposureTime', stopped_acquisition=False)
+    gain = _create_property('Gain', stopped_acquisition=False)
 
     width = _create_property('Width')
     height = _create_property('Height')
-    offset_x = _create_property('OffsetX')
-    offset_y = _create_property('OffsetY')
+    offset_x = _create_property('OffsetX', stopped_acquisition=False)
+    offset_y = _create_property('OffsetY', stopped_acquisition=False)
 
     temperature = _create_property('DeviceTemperature', read_only=True)
     sensor_width = _create_property('SensorWidth', read_only=True)
@@ -221,7 +225,7 @@ class FlirCameraModule(Module):
     pixel_format = _create_enum_property('PixelFormat', 'pixel_format_enum')
     adc_bit_depth = _create_enum_property('AdcBitDepth', 'adc_bit_depth_enum')
 
-    acquisition_frame_rate = _create_property('AcquisitionFrameRate')
+    acquisition_frame_rate = _create_property('AcquisitionFrameRate', stopped_acquisition=False)
     acquisition_frame_rate_enable = _create_property('AcquisitionFrameRateEnable')
 
     @property
