@@ -25,8 +25,6 @@ class ThorlabsFW102CModule(Module):
         self.register_data_stream(self.position)
 
     def main(self):
-        self.open()
-
         while not self.shutdown_flag:
             num_retries = self._MAX_NUM_RETRIES
 
@@ -51,8 +49,6 @@ class ThorlabsFW102CModule(Module):
 
                     self.close()
                     self.open()
-
-        self.close()
 
     def shut_down(self):
         self.shutdown_flag = True

@@ -29,8 +29,6 @@ class ModuleTSP01(Module):
         self.register_data_stream(self.temperature_header_2)
 
     def main(self):
-        self.open()
-
         while not self.shutdown_flag:
             f = self.temperature_internal.request_new_frame()
             f.data[:] = self.get_temperature(1)
@@ -49,8 +47,6 @@ class ModuleTSP01(Module):
             self.temperature_header_2.submit_frame(f.id)
 
             time.sleep(1)
-
-        self.close()
 
     def shutdown(self):
         self.shutdown_flag = True

@@ -251,21 +251,32 @@ private:
 
 void Module::Run()
 {
+	try
+	{
+		this->Open();
+	}
+	catch (...)
+	{
+		LOG_ERROR("Caught exception during opening of Module. Exiting...");
+		throw;
+	}
+
 	m_InterfaceThread = std::thread(&Module::MonitorInterface, this);
 
 	// Shut down monitoring thread at the end of this function no matter what.
-	Finally finally([this]()
+	Finally cleanup_interface_thread([this]()
+	{
+		m_IsRunning = false;
+
+		try
 		{
-			m_IsRunning = false;
-			try
-			{
-				m_InterfaceThread.join();
-			}
-			catch (...)
-			{
-				// Ignore errors.
-			}
-		});
+			m_InterfaceThread.join();
+		}
+		catch (...)
+		{
+			// Thread was already stopped. Ignore errors.
+		}
+	});
 
 	try
 	{
@@ -273,7 +284,19 @@ void Module::Run()
 	}
 	catch (...)
 	{
-		LOG_ERROR("Caught exception in main function of Module. Exiting...");
+		LOG_ERROR("Caught exception in main function of Module. Closing module and exiting...");
+
+		this->Close();
+		throw;
+	}
+
+	try
+	{
+		this->Close();
+	}
+	catch (...)
+	{
+		LOG_ERROR("Caught exception during closing of Module. Exiting...");
 		throw;
 	}
 }
@@ -283,7 +306,15 @@ std::string Module::GetName()
 	return m_Name;
 }
 
+void Module::Open()
+{
+}
+
 void Module::Main()
+{
+}
+
+void Module::Close()
 {
 }
 

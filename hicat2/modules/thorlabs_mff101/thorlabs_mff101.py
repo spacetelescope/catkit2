@@ -27,8 +27,6 @@ class ThorlabsMFF101Module(Module):
         self.register_command(Command('blink_led', self.blink_led))
 
     def main(self):
-        self.open()
-
         while not self.shutdown_flag:
             try:
                 frame = self.position.get_next_frame(10)
@@ -39,8 +37,6 @@ class ThorlabsMFF101Module(Module):
             position = frame.data[0]
 
             self.set_position(position)
-
-        self.close()
 
     def shut_down(self):
         self.shutdown_flag = True

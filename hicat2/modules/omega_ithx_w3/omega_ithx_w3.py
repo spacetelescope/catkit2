@@ -35,8 +35,6 @@ class OmegaIthxW3Module(Module):
         self.register_data_stream(self.humidity)
 
     def main(self):
-        self.open()
-
         while not self.shutdown_flag:
             start = time.time()
 
@@ -52,8 +50,6 @@ class OmegaIthxW3Module(Module):
 
             while (time.time() < (start + self.time_interval)) and not self.shutdown_flag:
                 time.sleep(0.01)
-
-        self.close()
 
     def shut_down(self):
         self.shutdown_flag = True

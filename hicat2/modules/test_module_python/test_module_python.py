@@ -34,8 +34,6 @@ class TestModule(Module):
         self._test = val
 
     def main(self):
-        self.open()
-
         while not self.shutdown_flag:
             f = self.temperature.request_new_frame()
             f.data[:] = self.get_temperature(1)
@@ -46,8 +44,6 @@ class TestModule(Module):
             self.humidity.submit_frame(f.id)
 
             time.sleep(0.5)
-
-        self.close()
 
     def shut_down(self):
         self.shutdown_flag = True

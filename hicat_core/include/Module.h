@@ -24,7 +24,10 @@ public:
 
 	void Run();
 
+	virtual void Open();
 	virtual void Main();
+	virtual void Close();
+
 	virtual void ShutDown();
 
 	std::shared_ptr<Property> GetProperty(const std::string &property_name);

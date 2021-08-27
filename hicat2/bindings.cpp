@@ -20,10 +20,22 @@ class TrampolineModule : public Module
 public:
 	using Module::Module;
 
+	void Open() override
+	{
+		py::gil_scoped_acquire acquire;
+		PYBIND11_OVERRIDE_NAME(void, Module, "open", Open);
+	}
+
 	void Main() override
 	{
 		py::gil_scoped_acquire acquire;
 		PYBIND11_OVERRIDE_NAME(void, Module, "main", Main);
+	}
+
+	void Close() override
+	{
+		py::gil_scoped_acquire acquire;
+		PYBIND11_OVERRIDE_NAME(void, Module, "close", Close);
 	}
 
 	void ShutDown() override
@@ -47,7 +59,9 @@ PYBIND11_MODULE(bindings, m)
 		.def(py::init<std::string, int>())
 		.def_property_readonly("name", &Module::GetName)
 		.def("run", &Module::Run, py::call_guard<py::gil_scoped_release>())
+		.def("open", &Module::Open)
 		.def("main", &Module::Main)
+		.def("close", &Module::Close)
 		.def("shut_down", &Module::ShutDown)
 		.def("register_property", &PublicistModule::RegisterProperty)
 		.def("register_command", &PublicistModule::RegisterCommand)

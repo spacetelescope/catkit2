@@ -48,8 +48,6 @@ class BmcDmModule(Module):
         self.channels[channel_name].submit_frame(frame.id)
 
     def main(self):
-        self.open()
-
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
             self.channel_threads = threading.Thread(target=self.monitor_channel, args=(channel_name,))
@@ -59,8 +57,6 @@ class BmcDmModule(Module):
 
         for thread in self.channel_threads:
             thread.join()
-
-        self.close()
 
     def shut_down(self):
         self.shutdown_flag = True
