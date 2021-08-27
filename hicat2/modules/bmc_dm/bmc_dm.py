@@ -50,13 +50,14 @@ class BmcDmModule(Module):
     def main(self):
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
-            self.channel_threads = threading.Thread(target=self.monitor_channel, args=(channel_name,))
+            self.channel_threads[channel_name] = threading.Thread(target=self.monitor_channel, args=(channel_name,))
 
         while not self.shutdown_flag:
             time.sleep(0.01)
 
-        for thread in self.channel_threads:
+        for thread in self.channel_threads.values():
             thread.join()
+        self.channel_threads = {}
 
     def shut_down(self):
         self.shutdown_flag = True
