@@ -181,12 +181,8 @@ modules:
     ip_address: 192.168.192.11
     dns: webpowerswitch
 
-    channels:
-      # "all_off" and "all_on" values correspond to a line number of the Script listing (http://192.168.192.11/script.htm).
-      all_off: 34
-      all_on: 36
-
-      # Plugged-in devices with their outlet number:
+    # Plugged-in devices with their outlet number:
+    outlets:
       npoint_tiptilt_lc_400: 1
       iris_usb_hub: 2
       newport_xps_q8: 3
