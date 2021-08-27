@@ -43,10 +43,10 @@ class NewportXpsQ8Module(Module):
 
     def add_motor(self, motor_id):
         self.motors[motor_id] = DataStream.create(motor_id.lower(), self.name, 'float64', [1], 20)
-        self.register_data_steam(self.motors[motor_id])
+        self.register_data_stream(self.motors[motor_id])
 
         self.motor_current_positions[motor_id] = DataStream.create(motor_id.lower() + '_current_position', self.name, 'float64', [1], 20)
-        self.register_data_steam(self.motor_current_positions[motor_id])
+        self.register_data_stream(self.motor_current_positions[motor_id])
 
     def get_named_position(self, motor_id, position_name):
         position = self.motor_positions[motor_id][position_name]

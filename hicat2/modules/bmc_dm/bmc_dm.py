@@ -41,7 +41,7 @@ class BmcDmModule(Module):
 
     def add_channel(self, channel_name):
         self.channels[channel_name] = DataStream.create('channel_' + channel_name, self.name, 'float64', [self.command_length], 20)
-        self.register_data_steam(self.channels[channel_name])
+        self.register_data_stream(self.channels[channel_name])
 
         frame = self.channels[channel_name].request_new_frame()
         frame.data[:] = 0
