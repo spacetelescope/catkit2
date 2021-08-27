@@ -72,30 +72,30 @@ modules:
       - correction
       - aberration
 
-  newport_xps_q8:
-    module_type: xps_q8
+  newport_xps:
+    module_type: newport_xps_q8
 
     ip_address: 192.168.192.117
     port: 5001
     timeout: 20
-    channels:
-      FPM_X.Pos:
+    motors:
+      FPM_X:
         nominal: coron
         in_beam: 10.296
         out_of_beam: 9
-      Lyot_Y.Pos:
+      Lyot_Y:
         nominal: in_beam
         in_beam: 2.712
         out_of_beam: 50 # WARNING: do not modify this, it could hit the FPM.
-      Lyot_X.Pos:
+      Lyot_X:
         nominal: 9.788
-      Lyot_Z.Pos:
+      Lyot_Z:
         nominal: 10.6
-      Img_Camera.Pos:
+      Img_Camera:
         nominal: 13.67
-      PR_Camera.Pos:
+      PR_Camera:
         nominal: -8.69
-      Zernike_X.Pos:
+      Zernike_X:
         nominal: in_beam
         in_beam: 5.777
         out_of_beam: 5
