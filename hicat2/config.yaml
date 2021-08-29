@@ -156,7 +156,7 @@ modules:
     time_interval: 30
 
   blue_ups:
-    module_type: blue_ups
+    module_type: snmp_ups
 
     ip_address: 10.128.242.6
     port: 161
@@ -165,7 +165,7 @@ modules:
     pass_status: 3
 
   lab_ups:
-    module_type: lab_ups
+    module_type: snmp_ups
 
     ip_address: 192.168.192.20
     port: 161
