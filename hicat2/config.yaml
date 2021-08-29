@@ -216,6 +216,49 @@ modules:
       12_percent: 3
       9_percent: 4
 
+  safety:
+    module_type: safety_monitor
+
+    check_interval: 60
+
+    safeties:
+      - humidity_dm1:
+          module_name: omega_dm1
+          stream_name: humidity
+          minimum_value: 1
+          maximum_value: 28
+          safe_interval: 60
+      - humidity_dm2:
+          module_name: omega_dm2
+          stream_name: humidity
+          minimum_value: 1
+          maximum_value: 28
+          safe_interval: 60
+      - temperature_dm1:
+          module_name: omega_dm1
+          stream_name: temperature
+          minimum_value: 0
+          maximum_value: 29
+          safe_interval: 60
+      - temperature_dm2:
+          module_name: omega_dm2
+          stream_name: temperature
+          minimum_value: 0
+          maximum_value: 29
+          safe_interval: 60
+      - lab_ups:
+          module_name: lab_ups
+          stream_name: power_ok
+          minimum_value: 0.5
+          maximum_value: 1.5
+          safe_interval: 60
+      - blue_ups:
+          module_name: blue_ups
+          stream_name: power_ok
+          minimum_value: 0.5
+          maximum_value: 1.5
+          safe_interval: 60
+
   a:
     module_type: test_module_python
 
