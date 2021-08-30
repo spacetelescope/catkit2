@@ -1,6 +1,6 @@
 from PySpin import PySpin
 
-from hicat2.bindings import Module, DataStream
+from hicat2.bindings import Module, DataStream, Property, Command
 from hicat2.testbed import parse_module_args
 
 from threading import Lock
