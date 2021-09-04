@@ -13,6 +13,7 @@
 #include "Property.h"
 #include "DataStream.h"
 #include "Command.h"
+#include "LogConsole.h"
 
 class Module
 {
@@ -73,6 +74,8 @@ private:
 	std::map<std::string, std::shared_ptr<Property>> m_Properties;
 	std::map<std::string, std::shared_ptr<Command>> m_Commands;
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
+
+	std::shared_ptr<LogConsole> m_Logger;
 };
 
 #endif // MODULE_H

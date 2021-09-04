@@ -29,6 +29,9 @@ Module::Module(std::string name, int port)
 	: m_Name(name), m_Port(port), m_IsRunning(false),
 	m_Context(nullptr), m_Shell(nullptr), m_Broadcast(nullptr)
 {
+	m_Logger = std::make_shared<LogConsole>(true, false);
+	SubscribeToLog(m_Logger);
+
 	LOG_INFO("Starting module '"s + name + "' on port "s  + std::to_string(port) + ".");
 
 	// Catching Ctrl+C and similar process killers and shut down gracefully.
@@ -65,6 +68,7 @@ Module::~Module()
 	}
 
 	LOG_INFO("Module '"s + m_Name + "' has been destroyed.");
+	UnsubscribeToLog(m_Logger);
 }
 
 void Module::MonitorInterface()
@@ -121,8 +125,6 @@ void Module::MonitorInterface()
 				// TODO: check return value.
 				res = m_Shell->recv(request_binary);
 			}
-
-			std::cout << json_string << std::endl;
 
 			LOG_DEBUG("Message received.");
 			LOG_DEBUG("JSON length: "s + std::to_string(json_string.size()));
@@ -455,8 +457,6 @@ void Module::SendReplyMessage(const std::string &type, const SerializedMessage &
 	reply_message["message_data"] = message.data;
 
 	std::string json_message = reply_message.dump();
-
-	std::cout << json_message << std::endl;
 
 	// Construct and send message
 	message_t message_zmq(json_message.size());
