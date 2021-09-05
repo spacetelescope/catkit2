@@ -267,3 +267,21 @@ modules:
 
   environment_viewer:
     module_type: environment_viewer
+
+  example_camera:
+    module_type: dummy_camera
+
+    exposure_time: 1000
+    gain: 0
+    width: 256
+    height: 256
+    offset_x: 0
+    offset_y: 0
+    flux: 100000000
+    sensor_width: 256
+    sensor_height: 256
+
+  camera_viewer:
+    module_type: camera_gui
+
+    camera_name: example_camera
