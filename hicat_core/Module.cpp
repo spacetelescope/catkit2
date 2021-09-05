@@ -29,7 +29,7 @@ Module::Module(std::string name, int port)
 	: m_Name(name), m_Port(port), m_IsRunning(false),
 	m_Context(nullptr), m_Shell(nullptr), m_Broadcast(nullptr)
 {
-	m_Logger = std::make_shared<LogConsole>(true, false);
+	m_Logger = std::make_shared<LogConsole>(true, true);
 	SubscribeToLog(m_Logger);
 
 	LOG_INFO("Starting module '"s + name + "' on port "s  + std::to_string(port) + ".");
@@ -126,9 +126,7 @@ void Module::MonitorInterface()
 				res = m_Shell->recv(request_binary);
 			}
 
-			LOG_DEBUG("Message received.");
-			LOG_DEBUG("JSON length: "s + std::to_string(json_string.size()));
-			LOG_DEBUG("Binary length: "s + std::to_string(module_message.binary_data.size()));
+			LOG_DEBUG("Request received: " + json_string);
 
 			json message;
 			try
@@ -147,8 +145,6 @@ void Module::MonitorInterface()
 				continue;
 			}
 
-			LOG_DEBUG("Json decoded.");
-
 			// Parse message type
 			if (!message.count("message_type"))
 			{
@@ -162,8 +158,6 @@ void Module::MonitorInterface()
 				continue;
 			}
 
-			LOG_DEBUG("Message parsed.");
-
 			std::string message_type = message["message_type"].get<std::string>();
 
 			if (!message.count("message_data"))
@@ -174,8 +168,6 @@ void Module::MonitorInterface()
 			{
 				module_message.data = message["message_data"];
 			}
-
-			LOG_DEBUG("Message_type = " + message_type);
 
 			// Handle message according to message_type.
 			if (m_MessageHandlers.find(message_type) != m_MessageHandlers.end())
@@ -212,8 +204,6 @@ void Module::MonitorInterface()
 			if (!interrupt_signal)
 				LOG_ERROR("Error while receiving message.");
 		}
-
-		LOG_DEBUG("Message handled.");
 	}
 
 	m_IsRunning = false;
@@ -229,9 +219,9 @@ void Module::MonitorInterface()
 	m_Context = nullptr;
 
 	if (interrupt_signal)
-		LOG_INFO("Module interrupted by user. Shutting down.");
+		LOG_INFO("Module '" + m_Name + "' interrupted by user. Shutting down.");
 	else
-		LOG_INFO("Module shut down by user.");
+		LOG_INFO("Module '" + m_Name + "' shut down by user.");
 }
 
 class Finally
@@ -479,6 +469,8 @@ void Module::SendReplyMessage(const std::string &type, const SerializedMessage &
 		if (m_Shell)
 			m_Shell->send(binary_zmq, send_flags::none);
 	}
+
+	LOG_DEBUG("Reply sent: " + json_message);
 }
 
 void Module::SendBroadcastMessage(const std::string &type, const SerializedMessage &message)
