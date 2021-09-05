@@ -68,11 +68,22 @@ PYBIND11_MODULE(bindings, m)
 		.def("register_data_stream", &PublicistModule::RegisterDataStream);
 
 	py::class_<Command, std::shared_ptr<Command>>(m, "Command")
-		.def(py::init<std::string, Command::CommandFunction>())
+		.def(py::init([](std::string name, py::object command)
+			{
+				return std::make_shared<Command>(name, [command](const nlohmann::json &arguments)
+				{
+					py::gil_scoped_acquire acquire;
+					py::dict kwargs = py::cast(arguments);
+					return command(**kwargs);
+				});
+			}))
 		.def_property_readonly("name", &Command::GetName);
 
 	py::class_<Property, std::shared_ptr<Property>>(m, "Property")
-		.def(py::init<std::string, Property::Getter, Property::Setter>())
+		.def(py::init<std::string, Property::Getter, Property::Setter>(),
+			py::arg("name"),
+			py::arg("getter") = nullptr,
+			py::arg("setter") = nullptr)
 		.def_property_readonly("name", &Property::GetName);
 
 	py::class_<DataFrame>(m, "DataFrame")
