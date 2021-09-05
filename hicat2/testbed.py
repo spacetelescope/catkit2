@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import argparse
+from threading import Lock
 
 from .config import read_config
 from .bindings import DataStream
@@ -43,18 +44,22 @@ class CommandProxy:
 
 class ModuleProxy:
     def __init__(self, port):
+        self.port = port
+
+        self.lock = Lock()
+
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
+        self.socket = None
+
+        self.remake_sockets()
 
         # Give the module up to five seconds to start up.
         self.socket.RCVTIMEO = 5000
 
-        self.socket.connect(f'tcp://localhost:{port}')
-
         # Get own name
         self._name = self._make_request('get_name_request')[0]['value']
 
-        # Only give the module up to one second to respond after startup.
+        # Only give the module up to one second to respond after it has started up.
         self.socket.RCVTIMEO = 1000
 
         # Set properties
@@ -72,9 +77,18 @@ class ModuleProxy:
         # Set data streams
         datastreams = self.list_all_data_streams()
         for name in datastreams:
-            print(name)
             stream = DataStream.open(name, self.name)
             setattr(self, name, stream)
+
+    def remake_sockets(self):
+        if self.socket is not None:
+            self.socket.close()
+
+        self.socket = self.context.socket(zmq.REQ)
+        self.socket.LINGER = 1
+        self.socket.RCVTIMEO = 1000
+
+        self.socket.connect(f'tcp://localhost:{self.port}')
 
     @property
     def name(self):
@@ -102,29 +116,31 @@ class ModuleProxy:
         message = {'message_type': message_type, 'message_data': message_data}
         message = json.dumps(message)
 
-        if binary_data is None:
-            self.socket.send(message.encode('ascii'))
-        else:
-            self.socket.send(message.encode('ascii'), zmq.SNDMORE)
-            self.socket.send(binary_data)
-
-        try:
-            reply = self.socket.recv()
-            has_binary_data = self.socket.getsockopt(zmq.RCVMORE)
-
-            if has_binary_data:
-                reply_binary_data = self.socket.recv()
-
-                # Ignore any more message parts (this shouldn't happen)
-                while self.socket.getsockopt(zmq.RCVMORE):
-                    self.socket.recv()
+        with self.lock:
+            if binary_data is None:
+                self.socket.send(message.encode('ascii'))
             else:
-                reply_binary_data = None
-        except zmq.ZMQError as e:
-            if e.errno == zmq.EAGAIN:
-                raise ServerError('Module did not respond.')
-            else:
-                raise
+                self.socket.send(message.encode('ascii'), zmq.SNDMORE)
+                self.socket.send(binary_data)
+
+            try:
+                reply = self.socket.recv()
+                has_binary_data = self.socket.getsockopt(zmq.RCVMORE)
+
+                if has_binary_data:
+                    reply_binary_data = self.socket.recv()
+
+                    # Ignore any more message parts (this shouldn't happen)
+                    while self.socket.getsockopt(zmq.RCVMORE):
+                        self.socket.recv()
+                else:
+                    reply_binary_data = None
+            except zmq.ZMQError as e:
+                if e.errno == zmq.EAGAIN:
+                    self.remake_sockets()
+                    raise ServerError('Module did not respond.')
+                else:
+                    raise
 
         try:
             rep_message = json.loads(reply.decode(encoding='ascii'))
@@ -141,6 +157,8 @@ class ModuleProxy:
 
 class Testbed:
     def __init__(self, testbed_server_port):
+        self.lock = Lock()
+
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
         self.socket.RCVTIMEO = 1000
@@ -150,13 +168,14 @@ class Testbed:
         self._load_config()
 
     def _make_request(self, request):
-        self.socket.send(json.dumps(request).encode('ascii'))
+        with self.lock:
+            self.socket.send(json.dumps(request).encode('ascii'))
 
-        reply = self.socket.recv()
+            reply = self.socket.recv()
 
-        # Ignore any more message parts (this shouldn't happen)
-        while self.socket.getsockopt(zmq.RCVMORE):
-            self.socket.recv()
+            # Ignore any more message parts (this shouldn't happen)
+            while self.socket.getsockopt(zmq.RCVMORE):
+                self.socket.recv()
 
         reply_json = json.loads(reply.decode(encoding='ascii'))
         return reply_json
@@ -172,7 +191,6 @@ class Testbed:
         reply = self._make_request(request)
 
         if 'port' not in reply:
-            print(reply)
             raise ValueError(f'The module "{name}" is not known by the server.')
 
         return reply['port']
@@ -252,8 +270,6 @@ class TestbedServer:
                     request = json.loads(request.decode(encoding='ascii'))
                 except json.JSONDecodeError as err:
                     raise ServerError(f'JSON of request malformed: "{err.msg}".')
-
-                print(request)
 
                 if 'message_type' not in request:
                     raise ServerError('Request must contain a message_type attribute.')
