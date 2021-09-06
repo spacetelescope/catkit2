@@ -36,6 +36,9 @@ class CameraViewer(QtGui.QMainWindow):
     def __init__(self, camera):
         super().__init__()
 
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.setWindowIcon(QtGui.QIcon(os.path.join(script_dir, 'icon.png')))
+
         self.camera = camera
         self.grid = make_uniform_grid((self.camera.width, self.camera.height), (self.camera.width, self.camera.height))
         self.last_frame_count = -1
@@ -71,9 +74,6 @@ class CameraViewer(QtGui.QMainWindow):
         colormap = cm.get_cmap('hot')
         colormap._init()
         self.lut_img = (colormap._lut * 255).view(np.ndarray)
-        colormap = cm.get_cmap('RdBu')
-        colormap._init()
-        self.lut_phase = (colormap._lut * 255).view(np.ndarray)
 
         self.image_box.setLookupTable(self.lut_img)
 
