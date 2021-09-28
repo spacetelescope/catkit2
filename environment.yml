@@ -1,0 +1,29 @@
+# ``conda env create --file environment.yml``
+# or
+# ``conda env create --name <myEnvName> --file environment.yml``
+# For python 2.7 etc, either edit below, i.e. python=2.7 or
+# ```
+#    conda create --name <myEnvName> python=2.7
+#    conda env update --name <myEnvName> --file environment.yml
+# ```
+
+name: hicat2
+dependencies:
+  - python=3.7.6
+  - numpy
+  - scipy
+  - matplotlib
+  - pyqt
+  - pyqtgraph
+  - conda-forge::qdarkstyle
+  - pyzmq
+  - conda-forge::pyvisa>=1.10
+  - conda-forge::pyvisa-py
+  - pyserial
+  - pysnmp
+  - requests
+  - ftd2xx
+  - asdf
+  - pip
+  - pip:
+    - hcipy

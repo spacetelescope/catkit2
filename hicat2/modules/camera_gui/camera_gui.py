@@ -10,7 +10,6 @@ import numpy as np
 import requests
 import datetime
 from hcipy import *
-import asdf
 import os
 import zmq
 import qdarkstyle
