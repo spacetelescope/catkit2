@@ -1,0 +1,18 @@
+- icon: air_flow
+  opens: environment_viewer
+  device_name: air_valve
+  tooltip: Dry air diffuser
+  relative_position: [0.3, 0.5]
+  ref: DM2
+
+- icon: camera
+  opens: camera_viewer
+  device_name: example_camera
+  tooltip: Science camera
+  relative_position: [0.7, 0.1]
+
+- icon: flip_mount
+  opens: stage_viewer
+  device_name: phase_retrieval_mirror
+  tooltip: Phase retrieval mirror
+  relative_position: [0.5, 0.5]
