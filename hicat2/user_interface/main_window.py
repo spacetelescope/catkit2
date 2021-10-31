@@ -56,13 +56,13 @@ class MainWindow(QtGui.QMainWindow):
     def create_logging_display(self):
         self.logging_display = LoggingDisplay(self.testbed)
 
-if __name__ == '__main__':
+def start_user_interface(port):
     app = QtGui.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api=os.environ['PYQTGRAPH_QT_LIB']))
 
-    testbed = Testbed(8080)
+    testbed = Testbed(port)
 
     win = MainWindow(testbed)
     win.show()
 
-    sys.exit(app.exec_())
+    return app.exec_()

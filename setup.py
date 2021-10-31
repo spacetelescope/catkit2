@@ -73,5 +73,10 @@ setup(
     python_requires='>=3.6',
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
-    install_requires=[]
+    install_requires=[],
+    entry_points={
+        "console_scripts": [
+            "hicat=hicat2.cli_interface:main"
+        ],
+    },
 )
