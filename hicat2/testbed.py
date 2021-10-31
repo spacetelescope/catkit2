@@ -380,7 +380,11 @@ class TestbedServer:
         ]
 
         # Start process.
-        process = subprocess.Popen(executable + args)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        creationflags = subprocess.CREATE_NEW_CONSOLE
+
+        process = subprocess.Popen(executable + args, startupinfo=startupinfo, creationflags=creationflags)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Store a reference to the module.
         self.modules[name] = ModuleReference(module_type, name, process, module_port)
