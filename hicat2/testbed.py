@@ -5,6 +5,7 @@ import os
 import subprocess
 import argparse
 from threading import Lock
+import signal
 
 from .config import read_config
 from .bindings import DataStream
@@ -227,8 +228,16 @@ class ModuleReference:
             module.shut_down()
 
     def terminate(self):
-        # Do I want to do this?
-        pass
+        ctrl_c_code = ';'.join([
+            'import ctypes',
+            'kernel = ctypes.windll.kernel32',
+            'kernel.FreeConsole()',
+            'kernel.AttachConsole({pid})',
+            'kernel.SetConsoleCtrlHandler(None, 1)',
+            'kernel.GenerateConsoleCtrlEvent(0, 0)'
+        ])
+
+        subprocess.Popen([sys.executable, '-c', ctrl_c_code.format(pid=self.process.pid)])
 
 class TestbedServer:
     def __init__(self, port):
@@ -256,40 +265,44 @@ class TestbedServer:
 
         self.is_running = True
 
-        while self.is_running:
-            try:
-                request = self.socket.recv()
-            except zmq.ZMQError as e:
-                if e.errno == zmq.EAGAIN:
-                    continue
-                else:
-                    raise
-
-            try:
+        try:
+            while self.is_running:
                 try:
-                    request = json.loads(request.decode(encoding='ascii'))
-                except json.JSONDecodeError as err:
-                    raise ServerError(f'JSON of request malformed: "{err.msg}".')
+                    request = self.socket.recv()
+                except zmq.ZMQError as e:
+                    if e.errno == zmq.EAGAIN:
+                        continue
+                    else:
+                        raise
 
-                if 'message_type' not in request:
-                    raise ServerError('Request must contain a message_type attribute.')
+                try:
+                    try:
+                        request = json.loads(request.decode(encoding='ascii'))
+                    except json.JSONDecodeError as err:
+                        raise ServerError(f'JSON of request malformed: "{err.msg}".')
 
-                if request['message_type'] not in self.request_handlers:
-                    raise ServerError(f"Message type {request['message_type']} is not recognized.")
+                    if 'message_type' not in request:
+                        raise ServerError('Request must contain a message_type attribute.')
 
-                reply = self.request_handlers[request['message_type']](request)
-            except ServerError as e:
-                reply = {'message_type': 'error_reply', 'description': e.value}
+                    if request['message_type'] not in self.request_handlers:
+                        raise ServerError(f"Message type {request['message_type']} is not recognized.")
 
-            msg = json.dumps(reply)
-            self.socket.send(msg.encode('ascii'))
+                    reply = self.request_handlers[request['message_type']](request)
+                except ServerError as e:
+                    reply = {'message_type': 'error_reply', 'description': e.value}
 
-        self.shut_down_all_modules()
+                msg = json.dumps(reply)
+                self.socket.send(msg.encode('ascii'))
+        except KeyboardInterrupt:
+            print('Interrupted by the user...')
+        finally:
+            print('Shutting down all running modules...')
+            self.shut_down_all_modules()
 
-        self.socket = None
-        self.context = None
+            self.socket = None
+            self.context = None
 
-        self.is_running = False
+            self.is_running = False
 
     def handle_config_request(self, request):
         return {'config': self.config}
