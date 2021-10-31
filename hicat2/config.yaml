@@ -4,6 +4,8 @@ testbed_server:
 modules:
   lopr_camera:
     module_type: flir_camera
+    simulated_module_type: sim_camera
+    interface: camera
 
     serial_number: 21081906
     width: 128
@@ -15,6 +17,7 @@ modules:
 
   science_camera:
     module_type: zwo_camera
+    simulated_module_type: sim_camera
 
     device_name: ZWO ASI178MM(3)
     subarray_x: 2614
@@ -24,6 +27,7 @@ modules:
 
   ta_camera:
     module_type: zwo_camera
+    simulated_module_type: sim_camera
 
     device_name: ZWO ASI290MM(1)
     subarray_x: 710
@@ -33,6 +37,7 @@ modules:
 
   zernike_camera:
     module_type: zwo_camera
+    simulated_module_type: sim_camera
 
     device_name: ZWO ASI178MM(2)
     subarray_x: 1808
@@ -42,6 +47,7 @@ modules:
 
   pupil_camera:
     module_type: zwo_camera
+    simulated_module_type: sim_camera
 
     device_name: ZWO ASI178MM(4)
 

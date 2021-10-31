@@ -156,6 +156,16 @@ class ModuleProxy:
 
         return rep_message_data, reply_binary_data
 
+_module_interfaces = {None: ModuleProxy}
+
+def register_module_interface(interface_name):
+    def decorator(cls):
+        _module_interfaces[interface_name] = cls
+
+        return cls
+
+    return decorator
+
 class Testbed:
     def __init__(self, testbed_server_port):
         self.lock = Lock()
@@ -203,7 +213,11 @@ class Testbed:
     def get_module_proxy(self, name):
         port = self._get_module_port(name)
 
-        return ModuleProxy(port)
+        # Get the module interface class.
+        interface_name = self.config['modules'][name].get('interface')
+        module_proxy_class = module_interfaces[interface_name]
+
+        return module_proxy_class(port)
 
     def __getattr__(self, item):
         try:
