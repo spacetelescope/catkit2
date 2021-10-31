@@ -42,19 +42,19 @@ class MainWindow(QtGui.QMainWindow):
         splitter.addWidget(self.logging_display)
 
         # Add all sub-elements to the main window.
-        layout = QtGui.QVBoxLayout()
+        layout = QtGui.QVBoxLayout(self.central_widget)
         layout.addWidget(self.toolbar)
         layout.addWidget(splitter)
         self.central_widget.setLayout(layout)
 
     def create_toolbar(self):
-        self.toolbar = Toolbar(self.testbed)
+        self.toolbar = Toolbar(self.testbed, self)
 
     def create_bench_display(self):
-        self.bench_display = BenchDisplay(self.testbed)
+        self.bench_display = BenchDisplay(self.testbed, self)
 
     def create_logging_display(self):
-        self.logging_display = LoggingDisplay(self.testbed)
+        self.logging_display = LoggingDisplay(self.testbed, self)
 
 def start_user_interface(port):
     app = QtGui.QApplication(sys.argv)

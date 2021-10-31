@@ -15,14 +15,14 @@ import numpy as np
 from .camera_viewer import CameraViewer
 
 class IconButton(QtGui.QPushButton):
-    def __init__(self, icon_fname, relative_position, tooltip, parent):
+    def __init__(self, icon_fname, relative_position, tooltip, parent=None):
         super().__init__(parent)
 
         self.icon_fname = icon_fname
         self.relative_position = relative_position
 
         with pkg_resources.resource_stream('hicat2', 'user_interface/assets/icon_%s.svg' % icon_fname) as asset:
-            self.icon_renderer = QtSvg.QSvgRenderer(asset.read())
+            self.icon_renderer = QtSvg.QSvgRenderer(asset.read(), self)
 
         self.setToolTip(tooltip)
 
@@ -90,8 +90,8 @@ class Parts(QtWidgets.QMainWindow):
         self.bench_display.update()
 
 class BenchDisplay(QtGui.QWidget):
-    def __init__(self, testbed):
-        super().__init__()
+    def __init__(self, testbed, parent=None):
+        super().__init__(parent)
 
         self.testbed = testbed
 
@@ -111,7 +111,7 @@ class BenchDisplay(QtGui.QWidget):
 
         # Load in svg schematic.
         with pkg_resources.resource_stream('hicat2', 'user_interface/assets/hicat_schematic.svg') as asset:
-            self.svg_renderer = QtSvg.QSvgRenderer(asset.read())
+            self.svg_renderer = QtSvg.QSvgRenderer(asset.read(), self)
         self.active_layers = ['Background', 'Outline', 'Light pre-beam-dump', 'Light coronagraphic', 'Optical elements', 'DMs', 'Cameras']#, 'Buttons']
 
         with pkg_resources.resource_stream('hicat2', 'user_interface/assets/button_info.yml') as f:
@@ -134,6 +134,7 @@ class BenchDisplay(QtGui.QWidget):
         print('Opening camera viewer for', device_name)
 
         cam = getattr(self.testbed, device_name)
+        print(cam.__class__.__name__)
         viewer = CameraViewer(cam, self)
         viewer.show()
 

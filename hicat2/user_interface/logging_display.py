@@ -31,8 +31,8 @@ severities = {'critical': 0, 'error': 1, 'warning': 2, 'user': 3, 'info': 4, 'de
 class LogMessageTableModel(QtCore.QAbstractTableModel):
     MAX_NUM_MESSAGES = 100000
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
         self.headers = ['Severity', 'Module', 'Message']
         self.messages = []
@@ -141,14 +141,14 @@ class Listener(QtCore.QObject):
             time.sleep(0.1)
 
 class LoggingDisplay(QtGui.QWidget):
-    def __init__(self, testbed):
-        super().__init__()
+    def __init__(self, testbed, parent=None):
+        super().__init__(parent)
 
         self.testbed = testbed
 
-        self.messages_model = LogMessageTableModel()
+        self.messages_model = LogMessageTableModel(self)
 
-        self.table = QtGui.QTableView()
+        self.table = QtGui.QTableView(self)
         self.table.setModel(self.messages_model)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         self.table.verticalHeader().setVisible(False)
@@ -156,7 +156,7 @@ class LoggingDisplay(QtGui.QWidget):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(2, QtWidgets.QHeaderView.Stretch)
 
-        self.controls = QtGui.QWidget()
+        self.controls = QtGui.QWidget(self)
 
         self.threshold_dropdown = QtGui.QComboBox(self.controls)
         self.threshold_dropdown.addItem('Critical')

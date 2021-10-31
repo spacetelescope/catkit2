@@ -8,8 +8,8 @@ import qdarkstyle
 import numpy as np
 
 class Toolbar(QtGui.QWidget):
-    def __init__(self, testbed):
-        super().__init__()
+    def __init__(self, testbed, parent=None):
+        super().__init__(parent)
 
         self.testbed = testbed
 
