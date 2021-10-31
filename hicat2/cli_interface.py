@@ -50,11 +50,11 @@ def main():
         port = get_port(arguments)
 
         if arguments['server']:
-            print(f'Starting testbed server on port {port}...')
+            print(f'Starting the HiCAT server on port {port}...')
             server = TestbedServer(port)
 
             print('Use Ctrl-C to terminate the server and close all modules.')
             server.run()
         elif arguments['gui']:
-            print(f'Starting testbed gui with testbed on on port {port}...')
+            print(f'Starting the HiCAT GUI on port {port}...')
             sys.exit(start_user_interface(port))

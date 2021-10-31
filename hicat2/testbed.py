@@ -176,7 +176,10 @@ class Testbed:
 
         self.socket.connect(f'tcp://localhost:{testbed_server_port}')
 
-        self._load_config()
+        try:
+            self._load_config()
+        except zmq.ZMQError:
+            raise RuntimeError('Could not connect to testbed server. Did you forget to start it?')
 
     def _make_request(self, request):
         with self.lock:
