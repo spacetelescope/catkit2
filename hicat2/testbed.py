@@ -215,7 +215,7 @@ class Testbed:
 
         # Get the module interface class.
         interface_name = self.config['modules'][name].get('interface')
-        module_proxy_class = module_interfaces[interface_name]
+        module_proxy_class = _module_interfaces[interface_name]
 
         return module_proxy_class(port)
 
@@ -278,6 +278,7 @@ class TestbedServer:
         self.socket.RCVTIMEO = 20
 
         self.is_running = True
+        i = 0
 
         try:
             while self.is_running:

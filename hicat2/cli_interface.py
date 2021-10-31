@@ -20,6 +20,11 @@ Options:
 '''
 import sys
 
+# Disable the Fortran Ctrl-C handler as it interferes with safe closing of
+# the testbed server.
+import os
+os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
+
 from docopt import docopt
 
 from .config import read_config
