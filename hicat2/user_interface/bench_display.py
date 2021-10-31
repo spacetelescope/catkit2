@@ -13,6 +13,7 @@ import qdarkstyle
 import numpy as np
 
 from .camera_viewer import CameraViewer
+from ..interfaces import *
 
 class IconButton(QtGui.QPushButton):
     def __init__(self, icon_fname, relative_position, tooltip, parent=None):

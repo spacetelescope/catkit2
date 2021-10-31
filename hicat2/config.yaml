@@ -276,6 +276,7 @@ modules:
 
   example_camera:
     module_type: dummy_camera
+    interface: camera
 
     exposure_time: 1000
     gain: 0
