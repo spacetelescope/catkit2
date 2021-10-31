@@ -4,6 +4,7 @@ import time
 import random
 import functools
 import yaml
+import pkg_resources
 
 from xml.dom import minidom
 
@@ -11,7 +12,7 @@ from pyqtgraph.Qt import QtGui, QtCore, QtWidgets, QtSvg
 import qdarkstyle
 import numpy as np
 
-from camera_viewer import CameraViewer
+from .camera_viewer import CameraViewer
 
 class IconButton(QtGui.QPushButton):
     def __init__(self, icon_fname, relative_position, tooltip, parent):
@@ -20,7 +21,8 @@ class IconButton(QtGui.QPushButton):
         self.icon_fname = icon_fname
         self.relative_position = relative_position
 
-        self.icon_renderer = QtSvg.QSvgRenderer('assets/icon_%s.svg' % icon_fname)
+        with pkg_resources.resource_stream('hicat2', 'user_interface/assets/icon_%s.svg' % icon_fname) as asset:
+            self.icon_renderer = QtSvg.QSvgRenderer(asset.read())
 
         self.setToolTip(tooltip)
 
@@ -93,11 +95,10 @@ class BenchDisplay(QtGui.QWidget):
 
         self.testbed = testbed
 
-        schematic_fname = 'assets/hicat_schematic.svg'
-
         # Parse svg schematic for layer names to id conversion.
         self.layer_ids = {}
-        doc = minidom.parse(schematic_fname)
+        with pkg_resources.resource_stream('hicat2', 'user_interface/assets/hicat_schematic.svg') as asset:
+            doc = minidom.parse(asset)
 
         for e in doc.getElementsByTagName('g'):
             if e.getAttribute('inkscape:groupmode') == 'layer':
@@ -109,10 +110,11 @@ class BenchDisplay(QtGui.QWidget):
         print(self.layer_ids)
 
         # Load in svg schematic.
-        self.svg_renderer = QtSvg.QSvgRenderer(schematic_fname)
+        with pkg_resources.resource_stream('hicat2', 'user_interface/assets/hicat_schematic.svg') as asset:
+            self.svg_renderer = QtSvg.QSvgRenderer(asset.read())
         self.active_layers = ['Background', 'Outline', 'Light pre-beam-dump', 'Light coronagraphic', 'Optical elements', 'DMs', 'Cameras']#, 'Buttons']
 
-        with open('assets/button_info.yml') as f:
+        with pkg_resources.resource_stream('hicat2', 'user_interface/assets/button_info.yml') as f:
             self.button_infos = yaml.safe_load(f.read())
 
         self.buttons = []

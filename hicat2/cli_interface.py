@@ -24,6 +24,7 @@ from docopt import docopt
 
 from .config import read_config
 from .testbed import TestbedServer
+from .user_interface.main_window import start_user_interface
 
 def get_port(arguments):
     if arguments['--port'] is None:

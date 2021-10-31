@@ -4,9 +4,9 @@ import sys
 from pyqtgraph.Qt import QtGui, QtCore, QtSvg
 import qdarkstyle
 
-from logging_display import LoggingDisplay
-from toolbar import Toolbar
-from bench_display import BenchDisplay
+from .logging_display import LoggingDisplay
+from .toolbar import Toolbar
+from .bench_display import BenchDisplay
 
 from hicat2.testbed import Testbed
 
