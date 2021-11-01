@@ -28,7 +28,7 @@ os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 from docopt import docopt
 
 from .config import read_config
-from .testbed import TestbedServer
+from .testbed_server import TestbedServer
 from .user_interface.main_window import start_user_interface
 
 def get_port(arguments):
