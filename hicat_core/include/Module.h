@@ -75,7 +75,7 @@ private:
 	std::map<std::string, std::shared_ptr<Command>> m_Commands;
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
 
-	std::shared_ptr<LogConsole> m_Logger;
+	LogConsole m_Logger;
 };
 
 #endif // MODULE_H

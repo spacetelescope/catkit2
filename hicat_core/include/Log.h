@@ -70,18 +70,18 @@ typedef struct LogEntry
 	std::string message;
 	std::uint64_t timestamp;
 	std::string time;
-	
+
 	LogEntry(std::string filename, unsigned int line, std::string function, Severity severity, std::string message, std::uint64_t timestamp);
 } LogEntry;
 
 class LogListener
 {
 public:
+	LogListener();
+	virtual ~LogListener();
+
 	virtual void AddLogEntry(const LogEntry &entry);
 };
-
-void SubscribeToLog(std::shared_ptr<LogListener> listener);
-void UnsubscribeToLog(std::shared_ptr<LogListener> listener);
 
 void SubmitLogEntry(std::string filename, unsigned int line, std::string function, Severity severity, std::string message);
 

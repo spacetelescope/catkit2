@@ -12,29 +12,29 @@ LogEntry::LogEntry(std::string filename, unsigned int line, std::string function
 	time = ConvertTimestampToString(timestamp);
 }
 
-void LogListener::AddLogEntry(const LogEntry &entry)
+vector<LogListener *> log_listeners;
+
+LogListener::LogListener()
 {
+	log_listeners.push_back(this);
 }
 
-vector<shared_ptr<LogListener>> log_listeners;
-
-void SubscribeToLog(shared_ptr<LogListener> listener)
+LogListener::~LogListener()
 {
-	log_listeners.push_back(listener);
-}
-
-void UnsubscribeToLog(shared_ptr<LogListener> listener)
-{
-	auto it = find(log_listeners.begin(), log_listeners.end(), listener);
+	auto it = find(log_listeners.begin(), log_listeners.end(), this);
 	if (it != log_listeners.end())
 		log_listeners.erase(it);
+}
+
+void LogListener::AddLogEntry(const LogEntry &entry)
+{
 }
 
 void SubmitLogEntry(std::string filename, unsigned int line, std::string function, Severity severity, std::string message)
 {
 	auto entry = LogEntry(filename, line, function, severity, message, GetTimeStamp());
-	for (auto i : log_listeners)
+	for (auto listener : log_listeners)
 	{
-		i->AddLogEntry(entry);
+		listener->AddLogEntry(entry);
 	}
 }

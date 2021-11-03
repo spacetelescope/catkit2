@@ -65,7 +65,7 @@ setup(
     description="A library for controlling testbed hardware",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages("hicat2"),
+    packages=setuptools.find_packages(),
     package_data={'hicat2': ['user_interface/assets/*']},
     classifiers=[
         "Programming Language :: Python :: 3"

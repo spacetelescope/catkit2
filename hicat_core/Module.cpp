@@ -27,11 +27,8 @@ static void SignalHandler(int signal_value)
 
 Module::Module(std::string name, int port)
 	: m_Name(name), m_Port(port), m_IsRunning(false),
-	m_Context(nullptr), m_Shell(nullptr), m_Broadcast(nullptr)
+	m_Context(nullptr), m_Shell(nullptr), m_Broadcast(nullptr), m_Logger(true, true)
 {
-	m_Logger = std::make_shared<LogConsole>(true, true);
-	SubscribeToLog(m_Logger);
-
 	LOG_INFO("Starting module '"s + name + "' on port "s  + std::to_string(port) + ".");
 
 	// Catching Ctrl+C and similar process killers and shut down gracefully.
@@ -68,7 +65,6 @@ Module::~Module()
 	}
 
 	LOG_INFO("Module '"s + m_Name + "' has been destroyed.");
-	UnsubscribeToLog(m_Logger);
 }
 
 void Module::MonitorInterface()
