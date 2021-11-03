@@ -17,6 +17,7 @@ add_library(hicat_core STATIC
     Log.cpp
     LogConsole.cpp
     LogFile.cpp
+    LogPublish.cpp
     Serialization.cpp
     HostName.cpp
     Command.cpp

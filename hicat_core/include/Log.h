@@ -84,5 +84,6 @@ public:
 };
 
 void SubmitLogEntry(std::string filename, unsigned int line, std::string function, Severity severity, std::string message);
+std::string ToString(Severity severity);
 
 #endif // LOG_H
