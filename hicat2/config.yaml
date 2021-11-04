@@ -80,10 +80,13 @@ modules:
 
   newport_xps:
     module_type: newport_xps_q8
+    interface: newport_xps_q8
 
     ip_address: 192.168.192.117
     port: 5001
     timeout: 20
+    update_interval: 1
+    atol: 0.001
     motors:
       FPM_X:
         nominal: coron
