@@ -24,11 +24,9 @@ class NewportXpsQ8Module(Module):
         self.port = config['port']
         self.timeout = config['timeout']
         self.motor_positions = config['motors']
-        self.atol = 0.001
-
-        # Initialize lock to avoid simultaneous calls to the XPS driver.
-        # We're assuming the API is not thread-safe.
-        self.lock = threading.Lock()
+        self.update_interval = config['update_interval']
+        self.motor_ids = list(config['motors'].keys())
+        self.atol = config['atol']
 
         self.shutdown_flag = False
 
@@ -36,10 +34,11 @@ class NewportXpsQ8Module(Module):
         self.motor_current_positions = {}
         self.motor_threads = {}
 
-        for motor_id in config['motors']:
+        for motor_id in self.motor_ids:
             self.add_motor(motor_id)
 
-        self.socket_id = None
+        self.socket_get = {}
+        self.socket_set = {}
 
     def add_motor(self, motor_id):
         self.motors[motor_id] = DataStream.create(motor_id.lower(), self.name, 'float64', [1], 20)
@@ -48,66 +47,66 @@ class NewportXpsQ8Module(Module):
         self.motor_current_positions[motor_id] = DataStream.create(motor_id.lower() + '_current_position', self.name, 'float64', [1], 20)
         self.register_data_stream(self.motor_current_positions[motor_id])
 
-    def get_named_position(self, motor_id, position_name):
-        position = self.motor_positions[motor_id][position_name]
-
-        if type(position) == str:
-            # The position is still a named position; we need to go deeper.
-            return self.get_named_position(motor_id, position)
-        else:
-            return position
-
     def set_current_position(self, motor_id, position):
+        socket_id, lock = self.socket_set[motor_id]
         positioner = motor_id + '.Pos'
-
-        self._ensure_initialized(motor_id)
 
         current_position = self.get_current_position(motor_id)
 
         if not np.isclose(current_position, position, atol=self.atol):
             # Move the actuator.
-            with self.lock:
-                error_code, return_string = self.device.GroupMoveAbsolute(self.socket_id, positioner, [position])
+            with lock:
+                error_code, return_string = self.device.GroupMoveAbsolute(socket_id, positioner, [position])
                 self._raise_on_error(error_code, 'GroupMoveAbsolute')
 
+            # Update current position data stream.
+            self.get_current_position(motor_id)
+
     def get_current_position(self, motor_id):
+        socket_id, lock = self.socket_get[motor_id]
         positioner = motor_id + '.Pos'
 
-        self._ensure_initialized(motor_id)
-
-        with self.lock:
-            error_code, current_position = self.device.GroupPositionCurrentGet(self.socket_id, positioner, 1)
+        with lock:
+            error_code, current_position = self.device.GroupPositionCurrentGet(socket_id, positioner, 1)
             self._raise_on_error(error_code, 'GroupPositionCurrentGet')
+
+        # Update current position data stream.
+        stream = self.motor_current_positions[motor_id]
+        frame = stream.request_new_frame()
+        f.data[:] = current_position
+        stream.submit_frame(frame.id)
 
         return current_position
 
     def _ensure_initialized(self, motor_id):
-        with self.lock:
-            error_code, current_status = self.device.GroupStatusGet(self.socket_id, motor_id)
+        socket_id, lock = self.socket_set[motor_id]
+
+        with lock:
+            error_code, current_status = self.device.GroupStatusGet(socket_id, motor_id)
             self._raise_on_error(error_code, 'GroupStatusGet')
 
             # Kill motor if it is not in a known good state.
             if current_status not in self._OK_STATES:
-                error_code, return_string = self.device.GroupKill(self.socket_id, motor_id)
+                error_code, return_string = self.device.GroupKill(socket_id, motor_id)
                 self._raise_on_error(error_code, 'GroupKill')
 
                 # Update the status.
-                error_code, current_status = self.device.GroupStatusGet(self.socket_id, motor_id)
+                error_code, current_status = self.device.GroupStatusGet(socket_id, motor_id)
                 self._raise_on_error(error_code, 'GroupStatusGet')
 
             # Initialize from killed state.
             if current_status == 7:
                 # Initialize the group
-                error_code, return_string = self.device.GroupInitialize(self.socket_id, motor_id)
+                error_code, return_string = self.device.GroupInitialize(socket_id, motor_id)
                 self._raise_on_error(error_code, 'GroupInitialize')
 
                 # Update the status
-                error_code, current_status = self.device.GroupStatusGet(self.socket_id, motor_id)
+                error_code, current_status = self.device.GroupStatusGet(socket_id, motor_id)
                 self._raise_on_error(error_code, 'GroupStatusGet')
 
             # Home search
             if current_status == 42:
-                error_code, return_string = self.device.GroupHomeSearch(self.socket_id, motor_id)
+                error_code, return_string = self.device.GroupHomeSearch(socket_id, motor_id)
                 self._raise_on_error(error_code, 'GroupHomeSearch')
 
     def _raise_on_error(self, error_code, api_name):
@@ -127,23 +126,21 @@ class NewportXpsQ8Module(Module):
 
     def monitor_motor(self, motor_id):
         # Initialize motor if not already initialized.
-        self._ensure_initialized(group)
+        self._ensure_initialized(motor_id)
 
         current_position_stream = self.motor_current_positions[motor_id]
         command_stream = self.motors[motor_id]
 
-        time_of_last_position = 0
+        time_of_last_update = 0
 
         while not self.shutdown_flag:
             # Submit current position each update interval.
-            time_since_last_position = time.time() - time_of_last_position
+            time_since_last_update = time.time() - time_of_last_update
 
-            if time_since_last_position > self.update_interval:
-                frame = current_position_stream.request_new_frame()
-                frame.data[0] = self.get_current_position(motor_id)
-                current_position_stream.submit_frame(frame.id)
+            if time_since_last_update > self.update_interval:
+                self.get_current_position(motor_id)
 
-                time_of_last_position = time.time()
+                time_of_last_update = time.time()
 
             # Set the current position if a new command has arrived.
             try:
@@ -158,15 +155,34 @@ class NewportXpsQ8Module(Module):
         # Start the device
         self.device = XPS_Q8_drivers.XPS()
 
-        # Start the socket connection to the driver.
-        socket_id = self.device.TCP_ConnectToServer(self.host, self.port, self.timeout)
-        if socket_id == -1:
-            raise RuntimeError('Connection to XPS failed, check IP & port (invalid socket)')
+        # Start two socket connections to the driver for each motor.
+        try:
+            self.socket_get = {}
+            self.socket_set = {}
 
-        self.socket_id = socket_id
+            for motor_id in self.motor_ids:
+                socket_id_get = self.device.TCP_ConnectToServer(self.host, self.port, self.timeout)
+
+                if socket_id_get == -1:
+                    raise RuntimeError('Connection to XPS failed, check IP & port (invalid socket)')
+
+                self.socket_get[motor_id] = (socket_id_get, threading.Lock())
+
+                socket_id_set = self.device.TCP_ConnectToServer(self.host, self.port, self.timeout)
+                if socket_id_set == -1:
+                    raise RuntimeError('Connection to XPS failed, check IP & port (invalid socket)')
+
+                self.socket_set[motor_id] = (socket_id_set, threading.Lock())
+        except RuntimeError:
+            # Close the already opened sockets.
+            for socket_id, lock in self.socket_get.values():
+                self.device.TCP_CloseSocket(socket_id)
+
+            for socket_id, lock in self.socket_set.values():
+                self.device.TCP_CloseSocket(socket_id)
 
         # Start the motor threads
-        for motor_id in self.motors.keys():
+        for motor_id in self.motor_ids:
             self.motor_threads[motor_id] = threading.Thread(target=self.monitor_motor, args=(motor_id,))
 
     def main(self):
