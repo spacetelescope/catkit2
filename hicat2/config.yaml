@@ -109,6 +109,45 @@ modules:
         in_beam: 5.777
         out_of_beam: 5
 
+  apodizer_mount:
+    module_type: newport_picomotor
+
+    ip_address: 192.168.192.151
+    max_step: 2147483647
+    timeout: 60
+    daisy: 0
+    axes:
+      x: 1
+      y: 2
+    sleep_per_step: 0.0005
+    sleep_base: 0.1
+
+  quad_cell_mount:
+    module_type: newport_picomotor
+
+    ip_address: 192.168.192.151
+    max_step: 2147483647
+    timeout: 60
+    axes:
+      x: 3
+      y: 4
+    daisy: 0
+    sleep_per_step: 0.0005
+    sleep_base: 0.1
+
+  zwfs_mount:
+    module_type: newport_picomotor
+
+    ip_address: 192.168.192.152
+    max_step: 2147483647
+    timeout: 60
+    daisy: 0
+    axes:
+      x: 4
+      y: 1
+    sleep_per_step: 0.0005
+    sleep_base: 0.1
+
   beam_dump:
     module_type: thorlabs_mff101
 
