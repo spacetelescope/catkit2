@@ -15,6 +15,7 @@ Usage:
 Options:
   -p, --port PORT   The port number on which the testbed server operates.
                     Defaults to the port specified in the config file.
+  --simulated       Whether the testbed server should be run in simulated mode or not.
   -h, --help        Show this help message and exit.
   --version         Show version and exit.
 '''
@@ -51,7 +52,7 @@ def main():
 
         if arguments['server']:
             print(f'Starting the HiCAT server on port {port}...')
-            server = TestbedServer(port)
+            server = TestbedServer(port, arguments['--simulated'])
 
             print('Use Ctrl-C to terminate the server and close all modules.')
             server.run()

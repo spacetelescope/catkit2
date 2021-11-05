@@ -45,8 +45,9 @@ class ModuleReference:
             subprocess.Popen([sys.executable, '-c', ctrl_c_code.format(pid=self.process.pid)])
 
 class TestbedServer:
-    def __init__(self, port):
+    def __init__(self, port, is_simulated):
         self.port = port
+        self.is_simulated = is_simulated
         self.next_module_port = port + 10
         self.modules = {}
 
