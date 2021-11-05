@@ -441,23 +441,27 @@ DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_
 
 DataFrame DataStream::GetNextFrame(bool wait, unsigned long wait_time_in_ms, void (*error_check)())
 {
-	size_t frame_id;
+	size_t frame_id = m_NextFrameIdToRead;
+	size_t newest_frame_id = GetNewestAvailableFrameId();
+	size_t oldest_frame_id = GetOldestAvailableFrameId();
 
 	switch (m_BufferHandlingMode)
 	{
 		case BM_NEWEST_ONLY:
-		frame_id = GetNewestAvailableFrameId();
 
-		if (frame_id < m_NextFrameIdToRead)
-			frame_id++;
+		// If the frame we are aiming to read is not the newest,
+		// return the newest frame instead.
+		if (newest_frame_id > frame_id)
+			frame_id = newest_frame_id;
 
 		break;
 
 		case BM_OLDEST_FIRST_OVERWRITE:
-		frame_id = m_NextFrameIdToRead;
 
-		if (!IsFrameAvailable(frame_id))
-			frame_id = GetOldestAvailableFrameId();
+		// If the frame was discarded already,
+		// return the oldest available frame instead.
+		if (frame_id < oldest_frame_id)
+			frame_id = oldest_frame_id;
 
 		break;
 	}
@@ -476,6 +480,16 @@ DataFrame DataStream::GetLatestFrame()
 		throw std::runtime_error("DataStream does not have any frames when trying to get the latest one.");
 
 	return GetFrame(id, false);
+}
+
+BufferHandlingMode DataStream::GetBufferHandlingMode()
+{
+	return m_BufferHandlingMode;
+}
+
+void DataStream::SetBufferHandlingMode(BufferHandlingMode mode)
+{
+	m_BufferHandlingMode = mode;
 }
 
 bool DataStream::IsFrameAvailable(size_t id)

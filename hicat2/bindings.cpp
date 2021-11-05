@@ -188,7 +188,12 @@ PYBIND11_MODULE(bindings, m)
 		.def("is_frame_available", &DataStream::IsFrameAvailable)
 		.def("will_frame_be_available", &DataStream::WillFrameBeAvailable)
 		.def_property_readonly("newest_available_frame_id", &DataStream::GetNewestAvailableFrameId)
-		.def_property_readonly("oldest_available_frame_id", &DataStream::GetOldestAvailableFrameId);
+		.def_property_readonly("oldest_available_frame_id", &DataStream::GetOldestAvailableFrameId)
+		.def_property("buffer_handling_mode", &DataStream::GetBufferHandlingMode, &DataStream::SetBufferHandlingMode);
+
+	py::enum_<BufferHandlingMode>(m, "BufferHandlingMode")
+		.value("NEWEST_ONLY", BM_NEWEST_ONLY)
+		.value("OLDEST_FIRST_OVERWRITE", BM_OLDEST_FIRST_OVERWRITE);
 
 	m.def("get_timestamp", &GetTimeStamp);
 	m.def("convert_timestamp_to_string", &ConvertTimestampToString);

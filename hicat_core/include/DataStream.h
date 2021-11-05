@@ -155,6 +155,9 @@ public:
 	DataFrame GetNextFrame(bool wait=true, unsigned long wait_time_in_ms=INFINITE, void (*error_check)()=nullptr);
 	DataFrame GetLatestFrame();
 
+	BufferHandlingMode GetBufferHandlingMode();
+	void SetBufferHandlingMode(BufferHandlingMode mode);
+
 	bool IsFrameAvailable(size_t id);
 	bool WillFrameBeAvailable(size_t id);
 
