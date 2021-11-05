@@ -128,20 +128,9 @@ class NewportXpsQ8Module(Module):
         # Initialize motor if not already initialized.
         self._ensure_initialized(motor_id)
 
-        current_position_stream = self.motor_current_positions[motor_id]
         command_stream = self.motors[motor_id]
 
-        time_of_last_update = 0
-
         while not self.shutdown_flag:
-            # Submit current position each update interval.
-            time_since_last_update = time.time() - time_of_last_update
-
-            if time_since_last_update > self.update_interval:
-                self.get_current_position(motor_id)
-
-                time_of_last_update = time.time()
-
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
@@ -186,7 +175,19 @@ class NewportXpsQ8Module(Module):
             self.motor_threads[motor_id] = threading.Thread(target=self.monitor_motor, args=(motor_id,))
 
     def main(self):
+        time_of_last_update = 0
+
         while not self.shutdown_flag:
+            # Submit current position of each motor at most every `update_interval` seconds.
+            time_since_last_update = time.time() - time_of_last_update
+
+            if time_since_last_update > self.update_interval:
+                for motor_id in self.motor_ids:
+                    self.get_current_position(motor_id)
+
+                time_of_last_update = time.time()
+
+            # Sleep a little bit, but not too long since we need to periodically check the shutdown flag.
             time.sleep(0.01)
 
     def close(self):
