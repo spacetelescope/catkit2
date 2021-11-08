@@ -5,8 +5,8 @@
 using namespace zmq;
 using json = nlohmann::json;
 
-LogPublish::LogPublish(std::string host)
-	: m_Host(host), m_Context(1)
+LogPublish::LogPublish(std::string service_name, std::string host)
+	: m_ServiceName(service_name), m_Host(host), m_Context(1)
 {
 
 }
@@ -16,6 +16,7 @@ void LogPublish::AddLogEntry(const LogEntry &entry)
 	auto &socket = GetSocket();
 
 	json message = {
+		{"service_name", m_ServiceName},
 		{"filename", entry.filename},
 		{"line", entry.line},
 		{"function", entry.function},
