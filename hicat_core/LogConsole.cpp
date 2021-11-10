@@ -43,7 +43,7 @@ void LogConsole::AddLogEntry(const LogEntry &entry)
 	{
 		switch (entry.severity)
 		{
-		case S_CRITICAL_ERROR:
+		case S_CRITICAL:
 			cout << BG_RED;
 			break;
 		case S_ERROR:
@@ -63,10 +63,10 @@ void LogConsole::AddLogEntry(const LogEntry &entry)
 			break;
 		}
 	}
-	
+
 	switch (entry.severity)
 	{
-	case S_CRITICAL_ERROR:
+	case S_CRITICAL:
 		cout << "Critical Error: ";
 		break;
 	case S_ERROR:

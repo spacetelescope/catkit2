@@ -10,9 +10,9 @@
 #endif
 
 #if LOG_LEVEL > 0
-	#define LOG_CRITICAL_ERROR(message) SubmitLogEntry(__FILE__, __LINE__, __func__, S_CRITICAL_ERROR, message)
+	#define LOG_CRITICAL(message) SubmitLogEntry(__FILE__, __LINE__, __func__, S_CRITICAL, message)
 #else
-	#define LOG_CRITICAL_ERROR(message) ((void) 0)
+	#define LOG_CRITICAL(message) ((void) 0)
 #endif
 
 #if LOG_LEVEL > 1
@@ -53,7 +53,7 @@
 
 enum Severity
 {
-	S_CRITICAL_ERROR,
+	S_CRITICAL,
 	S_ERROR,
 	S_WARNING,
 	S_USER,

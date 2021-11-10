@@ -14,8 +14,8 @@ void LogFile::AddLogEntry(const LogEntry &entry)
 
 	switch (entry.severity)
 	{
-	case S_CRITICAL_ERROR:
-		m_File << "Critical Error: ";
+	case S_CRITICAL:
+		m_File << "Critical: ";
 		break;
 	case S_ERROR:
 		m_File << "Error: ";

@@ -45,8 +45,8 @@ std::string ToString(Severity severity)
 {
 	switch (severity)
 	{
-	case S_CRITICAL_ERROR:
-		return "critical error";
+	case S_CRITICAL:
+		return "critical";
 	case S_ERROR:
 		return "error";
 	case S_WARNING:
