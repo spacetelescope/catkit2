@@ -9,6 +9,7 @@
 #include "Module.h"
 #include "Command.h"
 #include "Property.h"
+#include "Log.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -197,6 +198,16 @@ PYBIND11_MODULE(bindings, m)
 
 	m.def("get_timestamp", &GetTimeStamp);
 	m.def("convert_timestamp_to_string", &ConvertTimestampToString);
+
+	py::enum_<Severity>(m, "Severity")
+		.value("CRITICAL", S_CRITICAL)
+		.value("ERROR", S_ERROR)
+		.value("WARNING", S_WARNING)
+		.value("INFO", S_INFO)
+		.value("DEBUG", S_DEBUG);
+
+	m.def("submit_log_entry", &SubmitLogEntry);
+	m.def("severity_to_string", &ConvertSeverityToString);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

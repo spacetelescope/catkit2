@@ -41,7 +41,7 @@ void SubmitLogEntry(std::string filename, unsigned int line, std::string functio
 	}
 }
 
-std::string ToString(Severity severity)
+std::string ConvertSeverityToString(Severity severity)
 {
 	switch (severity)
 	{

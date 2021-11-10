@@ -20,7 +20,7 @@ void LogPublish::AddLogEntry(const LogEntry &entry)
 		{"filename", entry.filename},
 		{"line", entry.line},
 		{"function", entry.function},
-		{"severity", ToString(entry.severity)},
+		{"severity", ConvertSeverityToString(entry.severity)},
 		{"message", entry.message},
 		{"timestamp", entry.timestamp},
 		{"time", entry.time}
