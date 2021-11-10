@@ -29,9 +29,6 @@ void LogFile::AddLogEntry(const LogEntry &entry)
 	case S_DEBUG:
 		m_File << "Debug: ";
 		break;
-	case S_USER:
-		m_File << "User:";
-		break;
 	}
 
 	m_File << entry.message << endl;

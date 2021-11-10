@@ -51,8 +51,6 @@ std::string ToString(Severity severity)
 		return "error";
 	case S_WARNING:
 		return "warning";
-	case S_USER:
-		return "user";
 	case S_INFO:
 		return "info";
 	case S_DEBUG:

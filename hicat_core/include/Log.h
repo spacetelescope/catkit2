@@ -6,7 +6,7 @@
 #include <memory>
 
 #ifndef LOG_LEVEL
-	#define LOG_LEVEL 6
+	#define LOG_LEVEL 5
 #endif
 
 #if LOG_LEVEL > 0
@@ -28,18 +28,12 @@
 #endif
 
 #if LOG_LEVEL > 3
-	#define LOG_USER(message) SubmitLogEntry(__FILE__, __LINE__, __func__, S_USER, message)
-#else
-	#define LOG_USER(message) ((void) 0)
-#endif
-
-#if LOG_LEVEL > 4
 	#define LOG_INFO(message) SubmitLogEntry(__FILE__, __LINE__, __func__, S_INFO, message)
 #else
 	#define LOG_INFO(message) ((void) 0)
 #endif
 
-#if LOG_LEVEL > 5
+#if LOG_LEVEL > 4
 	#define LOG_DEBUG(message) SubmitLogEntry(__FILE__, __LINE__, __func__, S_DEBUG, message)
 #else
 	#define LOG_DEBUG(message) ((void) 0)
@@ -51,14 +45,14 @@
 	#define LOG_ASSERT(condition, message) ((void) 0)
 #endif
 
+// Define the same numeric values of log levels as Python.
 enum Severity
 {
-	S_CRITICAL,
-	S_ERROR,
-	S_WARNING,
-	S_USER,
-	S_INFO,
-	S_DEBUG
+	S_CRITICAL = 50,
+	S_ERROR = 40,
+	S_WARNING = 30,
+	S_INFO = 20,
+	S_DEBUG = 10
 };
 
 typedef struct LogEntry

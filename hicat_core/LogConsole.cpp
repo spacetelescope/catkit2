@@ -58,9 +58,6 @@ void LogConsole::AddLogEntry(const LogEntry &entry)
 		case S_DEBUG:
 			cout << FG_GREEN;
 			break;
-		case S_USER:
-			cout << FG_GRAY;
-			break;
 		}
 	}
 
@@ -80,9 +77,6 @@ void LogConsole::AddLogEntry(const LogEntry &entry)
 		break;
 	case S_DEBUG:
 		cout << "Debug: ";
-		break;
-	case S_USER:
-		cout << "User:";
 		break;
 	}
 
