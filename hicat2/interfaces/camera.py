@@ -8,7 +8,7 @@ class CameraProxy(ModuleProxy):
         if not was_acquiring:
             self.start_acquisition()
 
-        first_frame_id = self.get_newest_available_frame_id()
+        first_frame_id = self.images.newest_available_frame_id
 
         if was_acquiring:
             # Ignore first to frames to ensure the frames were taken _after_ the
@@ -18,7 +18,7 @@ class CameraProxy(ModuleProxy):
 
         try:
             for i in range(num_exposures):
-                yield self.images.get_frame(first_frame_id + i).data
+                yield self.images.get_frame(first_frame_id + i).data.copy()
         finally:
             if not was_acquiring:
-                self.stop_acqisition()
+                self.stop_acquisition()
