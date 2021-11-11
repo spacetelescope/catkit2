@@ -106,16 +106,7 @@ PYBIND11_MODULE(bindings, m)
 					shape.push_back(f.m_Dimensions[i]);
 				}
 
-				std::vector<py::ssize_t> strides;
-				for (int i = 0; i < f.m_NumDimensions; ++i)
-				{
-					size_t stride = item_size;
-
-					for (int j = int(f.m_NumDimensions - 1); j > i; --j)
-						stride *= shape[j];
-
-					strides.push_back(stride);
-				}
+				auto strides = py::detail::c_strides(shape, item_size);
 
 				return py::array(
 					GetDataTypeAsString(f.m_DataType),
@@ -138,6 +129,44 @@ PYBIND11_MODULE(bindings, m)
 		})
 		.def("request_new_frame", &DataStream::RequestNewFrame)
 		.def("submit_frame", &DataStream::SubmitFrame)
+		.def("submit_data", [](DataStream &s, py::buffer data)
+		{
+			auto buffer_info = data.request();
+
+			// Check if data has the right dtype.
+			if (GetDataTypeAsString(s.GetDataType()) != buffer_info.format)
+				throw std::runtime_error("Incompatible array dtype.");
+
+			// Check if data has the right shape.
+			size_t ndim = s.GetNumDimensions();
+
+			if (ndim != buffer_info.ndim)
+				throw std::runtime_error("Incompatible array shape.");
+
+			std::vector<py::ssize_t> shape;
+			for (size_t i = 0; i < ndim; ++i)
+			{
+				shape.push_back(s.GetDimensions()[i]);
+			}
+
+			for (size_t i = 0; i < ndim; i++)
+			{
+				if (shape[i] != buffer_info.shape[i])
+					throw std::runtime_error("Incompatible array shape.");
+			}
+
+			// Check if data is C continguous.
+			auto strides = py::detail::c_strides(shape, GetSizeOfDataType(s.GetDataType()));
+
+			for (size_t i = 0; i < ndim; i++)
+			{
+				if (strides[i] != buffer_info.strides[i])
+					throw std::runtime_error("Input array must be C continguous.");
+			}
+
+			// All checks are complete. Let's copy/submit the raw data.
+			s.SubmitData(buffer_info.ptr);
+		})
 		.def("get_frame", [](DataStream &s, size_t id, bool wait, unsigned long wait_time_in_ms)
 		{
 			return s.GetFrame(id, wait, wait_time_in_ms, []()

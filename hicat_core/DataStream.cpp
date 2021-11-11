@@ -291,6 +291,16 @@ void DataStream::SubmitFrame(size_t id)
 		ReleaseSemaphore(m_FrameWritten, (LONG) num_readers_waiting, NULL);
 }
 
+void DataStream::SubmitData(void *data)
+{
+	DataFrame frame = RequestNewFrame();
+
+	char *source = (char *) data;
+	std::copy(source, source + frame.GetSizeInBytes(), frame.m_Data);
+
+	SubmitFrame(frame.m_Id);
+}
+
 std::vector<size_t> DataStream::GetDimensions()
 {
 	return std::vector<size_t>(m_Header->m_Dimensions, m_Header->m_Dimensions + m_Header->m_NumDimensions);

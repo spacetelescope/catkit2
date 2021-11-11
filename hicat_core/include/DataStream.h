@@ -131,6 +131,7 @@ public:
 
 	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
+	void SubmitData(void *data);
 
 	std::vector<size_t> GetDimensions();
 	DataType GetDataType();
