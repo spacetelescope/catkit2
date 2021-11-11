@@ -123,9 +123,9 @@ PYBIND11_MODULE(bindings, m)
 			DataType dtype = GetDataTypeFromString(type);
 			return DataStream::Create(stream_name, module_name, dtype, dimensions, num_frames_in_buffer);
 		})
-		.def_static("open", [](std::string &stream_name, std::string &module_name)
+		.def_static("open", [](std::string &stream_id)
 		{
-			return DataStream::Open(stream_name, module_name);
+			return DataStream::Open(stream_id);
 		})
 		.def("request_new_frame", &DataStream::RequestNewFrame)
 		.def("submit_frame", &DataStream::SubmitFrame)
@@ -212,7 +212,7 @@ PYBIND11_MODULE(bindings, m)
 		})
 		.def_property_readonly("version", &DataStream::GetVersion)
 		.def_property_readonly("stream_name", &DataStream::GetStreamName)
-		.def_property_readonly("module_name", &DataStream::GetModuleName)
+		.def_property_readonly("stream_id", &DataStream::GetStreamId)
 		.def_property_readonly("time_created", &DataStream::GetTimeCreated)
 		.def_property_readonly("creator_pid", &DataStream::GetCreatorPID)
 		.def("is_frame_available", &DataStream::IsFrameAvailable)

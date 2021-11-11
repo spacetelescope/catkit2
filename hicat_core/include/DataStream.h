@@ -13,7 +13,7 @@
 
 #include "ComplexTraits.h"
 
-const char * const CURRENT_VERSION = "0.1";
+const char * const CURRENT_DATASTREAM_VERSION = "0.1";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
 
 enum class DataType
@@ -56,7 +56,7 @@ struct DataStreamHeader
 	char m_Version[32];
 
 	char m_StreamName[256];
-	char m_ModuleName[256];
+	char m_StreamId[256];
 	std::uint64_t m_TimeCreated;
 	unsigned long m_CreatorPID;
 
@@ -125,9 +125,9 @@ private:
 public:
 	~DataStream();
 
-	static std::shared_ptr<DataStream> Create(std::string &stream_name, std::string &module_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::shared_ptr<DataStream> Create(std::string &name, std::string &module_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::shared_ptr<DataStream> Open(std::string &name, std::string &module_name);
+	static std::shared_ptr<DataStream> Create(const std::string &stream_name, const std::string &module_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Create(const std::string &stream_name, const std::string &module_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Open(const std::string &stream_id);
 
 	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
@@ -148,7 +148,7 @@ public:
 
 	std::string GetVersion();
 	std::string GetStreamName();
-	std::string GetModuleName();
+	std::string GetStreamId();
 	std::uint64_t GetTimeCreated();
 	unsigned long GetCreatorPID();
 

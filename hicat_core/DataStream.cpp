@@ -8,9 +8,9 @@
 
 using namespace std;
 
-std::string GetBaseName(const std::string &stream_name, const std::string &module_name)
+std::string MakeStreamId(const std::string &stream_name, const std::string &module_name, int pid)
 {
-	return module_name + "." + stream_name;
+	return module_name + "." + std::to_string(pid) + "." + stream_name;
 }
 
 void CalculateBufferSize(DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer,
@@ -161,23 +161,21 @@ DataStream::~DataStream()
 	CloseHandle(m_FileMapping);
 }
 
-std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::string &module_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &module_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	size_t num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer;
 
 	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
 		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
 
-	std::cout << "num bytes in buffer: " << num_bytes_in_buffer << " bytes" << std::endl;
+	auto stream_id = MakeStreamId(stream_name, module_name, GetCurrentProcessId());
 
-	auto base_name = GetBaseName(stream_name, module_name);
-
-	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes_in_buffer, (base_name + ".mem").c_str());
+	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes_in_buffer, (stream_id + ".mem").c_str());
 
 	if (file_mapping == NULL)
 		throw std::runtime_error("Something went wrong while creating shared memory.");
 
-	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (base_name + ".sem").c_str());
+	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (stream_id + ".sem").c_str());
 
 	if (semaphore == NULL)
 	{
@@ -189,10 +187,10 @@ std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::st
 	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 	auto header = data_stream->m_Header;
 
-	strcpy(header->m_Version, CURRENT_VERSION);
+	strcpy(header->m_Version, CURRENT_DATASTREAM_VERSION);
 
 	strcpy(header->m_StreamName, stream_name.c_str());
-	strcpy(header->m_ModuleName, module_name.c_str());
+	strcpy(header->m_StreamId, stream_id.c_str());
 	header->m_TimeCreated = GetTimeStamp();
 	header->m_CreatorPID = GetCurrentProcessId();
 
@@ -208,21 +206,19 @@ std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::st
 	return data_stream;
 }
 
-std::shared_ptr<DataStream> DataStream::Create(std::string &stream_name, std::string &module_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &module_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	return Create(stream_name, module_name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
 }
 
-std::shared_ptr<DataStream> DataStream::Open(std::string &stream_name, std::string &module_name)
+std::shared_ptr<DataStream> DataStream::Open(const std::string &stream_id)
 {
-	auto base_name = GetBaseName(stream_name, module_name);
-
-	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, (base_name + ".mem").c_str());
+	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, (stream_id + ".mem").c_str());
 
 	if (file_mapping == NULL)
 		throw std::runtime_error("Something went wrong while opening shared memory.");
 
-	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (base_name + ".sem").c_str());
+	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (stream_id + ".sem").c_str());
 
 	if (semaphore == NULL)
 	{
@@ -233,7 +229,7 @@ std::shared_ptr<DataStream> DataStream::Open(std::string &stream_name, std::stri
 
 	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 
-	if (strcmp(data_stream->m_Header->m_Version, CURRENT_VERSION) != 0)
+	if (strcmp(data_stream->m_Header->m_Version, CURRENT_DATASTREAM_VERSION) != 0)
 	{
 		// DataStreams were made with different versions.
 		return nullptr;
@@ -376,9 +372,9 @@ std::string DataStream::GetStreamName()
 	return m_Header->m_StreamName;
 }
 
-std::string DataStream::GetModuleName()
+std::string DataStream::GetStreamId()
 {
-	return m_Header->m_ModuleName;
+	return m_Header->m_StreamId;
 }
 
 std::uint64_t DataStream::GetTimeCreated()
