@@ -22,7 +22,8 @@ add_library(hicat_core STATIC
     HostName.cpp
     Command.cpp
     Property.cpp
-    Module.cpp)
+    Module.cpp
+    Service.cpp)
 
 target_include_directories(hicat_core PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
