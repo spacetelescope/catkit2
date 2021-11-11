@@ -9,12 +9,20 @@ import zmq
 from .constants import *
 from ..config import read_config
 
-class ServerError(Exception):
-	def __init__(self, value):
-		self.value = value
+import inspect
+def log(severity, message):
+    stack = inspect.stack()[1]
+    filename = stack[1]
+    line = stack[2]
+    function = stack[3]
 
-	def __str__(self):
-		return str(self.value)
+    submit_log_entry(filename, line, function, severity, message)
+
+def decode_json(json_bytes):
+    try:
+        data = json.loads(json_bytes.decode('ascii'))
+    except json.JSONDecodeError as err:
+        raise RuntimeError(f'JSON of data is malformed: "{err.msg}".') from err
 
 class LoggingProxy:
     def __init__(self, context, input_port, output_port):
@@ -39,6 +47,8 @@ class ServiceReference:
         self._socket_identity = None
         self._message_queue = []
         self.expiry_time = 0
+        self._is_ready = False
+        self.is_open = False
 
         self.last_sent_heartbeat = 0
 
@@ -63,6 +73,10 @@ class ServiceReference:
     def is_connected(self):
         return self.socket_identity is not None and self.is_alive
 
+    @property
+    def is_ready(self):
+        return self._is_ready
+
     def send_request(self, client_identity, request):
         self.message_queue.append([REQUEST_ID, client_identity, request])
 
@@ -71,10 +85,8 @@ class ServiceReference:
     def send_configuration(self, configuration):
         self.message_queue.append([CONFIGURATION_ID, configuration])
 
-        self.dispatch_all()
-
     def dispatch_all(self):
-        if self.is_connected:
+        if self.is_open:
             for message in self.message_queue:
                 if len(message) == 3:
                     message_type, client_identity, msg = message
@@ -82,17 +94,25 @@ class ServiceReference:
                     message_type, msg = message
                     client_identity = None
 
-                self.server.send_reply(self.socket_identity, message_type, client_identity=client_identity, reply=msg)
+                self.server.send_message(self.socket_identity, message_type, [client_identity, msg])
 
             self.message_queue = []
+
+    def on_opened(self):
+        self.is_open = True
+
+        # Send any messages that were waiting to be sent.
+        self.dispatch_all()
 
     def on_heartbeat(self):
         self.expiry_time = time.time() + HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS
 
     def send_heartbeat(self):
         if self.is_connected and (self.last_sent_heartbeat + HEARTBEAT_INTERVAL) < time.time():
-            self.server.send_reply(self.socket_identity, HEARTBEAT_ID)
             self.last_sent_heartbeat = time.time()
+
+            # Do not add this message to the queue; send it right away.
+            self.server.send_message(self.socket_identity, HEARTBEAT_ID)
 
     def send_keyboard_interrupt(self):
         ctrl_c_code = ';'.join([
@@ -111,7 +131,7 @@ class ServiceReference:
         self.process.terminate()
 
 class TestbedServer:
-    def __init__9self, port, is_simulated):
+    def __init__(self, port, is_simulated):
         def port = port
         self.is_simulated = is_simulated
         self.services = {}
@@ -119,6 +139,25 @@ class TestbedServer:
         self.is_running = False
 
         self.config = read_config()
+
+        self.client_message_handlers = {
+            REQUEST_ID: self.on_client_request
+        }
+
+        self.service_message_handlers = {
+            REGISTER_ID: self.on_service_register,
+            OPENED_ID: self.on_service_opened,
+            HEARTBEAT_ID: self.on_service_heartbeat,
+            REPLY_ID: self.on_service_reply
+        }
+
+        self.internal_request_handlers = {
+            'require_service': self.on_require_service,
+            'running_services': self.on_running_services,
+            'start_new_experiment': self.on_start_new_experiment,
+            'is_simulated': self.on_is_simulated,
+            'configuration': self.on_configuration
+        }
 
     def run(self):
         self.context = zmq.Context()
@@ -133,11 +172,9 @@ class TestbedServer:
 
         try:
             while self.is_running:
-                self.purge_stopped_services()
-                self.send_heartbeats()
-
                 try:
-                    identity = None
+                    self.purge_stopped_services()
+                    self.send_heartbeats()
 
                     try:
                         # Receive multipart message.
@@ -145,7 +182,7 @@ class TestbedServer:
 
                         # Unpack multipart message.
                         identity, *parts = parts
-                        empty, message_source, service_name, message_type, *message = parts
+                        empty, message_source, service_name, message_type, *parts = parts
                         service_name = service_name.decode('ascii')
                     except zmq.ZMQError as e:
                         if e.errno == zmq.EAGAIN:
@@ -153,26 +190,23 @@ class TestbedServer:
                             continue
                         else:
                             raise RuntimeError('Error during receive') from e
-                    except ValueError as e:
-                        raise ServerError("Incoming message had not enough parts.") from e
 
                     # Handle message
                     if message_source == CLIENT_ID:
-                        reply = self.on_client_message(identity, service_name, message_type, message)
+                        self.client_message_handlers[message_type](client_identity, service_name, parts)
                     elif message_source == SERVICE_ID:
-                        reply = self.on_service_message(identity, service_name, message_type, message)
+                        self.service_message_handlers[message_type](client_identity, service_name, parts)
                     else:
-                        raise ServerError('Incoming message did not have a correct message source. Ignoring...')
-
+                        raise RuntimeError('Incoming message did not have a correct message source.')
                 except Exception as e:
                     if identity is None:
                         # Error during receive. Reraise.
+                        log(Severity.CRITICAL, f'Error during receive: {e}.')
                         raise
                     else:
-                        # Something went wrong during handling of the message.
-                        # Send error response.
-                        reply = {'error_message': repr(e)}
-                        self.send_reply(identity, ERROR_ID, reply)
+                        # Something went wrong during handling of the message. Log error and ignore message.
+                        log(Severity.ERROR, f'Error during handling of message: {e}.')
+                        continue
 
         except KeyboardInterrupt:
             print('Interrupted by the user...')
@@ -193,65 +227,123 @@ class TestbedServer:
     def stop_logging_proxy(self):
         pass
 
-    def log(self, log_message):
-        pass
-
-    def on_client_message(self, client_identity, service_name, message_type, message):
-        if message_type == REQUEST_ID:
-            try:
-                request = json.loads(message[0].decode('ascii'))
-            except json.JSONDecodeError as err:
-                raise ServerError(f'JSON of request malformed: "{err.msg}".') from err
-
-            if service_name == 'server':
-                self.on_internal_request(client_identity, request)
-            else:
-                if service_name not in self.services:
-                    raise ServerError('Service has not been started.')
-
-                service = self.services[service_name]
-                service.send_request(client_identity, request)
-        else:
-            raise ServerError(f'Message type "{message_type.decode("ascii")}" is not allowed.')
-
-    def on_internal_request(self, client_identity, service_name, request):
+    def on_client_request(self, client_identity, service_name, parts):
+        request = decode_json(parts[0])
         request_type = request['request_type']
+        request_data = request['data']
 
-        if request_type == 'require_service':
-            # Ensure that service is started.
-            service_name = request['service_name']
-
-            if service_name not in self.services:
-                self.start_service(service_name)
-
-            service = self.services[service_name]
-
-            reply = {
-                'service_name': service_name,
-                'service_type': service.service_type,
-                'is_connected': service.is_connected
-            }
-        elif request_type == 'running_services':
-            # Return the running services.
-            reply = {
-                'services': {}
-            }
-
-            for service_name, service in self.services.items():
-                reply['services'][service_name] = {
-                    'service_type': service.service_type,
-                    'is_connected': service.is_connected
-                }
-        elif request_type == 'start_new_experiment':
-            # TODO: Create new experiment directory and return.
-        elif request_type == 'is_simulated':
-            reply = {'is_simulated': self.is_simulated}
-        elif request_type == 'configuration':
-            reply = {'configuration': self.config}
+        if service_name == 'server':
+            handler = self.internal_request_handlers[request_type]
+            handler(client_identity, request_data)
         else:
-            raise ServerError(f'Request type "{request_type}" is not allowed.')
+            if service_name not in self.services:
+                self.send_reply_error(client_identity, request_type, f'Service {service_name} has not been started.')
+            else:
+                service = self.services[service_name]
+                service.send_request(client_identity, request_type, request_data)
 
-        self.send_reply(client_identity, REPLY_ID, reply)
+    def on_require_service(self, client_identity, request_data):
+        # Ensure that service is started.
+        service_name = request_data['service_name']
+
+        if service_name not in self.services:
+            self.start_service(service_name)
+
+        service = self.services[service_name]
+
+        reply_data = {
+            'service_name': service_name,
+            'service_type': service.service_type,
+            'is_connected': service.is_connected,
+            'is_open': service.is_open
+        }
+
+        self.send_reply_ok(client_identity, 'require_service', reply_data)
+
+    def on_running_services(self, client_identity, request_data):
+        reply_data = {}
+
+        for service_name, service in self.services.items():
+            reply_data[service_name] = {
+                'service_type': service.service_type,
+                'is_connected': service.is_connected,
+                'is_open': service.is_open
+            }
+
+        self.send_reply_ok(client_identity, 'running_services', reply_data)
+
+    def on_is_simulated(self, client_identity, request_data):
+        self.send_reply_ok(client_idenity, 'is_simulated', self.is_simulated)
+
+    def on_configuration(self, client_identity, request_data):
+        self.send_reply_ok(client_identity, 'configuration', self.is_simulated)
+
+    def on_service_register(self, service_identity, service_name, parts):
+        data = decode_json(parts[0])
+
+        if service_name in self.services:
+            # Service was started by this server.
+            service = self.services[service_name]
+        else:
+            # Service was not started by this server but just registered.
+            process = psutil.Process(data['pid'])
+            service_type = data['service_type']
+
+            service = ServiceReference(process, service_type, service_name, self)
+            self.services[service_name] = service
+
+        service.socket_identity = service_identity
+        service.send_configuration(self.config)
+
+    def on_service_opened(self, service_identity, service_name, parts):
+        service = self.services[service_name]
+        service.on_opened()
+        service.on_heartbeat()
+
+    def on_service_heartbeat(self, service_identity, service_name, parts):
+        service = self.services[service_name]
+        service.on_heartbeat()
+
+    def on_service_reply(self, service_identity, service_name, parts):
+        client_identity = parts[0]
+        data = decode_json(parts[1])
+
+        service = self.services[service_name]
+        service.on_heartbeat()
+
+        self.send_message(client_identity, REPLY_ID, data=data)
+
+    def send_reply_ok(self, identity, reply_type, data):
+        reply_data = {
+            'status': 'ok',
+            'description': 'success',
+            'reply_type': reply_type,
+            'data': data
+        }
+
+        self.send_message(identity, REPLY_ID, data=reply_data)
+
+    def send_reply_error(self, identity, reply_type, description):
+        reply_data = {
+            'status': 'error',
+            'reply_type': reply_type,
+            'description': description,
+            'data': None
+        }
+
+        self.send_message(identity, REPLY_ID, data=reply_data)
+
+    def send_message(self, identity, message_type, client_identity=None, data=None):
+        msg = [identity, b'', message_type]
+
+        if client_identity is not None:
+            msg += [client_identity]
+
+        if data is not None:
+            message = json.dumps(data).encode('ascii')
+            msg += [message]
+
+        self.socket.send_multipart(msg)
 
     def start_service(self, service_name):
         if service_name not in self.config['services']:
@@ -274,8 +366,8 @@ class TestbedServer:
 
         # Build arguments.
         args = [
-            '--service_name', service_name,
-            '--server_port', str(self.port)
+            '--name', service_name,
+            '--port', str(self.port)
         ]
 
         # Start process.
@@ -287,61 +379,6 @@ class TestbedServer:
 
         # Store a reference to the module.
         self.services[service_name] = ServiceReference(process, service_type, service_name, self)
-
-    def on_service_message(self, service_identity, service_name, message_type, message):
-        try:
-            client_identity, *message = message
-            if len(message):
-                message = json.loads(message[0].decode('ascii'))
-            else:
-                message = {}
-        except ValueError as e:
-            raise ServerError("Incoming message had not enough parts.") from e
-        except json.JSONDecodeError as e:
-            raise ServerError(f'JSON of request malformed: "{e.msg}".') from e
-
-        if message_type == READY_ID:
-            if service_name in self.services:
-                # Service was started by this server.
-                service = self.services[service_name]
-            else:
-                # Service was not started by this server, but just registered.
-                process = psutil.Process(message['pid'])
-                service_type = message['service_type']
-
-                service = ServiceReference(process, service_type, service_name, self)
-                self.services[service_name] = service
-
-            service.socket_identity = service_identity
-            service.send_configuration(self.config)
-        else:
-            if service_name not in self.services:
-                raise ServerError('Service has not been started.')
-
-            service = self.services[service_name]
-
-            # Any incoming message counts as a heartbeat.
-            service.on_heartbeat()
-
-            if message_type == HEARTBEAT_ID:
-                return
-            elif message_type == REPLY_ID:
-                # Forward reply to client.
-                self.send_reply(client_identity, REPLY_ID, reply=message)
-            else:
-                raise ServerError(f'Message type "{message_type.encode("ascii")}" is not allowed.')
-
-    def send_reply(self, identity, message_type, client_identity=None, reply=None):
-        msg = [identity, b'', message_type]
-
-        if client_identity is not None:
-            msg += [client_identity]
-
-        if reply is not None:
-            message = json.dumps(reply).encode('ascii')
-            msg += [message]
-
-        self.socket.send_multipart(msg)
 
     def purge_stopped_services(self):
         dead_services = [service_name for service_name, service in self.services.items() if not service.is_alive]
