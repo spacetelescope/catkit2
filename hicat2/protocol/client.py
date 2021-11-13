@@ -17,7 +17,7 @@ class ServiceProxy:
 
         super().__setattr__('_property_names', None)
         super().__setattr__('_command_names', None)
-        super().__setattr__('_datastream_names', None)
+        super().__setattr__('_datastream_ids', None)
 
     @property
     def property_names(self):
@@ -36,12 +36,12 @@ class ServiceProxy:
         return self._command_names
 
     @property
-    def datastream_names(self):
-        if self._datastream_names is None:
+    def datastream_ids(self):
+        if self._datastream_ids is None:
             # Request data stream names.
-            self._datastream_names = self.testbed_proxy._make_request('all_datastreams', service_name=self.service_name)['value']
+            self._datastream_ids = self.testbed_proxy._make_request('all_datastreams', service_name=self.service_name)['value']
 
-        return self._datastream_names
+        return self._datastream_ids
 
     def __getattr__(self, name):
         if name in self.property_names:
@@ -62,9 +62,9 @@ class ServiceProxy:
             setattr(self, name, command)
 
             return command
-        elif name in self.datastream_names:
+        elif name in self.datastream_ids:
             # Return datastream
-            stream = DataStream.open(name, self.service_name)
+            stream = DataStream.open(self.datastream_ids[name])
 
             setattr(self, name, stream)
 
@@ -112,8 +112,12 @@ class TestbedClient(object):
 
         self.socket.connect(f'tcp://localhost:{self.server_port}')
 
-    def make_request(self, request_type, body=None, service_name=None):
-        request = {'request_type': request_type, 'body': body}
+    def _make_request(self, request_type, data=None, service_name=None):
+        request = {
+            'request_type': request_type,
+            'data': data
+        }
+
         request = json.dumps(request).encode('ascii')
 
         if service_name is None:
@@ -134,23 +138,33 @@ class TestbedClient(object):
 
         message_type, reply = msg
 
+        if message_type != REPLY_ID:
+            raise RuntimeError(f'Reply has an unexpected ID: "{message_type.decode("ascii")}".')
+
         try:
             reply = json.loads(reply.decode('ascii'))
         except json.JSONDecodeError as e:
             raise RuntimeError(f'JSON of reply malformed: "{e.msg}".')
 
-        if message_type == ERROR_ID:
-            raise RuntimeError(reply['error_message'])
-        elif message != REPLY_ID:
-            raise RuntimeError(f'Reply did have an unexpected ID: "{message_type.decode("ascii")}".')
+        # Extract reply information.
+        status = reply['status']
+        description = reply['description']
+        reply_type = reply['reply_type']
+        reply_data = reply['data']
 
-        return reply
+        assert reply_type == request_type
+
+        if status != 'ok':
+            raise RuntimeError(description)
+
+        return reply_data
 
     def get_service_proxy(self, name):
         # Require this service to be started on the server.
         body = {'service_name': name}
+
         try:
-            service_info = self.make_request('require_service', body)
+            service_info = self._make_request('require_service', body)
             service_type = service_info['service_type']
         except Exception as e:
             raise AttributeError(f'Service "{name}" could not be started: {str(e)}.') from e
@@ -169,15 +183,15 @@ class TestbedClient(object):
 
     @property
     def running_services(self):
-        return self.make_request('running_services')['services']
+        return self._make_request('running_services')
 
     @property
     def is_simulated(self):
-        return self.make_request('is_simulated')['is_simulated']
+        return self._make_request('is_simulated')
 
     @property
     def config(self):
         if self._config is None:
-            self._config = self.make_request('configuration')['configuration']
+            self._config = self._make_request('configuration')
 
         return self._config
