@@ -182,30 +182,10 @@ class TestbedServer:
             while self.is_running:
                 try:
                     self.purge_stopped_services()
+
                     self.send_heartbeats()
 
-                    try:
-                        # Receive multipart message.
-                        parts = self.socket.recv_multipart()
-
-                        # Unpack multipart message.
-                        identity, *parts = parts
-                        empty, message_source, service_name, message_type, *parts = parts
-                        service_name = service_name.decode('ascii')
-                    except zmq.ZMQError as e:
-                        if e.errno == zmq.EAGAIN:
-                            # Timed out.
-                            continue
-                        else:
-                            raise RuntimeError('Error during receive') from e
-
-                    # Handle message
-                    if message_source == CLIENT_ID:
-                        self.client_message_handlers[message_type](identity, service_name, parts)
-                    elif message_source == SERVICE_ID:
-                        self.service_message_handlers[message_type](identity, service_name, parts)
-                    else:
-                        raise RuntimeError('Incoming message did not have a correct message source.')
+                    self.handle_incoming_message()
                 except Exception as e:
                     if identity is None:
                         # Error during receive. Reraise.
@@ -222,12 +202,49 @@ class TestbedServer:
             print('Shutting down all running services.')
 
             self.shut_down_all_services()
+
             self.is_running = False
 
             self.stop_logging_proxy()
 
             self.socket = None
             self.context = None
+
+    def purge_stopped_services(self):
+        dead_services = [service_name for service_name, service in self.services.items() if not service.is_alive]
+
+        for service_name in dead_services:
+            log(Severity.INFO, f'Service {service_name} shut down. Removing from running services list.')
+
+            del self.services[service_name]
+
+    def send_heartbeats(self):
+        for service in self.services.values():
+            service.send_heartbeat()
+
+    def handle_incoming_message(self):
+        try:
+            # Receive multipart message.
+            parts = self.socket.recv_multipart()
+
+            # Unpack multipart message.
+            identity, *parts = parts
+            empty, message_source, service_name, message_type, *parts = parts
+            service_name = service_name.decode('ascii')
+        except zmq.ZMQError as e:
+            if e.errno == zmq.EAGAIN:
+                # Timed out.
+                continue
+            else:
+                raise RuntimeError('Error during receive') from e
+
+        # Handle message
+        if message_source == CLIENT_ID:
+            self.client_message_handlers[message_type](identity, service_name, parts)
+        elif message_source == SERVICE_ID:
+            self.service_message_handlers[message_type](identity, service_name, parts)
+        else:
+            raise RuntimeError('Incoming message did not have a correct message source.')
 
     def start_logging_proxy(self):
         pass
@@ -412,18 +429,6 @@ class TestbedServer:
             raise ServerError(f"Module type '{service_type}' not recognized.")
 
         return dirname
-
-    def purge_stopped_services(self):
-        dead_services = [service_name for service_name, service in self.services.items() if not service.is_alive]
-
-        for service_name in dead_services:
-            log(Severity.INFO, f'Service {service_name} shut down. Removing from running services list.')
-
-            del self.services[service_name]
-
-    def send_heartbeats(self):
-        for service in self.services.values():
-            service.send_heartbeat()
 
     def shut_down_all_services(self):
         for service in self.services.values():
