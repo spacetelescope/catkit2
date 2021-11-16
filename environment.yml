@@ -1,11 +1,8 @@
-# ``conda env create --file environment.yml``
-# or
-# ``conda env create --name <myEnvName> --file environment.yml``
-# For python 2.7 etc, either edit below, i.e. python=2.7 or
-# ```
-#    conda create --name <myEnvName> python=2.7
-#    conda env update --name <myEnvName> --file environment.yml
-# ```
+# conda env create --file environment.yml
+# conda env update --file environment.yml --prune
+# or, if you're not wanting to use the default env name:
+# conda env create --name <myEnvName> --file environment.yml
+# conda env update --name <myEnvName--file environment.yml --prune
 
 name: hicat2
 dependencies:
@@ -24,6 +21,7 @@ dependencies:
   - requests
   - ftd2xx
   - asdf
+  - psutil
   - pip
   - pip:
     - hcipy

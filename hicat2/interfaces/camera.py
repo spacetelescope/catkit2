@@ -1,7 +1,7 @@
-from ..testbed import ModuleProxy, register_module_interface
+from ..protocol.service_proxy import ServiceProxy, register_service_interface
 
-@register_module_interface('camera')
-class CameraProxy(ModuleProxy):
+@register_service_interface('camera')
+class CameraProxy(ServiceProxy):
     def take_exposures(self, num_exposures):
         was_acquiring = self.is_acquiring
 

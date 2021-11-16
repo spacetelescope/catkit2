@@ -1,14 +1,19 @@
 #include "LogPublish.h"
 
 #include <nlohmann/json.hpp>
+#include <iostream>
 
 using namespace zmq;
 using json = nlohmann::json;
 
 LogPublish::LogPublish(std::string service_name, std::string host)
-	: m_ServiceName(service_name), m_Host(host), m_Context(1)
+	: m_ServiceName(service_name), m_Host(host)
 {
+}
 
+LogPublish::~LogPublish()
+{
+	std::cout << "destroying log publish" << std::endl;
 }
 
 void LogPublish::AddLogEntry(const LogEntry &entry)
@@ -42,7 +47,9 @@ zmq::socket_t &LogPublish::GetSocket()
 
 	if (!connected)
 	{
+		socket.set(zmq::sockopt::linger, 0);
 		socket.connect(m_Host);
+
 		connected = true;
 	}
 

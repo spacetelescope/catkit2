@@ -2,12 +2,14 @@ import sys
 import json
 import os
 import time
+import subprocess
 
 import psutil
 import zmq
 
 from .constants import *
 from ..config import read_config
+from ..bindings import Severity, submit_log_entry, LogConsole
 
 import inspect
 def log(severity, message):
@@ -20,7 +22,7 @@ def log(severity, message):
 
 def decode_json(json_bytes):
     try:
-        data = json.loads(json_bytes.decode('ascii'))
+        return json.loads(json_bytes.decode('ascii'))
     except json.JSONDecodeError as err:
         raise RuntimeError(f'JSON of data is malformed: "{err.msg}".') from err
 
@@ -45,7 +47,7 @@ class ServiceReference:
         self.server = server
 
         self._socket_identity = None
-        self._message_queue = []
+        self._request_queue = []
         self.expiry_time = 0
         self._is_ready = False
         self.is_open = False
@@ -63,42 +65,46 @@ class ServiceReference:
 
         self._socket_identity = identity
 
-        self.dispatch_all()
+        self.on_heartbeat()
 
     @property
     def is_alive(self):
-        return self.process.is_running() and self.expiry_time > time.time()
+        if self.process.is_running():
+            if self.is_connected:
+                return self.expiry_time > time.time()
+            else:
+                return True
+        return False
 
     @property
     def is_connected(self):
-        return self.socket_identity is not None and self.is_alive
+        return self.socket_identity is not None and self.process.is_running()
 
     @property
     def is_ready(self):
         return self._is_ready
 
     def send_request(self, client_identity, request):
-        self.message_queue.append([REQUEST_ID, client_identity, request])
+        log(Severity.DEBUG, f'Sending request to {self.service_name}.')
+        self._request_queue.append([client_identity, request])
 
         self.dispatch_all()
 
     def send_configuration(self, configuration):
-        self.message_queue.append([CONFIGURATION_ID, configuration])
+        log(Severity.DEBUG, f'Sending configuration to {self.service_name}.')
+
+        self.server.send_message(self.socket_identity, CONFIGURATION_ID, data=configuration)
 
     def dispatch_all(self):
         if self.is_open:
-            for message in self.message_queue:
-                if len(message) == 3:
-                    message_type, client_identity, msg = message
-                else:
-                    message_type, msg = message
-                    client_identity = None
+            for client_identity, data in self._request_queue:
+                self.server.send_message(self.socket_identity, REQUEST_ID, client_identity=client_identity, data=data)
 
-                self.server.send_message(self.socket_identity, message_type, [client_identity, msg])
-
-            self.message_queue = []
+            self._request_queue = []
 
     def on_opened(self):
+        self.on_heartbeat()
+
         self.is_open = True
 
         # Send any messages that were waiting to be sent.
@@ -112,6 +118,8 @@ class ServiceReference:
             self.last_sent_heartbeat = time.time()
 
             # Do not add this message to the queue; send it right away.
+            log(Severity.DEBUG, f'Sending heartbeat to {self.service_name}.')
+
             self.server.send_message(self.socket_identity, HEARTBEAT_ID)
 
     def send_keyboard_interrupt(self):
@@ -132,7 +140,9 @@ class ServiceReference:
 
 class TestbedServer:
     def __init__(self, port, is_simulated):
-        def port = port
+        self.log_console = LogConsole()
+
+        self.port = port
         self.is_simulated = is_simulated
         self.services = {}
 
@@ -193,9 +203,9 @@ class TestbedServer:
 
                     # Handle message
                     if message_source == CLIENT_ID:
-                        self.client_message_handlers[message_type](client_identity, service_name, parts)
+                        self.client_message_handlers[message_type](identity, service_name, parts)
                     elif message_source == SERVICE_ID:
-                        self.service_message_handlers[message_type](client_identity, service_name, parts)
+                        self.service_message_handlers[message_type](identity, service_name, parts)
                     else:
                         raise RuntimeError('Incoming message did not have a correct message source.')
                 except Exception as e:
@@ -205,7 +215,7 @@ class TestbedServer:
                         raise
                     else:
                         # Something went wrong during handling of the message. Log error and ignore message.
-                        log(Severity.ERROR, f'Error during handling of message: {e}.')
+                        log(Severity.ERROR, f'Error during handling of message: {repr(e)}.')
                         continue
 
         except KeyboardInterrupt:
@@ -232,6 +242,8 @@ class TestbedServer:
         request_type = request['request_type']
         request_data = request['data']
 
+        log(Severity.DEBUG, f'Handling client request "{request_type}" with data "{request_data}".')
+
         if service_name == 'server':
             handler = self.internal_request_handlers[request_type]
             handler(client_identity, request_data)
@@ -247,7 +259,11 @@ class TestbedServer:
         service_name = request_data['service_name']
 
         if service_name not in self.services:
-            self.start_service(service_name)
+            try:
+                self.start_service(service_name)
+            except Exception as e:
+                self.send_reply_error(client_identity, 'require_service', repr(e))
+                return
 
         service = self.services[service_name]
 
@@ -272,14 +288,19 @@ class TestbedServer:
 
         self.send_reply_ok(client_identity, 'running_services', reply_data)
 
+    def on_start_new_experiment(self, client_identity, request_data):
+        pass
+
     def on_is_simulated(self, client_identity, request_data):
         self.send_reply_ok(client_idenity, 'is_simulated', self.is_simulated)
 
     def on_configuration(self, client_identity, request_data):
-        self.send_reply_ok(client_identity, 'configuration', self.is_simulated)
+        self.send_reply_ok(client_identity, 'configuration', self.config)
 
     def on_service_register(self, service_identity, service_name, parts):
         data = decode_json(parts[0])
+
+        log(Severity.DEBUG, f'Handling service register for "{service_name}" with data "{data}".')
 
         if service_name in self.services:
             # Service was started by this server.
@@ -293,20 +314,26 @@ class TestbedServer:
             self.services[service_name] = service
 
         service.socket_identity = service_identity
-        service.send_configuration(self.config)
+        service.send_configuration(self.config['services'][service_name])
 
     def on_service_opened(self, service_identity, service_name, parts):
+        log(Severity.DEBUG, f'Handling service opened for "{service_name}".')
+
         service = self.services[service_name]
         service.on_opened()
         service.on_heartbeat()
 
     def on_service_heartbeat(self, service_identity, service_name, parts):
+        log(Severity.DEBUG, f'Handling service heartbeat for "{service_name}".')
+
         service = self.services[service_name]
         service.on_heartbeat()
 
     def on_service_reply(self, service_identity, service_name, parts):
         client_identity = parts[0]
         data = decode_json(parts[1])
+
+        log(Severity.DEBUG, f'Handling service reply for "{service_name}" with data "{data}".')
 
         service = self.services[service_name]
         service.on_heartbeat()
@@ -346,8 +373,10 @@ class TestbedServer:
         self.socket.send_multipart(msg)
 
     def start_service(self, service_name):
+        log(Severity.DEBUG, f'Trying to start service "{service_name}".')
+
         if service_name not in self.config['services']:
-            raise ServerError(f'Service "{service_name}" is not a known service.')
+            raise RuntimeError(f'Service "{service_name}" is not a known service.')
 
         service_type = self.config['services'][service_name]['service_type']
 
@@ -362,7 +391,7 @@ class TestbedServer:
         elif os.path.exists(os.path.join(dirname, service_type)):
             executable = [os.path.join(dirname, service_type)]
         else:
-            raise ServerError(f"Service '{service_name}' is not Python or C++.")
+            raise RuntimeError(f"Service '{service_name}' is not Python or C++.")
 
         # Build arguments.
         args = [
@@ -380,10 +409,20 @@ class TestbedServer:
         # Store a reference to the module.
         self.services[service_name] = ServiceReference(process, service_type, service_name, self)
 
+    def resolve_service_type(self, service_type):
+        dirname = os.path.join(os.path.dirname(__file__), '..', 'services', service_type)
+
+        if not os.path.exists(dirname):
+            raise ServerError(f"Module type '{service_type}' not recognized.")
+
+        return dirname
+
     def purge_stopped_services(self):
         dead_services = [service_name for service_name, service in self.services.items() if not service.is_alive]
 
         for service_name in dead_services:
+            log(Severity.INFO, f'Service {service_name} shut down. Removing from running services list.')
+
             del self.services[service_name]
 
     def send_heartbeats(self):

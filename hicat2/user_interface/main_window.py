@@ -8,7 +8,7 @@ from .logging_display import LoggingDisplay
 from .toolbar import Toolbar
 from .bench_display import BenchDisplay
 
-from hicat2.testbed import Testbed
+from ..protocol.client import TestbedClient
 
 os.environ['PYQTGRAPH_QT_LIB'] = 'PyQt5'
 
@@ -60,7 +60,7 @@ def start_user_interface(port):
     app = QtGui.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api=os.environ['PYQTGRAPH_QT_LIB']))
 
-    testbed = Testbed(port)
+    testbed = TestbedClient(port)
 
     win = MainWindow(testbed)
     win.show()

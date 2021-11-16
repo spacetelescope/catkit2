@@ -33,7 +33,7 @@ public:
 	std::shared_ptr<Command> GetCommand(const std::string &command_name) const;
 	std::shared_ptr<DataStream> GetDataStream(const std::string &stream_name) const;
 
-	const nlohmann::json &GetConfiguration() const;
+	nlohmann::json GetConfiguration() const;
 	const std::string &GetServiceName() const;
 
 protected:
@@ -42,7 +42,6 @@ protected:
 	std::shared_ptr<Command> MakeCommand(std::string command_name, Command::CommandFunction func);
 
 	std::shared_ptr<DataStream> MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	std::shared_ptr<DataStream> MakeDataStream(std::string stream_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
 
 private:
 	void MonitorInterface();
@@ -66,8 +65,9 @@ private:
 
 	void SendOpenedMessage();
 	void SendRegisterMessage();
+	void SendHeartbeatMessage();
 
-	zmq::context_t *m_Context;
+	zmq::context_t m_Context;
 	zmq::socket_t *m_ShellSocket;
 
 	std::string m_ServiceName;
@@ -96,7 +96,7 @@ private:
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
 
 	LogConsole m_LoggerConsole;
-	LogPublish m_LoggerPublish;
+	//LogPublish m_LoggerPublish;
 };
 
 #endif // SERVICE_H

@@ -1,17 +1,19 @@
-from hicat2.bindings import Module, DataStream, Property, Command
-from hicat2.testbed import parse_module_args, Testbed
+# Disable the Fortran Ctrl-C handler as it interferes with safe closing of
+# the service.
+import os
+os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
+
+from hicat2.protocol.service import Service, parse_service_args
 
 import time
 from hcipy import *
 import numpy as np
 
-class CameraGuiModule(Module):
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+class DummyCamera(Service):
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'dummy_camera', testbed_port)
 
-        self.testbed = Testbed(args.testbed_server_port)
-        config = self.testbed.config['modules'][args.module_name]
+        config = self.configuration
 
         self.exposure_time = config['exposure_time']
         self.gain = config['gain']
@@ -181,5 +183,10 @@ class CameraGuiModule(Module):
         return 'Dummy Camera'
 
 if __name__ == '__main__':
-    module = CameraGuiModule()
-    module.run()
+    service_name, testbed_port = parse_service_args()
+
+    try:
+        service = DummyCamera(service_name, testbed_port)
+        service.run()
+    finally:
+        print('ending')

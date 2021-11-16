@@ -7,6 +7,7 @@ class LogConsole : public LogListener
 {
 public:
 	LogConsole(bool use_color = true, bool print_context = true);
+	~LogConsole();
 
 	void AddLogEntry(const LogEntry &entry);
 

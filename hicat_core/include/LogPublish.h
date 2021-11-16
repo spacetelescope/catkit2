@@ -11,6 +11,7 @@ class LogPublish : LogListener
 {
 public:
 	LogPublish(std::string service_name, std::string host);
+	~LogPublish();
 
     void AddLogEntry(const LogEntry &entry);
 

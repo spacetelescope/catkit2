@@ -1,8 +1,8 @@
 from hicat2.bindings import *
 
-ds = DataStream.open('abcd', 'module')
-ds.buffer_handling_mode = BufferHandlingMode.OLDEST_FIRST_OVERWRITE
-#ds.buffer_handling_mode = BufferHandlingMode.NEWEST_ONLY
+ds = DataStream.open('module.13940.abcd')
+#ds.buffer_handling_mode = BufferHandlingMode.OLDEST_FIRST_OVERWRITE
+ds.buffer_handling_mode = BufferHandlingMode.NEWEST_ONLY
 
 k = 0
 

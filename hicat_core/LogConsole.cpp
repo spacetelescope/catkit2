@@ -34,6 +34,11 @@ LogConsole::LogConsole(bool use_color, bool print_context)
 {
 }
 
+LogConsole::~LogConsole()
+{
+	std::cout << "destroying log console" << std::endl;
+}
+
 void LogConsole::AddLogEntry(const LogEntry &entry)
 {
 	if (m_PrintContext)

@@ -6,67 +6,70 @@
 
 #include "DataStream.h"
 #include "TimeStamp.h"
-#include "Module.h"
+#include "Service.h"
 #include "Command.h"
 #include "Property.h"
 #include "Log.h"
+#include "LogConsole.h"
+#include "LogPublish.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
 namespace py = pybind11;
 
-class TrampolineModule : public Module
+class TrampolineService : public Service
 {
 public:
-	using Module::Module;
+	using Service::Service;
 
 	void Open() override
 	{
 		py::gil_scoped_acquire acquire;
-		PYBIND11_OVERRIDE_NAME(void, Module, "open", Open);
+		PYBIND11_OVERRIDE_NAME(void, Service, "open", Open);
 	}
 
 	void Main() override
 	{
 		py::gil_scoped_acquire acquire;
-		PYBIND11_OVERRIDE_NAME(void, Module, "main", Main);
+		PYBIND11_OVERRIDE_NAME(void, Service, "main", Main);
 	}
 
 	void Close() override
 	{
 		py::gil_scoped_acquire acquire;
-		PYBIND11_OVERRIDE_NAME(void, Module, "close", Close);
+		PYBIND11_OVERRIDE_NAME(void, Service, "close", Close);
 	}
 
 	void ShutDown() override
 	{
 		py::gil_scoped_acquire acquire;
-		PYBIND11_OVERRIDE_NAME(void, Module, "shut_down", ShutDown);
+		PYBIND11_OVERRIDE_NAME(void, Service, "shut_down", ShutDown);
 	}
 };
 
-class PublicistModule : public Module
+class PublicistService : public Service
 {
 public:
-	using Module::RegisterProperty;
-	using Module::RegisterCommand;
-	using Module::RegisterDataStream;
+	using Service::MakeProperty;
+	using Service::MakeCommand;
+	using Service::MakeDataStream;
 };
 
 PYBIND11_MODULE(bindings, m)
 {
-	py::class_<Module, TrampolineModule>(m, "Module")
-		.def(py::init<std::string, int>())
-		.def_property_readonly("name", &Module::GetName)
-		.def("run", &Module::Run, py::call_guard<py::gil_scoped_release>())
-		.def("open", &Module::Open)
-		.def("main", &Module::Main)
-		.def("close", &Module::Close)
-		.def("shut_down", &Module::ShutDown)
-		.def("register_property", &PublicistModule::RegisterProperty)
-		.def("register_command", &PublicistModule::RegisterCommand)
-		.def("register_data_stream", &PublicistModule::RegisterDataStream);
+	py::class_<Service, TrampolineService>(m, "Service")
+		.def(py::init<std::string, std::string, int>())
+		.def_property_readonly("name", &Service::GetServiceName)
+		.def_property_readonly("configuration", &Service::GetConfiguration)
+		.def("run", &Service::Run, py::call_guard<py::gil_scoped_release>())
+		.def("open", &Service::Open)
+		.def("main", &Service::Main)
+		.def("close", &Service::Close)
+		.def("shut_down", &Service::ShutDown)
+		.def("make_property", &PublicistService::MakeProperty)
+		.def("make_command", &PublicistService::MakeCommand)
+		.def("make_data_stream", &PublicistService::MakeDataStream);
 
 	py::class_<Command, std::shared_ptr<Command>>(m, "Command")
 		.def(py::init([](std::string name, py::object command)
@@ -118,10 +121,10 @@ PYBIND11_MODULE(bindings, m)
 			});
 
 	py::class_<DataStream, std::shared_ptr<DataStream>>(m, "DataStream")
-		.def_static("create", [](std::string &stream_name, std::string &module_name, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+		.def_static("create", [](std::string &stream_name, std::string &service_name, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 		{
 			DataType dtype = GetDataTypeFromString(type);
-			return DataStream::Create(stream_name, module_name, dtype, dimensions, num_frames_in_buffer);
+			return DataStream::Create(stream_name, service_name, dtype, dimensions, num_frames_in_buffer);
 		})
 		.def_static("open", [](std::string &stream_id)
 		{
@@ -237,6 +240,14 @@ PYBIND11_MODULE(bindings, m)
 
 	m.def("submit_log_entry", &SubmitLogEntry);
 	m.def("severity_to_string", &ConvertSeverityToString);
+
+	py::class_<LogConsole>(m, "LogConsole")
+		.def(py::init<bool, bool>(),
+			py::arg("use_color") = true,
+			py::arg("print_context") = true);
+
+	py::class_<LogPublish>(m, "LogPublish")
+		.def(py::init<std::string, std::string>());
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

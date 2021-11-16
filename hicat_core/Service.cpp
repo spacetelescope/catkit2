@@ -13,12 +13,15 @@ using namespace std::string_literals;
 
 const std::string SERVICE_ID = "SERVICE";
 
-const std::string REGISTER_ID = "READY";
+const std::string REGISTER_ID = "REGISTER";
 const std::string OPENED_ID = "OPENED";
 const std::string HEARTBEAT_ID = "HEARTBEAT";
 const std::string CONFIGURATION_ID = "CONFIGURATION";
 const std::string REQUEST_ID = "REQUEST";
 const std::string REPLY_ID = "REPLY";
+
+const int HEARTBEAT_LIVENESS = 5;
+const float HEARTBEAT_INTERVAL = 1; // sec
 
 static sig_atomic_t interrupt_signal = 0;
 static void SignalHandler(int signal_value)
@@ -27,11 +30,11 @@ static void SignalHandler(int signal_value)
 }
 
 Service::Service(std::string service_name, std::string service_type, int testbed_port)
-	: m_Context(nullptr), m_ShellSocket(nullptr),
+	: m_ShellSocket(nullptr),
 	m_ServiceName(service_name), m_ServiceType(service_type),
 	m_Port(testbed_port), m_IsRunning(false),
 	m_HasGottenConfiguration(false), m_IsOpened(false),
-	m_LoggerConsole(), m_LoggerPublish(service_name, "tcp://localhost:"s + std::to_string(testbed_port + 1))
+	m_LoggerConsole()//, m_LoggerPublish(service_name, "tcp://localhost:"s + std::to_string(testbed_port + 1))
 {
 	LOG_INFO("Initializing service '"s + service_name + "'.");
 
@@ -75,10 +78,9 @@ void Service::MonitorInterface()
 {
 	LOG_INFO("Connecting to testbed server on port "s + std::to_string(m_Port) + ".");
 
-	m_Context = new context_t(1);
-	m_ShellSocket = new socket_t(*m_Context, ZMQ_DEALER);
+	m_ShellSocket = new socket_t(m_Context, ZMQ_DEALER);
 
-	m_ShellSocket->set(zmq::sockopt::rcvtimeo, 20);
+	m_ShellSocket->set(zmq::sockopt::rcvtimeo, 100);
 	m_ShellSocket->set(zmq::sockopt::linger, 0);
 
 	m_ShellSocket->connect("tcp://localhost:"s + std::to_string(m_Port));
@@ -99,6 +101,10 @@ void Service::MonitorInterface()
 			SendOpenedMessage();
 			sent_opened_message = true;
 		}
+
+		// Send heartbeat if enough time has passed.
+		if ((m_LastSentHeartbeatTime + HEARTBEAT_INTERVAL * 1e9) < GetTimeStamp())
+			SendHeartbeatMessage();
 
 		message_t frame0, frame1, frame2, frame3;
 
@@ -128,10 +134,14 @@ void Service::MonitorInterface()
 
 			if (message_type == HEARTBEAT_ID)
 			{
+				LOG_DEBUG("Received heartbeat.");
+
 				m_LastReceivedHeartbeatTime = GetTimeStamp();
 			}
 			else if (message_type == CONFIGURATION_ID)
 			{
+				LOG_DEBUG("Received configuration.");
+
 				if (parts.size() < 1)
 				{
 					LOG_ERROR("Message had too little parts.");
@@ -160,6 +170,8 @@ void Service::MonitorInterface()
 			}
 			else if (message_type == REQUEST_ID)
 			{
+				LOG_DEBUG("Received request.");
+
 				if (parts.size() < 2)
 				{
 					LOG_ERROR("Message had too little parts.");
@@ -233,11 +245,9 @@ void Service::MonitorInterface()
 	m_IsRunning = false;
 	this->ShutDown();
 
+	m_ShellSocket->close();
 	delete m_ShellSocket;
 	m_ShellSocket = nullptr;
-
-	delete m_Context;
-	m_Context = nullptr;
 
 	if (interrupt_signal)
 		LOG_INFO("Service '" + m_ServiceName + "' interrupted by user. Shutting down.");
@@ -362,7 +372,7 @@ std::shared_ptr<DataStream> Service::GetDataStream(const std::string &stream_nam
 		return nullptr;
 }
 
-const json &Service::GetConfiguration() const
+json Service::GetConfiguration() const
 {
 	// Wait for configuration to arrive.
 	while (!m_HasGottenConfiguration)
@@ -395,14 +405,6 @@ std::shared_ptr<Command> Service::MakeCommand(std::string command_name, Command:
 }
 
 std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
-{
-	auto stream = DataStream::Create(stream_name, GetServiceName(), type, dimensions, num_frames_in_buffer);
-	m_DataStreams[stream_name] = stream;
-
-	return stream;
-}
-
-std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	auto stream = DataStream::Create(stream_name, GetServiceName(), type, dimensions, num_frames_in_buffer);
 	m_DataStreams[stream_name] = stream;
@@ -514,6 +516,8 @@ json Service::OnShutdownRequest(const nlohmann::json &data)
 
 void Service::SendReplyMessage(const std::string &client_identity, const nlohmann::json &reply)
 {
+	LOG_DEBUG("Sending reply message.");
+
 	multipart_t msg;
 
 	msg.addstr("");
@@ -552,6 +556,8 @@ void Service::SendReplyError(const std::string &client_identity, const std::stri
 
 void Service::SendOpenedMessage()
 {
+	LOG_DEBUG("Sending opened message.");
+
 	multipart_t msg;
 
 	msg.addstr("");
@@ -564,6 +570,8 @@ void Service::SendOpenedMessage()
 
 void Service::SendRegisterMessage()
 {
+	LOG_DEBUG("Sending register message.");
+
 	json data = {
 		{"pid", GetCurrentProcessId()},
 		{"service_type", m_ServiceType}
@@ -578,4 +586,20 @@ void Service::SendRegisterMessage()
 	msg.addstr(data.dump());
 
 	msg.send(*m_ShellSocket);
+}
+
+void Service::SendHeartbeatMessage()
+{
+	LOG_DEBUG("Sending heartbeat.");
+
+	multipart_t msg;
+
+	msg.addstr("");
+	msg.addstr(SERVICE_ID);
+	msg.addstr(m_ServiceName);
+	msg.addstr(HEARTBEAT_ID);
+
+	msg.send(*m_ShellSocket);
+
+	m_LastSentHeartbeatTime = GetTimeStamp();
 }

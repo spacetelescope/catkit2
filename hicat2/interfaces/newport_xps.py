@@ -1,9 +1,9 @@
 import time
 
-from ..testbed import ModuleProxy, register_module_interface
+from ..protocol.service_proxy import ServiceProxy, register_service_interface
 
-@register_module_interface('newport_xps_q8')
-class NewportXpsQ8Proxy(ModuleProxy):
+@register_service_interface('newport_xps_q8')
+class NewportXpsQ8Proxy(ServiceProxy):
     def move_absolute(self, motor_id, position, timeout=float('inf')):
         command_stream = getattr(self, motor_id.lower())
         current_position_stream = getattr(self, motor_id.lower() + '_current_position')

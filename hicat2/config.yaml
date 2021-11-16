@@ -5,9 +5,9 @@ testbed_server:
     check_interval: 60
     safe_interval: 180
 
-modules:
+services:
   lopr_camera:
-    module_type: flir_camera
+    service_type: flir_camera
     simulated_module_type: sim_camera
     interface: camera
 
@@ -20,7 +20,7 @@ modules:
     pixel_format: mono12p
 
   science_camera:
-    module_type: zwo_camera
+    service_type: zwo_camera
     simulated_module_type: sim_camera
 
     device_name: ZWO ASI178MM(3)
@@ -30,7 +30,7 @@ modules:
     height: 712
 
   ta_camera:
-    module_type: zwo_camera
+    service_type: zwo_camera
     simulated_module_type: sim_camera
 
     device_name: ZWO ASI290MM(1)
@@ -40,7 +40,7 @@ modules:
     height: 464
 
   zernike_camera:
-    module_type: zwo_camera
+    service_type: zwo_camera
     simulated_module_type: sim_camera
 
     device_name: ZWO ASI178MM(2)
@@ -50,13 +50,13 @@ modules:
     height: 1024
 
   pupil_camera:
-    module_type: zwo_camera
+    service_type: zwo_camera
     simulated_module_type: sim_camera
 
     device_name: ZWO ASI178MM(4)
 
   boston_dm:
-    module_type: bmc_dm
+    service_type: bmc_dm
 
     serial_number: 25CW018#008
     command_length: 2048
@@ -71,7 +71,7 @@ modules:
       - astrogrid
 
   iris_dm:
-    module_type: irisao_dm
+    service_type: irisao_dm
 
     mirror_serial: PWA37-05-04-0705
     driver_serial: 13130030
@@ -83,7 +83,7 @@ modules:
       - aberration
 
   newport_xps:
-    module_type: newport_xps_q8
+    service_type: newport_xps_q8
     interface: newport_xps_q8
 
     ip_address: 192.168.192.117
@@ -114,7 +114,7 @@ modules:
         out_of_beam: 5
 
   apodizer_mount:
-    module_type: newport_picomotor
+    service_type: newport_picomotor
 
     ip_address: 192.168.192.151
     max_step: 2147483647
@@ -127,7 +127,7 @@ modules:
     sleep_base: 0.1
 
   quad_cell_mount:
-    module_type: newport_picomotor
+    service_type: newport_picomotor
 
     ip_address: 192.168.192.151
     max_step: 2147483647
@@ -140,7 +140,7 @@ modules:
     sleep_base: 0.1
 
   zwfs_mount:
-    module_type: newport_picomotor
+    service_type: newport_picomotor
 
     ip_address: 192.168.192.152
     max_step: 2147483647
@@ -153,62 +153,62 @@ modules:
     sleep_base: 0.1
 
   beam_dump:
-    module_type: thorlabs_mff101
+    service_type: thorlabs_mff101
 
     serial_number: 37000085
     in_beam: 1
     out_of_beam: 2
 
   phase_retrieval_mirror:
-    module_type: thorlabs_mff101
+    service_type: thorlabs_mff101
 
     serial_number: 37001725
     in_beam: 1
     out_of_beam: 2
 
   fpm_illuminator:
-    module_type: thorlabs_mff101
+    service_type: thorlabs_mff101
 
     serial_number: 37871220
     in_beam: 2
     out_of_beam: 1
 
   pupil_illuminator:
-    module_type: thorlabs_mff101
+    service_type: thorlabs_mff101
 
     serial_number: 37002369
     in_beam: 2
     out_of_beam: 1
 
   tsp01_1:
-    module_type: thorlabs_tsp01
+    service_type: thorlabs_tsp01
 
     serial_number: M00542273
 
   tsp01_2:
-    module_type: thorlabs_tsp01
+    service_type: thorlabs_tsp01
 
     serial_number: M00685167
 
   tsp01_3:
-    module_type: thorlabs_tsp01
+    service_type: thorlabs_tsp01
 
     serial_number: M001546345
 
   omega_dm1:
-    module_type: omega_ithx_w3
+    service_type: omega_ithx_w3
 
     ip_address: 192.168.192.132
     time_interval: 30
 
   omega_dm2:
-    module_type: omega_ithx_w3
+    service_type: omega_ithx_w3
 
     ip_address: 192.168.192.32
     time_interval: 30
 
   blue_ups:
-    module_type: snmp_ups
+    service_type: snmp_ups
 
     ip_address: 10.128.242.6
     port: 161
@@ -217,7 +217,7 @@ modules:
     pass_status: 3
 
   lab_ups:
-    module_type: snmp_ups
+    service_type: snmp_ups
 
     ip_address: 192.168.192.20
     port: 161
@@ -226,7 +226,7 @@ modules:
     pass_status: 2
 
   web_power_switch_1:
-    module_type: web_power_switch
+    service_type: web_power_switch
 
     user: admin
     password: hicat
@@ -245,7 +245,7 @@ modules:
       fpm_led: 8
 
   color_filter_wheel:
-    module_type: thorlabs_fw102c
+    service_type: thorlabs_fw102c
 
     visa_id: ASRL4::INSTR
 
@@ -258,7 +258,7 @@ modules:
       broadband: 6
 
   nd_filter_wheel:
-    module_type: thorlabs_fw102c
+    service_type: thorlabs_fw102c
 
     visa_id: ASRL6::INSTR
 
@@ -269,7 +269,7 @@ modules:
       9_percent: 4
 
   safety:
-    module_type: safety_monitor
+    service_type: safety_monitor
 
     check_interval: 60
 
@@ -312,16 +312,16 @@ modules:
           safe_interval: 60
 
   a:
-    module_type: test_module_python
+    service_type: test_module_python
 
   b:
-    module_type: test_module_cpp
+    service_type: test_module_cpp
 
   environment_viewer:
-    module_type: environment_viewer
+    service_type: environment_viewer
 
   example_camera:
-    module_type: dummy_camera
+    service_type: dummy_camera
     interface: camera
 
     exposure_time: 1000
@@ -335,6 +335,6 @@ modules:
     sensor_height: 256
 
   camera_viewer:
-    module_type: camera_gui
+    service_type: camera_gui
 
     camera_name: example_camera
