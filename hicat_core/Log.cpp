@@ -22,10 +22,8 @@ LogListener::LogListener()
 
 LogListener::~LogListener()
 {
-	// Remove myself from the log_listeners vector.
-	auto it = find(log_listeners.begin(), log_listeners.end(), this);
-	if (it != log_listeners.end())
-		log_listeners.erase(it);
+	// Remove myself from the log_listeners vector (with erase-remove).
+	log_listeners.erase(std::remove(log_listeners.begin(), log_listeners.end(), this), log_listeners.end());
 }
 
 void LogListener::AddLogEntry(const LogEntry &entry)

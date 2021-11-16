@@ -1,6 +1,7 @@
 #include "LogPublish.h"
 
 #include <nlohmann/json.hpp>
+#include <iostream>
 
 using namespace zmq;
 using json = nlohmann::json;
@@ -43,8 +44,8 @@ void LogPublish::AddLogEntry(const LogEntry &entry)
 void LogPublish::MessageLoop()
 {
 	context_t context;
-
 	socket_t socket(context, ZMQ_PUSH);
+
 	socket.set(zmq::sockopt::linger, 0);
 	socket.set(zmq::sockopt::sndtimeo, 10);
 	socket.connect(m_Host);
@@ -57,7 +58,7 @@ void LogPublish::MessageLoop()
 		{
 			std::unique_lock<std::mutex> lock(m_Mutex);
 
-			while (!m_LogMessages.empty() && !m_ShutDown)
+			while (m_LogMessages.empty() && !m_ShutDown)
 			{
 				m_ConditionVariable.wait(lock);
 			}
@@ -87,4 +88,5 @@ void LogPublish::MessageLoop()
 void LogPublish::ShutDown()
 {
 	m_ShutDown = true;
+	m_ConditionVariable.notify_all();
 }
