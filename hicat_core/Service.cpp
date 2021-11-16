@@ -63,13 +63,10 @@ Service::~Service()
 {
 	LOG_INFO("Service '"s + m_ServiceName + "' is being destroyed.");
 
-	if (m_IsRunning)
-	{
-		m_IsRunning = false;
+	m_IsRunning = false;
 
-		if (m_InterfaceThread.joinable())
-			m_InterfaceThread.join();
-	}
+	if (m_InterfaceThread.joinable())
+		m_InterfaceThread.join();
 
 	LOG_INFO("Service '"s + m_ServiceName + "' has been destroyed.");
 }
@@ -105,6 +102,15 @@ void Service::MonitorInterface()
 		// Send heartbeat if enough time has passed.
 		if ((m_LastSentHeartbeatTime + HEARTBEAT_INTERVAL * 1e9) < GetTimeStamp())
 			SendHeartbeatMessage();
+
+		// Check received heartbeats to see if the server crashed.
+		if ((m_LastReceivedHeartbeatTime + HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS * 1e9) < GetTimeStamp())
+		{
+			LOG_CRITICAL("No heartbeats received from the server in a while. Quiting for safety reasons.");
+
+			m_IsRunning = false;
+			break;
+		}
 
 		message_t frame0, frame1, frame2, frame3;
 
@@ -248,9 +254,9 @@ void Service::MonitorInterface()
 	m_ShellSocket = nullptr;
 
 	if (interrupt_signal)
-		LOG_INFO("Service '" + m_ServiceName + "' interrupted by user. Shutting down.");
+		LOG_INFO("Service '" + m_ServiceName + "' interrupted by terminate signal. Shutting down.");
 	else
-		LOG_INFO("Service '" + m_ServiceName + "' shut down by user.");
+		LOG_INFO("Service '" + m_ServiceName + "' shut down with keyboard interrupt.");
 }
 
 class Finally
