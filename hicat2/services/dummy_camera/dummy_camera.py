@@ -185,8 +185,5 @@ class DummyCamera(Service):
 if __name__ == '__main__':
     service_name, testbed_port = parse_service_args()
 
-    try:
-        service = DummyCamera(service_name, testbed_port)
-        service.run()
-    finally:
-        print('ending')
+    service = DummyCamera(service_name, testbed_port)
+    service.run()

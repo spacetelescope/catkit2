@@ -96,7 +96,7 @@ private:
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
 
 	LogConsole m_LoggerConsole;
-	//LogPublish m_LoggerPublish;
+	LogPublish m_LoggerPublish;
 };
 
 #endif // SERVICE_H

@@ -34,7 +34,7 @@ Service::Service(std::string service_name, std::string service_type, int testbed
 	m_ServiceName(service_name), m_ServiceType(service_type),
 	m_Port(testbed_port), m_IsRunning(false),
 	m_HasGottenConfiguration(false), m_IsOpened(false),
-	m_LoggerConsole()//, m_LoggerPublish(service_name, "tcp://localhost:"s + std::to_string(testbed_port + 1))
+	m_LoggerConsole(), m_LoggerPublish(service_name, "tcp://localhost:"s + std::to_string(testbed_port + 1))
 {
 	LOG_INFO("Initializing service '"s + service_name + "'.");
 

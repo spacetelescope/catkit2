@@ -1,25 +1,26 @@
 #include "LogPublish.h"
 
 #include <nlohmann/json.hpp>
-#include <iostream>
 
 using namespace zmq;
 using json = nlohmann::json;
 
 LogPublish::LogPublish(std::string service_name, std::string host)
-	: m_ServiceName(service_name), m_Host(host)
+	: m_ServiceName(service_name), m_Host(host), m_ShutDown(false)
 {
+	m_MessageLoopThread = std::thread(&LogPublish::MessageLoop, this);
 }
 
 LogPublish::~LogPublish()
 {
-	std::cout << "destroying log publish" << std::endl;
+	ShutDown();
+
+	if (m_MessageLoopThread.joinable())
+		m_MessageLoopThread.join();
 }
 
 void LogPublish::AddLogEntry(const LogEntry &entry)
 {
-	auto &socket = GetSocket();
-
 	json message = {
 		{"service_name", m_ServiceName},
 		{"filename", entry.filename},
@@ -33,25 +34,57 @@ void LogPublish::AddLogEntry(const LogEntry &entry)
 
 	std::string json_message = message.dump();
 
-	// Construct and send message
-	message_t message_zmq(json_message.size());
-	memcpy(message_zmq.data(), json_message.c_str(), json_message.size());
+	std::unique_lock<std::mutex> lock(m_Mutex);
+	m_LogMessages.push(json_message);
 
-	socket.send(message_zmq, zmq::send_flags::none);
+	m_ConditionVariable.notify_all();
 }
 
-zmq::socket_t &LogPublish::GetSocket()
+void LogPublish::MessageLoop()
 {
-	thread_local static socket_t socket(m_Context, ZMQ_PUB);
-	thread_local static bool connected = false;
+	context_t context;
 
-	if (!connected)
+	socket_t socket(context, ZMQ_PUSH);
+	socket.set(zmq::sockopt::linger, 0);
+	socket.set(zmq::sockopt::sndtimeo, 10);
+	socket.connect(m_Host);
+
+	std::string log_message;
+
+	while (!m_ShutDown)
 	{
-		socket.set(zmq::sockopt::linger, 0);
-		socket.connect(m_Host);
+		// Get next message from the queue.
+		{
+			std::unique_lock<std::mutex> lock(m_Mutex);
 
-		connected = true;
+			while (!m_LogMessages.empty() && !m_ShutDown)
+			{
+				m_ConditionVariable.wait(lock);
+			}
+
+			if (m_ShutDown)
+				break;
+
+			log_message = m_LogMessages.front();
+			m_LogMessages.pop();
+		}
+
+		// Construct and send message.
+		message_t message_zmq(log_message.size());
+		memcpy(message_zmq.data(), log_message.c_str(), log_message.size());
+
+		send_result_t res;
+		do
+		{
+			res = socket.send(message_zmq, zmq::send_flags::none);
+		}
+		while (!res.has_value() && !m_ShutDown);
 	}
 
-	return socket;
+	socket.close();
+}
+
+void LogPublish::ShutDown()
+{
+	m_ShutDown = true;
 }
