@@ -7,6 +7,7 @@ import threading
 from .constants import *
 from ..bindings import DataStream
 
+from ..protocol.service_proxy import ServiceProxy
 from ..interfaces import *
 
 class TestbedClient(object):
@@ -90,7 +91,7 @@ class TestbedClient(object):
 
         # Get the service interface class.
         interface_name = self.config['services'][name].get('interface')
-        service_proxy_class = _service_interfaces[interface_name]
+        service_proxy_class = ServiceProxy.get_service_interface(interface_name)
 
         return service_proxy_class(name, service_type, self)
 

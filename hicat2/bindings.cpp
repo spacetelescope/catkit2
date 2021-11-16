@@ -48,14 +48,6 @@ public:
 	}
 };
 
-class PublicistService : public Service
-{
-public:
-	using Service::MakeProperty;
-	using Service::MakeCommand;
-	using Service::MakeDataStream;
-};
-
 PYBIND11_MODULE(bindings, m)
 {
 	py::class_<Service, TrampolineService>(m, "Service")
@@ -67,9 +59,24 @@ PYBIND11_MODULE(bindings, m)
 		.def("main", &Service::Main)
 		.def("close", &Service::Close)
 		.def("shut_down", &Service::ShutDown)
-		.def("make_property", &PublicistService::MakeProperty)
-		.def("make_command", &PublicistService::MakeCommand)
-		.def("make_data_stream", &PublicistService::MakeDataStream);
+		.def("make_property", &Service::MakeProperty,
+			py::arg("name"),
+			py::arg("getter") = nullptr,
+			py::arg("setter") = nullptr)
+		.def("make_command", [](Service &service, std::string name, py::object command)
+		{
+			return service.MakeCommand(name, [command](const nlohmann::json &arguments)
+			{
+				py::gil_scoped_acquire acquire;
+				py::dict kwargs = py::cast(arguments);
+				return command(**kwargs);
+			});
+		})
+		.def("make_data_stream", [](Service &service, std::string stream_name, std::string type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+		{
+			DataType dtype = GetDataTypeFromString(type);
+			return service.MakeDataStream(stream_name, dtype, dimensions, num_frames_in_buffer);
+		});
 
 	py::class_<Command, std::shared_ptr<Command>>(m, "Command")
 		.def(py::init([](std::string name, py::object command)

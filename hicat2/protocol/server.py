@@ -118,8 +118,6 @@ class ServiceReference:
             self.last_sent_heartbeat = time.time()
 
             # Do not add this message to the queue; send it right away.
-            log(Severity.DEBUG, f'Sending heartbeat to {self.service_name}.')
-
             self.server.send_message(self.socket_identity, HEARTBEAT_ID)
 
     def send_keyboard_interrupt(self):
@@ -140,7 +138,7 @@ class ServiceReference:
 
 class TestbedServer:
     def __init__(self, port, is_simulated):
-        self.log_console = LogConsole()
+        #self.log_console = LogConsole()
 
         self.port = port
         self.is_simulated = is_simulated
@@ -252,7 +250,7 @@ class TestbedServer:
                 self.send_reply_error(client_identity, request_type, f'Service {service_name} has not been started.')
             else:
                 service = self.services[service_name]
-                service.send_request(client_identity, request_type, request_data)
+                service.send_request(client_identity, request)
 
     def on_require_service(self, client_identity, request_data):
         # Ensure that service is started.
@@ -324,8 +322,6 @@ class TestbedServer:
         service.on_heartbeat()
 
     def on_service_heartbeat(self, service_identity, service_name, parts):
-        log(Severity.DEBUG, f'Handling service heartbeat for "{service_name}".')
-
         service = self.services[service_name]
         service.on_heartbeat()
 
@@ -430,4 +426,5 @@ class TestbedServer:
             service.send_heartbeat()
 
     def shut_down_all_services(self):
-        pass
+        for service in self.services.values():
+            service.send_keyboard_interrupt()

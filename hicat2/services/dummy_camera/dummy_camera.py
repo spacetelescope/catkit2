@@ -36,33 +36,32 @@ class DummyCamera(Service):
         self.is_acquiring = False
         self.should_be_acquiring = True
 
-        self.images = DataStream.create('images', self.name, 'uint16', [self.sensor_height, self.sensor_width], 20)
-        self.register_data_stream(self.images)
+        self.images = self.make_data_stream('images', 'uint16', [self.sensor_height, self.sensor_width], 20)
 
         # Create properties
-        def register_property_helper(name, read_only=False):
+        def make_property_helper(name, read_only=False):
             if read_only:
-                self.register_property(Property(name, lambda: getattr(self, name)))
+                self.make_property(name, lambda: getattr(self, name))
             else:
-                self.register_property(Property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val)))
+                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
 
-        register_property_helper('exposure_time')
-        register_property_helper('gain')
+        make_property_helper('exposure_time')
+        make_property_helper('gain')
 
-        register_property_helper('width')
-        register_property_helper('height')
-        register_property_helper('offset_x')
-        register_property_helper('offset_y')
+        make_property_helper('width')
+        make_property_helper('height')
+        make_property_helper('offset_x')
+        make_property_helper('offset_y')
 
-        register_property_helper('temperature', read_only=True)
-        register_property_helper('sensor_width', read_only=True)
-        register_property_helper('sensor_height', read_only=True)
+        make_property_helper('temperature', read_only=True)
+        make_property_helper('sensor_width', read_only=True)
+        make_property_helper('sensor_height', read_only=True)
 
-        register_property_helper('device_name', read_only=True)
-        register_property_helper('is_acquiring', read_only=True)
+        make_property_helper('device_name', read_only=True)
+        make_property_helper('is_acquiring', read_only=True)
 
-        self.register_command(Command('start_acquisition', self.start_acquisition))
-        self.register_command(Command('end_acquisition', self.end_acquisition))
+        self.make_command('start_acquisition', self.start_acquisition)
+        self.make_command('end_acquisition', self.end_acquisition)
 
     def get_image(self):
         try:

@@ -1,8 +1,8 @@
 import time
 
-from ..protocol.service_proxy import ServiceProxy, register_service_interface
+from ..protocol.service_proxy import ServiceProxy
 
-@register_service_interface('newport_xps_q8')
+@ServiceProxy.register_service_interface('newport_xps_q8')
 class NewportXpsQ8Proxy(ServiceProxy):
     def move_absolute(self, motor_id, position, timeout=float('inf')):
         command_stream = getattr(self, motor_id.lower())

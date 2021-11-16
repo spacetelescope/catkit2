@@ -43,14 +43,14 @@ Service::Service(std::string service_name, std::string service_type, int testbed
 	signal(SIGTERM, SignalHandler);
 
 	// Set up request handlers.
-	m_RequestHandlers["get_property_request"] = [this](const nlohmann::json &data){return this->OnGetPropertyRequest(data);};
-	m_RequestHandlers["set_property_request"] = [this](const nlohmann::json &data){return this->OnSetPropertyRequest(data);};
+	m_RequestHandlers["get_property"] = [this](const nlohmann::json &data){return this->OnGetPropertyRequest(data);};
+	m_RequestHandlers["set_property"] = [this](const nlohmann::json &data){return this->OnSetPropertyRequest(data);};
 
-	m_RequestHandlers["execute_command_request"] = [this](const nlohmann::json &data){return this->OnExecuteCommandRequest(data);};
+	m_RequestHandlers["execute_command"] = [this](const nlohmann::json &data){return this->OnExecuteCommandRequest(data);};
 
-	m_RequestHandlers["list_all_properties_request"] = [this](const nlohmann::json &data){return this->OnAllPropertiesRequest(data);};
-	m_RequestHandlers["list_all_commands_request"] = [this](const nlohmann::json &data){return this->OnAllCommandsRequest(data);};
-	m_RequestHandlers["list_all_data_streams_request"] = [this](const nlohmann::json &data){return this->OnAllDataStreamsRequest(data);};
+	m_RequestHandlers["all_properties"] = [this](const nlohmann::json &data){return this->OnAllPropertiesRequest(data);};
+	m_RequestHandlers["all_commands"] = [this](const nlohmann::json &data){return this->OnAllCommandsRequest(data);};
+	m_RequestHandlers["all_datastreams"] = [this](const nlohmann::json &data){return this->OnAllDataStreamsRequest(data);};
 
 	m_RequestHandlers["shut_down_request"] = [this](const nlohmann::json &data){return this->OnShutdownRequest(data);};
 
@@ -134,8 +134,6 @@ void Service::MonitorInterface()
 
 			if (message_type == HEARTBEAT_ID)
 			{
-				LOG_DEBUG("Received heartbeat.");
-
 				m_LastReceivedHeartbeatTime = GetTimeStamp();
 			}
 			else if (message_type == CONFIGURATION_ID)
@@ -227,7 +225,7 @@ void Service::MonitorInterface()
 				}
 				else
 				{
-					std::string error = "Type of message (\""s + request_type + "\" not recognized. Discarding message.";
+					std::string error = "Type of message \""s + request_type + "\" not recognized. Discarding message.";
 					LOG_ERROR(error);
 
 					SendReplyError(client_identity, request_type, error);
@@ -590,8 +588,6 @@ void Service::SendRegisterMessage()
 
 void Service::SendHeartbeatMessage()
 {
-	LOG_DEBUG("Sending heartbeat.");
-
 	multipart_t msg;
 
 	msg.addstr("");
