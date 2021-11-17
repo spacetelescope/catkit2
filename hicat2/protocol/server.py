@@ -9,16 +9,8 @@ import zmq
 
 from .constants import *
 from ..config import read_config
-from ..bindings import Severity, submit_log_entry, LogConsole
-
-import inspect
-def log(severity, message):
-    stack = inspect.stack()[1]
-    filename = stack[1]
-    line = stack[2]
-    function = stack[3]
-
-    submit_log_entry(filename, line, function, severity, message)
+from ..bindings import LogConsole, LogPublish
+from .log_handler import *
 
 def decode_json(json_bytes):
     try:
@@ -36,15 +28,13 @@ class LoggingProxy:
     def stop(self):
         pass
 
-    def send_log_message(self, severity, message):
-        pass
-
 class ServiceReference:
     def __init__(self, process, service_type, service_name, server):
         self.process = process
         self.service_type = service_type
         self.service_name = service_name
         self.server = server
+        self.log = logging.getLogger(__name__)
 
         self._socket_identity = None
         self._request_queue = []
@@ -85,13 +75,13 @@ class ServiceReference:
         return self._is_ready
 
     def send_request(self, client_identity, request):
-        log(Severity.DEBUG, f'Sending request to {self.service_name}.')
+        self.log.debug(f'Sending request to {self.service_name}.')
         self._request_queue.append([client_identity, request])
 
         self.dispatch_all()
 
     def send_configuration(self, configuration):
-        log(Severity.DEBUG, f'Sending configuration to {self.service_name}.')
+        self.log.debug(f'Sending configuration to {self.service_name}.')
 
         self.server.send_message(self.socket_identity, CONFIGURATION_ID, data=configuration)
 
@@ -138,13 +128,14 @@ class ServiceReference:
 
 class TestbedServer:
     def __init__(self, port, is_simulated):
-        #self.log_console = LogConsole()
-
         self.port = port
         self.is_simulated = is_simulated
         self.services = {}
 
         self.is_running = False
+
+        self.log_handler = None
+        self.log = logging.getLogger(__name__)
 
         self.config = read_config()
 
@@ -177,24 +168,16 @@ class TestbedServer:
         self.is_running = True
 
         self.start_logging_proxy()
+        self.setup_logging()
 
         try:
             while self.is_running:
-                try:
-                    self.purge_stopped_services()
+                self.purge_stopped_services()
 
-                    self.send_heartbeats()
+                self.send_heartbeats()
 
-                    self.handle_incoming_message()
-                except Exception as e:
-                    if identity is None:
-                        # Error during receive. Reraise.
-                        log(Severity.CRITICAL, f'Error during receive: {e}.')
-                        raise
-                    else:
-                        # Something went wrong during handling of the message. Log error and ignore message.
-                        log(Severity.ERROR, f'Error during handling of message: {repr(e)}.')
-                        continue
+                self.handle_incoming_message()
+
 
         except KeyboardInterrupt:
             print('Interrupted by the user...')
@@ -210,11 +193,23 @@ class TestbedServer:
             self.socket = None
             self.context = None
 
+    def setup_logging(self):
+        self.log_handler = HicatLogHandler()
+        logging.getLogger().addHandler(self.log_handler)
+
+        self.log_console = LogConsole()
+        self.log_publish = LogPublish('server', f'tcp://localhost:{self.port + 1}')
+
+    def destroy_logging(self):
+        if self.log_handler:
+            logging.getLogger().removeHandler(self.log_handler)
+            self.log_handler = None
+
     def purge_stopped_services(self):
         dead_services = [service_name for service_name, service in self.services.items() if not service.is_alive]
 
         for service_name in dead_services:
-            log(Severity.INFO, f'Service {service_name} shut down. Removing from running services list.')
+            self.log.info(f'Service {service_name} shut down. Removing from running services list.')
 
             del self.services[service_name]
 
@@ -224,27 +219,37 @@ class TestbedServer:
 
     def handle_incoming_message(self):
         try:
-            # Receive multipart message.
-            parts = self.socket.recv_multipart()
+            try:
+                # Receive multipart message.
+                parts = self.socket.recv_multipart()
 
-            # Unpack multipart message.
-            identity, *parts = parts
-            empty, message_source, service_name, message_type, *parts = parts
-            service_name = service_name.decode('ascii')
-        except zmq.ZMQError as e:
-            if e.errno == zmq.EAGAIN:
-                # Timed out.
-                continue
+                # Unpack multipart message.
+                identity, *parts = parts
+                empty, message_source, service_name, message_type, *parts = parts
+                service_name = service_name.decode('ascii')
+            except zmq.ZMQError as e:
+                if e.errno == zmq.EAGAIN:
+                    # Timed out.
+                    return
+                else:
+                    raise RuntimeError('Error during receive') from e
+
+            # Handle message
+            if message_source == CLIENT_ID:
+                self.client_message_handlers[message_type](identity, service_name, parts)
+            elif message_source == SERVICE_ID:
+                self.service_message_handlers[message_type](identity, service_name, parts)
             else:
-                raise RuntimeError('Error during receive') from e
-
-        # Handle message
-        if message_source == CLIENT_ID:
-            self.client_message_handlers[message_type](identity, service_name, parts)
-        elif message_source == SERVICE_ID:
-            self.service_message_handlers[message_type](identity, service_name, parts)
-        else:
-            raise RuntimeError('Incoming message did not have a correct message source.')
+                raise RuntimeError('Incoming message did not have a correct message source.')
+        except Exception as e:
+            if identity is None:
+                # Error during receive. Reraise.
+                self.log.critical(f'Error during receive: {e}.')
+                raise
+            else:
+                # Something went wrong during handling of the message. Log error and ignore message.
+                self.log.error(f'Error during handling of message: {repr(e)}.')
+                return
 
     def start_logging_proxy(self):
         pass
@@ -257,7 +262,7 @@ class TestbedServer:
         request_type = request['request_type']
         request_data = request['data']
 
-        log(Severity.DEBUG, f'Handling client request "{request_type}" with data "{request_data}".')
+        self.log.debug(f'Handling client request "{request_type}" with data "{request_data}".')
 
         if service_name == 'server':
             handler = self.internal_request_handlers[request_type]
@@ -315,7 +320,7 @@ class TestbedServer:
     def on_service_register(self, service_identity, service_name, parts):
         data = decode_json(parts[0])
 
-        log(Severity.DEBUG, f'Handling service register for "{service_name}" with data "{data}".')
+        self.log.debug(f'Handling service register for "{service_name}" with data "{data}".')
 
         if service_name in self.services:
             # Service was started by this server.
@@ -332,7 +337,7 @@ class TestbedServer:
         service.send_configuration(self.config['services'][service_name])
 
     def on_service_opened(self, service_identity, service_name, parts):
-        log(Severity.DEBUG, f'Handling service opened for "{service_name}".')
+        self.log.debug(f'Handling service opened for "{service_name}".')
 
         service = self.services[service_name]
         service.on_opened()
@@ -346,7 +351,7 @@ class TestbedServer:
         client_identity = parts[0]
         data = decode_json(parts[1])
 
-        log(Severity.DEBUG, f'Handling service reply for "{service_name}" with data "{data}".')
+        self.log.debug(f'Handling service reply for "{service_name}" with data "{data}".')
 
         service = self.services[service_name]
         service.on_heartbeat()
@@ -386,7 +391,7 @@ class TestbedServer:
         self.socket.send_multipart(msg)
 
     def start_service(self, service_name):
-        log(Severity.DEBUG, f'Trying to start service "{service_name}".')
+        self.log.debug(f'Trying to start service "{service_name}".')
 
         if service_name not in self.config['services']:
             raise RuntimeError(f'Service "{service_name}" is not a known service.')
