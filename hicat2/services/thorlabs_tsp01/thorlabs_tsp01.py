@@ -3,48 +3,39 @@ import sys
 import glob
 import os
 
-from hicat2.bindings import Module, DataStream
-from hicat2.testbed import parse_module_args
+# Disable the Fortran Ctrl-C handler as it interferes with safe closing of
+# the service.
+os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 
-class ModuleTSP01(Module):
+from hicat2.protocol.service import Service, parse_service_args
+
+class ThorlabsTSP01(Serivce):
     _BUFFER_SIZE = 256
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'thorlabs_tsp01', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        self.serial_number = testbed.config['modules'][self.name]['serial_number']
+        config = self.configuration
+        self.serial_number = config['serial_number']
 
         self.shutdown_flag = False
 
-        self.temperature_internal = DataStream.create('temperature_internal', self.name, 'float64', [1], 20)
-        self.humidity_internal = DataStream.create('humidity_internal', self.name, 'float64', [1], 20)
-        self.temperature_header_1 = DataStream.create('temperature_header_1', self.name, 'float64', [1], 20)
-        self.temperature_header_2 = DataStream.create('temperature_header_2', self.name, 'float64', [1], 20)
-
-        self.register_data_stream(self.temperature_internal)
-        self.register_data_stream(self.humidity_internal)
-        self.register_data_stream(self.temperature_header_1)
-        self.register_data_stream(self.temperature_header_2)
+        self.temperature_internal = self.make_data_stream('temperature_internal', 'float64', [1], 20)
+        self.temperature_header_1 = self.make_data_stream('temperature_header_1', 'float64', [1], 20)
+        self.temperature_header_2 = self.make_data_stream('temperature_header_2', 'float64', [1], 20)
+        self.humidity_internal = self.make_data_stream('humidity_internal', 'float64', [1], 20)
 
     def main(self):
         while not self.shutdown_flag:
-            f = self.temperature_internal.request_new_frame()
-            f.data[:] = self.get_temperature(1)
-            self.temperature_internal.submit_frame(f.id)
+            t1 = self.get_temperature(1)
+            t2 = self.get_temperature(2)
+            t3 = self.get_temperature(3)
+            h = self.get_humidity()
 
-            f = self.humidity_internal.request_new_frame()
-            f.data[:] = self.get_humidity()
-            self.humidity_internal.submit_frame(f.id)
-
-            f = self.temperature_header_1.request_new_frame()
-            f.data[:] = self.get_temperature(2)
-            self.temperature_header_1.submit_frame(f.id)
-
-            f = self.temperature_header_2.request_new_frame()
-            f.data[:] = self.get_temperature(3)
-            self.temperature_header_2.submit_frame(f.id)
+            self.temperature_internal.submit_data(np.array([t1]))
+            self.temperature_header_1.submit_data(np.array([t2]))
+            self.temperature_header_2.submit_data(np.array([t3]))
+            self.humidity_internal.submit_data(np.array([h]))
 
             time.sleep(1)
 
@@ -158,9 +149,8 @@ class ModuleTSP01(Module):
 
             self.instrument = ctypes.c_void_p(None)
 
-def main():
-    module = ModuleTSP01()
-    module.run()
-
 if __name__ == '__main__':
-    main()
+    service_name, testbed_port = parse_service_args()
+
+    service = ThorlabsTSP01(service_name, testbed_port)
+    service.run()

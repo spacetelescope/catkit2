@@ -1,7 +1,6 @@
 from PySpin import PySpin
 
-from hicat2.bindings import Module, DataStream, Property, Command
-from hicat2.testbed import parse_module_args
+from hicat2.protocol.service import Service, parse_service_args
 
 from threading import Lock
 import time
@@ -58,15 +57,13 @@ def _create_enum_property(flir_property_name, enum_name, stopped_acquisition=Tru
 
     return property(getter, setter)
 
-class FlirCameraModule(Module):
+class FlirCamera(Service):
     NUM_FRAMES_IN_BUFFER = 20
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'flir_camera', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][self.name]
+        config = self.configuration
         self.serial_number = config['serial_number']
 
         self.shutdown_flag = False
@@ -108,39 +105,38 @@ class FlirCameraModule(Module):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = DataStream.create('images', self.name, 'float32', [self.sensor_height, self.sensor_width], NUM_FRAMES_IN_BUFFER)
-        self.register_data_stream(self.images)
+        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], NUM_FRAMES_IN_BUFFER)
 
         # Create properties
-        def register_property_helper(name, read_only=False):
+        def make_property_helper(name, read_only=False):
             if read_only:
-                self.register_property(Property(name, lambda: return getattr(self, name)))
+                self.make_property(name, lambda: return getattr(self, name))
             else:
-                self.register_property(Property(name, lambda: return getattr(self, name), lambda val: setattr(self, name, val)))
+                self.make_property(name, lambda: return getattr(self, name), lambda val: setattr(self, name, val))
 
-        register_property_helper('exposure_time')
-        register_property_helper('gain')
+        make_property_helper('exposure_time')
+        make_property_helper('gain')
 
-        register_property_helper('width')
-        register_property_helper('height')
-        register_property_helper('offset_x')
-        register_property_helper('offset_y')
+        make_property_helper('width')
+        make_property_helper('height')
+        make_property_helper('offset_x')
+        make_property_helper('offset_y')
 
-        register_property_helper('temperature', read_only=True)
-        register_property_helper('sensor_width', read_only=True)
-        register_property_helper('sensor_height', read_only=True)
+        make_property_helper('temperature', read_only=True)
+        make_property_helper('sensor_width', read_only=True)
+        make_property_helper('sensor_height', read_only=True)
 
-        register_property_helper('pixel_format')
-        register_property_helper('adc_bit_depth')
+        make_property_helper('pixel_format')
+        make_property_helper('adc_bit_depth')
 
-        register_property_helper('acquisition_frame_rate')
-        register_property_helper('acquisition_frame_rate_enable')
+        make_property_helper('acquisition_frame_rate')
+        make_property_helper('acquisition_frame_rate_enable')
 
-        register_property_helper('device_name', read_only=True)
-        register_property_helper('is_acquiring', read_only=True)
+        make_property_helper('device_name', read_only=True)
+        make_property_helper('is_acquiring', read_only=True)
 
-        self.register_command(Command('start_acquisition', self.start_acquisition))
-        self.register_command(Command('end_acquisition', self.end_acquisition))
+        self.make_command('start_acquisition', self.start_acquisition)
+        self.make_command('end_acquisition', self.end_acquisition)
 
     def __del__(self):
         self.system.ReleaseInstance()
@@ -192,9 +188,7 @@ class FlirCameraModule(Module):
             img = img.reshape((image_result.GetHeight(), image_result.GetWidth()))
 
             # Submit image to datastream.
-            frame = self.images.request_new_frame()
-            frame.data[:] = img
-            self.images.submit_frame(frame.id)
+            frame = self.images.submit_data(img)
 
             image_result.Release()
 
@@ -232,3 +226,9 @@ class FlirCameraModule(Module):
     def device_name(self):
         with self.mutex:
             return self.cam.TLDevice.DeviceModelName.GetValue()
+
+if __name__ == '__main__':
+    service_name, testbed_port = parse_service_args()
+
+    service = FlirCamera(service_name, testbed_port)
+    service.run()

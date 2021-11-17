@@ -1,10 +1,9 @@
-from hicat2.bindings import Module, DataStream, Command, Property
-from hicat2.testbed import parse_module_args
+from hicat2.protocol.service import Serivce, parse_service_args
 
 import time
 import socket
 
-class OmegaIthxW3Module(Module):
+class OmegaIthxW3(Service):
     _ADDRESS_FAMILY = socket.AF_INET
     _SOCKET_KIND = socket.SOCK_STREAM
     _BLOCKING = True
@@ -15,12 +14,10 @@ class OmegaIthxW3Module(Module):
     _GET_HUMIDITY = b"*SRH\r"
     _GET_TEMPERATURE_AND_HUMIDITY = b"*SRB\r"
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'omega_ithx_w3', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][args.module_name]
+        config = self.configuration
 
         self.ip_address = config['ip_address']
         self.port = 2000
@@ -28,11 +25,8 @@ class OmegaIthxW3Module(Module):
 
         self.shutdown_flag = False
 
-        self.temperature = DataStream.create('temperature', self.name, 'float64', [1], 20)
-        self.register_data_stream(self.temperature)
-
-        self.humidity = DataStream.create('humidity', self.name, 'float64', [1], 20)
-        self.register_data_stream(self.humidity)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
+        self.humidity = self.make_data_stream('humidity', 'float64', [1], 20)
 
     def main(self):
         while not self.shutdown_flag:
@@ -40,13 +34,8 @@ class OmegaIthxW3Module(Module):
 
             temp, hum = self.get_temperature_and_humidity()
 
-            f = self.temperature.request_new_frame()
-            f.data[:] = temp
-            self.temperature.submit_frame(f.id)
-
-            f = self.humidity.request_new_frame()
-            f.data[:] = hum
-            self.humidity.submit_frame(f.id)
+            self.temperature.submit_data(np.array([temp]))
+            self.humdity.submit_data(np.array([hum]))
 
             while (time.time() < (start + self.time_interval)) and not self.shutdown_flag:
                 time.sleep(0.01)
@@ -94,9 +83,8 @@ class OmegaIthxW3Module(Module):
         self.connection.close()
         self.connection = None
 
-def main():
-    module = OmegaIthxW3Module()
-    module.run()
-
 if __name__ == '__main__':
-    main()
+    service_name, testbed_port = parse_service_args()
+
+    service = OmegaIthxW3(service_name, testbed_port)
+    service.run()
