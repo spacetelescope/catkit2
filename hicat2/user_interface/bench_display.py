@@ -96,10 +96,12 @@ class BenchDisplay(QtGui.QWidget):
 
         self.testbed = testbed
 
-        # Parse svg schematic for layer names to id conversion.
-        self.layer_ids = {}
+        # Load and parse svg schematic.
         with pkg_resources.resource_stream('hicat2', 'user_interface/assets/hicat_schematic.svg') as asset:
             doc = minidom.parse(asset)
+
+        # Parse svg schematic for layer names to id conversion.
+        self.layer_ids = {}
 
         for e in doc.getElementsByTagName('g'):
             if e.getAttribute('inkscape:groupmode') == 'layer':
@@ -108,9 +110,18 @@ class BenchDisplay(QtGui.QWidget):
 
                 self.layer_ids[key] = value
 
-        print(self.layer_ids)
+        # Parse svg schematic for text labels indicating button positions.
+        self.button_ids = {}
 
-        # Load in svg schematic.
+        for e in doc.getElementsByTagName('tspan'):
+            key = e.firstChild.data
+            value = e.getAttribute('id')
+            x = float(e.getAttribute('x'))
+            y = float(e.getAttribute('y'))
+
+            self.button_ids[key] = (value, x, y)
+
+        # Load in svg schematic for rendering.
         with pkg_resources.resource_stream('hicat2', 'user_interface/assets/hicat_schematic.svg') as asset:
             self.svg_renderer = QtSvg.QSvgRenderer(asset.read(), self)
         self.active_layers = ['Background', 'Outline', 'Light pre-beam-dump', 'Light coronagraphic', 'Optical elements', 'DMs', 'Cameras']#, 'Buttons']
@@ -118,9 +129,29 @@ class BenchDisplay(QtGui.QWidget):
         with pkg_resources.resource_stream('hicat2', 'user_interface/assets/button_info.yml') as f:
             self.button_infos = yaml.safe_load(f.read())
 
+        self.schematic_size = self.svg_renderer.boundsOnElement(self.layer_ids['Outline'])
+
         self.buttons = []
         for info in self.button_infos:
-            button = IconButton(info['icon'], info['relative_position'], info['tooltip'], self)
+            if 'id' in info:
+                if info['id'] in self.button_ids:
+                    id, xc, yc = self.button_ids[info['id']]
+                    bounds = self.svg_renderer.boundsOnElement(id)
+                    top_left = bounds.topLeft()
+
+                    print('schematic', self.schematic_size)
+                    print('bounds', bounds)
+
+                    x = (xc) / self.schematic_size.width()
+                    y = (yc) / self.schematic_size.height()
+                    relative_position = (x, y)
+                    print(info['id'], top_left, self.button_ids[info['id']])
+                else:
+                    raise ValueError(f'{info["id"]} not found in svg schematic.')
+            else:
+                relative_position = info['relative_position']
+
+            button = IconButton(info['icon'], relative_position, info['tooltip'], self)
 
             if not hasattr(self, 'open_' + info['opens']):
                 raise ValueError(f'Viewer {info["opens"]} is not known.')
@@ -128,8 +159,6 @@ class BenchDisplay(QtGui.QWidget):
             button.clicked.connect(self.start_tools)
 
             self.buttons.append(button)
-
-        self.schematic_size = self.svg_renderer.boundsOnElement(self.layer_ids['Outline'])
 
     def open_camera_viewer(self, device_name, event):
         print('Opening camera viewer for', device_name)
