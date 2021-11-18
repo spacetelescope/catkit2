@@ -8,7 +8,7 @@ testbed_server:
 services:
   lopr_camera:
     service_type: flir_camera
-    simulated_module_type: sim_camera
+    simulated_service_type: sim_camera
     interface: camera
 
     serial_number: 21081906
@@ -21,7 +21,7 @@ services:
 
   science_camera:
     service_type: zwo_camera
-    simulated_module_type: sim_camera
+    simulated_service_type: sim_camera
 
     device_name: ZWO ASI178MM(3)
     subarray_x: 2614
@@ -31,7 +31,7 @@ services:
 
   ta_camera:
     service_type: zwo_camera
-    simulated_module_type: sim_camera
+    simulated_service_type: sim_camera
 
     device_name: ZWO ASI290MM(1)
     subarray_x: 710
@@ -41,7 +41,7 @@ services:
 
   zernike_camera:
     service_type: zwo_camera
-    simulated_module_type: sim_camera
+    simulated_service_type: sim_camera
 
     device_name: ZWO ASI178MM(2)
     subarray_x: 1808
@@ -51,12 +51,13 @@ services:
 
   pupil_camera:
     service_type: zwo_camera
-    simulated_module_type: sim_camera
+    simulated_service_type: sim_camera
 
     device_name: ZWO ASI178MM(4)
 
   boston_dm:
     service_type: bmc_dm
+    simulated_service_type: boston_dm_sim
 
     serial_number: 25CW018#008
     command_length: 2048
@@ -72,6 +73,7 @@ services:
 
   iris_dm:
     service_type: irisao_dm
+    simulated_service_type: iris_dm_sim
 
     mirror_serial: PWA37-05-04-0705
     driver_serial: 13130030
@@ -85,6 +87,7 @@ services:
   newport_xps:
     service_type: newport_xps_q8
     interface: newport_xps_q8
+    simulated_service_type: newport_xps_q8_sim
 
     ip_address: 192.168.192.117
     port: 5001
@@ -115,6 +118,7 @@ services:
 
   apodizer_mount:
     service_type: newport_picomotor
+    simulated_service_type: newport_picomotor_sim
 
     ip_address: 192.168.192.151
     max_step: 2147483647
@@ -128,6 +132,7 @@ services:
 
   quad_cell_mount:
     service_type: newport_picomotor
+    simulated_service_type: newport_picomotor_sim
 
     ip_address: 192.168.192.151
     max_step: 2147483647
@@ -141,6 +146,7 @@ services:
 
   zwfs_mount:
     service_type: newport_picomotor
+    simulated_service_type: newport_picomotor_sim
 
     ip_address: 192.168.192.152
     max_step: 2147483647
@@ -154,6 +160,7 @@ services:
 
   beam_dump:
     service_type: thorlabs_mff101
+    simulated_service_type: thorlabs_mff101_sim
 
     serial_number: 37000085
     in_beam: 1
@@ -161,6 +168,7 @@ services:
 
   phase_retrieval_mirror:
     service_type: thorlabs_mff101
+    simulated_service_type: thorlabs_mff101_sim
 
     serial_number: 37001725
     in_beam: 1
@@ -182,33 +190,39 @@ services:
 
   tsp01_1:
     service_type: thorlabs_tsp01
+    simulated_service_type: thorlabs_tsp01_sim
 
     serial_number: M00542273
 
   tsp01_2:
     service_type: thorlabs_tsp01
+    simulated_service_type: thorlabs_tsp01_sim
 
     serial_number: M00685167
 
   tsp01_3:
     service_type: thorlabs_tsp01
+    simulated_service_type: thorlabs_tsp01_sim
 
     serial_number: M001546345
 
   omega_dm1:
     service_type: omega_ithx_w3
+    simulated_service_type: omega_ithx_w3_sim
 
     ip_address: 192.168.192.132
     time_interval: 30
 
   omega_dm2:
     service_type: omega_ithx_w3
+    simulated_service_type: omega_ithx_w3_sim
 
     ip_address: 192.168.192.32
     time_interval: 30
 
   blue_ups:
     service_type: snmp_ups
+    simulated_service_type: snmp_ups_sim
 
     ip_address: 10.128.242.6
     port: 161
@@ -218,6 +232,7 @@ services:
 
   lab_ups:
     service_type: snmp_ups
+    simulated_service_type: snmp_ups_sim
 
     ip_address: 192.168.192.20
     port: 161
@@ -227,6 +242,7 @@ services:
 
   web_power_switch_1:
     service_type: web_power_switch
+    simulated_service_type: web_power_switch_sim
 
     user: admin
     password: hicat
@@ -246,6 +262,7 @@ services:
 
   color_filter_wheel:
     service_type: thorlabs_fw102c
+    simulated_service_type: thorlabs_fw102c_sim
 
     visa_id: ASRL4::INSTR
 
@@ -259,6 +276,7 @@ services:
 
   nd_filter_wheel:
     service_type: thorlabs_fw102c
+    simulated_service_type: thorlabs_fw102c_sim
 
     visa_id: ASRL6::INSTR
 
@@ -333,8 +351,3 @@ services:
     flux: 100000000
     sensor_width: 256
     sensor_height: 256
-
-  camera_viewer:
-    service_type: camera_gui
-
-    camera_name: example_camera
