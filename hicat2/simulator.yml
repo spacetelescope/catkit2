@@ -1,0 +1,148 @@
+pupil_mask:
+  magnification_to_dm1:
+    design: 0.444
+    calibrated:
+  inclination:
+    design:
+    calibrated:
+  clocking:
+    design: 0
+    calibrated:
+  mask_name: outline
+
+iris_ao:
+  magnification_to_dm1:
+    design: 1.04963
+    calibrated:
+  inclination:
+    design: 17
+    calibrated:
+  clocking:
+    design: 0
+    calibrated:
+  translation:
+    design: [0, 0]
+    calibrated:
+
+apodizer:
+  mask_name: flat
+  magnification_to_dm1:
+    design:
+    calibrated:
+  inclination:
+    design:
+    calibrated:
+  # No translation since the apodizer defines the center of the optical axis.
+
+boston_dm1:
+  inclination:
+    design:
+    calibrated:
+  clocking:
+    design: 0
+    calibrated:
+  translation:
+    design: [0, 0]
+    calibrated:
+
+boston_dm2:
+  inclination:
+    design:
+    calibrated:
+  clocking:
+    design: 0
+    calibrated:
+  translation:
+    design: [0, 0]
+    calibrated:
+
+focal_plane_mask:
+  mask_name: fpm_aplc
+  focal_length:
+    design:
+    calibrated:
+  inclination:
+    design:
+    calibrated:
+
+lyot_stop:
+  mask_name:
+  magnification_to_dm1:
+    design: 0.4535
+    calibrated:
+  inclination:
+    design:
+    calibrated:
+  translation:
+    design: [0, 0]
+    calibrated:
+
+lowfs_system:
+  magnification_to_dm1:
+    design:
+    calibrated:
+
+zernike_mask:
+  focal_length:
+    design:
+    calibrated:
+  mask_diameter: 54.3e-6
+  mask_thickness: 280.0e-9
+  refractive_index: 1.456868486812438 # at 638nm
+
+science_camera:
+  focal_length:
+    design:
+    calibrated:
+  pixel_size: 2.4e-6
+  image_center: []
+  read_noise: 2.2 # electrons rms
+  gain: # electrons per photon
+  e2e_throughput: 0.5
+
+zernike_camera:
+  magnfication_to_dm1:
+    design:
+    calibrated:
+  pixel_size: 2.4e-6
+  image_center: []
+
+pupil_camera:
+  magnification_to_dm1:
+    design:
+    calibrated:
+  pixel_size:
+  image_center: []
+
+ta_camera:
+  focal_length:
+    design:
+    calibrated:
+  pixel_size:
+  image_center: []
+
+lopr_camera:
+  focal_length:
+    design:
+    calibrated:
+  defocus:
+    design:
+    calibrated:
+  pixel_size: 6.9e-6
+  image_center: []
+
+pr_camera:
+  pixel_size:
+  image_center: []
+
+turbulence:
+  r0_at_lyot_stop:
+  tau_0:
+
+vibrations:
+  peaks:
+  - frequency: 10
+    amplitude:
+
+light_source:
+  num_photons_per_watt:
