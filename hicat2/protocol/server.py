@@ -312,7 +312,7 @@ class TestbedServer:
         pass
 
     def on_is_simulated(self, client_identity, request_data):
-        self.send_reply_ok(client_idenity, 'is_simulated', self.is_simulated)
+        self.send_reply_ok(client_identity, 'is_simulated', self.is_simulated)
 
     def on_configuration(self, client_identity, request_data):
         self.send_reply_ok(client_identity, 'configuration', self.config)
@@ -396,7 +396,11 @@ class TestbedServer:
         if service_name not in self.config['services']:
             raise RuntimeError(f'Service "{service_name}" is not a known service.')
 
-        service_type = self.config['services'][service_name]['service_type']
+        config = self.config['services'][service_name]
+        service_type = config['service_type']
+
+        if self.is_simulated and 'simulated_service_type' in config:
+            service_type = config['simulated_service_type']
 
         # Resolve module type;
         dirname = self.resolve_service_type(service_type)
