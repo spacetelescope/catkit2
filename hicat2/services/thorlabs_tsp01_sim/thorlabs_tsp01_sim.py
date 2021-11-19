@@ -2,10 +2,12 @@ import ctypes
 import sys
 import glob
 import os
+import numpy as np
+import time
 
 from hicat2.protocol.service import Service, parse_service_args
 
-class ThorlabsTSP01Sim(Serivce):
+class ThorlabsTSP01Sim(Service):
     def __init__(self, service_name, testbed_port):
         Service.__init__(self, service_name, 'thorlabs_tsp01_sim', testbed_port)
 
@@ -23,10 +25,10 @@ class ThorlabsTSP01Sim(Serivce):
             t3 = self.get_temperature(3)
             h = self.get_humidity()
 
-            self.temperature_internal.submit_data(np.array([t1]))
-            self.temperature_header_1.submit_data(np.array([t2]))
-            self.temperature_header_2.submit_data(np.array([t3]))
-            self.humidity_internal.submit_data(np.array([h]))
+            self.temperature_internal.submit_data(np.array([t1], dtype='float64'))
+            self.temperature_header_1.submit_data(np.array([t2], dtype='float64'))
+            self.temperature_header_2.submit_data(np.array([t3], dtype='float64'))
+            self.humidity_internal.submit_data(np.array([h], dtype='float64'))
 
             time.sleep(1)
 
