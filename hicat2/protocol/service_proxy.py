@@ -72,7 +72,7 @@ class ServiceProxy:
 
             return stream
         else:
-            return super().__getattr__(name)
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'.")
 
     def __setattr__(self, name, value):
         if name in self.property_names:
