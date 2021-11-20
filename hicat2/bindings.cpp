@@ -48,6 +48,27 @@ public:
 	}
 };
 
+py::array GetDataFromDataFrame(DataFrame &f)
+{
+	size_t item_size = GetSizeOfDataType(f.m_DataType);
+
+	std::vector<py::ssize_t> shape;
+	for (size_t i = 0; i < f.m_NumDimensions; ++i)
+	{
+		shape.push_back(f.m_Dimensions[i]);
+	}
+
+	auto strides = py::detail::c_strides(shape, item_size);
+
+	return py::array(
+		GetDataTypeAsString(f.m_DataType),
+		shape,
+		strides,
+		f.m_Data,
+		py::none()
+		);
+}
+
 PYBIND11_MODULE(bindings, m)
 {
 	py::class_<Service, TrampolineService>(m, "Service")
@@ -106,26 +127,7 @@ PYBIND11_MODULE(bindings, m)
 			{
 				return f.m_TimeStamp;
 			})
-		.def_property_readonly("data", [](const DataFrame &f)
-			{
-				size_t item_size = GetSizeOfDataType(f.m_DataType);
-
-				std::vector<py::ssize_t> shape;
-				for (size_t i = 0; i < f.m_NumDimensions; ++i)
-				{
-					shape.push_back(f.m_Dimensions[i]);
-				}
-
-				auto strides = py::detail::c_strides(shape, item_size);
-
-				return py::array(
-					GetDataTypeAsString(f.m_DataType),
-					shape,
-					strides,
-					f.m_Data,
-					py::none()
-					);
-			});
+		.def_property_readonly("data", &GetDataFromDataFrame);
 
 	py::class_<DataStream, std::shared_ptr<DataStream>>(m, "DataStream")
 		.def_static("create", [](std::string &stream_name, std::string &service_name, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
@@ -208,6 +210,11 @@ PYBIND11_MODULE(bindings, m)
 				throw std::invalid_argument("The datatype is unknown.");
 
 			s.SetDataType(stream_dtype);
+		})
+		.def("get", [](DataStream &s)
+		{
+			DataFrame frame = s.GetLatestFrame();
+			return GetDataFromDataFrame(frame);
 		})
 		.def_property("shape", &DataStream::GetDimensions, &DataStream::SetDimensions)
 		.def_property("num_frames_in_buffer", &DataStream::GetNumFramesInBuffer, &DataStream::SetNumFramesInBuffer)
