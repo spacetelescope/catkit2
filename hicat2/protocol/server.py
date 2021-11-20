@@ -3,6 +3,7 @@ import json
 import os
 import time
 import subprocess
+import traceback
 
 import psutil
 import zmq
@@ -244,11 +245,11 @@ class TestbedServer:
         except Exception as e:
             if identity is None:
                 # Error during receive. Reraise.
-                self.log.critical(f'Error during receive: {e}.')
+                self.log.critical(f'Error during receive: {traceback.format_exc()}.')
                 raise
             else:
                 # Something went wrong during handling of the message. Log error and ignore message.
-                self.log.error(f'Error during handling of message: {repr(e)}.')
+                self.log.error(f'Error during handling of message: {traceback.format_exc()}.')
                 return
 
     def start_logging_proxy(self):
