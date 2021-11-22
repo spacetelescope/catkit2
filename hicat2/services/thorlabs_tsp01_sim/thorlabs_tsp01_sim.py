@@ -1,7 +1,3 @@
-import ctypes
-import sys
-import glob
-import os
 import numpy as np
 import time
 
@@ -18,6 +14,11 @@ class ThorlabsTSP01Sim(Service):
         self.temperature_header_2 = self.make_data_stream('temperature_header_2', 'float64', [1], 20)
         self.humidity_internal = self.make_data_stream('humidity_internal', 'float64', [1], 20)
 
+        self.shifts = np.random.uniform(0, 2*np.pi, size=3)
+        self.periods = np.random.uniform(300, 1800, size=3)
+        self.amplitudes = np.random.uniform(0.1, 1, size=3)
+        self.offsets = np.random.uniform(20, 21, size=3)
+
     def main(self):
         while not self.shutdown_flag:
             t1 = self.get_temperature(1)
@@ -32,11 +33,16 @@ class ThorlabsTSP01Sim(Service):
 
             time.sleep(1)
 
-    def shutdown(self):
+    def shut_down(self):
         self.shutdown_flag = True
 
     def get_temperature(self, channel):
-        return 25
+        period = self.periods[channel - 1]
+        shift = self.shifts[channel - 1]
+        amplitude = self.amplitudes[channel - 1]
+        offset = self.offsets[channel - 1]
+
+        return np.sin(time.time() * 2 * np.pi / period + shift) * amplitude + offset
 
     def get_humidity(self):
         return 20
