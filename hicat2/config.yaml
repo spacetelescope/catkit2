@@ -4,6 +4,8 @@ testbed_server:
     service_name: safety
     check_interval: 60
     safe_interval: 180
+  simulator:
+    service_name: hicat_simulator
 
 services:
   lopr_camera:
