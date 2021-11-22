@@ -3,10 +3,6 @@ import sys
 import glob
 import os
 
-# Disable the Fortran Ctrl-C handler as it interferes with safe closing of
-# the service.
-os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
-
 from hicat2.protocol.service import Service, parse_service_args
 
 class ThorlabsTSP01(Serivce):
