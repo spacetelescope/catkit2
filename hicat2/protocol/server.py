@@ -345,6 +345,10 @@ class TestbedServer:
         service.on_heartbeat()
 
     def on_service_heartbeat(self, service_identity, service_name, parts):
+        if service_name not in self.services:
+            self.log.error(f"Received a heartbeat from '{service_name}, which is not running. Ignoring.")
+            return
+
         service = self.services[service_name]
         service.on_heartbeat()
 
