@@ -247,7 +247,14 @@ void Service::MonitorInterface()
 	}
 
 	m_IsRunning = false;
-	this->ShutDown();
+	try
+	{
+		this->ShutDown();
+	}
+	catch (...)
+	{
+		LOG_ERROR("Caught error during call to shut down. Ignoring...");
+	}
 
 	m_ShellSocket->close();
 	delete m_ShellSocket;
@@ -335,6 +342,7 @@ void Service::Open()
 
 void Service::Main()
 {
+	LOG_CRITICAL("You MUST override the main() function for correct service behaviour.");
 }
 
 void Service::Close()
@@ -343,8 +351,8 @@ void Service::Close()
 
 void Service::ShutDown()
 {
+	LOG_CRITICAL("You MUST override the shut_down() function for correct shutdown behaviour.");
 }
-
 
 std::shared_ptr<Property> Service::GetProperty(const std::string &property_name) const
 {
