@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+message ActuateBostonRequest
+{
+    float at_time = 1;
+    bytes new_actuators = 2;
+}
+
+message ActuateIrisRequest
+{
+    float at_time = 1;
+    bytes new_actuators = 2;
+}
+
+message MoveStageRequest
+{
+    float at_time = 1;
+    string stage_name = 2;
+    float new_stage_position = 3;
+}
+
+message MoveFilterRequest
+{
+    float at_time = 1;
+    string filter_wheel_name = 2;
+    int32 new_filter_position = 3;
+}
+
+message MoveFlipMountRequest
+{
+    float at_time = 1;
+    string flip_mount_name = 2;
+    int32 new_flip_mount_position = 3;
+}
+
+message SetBreakpointRequest
+{
+    float at_time = 1;
+}
+
+message BreakpointToken
+{
+    string breakpoint_token = 1;
+}
+
+message ReleaseBreakpointRequest
+{
+    string breakpoint_token = 1;
+}
+
+message StartCameraAcquisitionRequest
+{
+    string camera_name = 1;
+    float start_time = 2;
+    float integration_time = 3;
+    float frame_interval = 4;
+}
+
+message StopCameraAcquisitionRequest
+{
+    string camera_name = 1;
+}

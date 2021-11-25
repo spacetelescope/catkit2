@@ -22,6 +22,5 @@ dependencies:
   - ftd2xx
   - asdf
   - psutil
-  - pip
-  - pip:
-    - hcipy
+  - protobuf
+  - conda-forge:hcipy

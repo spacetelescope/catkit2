@@ -8,3 +8,4 @@ __pycache__/
 *CMakeFiles
 *CMakeCache.txt
 extern/*/
+*_pb2.py

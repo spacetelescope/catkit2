@@ -9,6 +9,38 @@ import subprocess
 from distutils.version import LooseVersion
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
+from distutils.spawn import find_executable
+
+# Find the Protocol Compiler.
+if 'PROTOC' in os.environ and os.path.exists(os.environ['PROTOC']):
+    protoc = os.environ['PROTOC']
+else:
+    protoc = find_executable("protoc")
+
+def generate_proto(source):
+    """Invokes the Protocol Compiler to generate a _pb2.py from the given
+    .proto file.  Does nothing if the output already exists and is newer than
+    the input."""
+    output = source.replace(".proto", "_pb2.py")
+
+    if (not os.path.exists(output) or
+            (os.path.exists(source) and os.path.getmtime(source) > os.path.getmtime(output))):
+        print ("Generating %s..." % output)
+
+        if not os.path.exists(source):
+            sys.stderr.write("Can't find required file: %s\n" % source)
+            sys.exit(-1)
+
+        if protoc == None:
+            sys.stderr.write(
+            "protoc is not installed nor found in ../src.  Please compile it "
+            "or install the binary package.\n")
+            sys.exit(-1)
+
+        protoc_command = [protoc, "--proto_path=.", "--python_out=.", os.path.relpath(source)]
+
+        if subprocess.call(protoc_command) != 0:
+            sys.exit(-1)
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=''):
@@ -53,6 +85,8 @@ class CMakeBuild(build_ext):
 
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
+
+        generate_proto(os.path.join(ext.sourcedir, 'hicat2', 'simulator', 'simulator.proto'))
 
 with open("README", "r") as f:
     long_description = f.read()
