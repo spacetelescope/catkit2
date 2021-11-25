@@ -61,7 +61,7 @@ py::array GetDataFromDataFrame(DataFrame &f)
 	auto strides = py::detail::c_strides(shape, item_size);
 
 	return py::array(
-		GetDataTypeAsString(f.m_DataType),
+		py::dtype(GetDataTypeAsString(f.m_DataType)),
 		shape,
 		strides,
 		f.m_Data,
