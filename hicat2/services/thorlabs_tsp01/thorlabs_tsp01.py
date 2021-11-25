@@ -35,7 +35,7 @@ class ThorlabsTSP01(Serivce):
 
             time.sleep(1)
 
-    def shutdown(self):
+    def shut_down(self):
         self.shutdown_flag = True
 
     def load_library(self):
