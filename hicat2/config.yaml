@@ -6,6 +6,8 @@ testbed_server:
     safe_interval: 180
   simulator:
     service_name: hicat_simulator
+  service_paths:
+    - ./services
 
 services:
   lopr_camera:
