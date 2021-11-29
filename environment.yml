@@ -4,7 +4,7 @@
 # conda env create --name <myEnvName> --file environment.yml
 # conda env update --name <myEnvName--file environment.yml --prune
 
-name: hicat2
+name: catkit2
 dependencies:
   - python=3.7.6
   - numpy

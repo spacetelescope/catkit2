@@ -86,13 +86,13 @@ class CMakeBuild(build_ext):
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
-        generate_proto(os.path.join(ext.sourcedir, 'hicat2', 'simulator', 'simulator.proto'))
+        generate_proto(os.path.join(ext.sourcedir, 'catkit2', 'simulator', 'simulator.proto'))
 
 with open("README", "r") as f:
     long_description = f.read()
 
 setup(
-    name="hicat2",
+    name="catkit2",
     version="0.0.1",
     author="Emiel Por",
     author_email="epor@stsci.edu",
@@ -100,18 +100,18 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
-    package_data={'hicat2': ['user_interface/assets/*']},
+    package_data={'catkit2': ['user_interface/assets/*']},
     classifiers=[
         "Programming Language :: Python :: 3"
     ],
-    ext_modules=[CMakeExtension('hicat2/bindings')],
+    ext_modules=[CMakeExtension('catkit2/bindings')],
     python_requires='>=3.6',
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
     install_requires=[],
     entry_points={
         "console_scripts": [
-            "hicat=hicat2.cli_interface:main"
+            "hicat=catkit2.cli_interface:main"
         ],
     },
 )
