@@ -109,9 +109,4 @@ setup(
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
     install_requires=[],
-    entry_points={
-        "console_scripts": [
-            "hicat=catkit2.cli_interface:main"
-        ],
-    },
 )
