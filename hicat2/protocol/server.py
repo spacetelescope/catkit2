@@ -440,7 +440,7 @@ class TestbedServer:
         dirname = os.path.join(os.path.dirname(__file__), '..', 'services', service_type)
 
         if not os.path.exists(dirname):
-            raise ServerError(f"Module type '{service_type}' not recognized.")
+            raise ServerError(f"Service type '{service_type}' not recognized.")
 
         return dirname
 
