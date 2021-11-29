@@ -10,9 +10,6 @@ dependencies:
   - numpy
   - scipy
   - matplotlib
-  - pyqt
-  - pyqtgraph
-  - conda-forge::qdarkstyle
   - pyzmq
   - conda-forge::pyvisa>=1.10
   - conda-forge::pyvisa-py
