@@ -38,11 +38,6 @@ message SetBreakpointRequest
     float at_time = 1;
 }
 
-message BreakpointToken
-{
-    string breakpoint_token = 1;
-}
-
 message ReleaseBreakpointRequest
 {
     string breakpoint_token = 1;

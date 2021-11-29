@@ -1,8 +1,7 @@
-import grpc
-from concurrent import futures
-
 import zmq
+
 from .simulator_pb2 import *
+from ..protocol import Service
 
 def simulator_request_handler(request_class):
     def decorator(func):
@@ -81,10 +80,9 @@ class Simulator(Service):
 
     @simulator_request_handler(StartCameraAcquisitionRequest)
     def on_start_camera_acquisition(self, request):
-        def start_integration(self, )
-        self.add_callback()
+        pass
 
-    @simulator_request_handler(EndCameraAcquisitionRequest)
+    @simulator_request_handler(StopCameraAcquisitionRequest)
     def on_end_camera_acquisition(self, request):
         pass
 

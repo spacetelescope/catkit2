@@ -28,7 +28,7 @@ class SimulatedService(Service):
         return self._make_simulator_request('start_camera_acquisition', request)
 
     def _make_simulator_request(self, func_name, request):
-        self.socket.send_multipart([func_name.encode('ascii', request.SerializeToString()])
+        self.socket.send_multipart([func_name.encode('ascii'), request.SerializeToString()])
 
         res = Reply()
         while True:

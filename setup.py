@@ -88,7 +88,7 @@ class CMakeBuild(build_ext):
 
         generate_proto(os.path.join(ext.sourcedir, 'catkit2', 'simulator', 'simulator.proto'))
 
-with open("README", "r") as f:
+with open("README.md", "r") as f:
     long_description = f.read()
 
 setup(
