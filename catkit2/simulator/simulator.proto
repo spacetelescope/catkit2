@@ -1,12 +1,6 @@
 syntax = "proto3";
 
-message ActuateBostonRequest
-{
-    float at_time = 1;
-    bytes new_actuators = 2;
-}
-
-message ActuateIrisRequest
+message ActuateDMRequest
 {
     float at_time = 1;
     bytes new_actuators = 2;

@@ -86,7 +86,7 @@ class Simulator(Service):
     def on_end_camera_acquisition(self, request):
         pass
 
-    @simulator_request_handler(ActuateBostonRequest)
+    @simulator_request_handler(ActuateDMRequest)
     def on_actuate_boston(self, request):
         def callback(self):
             self.model.dm1.actuators = request.new_actuators[:952]
