@@ -21,3 +21,4 @@ dependencies:
   - psutil
   - protobuf
   - conda-forge:hcipy
+  - docopt
