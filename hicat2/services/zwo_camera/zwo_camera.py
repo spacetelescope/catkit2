@@ -1,7 +1,6 @@
 import zwoasi
 
-from hicat2.bindings import Module, DataStream, Property, Command
-from hicat2.testbed import parse_module_args
+from hicat2.protocol.service import Service, parse_service_args
 
 from threading import Lock
 import time
@@ -21,8 +20,8 @@ except Exception as error:
     raise ImportError(f"Failed to load {__ZWO_ASI_LIB} library backend to {zwoasi.__qualname__}") from error
 
 class StoppedAcquisition:
-    def __init__(self, zwo_camera_module):
-        self.camera = zwo_camera_module
+    def __init__(self, zwo_camera):
+        self.camera = zwo_camera
 
     def __enter__(self):
         self.was_stopped = self.camera.is_acquiring
@@ -33,19 +32,17 @@ class StoppedAcquisition:
             while self.camera.is_acquiring:
                 time.sleep(0.001)
 
-    def exit(self, exc_type, exc_value, exc_traceback):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         if self.was_stopped:
             self.start_acquisition()
 
-class ZwoCameraModule(Module):
+class ZwoCamera(Service):
     NUM_FRAMES_IN_BUFFER = 20
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'zwo_camera', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][self.name]
+        config = self.configuration
 
         self.shutdown_flag = False
         self.is_acquiring = False
@@ -95,33 +92,32 @@ class ZwoCameraModule(Module):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = DataStream.create('images', self.name, 'float32', [self.sensor_height, self.sensor_width], NUM_FRAMES_IN_BUFFER)
-        self.register_data_stream(self.images)
+        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], NUM_FRAMES_IN_BUFFER)
 
         # Create properties
-        def register_property_helper(name, read_only=False):
+        def make_property_helper(name, read_only=False):
             if read_only:
-                self.register_property(Property(name, lambda: return getattr(self, name)))
+                self.make_property(name, lambda: return getattr(self, name))
             else:
-                self.register_property(Property(name, lambda: return getattr(self, name), lambda val: setattr(self, name, val)))
+                self.make_property(name, lambda: return getattr(self, name), lambda val: setattr(self, name, val))
 
-        register_property_helper('exposure_time')
-        register_property_helper('gain')
+        make_property_helper('exposure_time')
+        make_property_helper('gain')
 
-        register_property_helper('width')
-        register_property_helper('height')
-        register_property_helper('offset_x')
-        register_property_helper('offset_y')
+        make_property_helper('width')
+        make_property_helper('height')
+        make_property_helper('offset_x')
+        make_property_helper('offset_y')
 
-        register_property_helper('temperature', read_only=True)
+        make_property_helper('temperature', read_only=True)
         register_property_helper('sensor_width', read_only=True)
-        register_property_helper('sensor_height', read_only=True)
+        make_property_helper('sensor_height', read_only=True)
 
-        register_property_helper('device_name', read_only=True)
-        register_property_helper('is_acquiring', read_only=True)
+        make_property_helper('device_name', read_only=True)
+        make_property_helper('is_acquiring', read_only=True)
 
-        self.register_command(Command('start_acquisition', self.start_acquisition))
-        self.register_command(Command('end_acquisition', self.end_acquisition))
+        self.make_command('start_acquisition', self.start_acquisition)
+        self.make_command('end_acquisition', self.end_acquisition)
 
     def main(self):
         while not self.shutdown_flag:
@@ -144,7 +140,7 @@ class ZwoCameraModule(Module):
         timeout = 10000 # ms
 
         try:
-            while self.sould_be_acquiring and not self.shutdown_flag:
+            while self.should_be_acquiring and not self.shutdown_flag:
                 img = self.camera.capture_video_frame(timeout=timeout)
 
                 # Submit frame.
