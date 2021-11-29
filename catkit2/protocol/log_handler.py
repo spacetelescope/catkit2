@@ -2,7 +2,7 @@ import logging
 
 from ..bindings import submit_log_entry, Severity
 
-class HicatLogHandler(logging.StreamHandler):
+class CatkitLogHandler(logging.StreamHandler):
     def emit(self, record):
         filename = record.pathname
         line = record.lineno

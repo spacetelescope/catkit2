@@ -2,7 +2,7 @@ __all__ = [
     'TestbedServer',
     'Service',
     'parse_service_args',
-    'HicatLogHandler',
+    'CatkitLogHandler',
     'TestbedClient',
     'ServiceProxy',
 ]

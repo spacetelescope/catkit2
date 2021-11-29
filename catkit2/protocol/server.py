@@ -195,7 +195,7 @@ class TestbedServer:
             self.context = None
 
     def setup_logging(self):
-        self.log_handler = HicatLogHandler()
+        self.log_handler = CatkitLogHandler()
         logging.getLogger().addHandler(self.log_handler)
 
         self.log_console = LogConsole()
