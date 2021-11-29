@@ -3,6 +3,19 @@ from contextlib import contextmanager
 
 from hcipy import *
 
+def with_cached_result(getter):
+    def new_getter(self):
+        try:
+            res = getattr(self, '_' + getter.__name__)
+        except AttributeError:
+            res = None
+
+        if res is None:
+            res = getter(self)
+            setattr(self, '_' + getter.__name__, res)
+
+        return res
+
 class OpticalModel:
     def __init__(self):
         self._plane_dependencies = {}
@@ -50,9 +63,9 @@ class OpticalModel:
 
     def propagate(self, input_plane, output_plane, wavefronts):
         with self._temperary_cache():
-            self._cache[input_plane] = wavefronts
+            self.set_wavefronts(input_plane, wavefronts)
 
-            return getattr(self, 'wf_' + output_plane)
+            return self.get_wavefronts(output_plane)
 
     def set_wavefronts(self, plane, wavefronts):
         if not isinstance(wavefronts, list):

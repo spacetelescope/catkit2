@@ -8,7 +8,7 @@ class HicatOpticalModel(OpticalModel):
 
         @self.register_plane('science_camera', 'post_ncpa')
         def science_camera(wf_post_ncpa):
-            return self.prop_science_camera(wf_post_ncpa)
+            return self.prop_science_camera(self.nd_flip_mount(wf_post_ncpa))
 
         @self.register_plane('pupil_camera', 'post_ncpa')
         def pupil_camera(wf_post_ncpa):
@@ -48,7 +48,7 @@ class HicatOpticalModel(OpticalModel):
 
         @self.register_plane('post_common_aberrations', 'pre_common_aberrations')
         def post_common_aberrations(wf_pre_common_aberrations):
-            return self.common_aberrations(wf_pre_common_aberrations)
+            return self.beam_dump(self.common_aberrations(wf_pre_common_aberrations))
 
         @self.register_plane('pre_common_aberrations', 'pre_boston_dms')
         def pre_common_aberrations(wf_pre_boston_dms):
@@ -88,3 +88,78 @@ class HicatOpticalModel(OpticalModel):
         self.create_pupil_camera()
         self.create_target_acquisition_camera()
         self.create_lopr_camera()
+
+    @property
+    def apodizer_mask_name(self):
+        return self._apodizer_mask_name
+
+    @apodizer_mask_name.setter
+    def apodizer_mask_name(self, apodizer_mask_name):
+        self._apodizer_mask_name = apodizer_mask_name
+
+        self.apodizer_mask = read_field(self.apodizer_mask_name)
+        self._apodizer = None
+
+    @property
+    @with_cached_result
+    def apodizer(self):
+        return Apodizer(self.apodizer_mask)
+
+    @property
+    @with_cached_result
+    def tip_tilt_mirror(self):
+
+
+    def create_pupil_mask(self):
+        pass
+
+    def create_irisao_dm(self):
+        pass
+
+    def create_boston_dms(self):
+        pass
+
+    def create_beam_dump(self):
+        pass
+
+    def create_nd_filter(self):
+        pass
+
+    def create_nd_flip_mount(self):
+        pass
+
+    def create_wavefront_error(self):
+        pass
+
+    def create_focal_plane_mask(self):
+        pass
+
+    def create_lyot_stop(self):
+        pass
+
+    def create_phase_retrieval_camera(self):
+        pass
+
+    def create_zernike_camera(self):
+        pass
+
+    def create_science_camera(self):
+        pass
+
+    def create_pupil_camera(self):
+        pass
+
+    def create_target_acquisition_camera(self):
+        pass
+
+    def create_lopr_camera(self):
+        pass
+
+    @property
+    def apodizer_shift_x(self):
+        return self._apodizer_shift_x
+
+    @apodizer_shift_x.setter
+    def apodizer_shift_x(self, shift_x):
+        self._apodizer_shift_x = shift_x
+        self.create_apodizer()
