@@ -1,10 +1,12 @@
 from . import protocol
 from . import interfaces
 from . import simulator
+from . import config
 
 from .protocol import *
 from .interfaces import *
 from .simulator import *
+from .config import *
 
 __all__ = []
 __all__.extend(protocol.__all__)
