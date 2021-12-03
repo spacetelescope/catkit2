@@ -77,21 +77,3 @@ class Simulator(Service):
     def add_callback(self, t, callback):
         heapq.heappush(self.callbacks, (t, self.callback_counter, callback))
         self.callback_counter += 1
-
-    @simulator_request_handler(StartCameraAcquisitionRequest)
-    def on_start_camera_acquisition(self, request):
-        pass
-
-    @simulator_request_handler(StopCameraAcquisitionRequest)
-    def on_end_camera_acquisition(self, request):
-        pass
-
-    @simulator_request_handler(ActuateDMRequest)
-    def on_actuate_boston(self, request):
-        def callback(self):
-            self.model.dm1.actuators = request.new_actuators[:952]
-            self.model.dm2.actuators = request.new_actuators[952:]
-
-            self.model.purge_plane('post_boston_dms')
-
-        self.add_callback(request.at_time, callback)
