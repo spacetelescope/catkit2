@@ -30,24 +30,21 @@ def _get_yaml_loader(config_path):
     Loader.add_constructor('!path', path_constructor)
     return Loader
 
-def _read_config_files_from_path(config_path):
-    filenames = os.listdir(config_path)
-    filenames = [fname for fname in filenames if fname.endswith('.yml')]
-
+def _read_config_file(config_file):
     config = {}
-    for fname in filenames:
-        with open(os.path.join(config_path, fname)) as f:
-            contents = f.read()
 
-        conf = yaml.load(contents, Loader=_get_yaml_loader(config_path))
-        config[fname[:-4]] = conf
+    contents = config_file.read_text()
+    loader = _get_yaml_loader(config_file.parent)
+
+    conf = yaml.load(contents, Loader=loader)
+    config[config_file.name[:-4]] = conf
 
     return config
 
-def read_config_files(config_paths):
+def read_config_files(config_files):
     config = {}
 
-    for config_path in config_paths:
-        config = _deep_update(config, _read_config_files_from_path(config_path))
+    for config_file in config_files:
+        config = _deep_update(config, _read_config_file(config_file))
 
     return config
