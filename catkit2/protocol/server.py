@@ -9,7 +9,7 @@ import psutil
 import zmq
 
 from .constants import *
-from ..config import read_config
+from ..config import read_config_files
 from ..bindings import LogConsole, LogPublish
 from .log_handler import *
 
@@ -128,17 +128,22 @@ class ServiceReference:
         self.process.terminate()
 
 class TestbedServer:
-    def __init__(self, port, is_simulated):
+    def __init__(self, port, is_simulated, config_files):
         self.port = port
         self.is_simulated = is_simulated
-        self.services = {}
+        self.config_files = config_files
 
+        self.services = {}
         self.is_running = False
 
         self.log_handler = None
         self.log = logging.getLogger(__name__)
 
-        self.config = read_config()
+        self.config = read_config_files(self.config_files)
+
+        self.service_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'services'))]
+        if 'service_paths' in self.config['testbed']:
+            self.service_paths.extend(self.config['testbed']['service_paths'])
 
         self.client_message_handlers = {
             REQUEST_ID: self.on_client_request
@@ -437,10 +442,12 @@ class TestbedServer:
         self.services[service_name] = ServiceReference(process, service_type, service_name, self)
 
     def resolve_service_type(self, service_type):
-        dirname = os.path.join(os.path.dirname(__file__), '..', 'services', service_type)
-
-        if not os.path.exists(dirname):
-            raise ServerError(f"Service type '{service_type}' not recognized.")
+        for base_path in self.service_paths:
+            dirname = os.path.join(base_path, service_type)
+            if os.path.exists(dirname):
+                break
+        else:
+            raise ValueError(f"Service type '{service_type}' not recognized.")
 
         return dirname
 
