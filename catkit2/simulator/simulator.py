@@ -15,7 +15,7 @@ def simulator_request_handler(request_class):
 
 class Simulator(Service):
     def __init__(self, service_name, service_type, testbed_port):
-        Service.__init__(service_name, service_type, testbed_port)
+        super().__init__(service_name, service_type, testbed_port)
 
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
@@ -44,7 +44,7 @@ class Simulator(Service):
         # Get message from queue.
         while not self.shutdown_flag:
             try:
-                msgs = sim.socket.recv_multipart()
+                msgs = self.socket.recv_multipart()
                 break
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
@@ -64,16 +64,53 @@ class Simulator(Service):
             func = getattr(self, 'on_' + cmd)
         except AttributeError:
             desc = f"Command '{cmd}' is not implemented on this simulator."
-            sim.socket.send_multipart([identity, desc.encode('ascii')])
+            self.socket.send_multipart([identity, ('error ' + desc).encode('ascii')])
 
         try:
-            func(proto)
+            res = func(proto)
         except Exception as e:
             desc = f"Command '{cmd}' return an error: '{repr(e)}'."
-            sim.socket.send_multipart([identity, desc.encode('ascii')])
+            self.socket.send_multipart([identity, ('error ' + desc).encode('ascii')])
 
-        sim.socket.send_multipart([identity, 'ok'.encode('ascii')])
+        response = 'ok '
+
+        if res is not None:
+            response += str(res)
+
+        self.socket.send_multipart([identity, response.encode('ascii')])
 
     def add_callback(self, t, callback):
         heapq.heappush(self.callbacks, (t, self.callback_counter, callback))
         self.callback_counter += 1
+
+    @simulator_request_handler(ActuateDMRequest)
+    def on_actuate_dm(self, request):
+        pass
+
+    @simulator_request_handler(MoveStageRequest)
+    def on_move_stage(self, request):
+        pass
+
+    @simulator_request_handler(MoveFilterRequest)
+    def on_move_filter(self, request):
+        pass
+
+    @simulator_request_handler(MoveFlipMountRequest)
+    def on_move_flip_mount(self, request):
+        pass
+
+    @simulator_request_handler(SetBreakpointRequest)
+    def on_set_breakpoint(self, request):
+        raise NotImplementedError
+
+    @simulator_request_handler(ReleaseBreakpointRequest)
+    def on_release_breakpoint(self, request):
+        raise NotImplementedError
+
+    @simulator_request_handler(StartCameraAcquisitionRequest)
+    def on_start_camera_acquisition(self, request):
+        pass
+
+    @simulator_request_handler(StopCameraAcquisitionRequest)
+    def on_end_camera_acquisition(self, request):
+        pass

@@ -1,30 +1,44 @@
 syntax = "proto3";
 
+package catkit2.simulator;
+
+message Tensor
+{
+    repeated int64 shape = 1;
+    string dtype = 2;
+    string byte_order = 3;
+    bytes data = 4;
+}
+
 message ActuateDMRequest
 {
     float at_time = 1;
-    bytes new_actuators = 2;
+    string dm_name = 2;
+    Tensor new_actuators = 3;
 }
 
 message MoveStageRequest
 {
     float at_time = 1;
     string stage_name = 2;
-    float new_stage_position = 3;
+    float old_stage_position = 3;
+    float new_stage_position = 4;
 }
 
 message MoveFilterRequest
 {
     float at_time = 1;
     string filter_wheel_name = 2;
-    int32 new_filter_position = 3;
+    int32 old_filter_position = 3;
+    int32 new_filter_position = 4;
 }
 
 message MoveFlipMountRequest
 {
     float at_time = 1;
     string flip_mount_name = 2;
-    int32 new_flip_mount_position = 3;
+    int32 old_flip_mount_position = 3;
+    int32 new_flip_mount_position = 4;
 }
 
 message SetBreakpointRequest
