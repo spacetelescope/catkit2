@@ -1,5 +1,4 @@
-from catkit2.bindings import Module, DataStream, Command, Property
-from catkit2.testbed import parse_module_args
+from catkit2.protocol.service import Service, parse_service_args
 
 import time
 import sys
@@ -11,13 +10,11 @@ if sdk_path is not None:
 
 import bmc
 
-class BmcDmModule(Module):
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+class BmcDm(Service):
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'bmc_dm', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][args.module_name]
+        config = self.configuration
 
         self.serial_number = config['serial_number']
         self.command_length = config['command_length']
@@ -25,7 +22,6 @@ class BmcDmModule(Module):
         self.gain_map_fname = config['gain_map_fname']
 
         self.lock = threading.Lock()
-
         self.shutdown_flag = False
 
         self.channels = {}
@@ -33,19 +29,14 @@ class BmcDmModule(Module):
         for channel in config['channels']:
             self.add_channel(channel)
 
-        self.total_voltage = DataStream.create('total_voltage', self.name, 'float64', [self.command_length], 20)
-        self.register_data_stream(self.total_voltage)
-
-        self.total_surface = DataStream.create('total_surface', self.name, 'float64', [self.command_length], 20)
-        self.register_data_stream(self.total_surface)
+        self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.command_length], 20)
+        self.total_surface = self.make_data_stream('total_surface', 'float64', [self.command_length], 20)
 
     def add_channel(self, channel_name):
-        self.channels[channel_name] = DataStream.create('channel_' + channel_name, self.name, 'float64', [self.command_length], 20)
-        self.register_data_stream(self.channels[channel_name])
+        self.channels[channel_name] = self.make_data_stream('channel_' + channel_name, 'float64', [self.command_length], 20)
 
-        frame = self.channels[channel_name].request_new_frame()
-        frame.data[:] = 0
-        self.channels[channel_name].submit_frame(frame.id)
+        # Zero-out the channel.
+        frame = self.channels[channel_name].submit_data(np.zeros(command_length))
 
     def main(self):
         # Start channel monitoring threads
@@ -78,10 +69,8 @@ class BmcDmModule(Module):
         for stream in self.channels.values():
             total_surface += stream.get_latest_frame().data
 
-        # Submit a frame to the total surface data stream.
-        frame = self.total_surface.request_new_frame()
-        frame.data[:] = total_surface
-        self.total_surface.submit_frame(frame.id)
+        # Submit this surface to the total surface data stream.
+        self.total_surface.submit_data(total_surface)
 
         # Compute the voltages from the request total surface.
         voltages = self.flat_map + total_surface * self.gain_map
@@ -96,10 +85,8 @@ class BmcDmModule(Module):
             if status != bmc.NO_ERR:
                 raise RuntimeError(f'Failed to send data: {self.device.error_string(status)}.')
 
-        # Submit a frame to the total voltage data stream.
-        frame = self.total_voltage.request_new_frame()
-        frame.data[:] = data
-        self.total_surface.submit_frame(frame.id)
+        # Submit these voltages to the total voltage data stream.
+        self.total_voltage.submit_data(data)
 
     def open(self):
         self.device = bmc.BmcDm()
@@ -123,9 +110,8 @@ class BmcDmModule(Module):
             self.device.close_dm()
             self.device = None
 
-def main():
-    module = ThorlabsMFF101Module()
-    module.run()
-
 if __name__ == '__main__':
-    main()
+    service_name, testbed_port = parse_service_args()
+
+    service = BmcDm(service_name, testbed_port)
+    service.run()
