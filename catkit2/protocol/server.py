@@ -181,7 +181,7 @@ class TestbedServer:
         self.setup_logging()
 
         for service_name in self.startup_services:
-            self.require_service(service_name)
+            self.start_service(service_name)
 
         try:
             while self.is_running:
