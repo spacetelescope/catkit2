@@ -1,7 +1,7 @@
 __all__ = [
     'OpticalModel',
     'with_cached_result',
-    'SimulatedService',
+    'SimulatorClient',
     'Simulator',
     'simulator_request_handler',
     'ActuateDMRequest',
