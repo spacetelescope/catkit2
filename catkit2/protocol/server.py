@@ -145,6 +145,10 @@ class TestbedServer:
         if 'service_paths' in self.config['testbed']:
             self.service_paths.extend(self.config['testbed']['service_paths'])
 
+        self.startup_services = [self.config['testbed']['safety']['service_name']]
+        if 'startup_services' in self.config['testbed']:
+            self.startup_services.extend(self.config['testbed']['startup_services'])
+
         self.client_message_handlers = {
             REQUEST_ID: self.on_client_request
         }
@@ -176,6 +180,9 @@ class TestbedServer:
         self.start_logging_proxy()
         self.setup_logging()
 
+        for service_name in self.startup_services:
+            self.require_service(service_name)
+
         try:
             while self.is_running:
                 self.purge_stopped_services()
@@ -183,7 +190,6 @@ class TestbedServer:
                 self.send_heartbeats()
 
                 self.handle_incoming_message()
-
 
         except KeyboardInterrupt:
             print('Interrupted by the user...')
