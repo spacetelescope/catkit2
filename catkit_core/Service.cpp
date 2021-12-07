@@ -285,6 +285,8 @@ private:
 
 void Service::Run()
 {
+	LOG_INFO("Opening service...");
+
 	try
 	{
 		this->Open();
@@ -295,6 +297,8 @@ void Service::Run()
 		LOG_ERROR("Caught exception during opening of Service. Exiting...");
 		throw;
 	}
+
+	LOG_INFO("Service succesfully opened. Starting main loop.");
 
 	// Shut down monitoring thread at the end of this function no matter what.
 	Finally cleanup_interface_thread([this]()
@@ -324,6 +328,8 @@ void Service::Run()
 		throw;
 	}
 
+	LOG_INFO("Main loop has ended. Closing service...");
+
 	try
 	{
 		this->Close();
@@ -334,6 +340,8 @@ void Service::Run()
 		LOG_ERROR("Caught exception during closing of Service. Exiting...");
 		throw;
 	}
+
+	LOG_INFO("Service has successfully been closed.");
 }
 
 void Service::Open()
