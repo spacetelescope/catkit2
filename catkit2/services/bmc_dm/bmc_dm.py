@@ -72,13 +72,13 @@ class BmcDm(Service):
         # Submit this surface to the total surface data stream.
         self.total_surface.submit_data(total_surface)
 
+        # Apply the command on the DM.
+        self.send_surface(total_surface)
+
+    def send_surface(self, data):
         # Compute the voltages from the request total surface.
         voltages = self.flat_map + total_surface * self.gain_map
 
-        # Apply the command on the DM.
-        self.send_data(total_surface)
-
-    def send_data(self, data):
         with self.lock:
             status = self.device.send_data(total_command)
 
