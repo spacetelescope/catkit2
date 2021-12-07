@@ -57,10 +57,8 @@ def proto_to_numpy(tensor):
 
     return arr
 
-class SimulatedService(Service):
-    def __init__(self, service_name, service_type, testbed_port):
-        super().__init__(service_name, service_type, testbed_port)
-
+class SimulatorClient:
+    def __init__(self, service_name, testbed_port):
         testbed = TestbedClient(testbed_port)
         self.simulator_port = testbed.simulator.port
 
@@ -70,7 +68,7 @@ class SimulatedService(Service):
 
         self.socket.connect(f'tcp://localhost:{self.simulator_port}')
 
-    def sim_actuate_dm(self, at_time, dm_name, new_actuators):
+    def actuate_dm(self, at_time, dm_name, new_actuators):
         request = ActuateDMRequest(
             at_time=at_time,
             dm_name=dm_name,
@@ -79,7 +77,7 @@ class SimulatedService(Service):
 
         return self._make_simulator_request('actuate_dm', request)
 
-    def sim_move_stage(self, at_time, stage_name, old_stage_position, new_stage_position):
+    def move_stage(self, at_time, stage_name, old_stage_position, new_stage_position):
         request = MoveStageRequest(
             at_time=at_time,
             stage_name=stage_name,
@@ -89,7 +87,7 @@ class SimulatedService(Service):
 
         return self._make_simulator_request('move_stage', request)
 
-    def sim_move_filter(self, at_time, filter_wheel_name, old_filter_position, new_filter_position):
+    def move_filter(self, at_time, filter_wheel_name, old_filter_position, new_filter_position):
         request = MoveFilterRequest(
             at_time=at_time,
             filter_wheel_name=filter_wheel_name,
@@ -99,7 +97,7 @@ class SimulatedService(Service):
 
         return self._make_simulator_request('move_filter', request)
 
-    def sim_move_flip_mount(self, at_time, flip_mount_name, old_flip_mount_position, new_flip_mount_position):
+    def move_flip_mount(self, at_time, flip_mount_name, old_flip_mount_position, new_flip_mount_position):
         request = MoveFlipMountRequest(
             at_time=at_time,
             flip_mount_name=flip_mount_name,
@@ -109,21 +107,21 @@ class SimulatedService(Service):
 
         return self._make_simulator_request('move_flip_mount', request)
 
-    def sim_set_breakpoint(self, at_time):
+    def set_breakpoint(self, at_time):
         request = SetBreakpointRequest(
             at_time=at_time
         )
 
         return self._make_simulator_request('set_breakpoint', request)
 
-    def sim_release_breakpoint(self, breakpoint_token):
+    def release_breakpoint(self, breakpoint_token):
         request = ReleaseBreakpointRequest(
             breakpoint_token=breakpoint_token
         )
 
         return self._make_simulator_request('release_breakpoint', request)
 
-    def sim_start_camera_acquisition(self, camera_name, start_time, integration_time, frame_interval):
+    def start_camera_acquisition(self, camera_name, start_time, integration_time, frame_interval):
         request = StartCameraAcquisitionRequest(
             camera_name=camera_name,
             start_time=start_time,
@@ -133,7 +131,7 @@ class SimulatedService(Service):
 
         return self._make_simulator_request('start_camera_acquisition', request)
 
-    def sim_end_camera_acquisition(self, camera_name):
+    def end_camera_acquisition(self, camera_name):
         request = EndCameraAcquisitionRequest(
             camera_name=camera_name
         )
@@ -154,7 +152,10 @@ class SimulatedService(Service):
                     # Raise an error with the error description.
                     raise RuntimeError(reply[6:])
                 else:
-                    return reply[3:]
+                    if len(reply) > 3:
+                        return reply[3:]
+                    else:
+                        return None
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
                     # Timed out
