@@ -2,10 +2,12 @@ import ctypes
 import sys
 import glob
 import os
+import time
+import numpy as np
 
 from catkit2.protocol.service import Service, parse_service_args
 
-class ThorlabsTSP01(Serivce):
+class ThorlabsTSP01(Service):
     _BUFFER_SIZE = 256
 
     def __init__(self, service_name, testbed_port):
@@ -33,6 +35,8 @@ class ThorlabsTSP01(Serivce):
             self.temperature_header_2.submit_data(np.array([t3]))
             self.humidity_internal.submit_data(np.array([h]))
 
+            print(t1, t2, t3, h)
+
             time.sleep(1)
 
     def shut_down(self):
@@ -58,7 +62,7 @@ class ThorlabsTSP01(Serivce):
             self.lib = None
             raise ImportError("TSP01: Failed to import '{}' library @ '{}'".format(tsp_lib_name, tsp_lib_path)) from error
 
-    def get_error_message(cls, status_code):
+    def get_error_message(self, status_code):
         """Convert error status to error message."""
         error_message = ctypes.create_string_buffer(self._BUFFER_SIZE)
 
@@ -69,12 +73,15 @@ class ThorlabsTSP01(Serivce):
         return error_message.value.decode()
 
     def open(self):
+        self.load_library()
+
         self.instrument = ctypes.c_void_p(None)
 
         # Find the desired device resource name. This is not just the SN#.
         # NOTE: The revB call only finds revB devices.
         available_devices = self.find_all()
         self.device_name = [device for device in available_devices if self.serial_number in device]
+        print(available_devices)
 
         if not self.device_name:
             raise OSError("TSP01: device not found - SN# '{}'".format(self.serial_number))
@@ -83,6 +90,7 @@ class ThorlabsTSP01(Serivce):
             raise OSError("TSP01: found multiple devices with the same SN# '{}'".format(self.serial_number))
 
         self.device_name = self.device_name[0]
+        print(self.device_name)
 
         # int TLTSPB_init(char * device_name, bool id_query, bool reset_device, void ** connection)
         status = self.lib.TLTSPB_init(self.device_name.encode(), True, True, ctypes.byref(self.instrument))
@@ -114,10 +122,11 @@ class ThorlabsTSP01(Serivce):
         return available_devices
 
     def get_temperature(self, channel):
+        time.sleep(1)
         temp = ctypes.c_double(0)
 
         # int TLTSPB_getTemperatureData(void * connection, int channel, double * temp)
-        status = self.lib.TLTSPB_measTemperature(self.instrument, int(channel), ctypes.byref(temp))
+        status = self.lib.TLTSPB_measTemperature(self.instrument, int(channel) + 10, ctypes.byref(temp))
 
         if status:
             raise RuntimeError("TSP01: Failed to get temperature - '{}'".format(self.get_error_message(status)))
