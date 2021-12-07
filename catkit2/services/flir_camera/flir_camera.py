@@ -1,9 +1,11 @@
-from PySpin import PySpin
-
-from catkit2.protocol.service import Service, parse_service_args
 
 from threading import Lock
 import time
+
+from PySpin import PySpin
+import numpy as np
+
+from catkit2.protocol.service import Service, parse_service_args
 
 def _create_property(flir_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
@@ -60,6 +62,19 @@ def _create_enum_property(flir_property_name, enum_name, stopped_acquisition=Tru
 class FlirCamera(Service):
     NUM_FRAMES_IN_BUFFER = 20
 
+    pixel_format_enum = {
+        'mono8': PySpin.PixelFormat_Mono8,
+        'mono12p': PySpin.PixelFormat_Mono12p,
+        'mono16': PySpin.PixelFormat_Mono16
+    }
+    
+    adc_bit_depth_enum = {
+        '8bit': PySpin.AdcBitDepth_Bit8,
+        '10bit': PySpin.AdcBitDepth_Bit10,
+        '12bit': PySpin.AdcBitDepth_Bit12,
+        '14bit': PySpin.AdcBitDepth_Bit14
+    }
+
     def __init__(self, service_name, testbed_port):
         Service.__init__(self, service_name, 'flir_camera', testbed_port)
 
@@ -72,10 +87,15 @@ class FlirCamera(Service):
 
         # Create lock for camera access
         self.mutex = Lock()
+    
+    def open(self):
+        config = self.configuration
 
         self.system = PySpin.System.GetInstance()
         self.cam_list = self.system.GetCameras()
-        self.cam = self.cam_list.GetBySerial(self.serial_number)
+        self.cam = self.cam_list.GetBySerial(str(self.serial_number))
+
+        self.cam.Init()
 
         # Make sure that the camera is stopped.
         self.cam.BeginAcquisition()
@@ -105,14 +125,14 @@ class FlirCamera(Service):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], NUM_FRAMES_IN_BUFFER)
+        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
 
         # Create properties
         def make_property_helper(name, read_only=False):
             if read_only:
-                self.make_property(name, lambda: return getattr(self, name))
+                self.make_property(name, lambda: getattr(self, name))
             else:
-                self.make_property(name, lambda: return getattr(self, name), lambda val: setattr(self, name, val))
+                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
@@ -137,8 +157,22 @@ class FlirCamera(Service):
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
+    
+    def close(self):
+        try:
+            self.cam.EndAcquisition()
+        except PySpin.SpinnakerException as e:
+            if e.errorcode == -1002:
+                # Camera was not running; we can safely ignore this.
+                pass
+            else:
+                print('spin error', e)
+                raise
+        
+        self.cam.DeInit()
+        self.cam = None
+        self.cam_list.Clear()
 
-    def __del__(self):
         self.system.ReleaseInstance()
         self.system = None
 
@@ -152,10 +186,10 @@ class FlirCamera(Service):
 
     def acquisition_loop(self):
         if self.pixel_format == 'mono8':
-            pixel_format = self.instrument_lib.PixelFormat_Mono8
+            pixel_format = PySpin.PixelFormat_Mono8
             pixel_dtype = 'uint8'
         else:
-            pixel_format = self.instrument_lib.PixelFormat_Mono16
+            pixel_format = PySpin.PixelFormat_Mono16
             pixel_dtype = 'uint16'
 
         # Make sure the data stream has the right size and datatype.
@@ -163,7 +197,7 @@ class FlirCamera(Service):
         has_correct_parameters = has_correct_parameters and (self.images.dtype == pixel_dtype)
 
         if not has_correct_parameters:
-            self.images.set_parameters(pixel_dtype, [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
+            self.images.update_parameters(pixel_dtype, [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
 
         self.cam.BeginAcquisition()
         self.is_acquiring = True
@@ -181,16 +215,19 @@ class FlirCamera(Service):
                     break
                 raise
 
-            if image_result.IsIncomplete():
-                continue
+            try:
+                if image_result.IsIncomplete():
+                    continue
 
-            img = image_result.Convert(pixel_format).GetData().astype(pixel_dtype)
-            img = img.reshape((image_result.GetHeight(), image_result.GetWidth()))
+                img = image_result.Convert(pixel_format).GetData().astype(pixel_dtype)
+                img = img.reshape((image_result.GetHeight(), image_result.GetWidth()))
 
-            # Submit image to datastream.
-            frame = self.images.submit_data(img)
+                # Submit image to datastream.
+                self.images.submit_data(img)
+                print('Submitted frame!')
 
-            image_result.Release()
+            finally:
+                image_result.Release()
 
         self.cam.EndAcquisition()
         self.is_acquiring = False
@@ -201,7 +238,7 @@ class FlirCamera(Service):
     def end_acquisition(self):
         self.should_be_acquiring = False
 
-    def shutdown(self):
+    def shut_down(self):
         self.shutdown_flag = True
 
     exposure_time = _create_property('ExposureTime', stopped_acquisition=False)
