@@ -2,11 +2,14 @@ import sys
 import json
 import os
 import time
+import datetime
 import subprocess
 import traceback
+import socket
 
 import psutil
 import zmq
+import yaml
 
 from .constants import *
 from ..config import read_config_files
@@ -141,6 +144,25 @@ class TestbedServer:
 
         self.config = read_config_files(self.config_files)
 
+        self.base_data_path = None
+
+        if 'base_data_path' in self.config['testbed']:
+            conf = self.config['testbed']['base_data_path']
+            self.base_data_path = conf['default']
+
+            if 'by_hostname' in conf:
+                hostname = socket.gethostname()
+                if hostname in conf['by_hostname']:
+                    self.base_data_path = conf['by_hostname'][hostname]
+        elif 'CATKIT_DATA_PATH' in os.environ:
+            self.base_data_path = os.environ['CATKIT_DATA_PATH']
+        else:
+            raise RuntimeError('No data path could be found in the config files nor as an environment variable.')
+
+        self.experiment_path = self.config['testbed']['experiment_path']
+
+        self.start_new_experiment('server_boot')
+
         self.service_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'services'))]
         if 'service_paths' in self.config['testbed']:
             self.service_paths.extend(self.config['testbed']['service_paths'])
@@ -164,6 +186,7 @@ class TestbedServer:
             'require_service': self.on_require_service,
             'running_services': self.on_running_services,
             'start_new_experiment': self.on_start_new_experiment,
+            'output_path': self.on_output_path,
             'is_simulated': self.on_is_simulated,
             'configuration': self.on_configuration
         }
@@ -321,7 +344,44 @@ class TestbedServer:
         self.send_reply_ok(client_identity, 'running_services', reply_data)
 
     def on_start_new_experiment(self, client_identity, request_data):
-        pass
+        experiment_name = request_data['experiment_name']
+        metadata = request_data.get('metadata', {})
+
+        data_path = self.start_new_experiment(experiment_name)
+
+        self.send_reply_ok(client_identity, 'start_new_experiment', data_path)
+
+    def start_new_experiment(self, experiment_name, metadata=None):
+        if metadata is None:
+            metadata = {}
+
+        # Get current date and time as a string.
+        time_stamp = time.time()
+        date_and_time = datetime.datetime.fromtimestamp(time_stamp).strftime("%Y-%m-%dT%H-%M-%S")
+
+        # Create experiment path.
+        format_dict = {
+            'simulator_or_hardware': 'simulator' if self.is_simulated else 'hardware',
+            'date_and_time': date_and_time,
+            'experiment_name': experiment_name
+        }
+        experiment_path = self.experiment_path.format(**format_dict)
+
+        # Create a directory for the output path.
+        output_path = os.path.join(self.base_data_path, experiment_path)
+        os.makedirs(output_path, exist_ok=True)
+
+        # Write out metadata and configuration files.
+        with open(os.path.join(output_path, 'metadata.yml'), 'w') as f:
+            yaml.dump(metadata, f)
+        with open(os.path.join(output_path, 'config.yml'), 'w') as f:
+            yaml.dump(self.config, f)
+
+        self.output_path = output_path
+        return output_path
+
+    def on_output_path(self, client_identity, request_data):
+        self.send_reply_ok(client_identity, 'output_path', self.output_path)
 
     def on_is_simulated(self, client_identity, request_data):
         self.send_reply_ok(client_identity, 'is_simulated', self.is_simulated)

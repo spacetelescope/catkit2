@@ -18,6 +18,7 @@ def _deep_update(original, update):
 def _get_yaml_loader(config_path):
     def path_constructor(loader, node):
         path = loader.construct_scalar(node)
+        path = os.path.expanduser(path)
 
         if not os.path.isabs(path):
             path = os.path.abspath(os.path.join(config_path, path))
