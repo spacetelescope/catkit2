@@ -387,10 +387,12 @@ unsigned long DataStream::GetCreatorPID()
 	return m_Header->m_CreatorPID;
 }
 
-DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_ms, void (*error_check)())
+DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_check)())
 {
 	DataFrame frame;
 	frame.m_Id = 0;
+
+	bool wait = wait_time_in_ms > 0;
 
 	if (!IsFrameAvailable(id))
 	{
@@ -409,7 +411,7 @@ DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_
 				m_Header->m_NumReadersWaiting++;
 
 			// Wait for a maximum of 20ms to perform periodic error checking.
-			auto res = WaitForSingleObject(m_FrameWritten, min(20, wait_time_in_ms));
+			auto res = WaitForSingleObject(m_FrameWritten, (unsigned long) min(20, wait_time_in_ms));
 
 			if (res == WAIT_TIMEOUT && timer.GetTimeDelta() > (wait_time_in_ms * 0.001))
 			{
@@ -445,7 +447,7 @@ DataFrame DataStream::GetFrame(size_t id, bool wait, unsigned long wait_time_in_
 	return frame;
 }
 
-DataFrame DataStream::GetNextFrame(bool wait, unsigned long wait_time_in_ms, void (*error_check)())
+DataFrame DataStream::GetNextFrame(long wait_time_in_ms, void (*error_check)())
 {
 	size_t frame_id = m_NextFrameIdToRead;
 	size_t newest_frame_id = GetNewestAvailableFrameId();
@@ -472,7 +474,7 @@ DataFrame DataStream::GetNextFrame(bool wait, unsigned long wait_time_in_ms, voi
 		break;
 	}
 
-	auto frame = GetFrame(frame_id, wait, wait_time_in_ms, error_check);
+	auto frame = GetFrame(frame_id, wait_time_in_ms, error_check);
 
 	m_NextFrameIdToRead = frame_id + 1;
 	return frame;
@@ -485,7 +487,7 @@ DataFrame DataStream::GetLatestFrame()
 	if (id == 0)
 		throw std::runtime_error("DataStream does not have any frames when trying to get the latest one.");
 
-	return GetFrame(id, false);
+	return GetFrame(id, -1);
 }
 
 BufferHandlingMode DataStream::GetBufferHandlingMode()

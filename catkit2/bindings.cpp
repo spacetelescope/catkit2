@@ -179,24 +179,24 @@ PYBIND11_MODULE(bindings, m)
 			// All checks are complete. Let's copy/submit the raw data.
 			s.SubmitData(buffer_info.ptr);
 		})
-		.def("get_frame", [](DataStream &s, size_t id, bool wait, unsigned long wait_time_in_ms)
+		.def("get_frame", [](DataStream &s, size_t id, unsigned long wait_time_in_ms)
 		{
-			return s.GetFrame(id, wait, wait_time_in_ms, []()
+			return s.GetFrame(id, wait_time_in_ms, []()
 			{
 				py::gil_scoped_acquire acquire;
 				if (PyErr_CheckSignals() != 0)
 					throw py::error_already_set();
 			});
-		}, py::arg("id"), py::arg("wait") = true, py::arg("wait_time_in_ms") = INFINITE, py::call_guard<py::gil_scoped_release>())
-		.def("get_next_frame", [](DataStream &s, bool wait, unsigned long wait_time_in_ms)
+		}, py::arg("id"), py::arg("wait_time_in_ms") = INFINITE_WAIT_TIME, py::call_guard<py::gil_scoped_release>())
+		.def("get_next_frame", [](DataStream &s, long wait_time_in_ms)
 		{
-			return s.GetNextFrame(wait, wait_time_in_ms, []()
+			return s.GetNextFrame(wait_time_in_ms, []()
 			{
 				py::gil_scoped_acquire acquire;
 				if (PyErr_CheckSignals() != 0)
 					throw py::error_already_set();
 			});
-		}, py::arg("wait") = true, py::arg("wait_time_in_ms") = INFINITE, py::call_guard<py::gil_scoped_release>())
+		}, py::arg("wait_time_in_ms") = INFINITE_WAIT_TIME, py::call_guard<py::gil_scoped_release>())
 		.def("get_latest_frame", &DataStream::GetLatestFrame, py::call_guard<py::gil_scoped_release>())
 		.def_property("dtype", [](DataStream &s)
 		{

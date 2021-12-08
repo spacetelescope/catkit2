@@ -7,6 +7,7 @@
 #include <memory>
 #include <atomic>
 #include <vector>
+#include <climits>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -15,6 +16,7 @@
 
 const char * const CURRENT_DATASTREAM_VERSION = "0.1";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
+const long INFINITE_WAIT_TIME = LONG_MAX;
 
 enum class DataType
 {
@@ -152,8 +154,8 @@ public:
 	std::uint64_t GetTimeCreated();
 	unsigned long GetCreatorPID();
 
-	DataFrame GetFrame(size_t id, bool wait=true, unsigned long wait_time_in_ms=INFINITE, void (*error_check)()=nullptr);
-	DataFrame GetNextFrame(bool wait=true, unsigned long wait_time_in_ms=INFINITE, void (*error_check)()=nullptr);
+	DataFrame GetFrame(size_t id, long wait_time_in_ms=INFINITE_WAIT_TIME, void (*error_check)()=nullptr);
+	DataFrame GetNextFrame(long wait_time_in_ms=INFINITE_WAIT_TIME, void (*error_check)()=nullptr);
 	DataFrame GetLatestFrame();
 
 	BufferHandlingMode GetBufferHandlingMode();
