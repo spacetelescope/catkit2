@@ -22,3 +22,5 @@ dependencies:
   - protobuf
   - conda-forge:hcipy
   - docopt
+  - pip:
+    - zwoasi>=0.0.21 # Requires additional manual install of driver(s) from https://astronomy-imaging-camera.com/software-drivers
