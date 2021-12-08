@@ -16,6 +16,7 @@ class ThorlabsTSP01(Service):
         config = self.configuration
         self.serial_number = config['serial_number']
         self.num_averaging = config.get('averaging', 1)
+        self.interval = config.get('interval', 10)
 
         self.shutdown_flag = False
 
@@ -38,7 +39,7 @@ class ThorlabsTSP01(Service):
             humidity = self.get_humidity()
             self.humidity_internal.submit_data(np.array([humidity]))
 
-            time.sleep(1)
+            time.sleep(self.interval)
 
     def shut_down(self):
         self.shutdown_flag = True

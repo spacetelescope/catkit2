@@ -7,6 +7,8 @@ class ThorlabsTSP01Sim(Service):
     def __init__(self, service_name, testbed_port):
         Service.__init__(self, service_name, 'thorlabs_tsp01_sim', testbed_port)
 
+        self.interval = self.configuration.get('interval', 10)
+
         self.shutdown_flag = False
 
         self.temperature_internal = self.make_data_stream('temperature_internal', 'float64', [1], 20)
@@ -31,7 +33,7 @@ class ThorlabsTSP01Sim(Service):
             self.temperature_header_2.submit_data(np.array([t3], dtype='float64'))
             self.humidity_internal.submit_data(np.array([h], dtype='float64'))
 
-            time.sleep(1)
+            time.sleep(self.interval)
 
     def shut_down(self):
         self.shutdown_flag = True
