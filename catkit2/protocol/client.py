@@ -110,6 +110,10 @@ class TestbedClient(object):
         return self._make_request('is_simulated')
 
     @property
+    def output_path(self):
+        return self._make_request('output_path')
+
+    @property
     def config(self):
         if self._config is None:
             self._config = self._make_request('configuration')
