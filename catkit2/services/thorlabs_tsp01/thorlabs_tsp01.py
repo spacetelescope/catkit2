@@ -15,6 +15,7 @@ class ThorlabsTSP01(Service):
 
         config = self.configuration
         self.serial_number = config['serial_number']
+        self.num_averaging = config.get('averaging', 1)
 
         self.shutdown_flag = False
 
@@ -25,17 +26,17 @@ class ThorlabsTSP01(Service):
 
     def main(self):
         while not self.shutdown_flag:
-            t1 = self.get_temperature(1)
-            t2 = self.get_temperature(2)
-            t3 = self.get_temperature(3)
-            h = self.get_humidity()
+            temperature = self.get_temperature(1)
+            self.temperature_internal.submit_data(np.array([temperature]))
 
-            self.temperature_internal.submit_data(np.array([t1]))
-            self.temperature_header_1.submit_data(np.array([t2]))
-            self.temperature_header_2.submit_data(np.array([t3]))
-            self.humidity_internal.submit_data(np.array([h]))
+            temperature = self.get_temperature(2)
+            self.temperature_header_1.submit_data(np.array([temperature]))
 
-            print(t1, t2, t3, h)
+            temperature = self.get_temperature(3)
+            self.temperature_header_2.submit_data(np.array([temperature]))
+
+            humidity = self.get_humidity()
+            self.humidity_internal.submit_data(np.array([humidity]))
 
             time.sleep(1)
 
@@ -81,7 +82,6 @@ class ThorlabsTSP01(Service):
         # NOTE: The revB call only finds revB devices.
         available_devices = self.find_all()
         self.device_name = [device for device in available_devices if self.serial_number in device]
-        print(available_devices)
 
         if not self.device_name:
             raise OSError("TSP01: device not found - SN# '{}'".format(self.serial_number))
@@ -90,7 +90,6 @@ class ThorlabsTSP01(Service):
             raise OSError("TSP01: found multiple devices with the same SN# '{}'".format(self.serial_number))
 
         self.device_name = self.device_name[0]
-        print(self.device_name)
 
         # int TLTSPB_init(char * device_name, bool id_query, bool reset_device, void ** connection)
         status = self.lib.TLTSPB_init(self.device_name.encode(), True, True, ctypes.byref(self.instrument))
@@ -122,27 +121,36 @@ class ThorlabsTSP01(Service):
         return available_devices
 
     def get_temperature(self, channel):
-        time.sleep(1)
-        temp = ctypes.c_double(0)
+        average_temperature = 0
 
-        # int TLTSPB_getTemperatureData(void * connection, int channel, double * temp)
-        status = self.lib.TLTSPB_measTemperature(self.instrument, int(channel) + 10, ctypes.byref(temp))
+        for _ in range(self.num_averaging):
+            temp = ctypes.c_double(0)
 
-        if status:
-            raise RuntimeError("TSP01: Failed to get temperature - '{}'".format(self.get_error_message(status)))
+            # int TLTSPB_getTemperatureData(void * connection, int channel, double * temp)
+            status = self.lib.TLTSPB_measTemperature(self.instrument, int(channel) + 10, ctypes.byref(temp))
 
-        return temp.value
+            if status:
+                raise RuntimeError("TSP01: Failed to get temperature - '{}'".format(self.get_error_message(status)))
+
+            average_temperature += temp.value
+
+        return average_temperature / self.num_averaging
 
     def get_humidity(self):
-        humidity = ctypes.c_double(0)
+        average_humidity = 0
 
-        # int TLTSPB_getHumidityData(void * connection, ?, double * humidity)
-        status = self.lib.TLTSPB_measHumidity(self.instrument, ctypes.byref(humidity))
+        for _ in range(self.num_averaging):
+            hum = ctypes.c_double(0)
 
-        if status:
-            raise RuntimeError("TSP01: Failed to get humidity - '{}'".format(self.get_error_message(status)))
+            # int TLTSPB_getHumidityData(void * connection, ?, double * humidity)
+            status = self.lib.TLTSPB_measHumidity(self.instrument, ctypes.byref(hum))
 
-        return humidity.value
+            if status:
+                raise RuntimeError("TSP01: Failed to get humidity - '{}'".format(self.get_error_message(status)))
+
+            average_humidity += hum.value
+
+        return average_humidity / self.num_averaging
 
     def close(self):
         if self.instrument.value:
