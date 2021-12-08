@@ -246,6 +246,8 @@ class TestbedServer:
         for service_name in dead_services:
             self.log.info(f'Service {service_name} shut down. Removing from running services list.')
 
+            print(f'Service {service_name} stopped.')
+
             del self.services[service_name]
 
     def send_heartbeats(self):
@@ -407,6 +409,8 @@ class TestbedServer:
 
         service.socket_identity = service_identity
         service.send_configuration(self.config['services'][service_name])
+
+        print(f'Service {service_name} ({service.service_type}) registered.')
 
     def on_service_opened(self, service_identity, service_name, parts):
         self.log.debug(f'Handling service opened for "{service_name}".')
