@@ -20,6 +20,8 @@ except Exception as error:
     raise ImportError(f"Failed to load {__ZWO_ASI_LIB} library backend to {zwoasi.__qualname__}") from error
 
 class StoppedAcquisition:
+    '''Context manager for stopping and restarting the acquisition temporarily.
+    '''
     def __init__(self, zwo_camera):
         self.camera = zwo_camera
 
@@ -29,6 +31,7 @@ class StoppedAcquisition:
         if self.was_stopped:
             self.camera.end_acquisition()
 
+            # Wait for the acquisition to actually end.
             while self.camera.is_acquiring:
                 time.sleep(0.001)
 
@@ -51,6 +54,7 @@ class ZwoCamera(Service):
         # Create lock for camera access
         self.mutex = Lock()
 
+    def open(self):
         # Attempt to find USB camera.
         num_cameras = zwoasi.get_num_cameras()
         if num_cameras == 0:
@@ -134,6 +138,7 @@ class ZwoCamera(Service):
         if not has_correct_parameters:
             self.images.set_parameters('uint16', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
 
+        # Start acquisition.
         self.camera.start_video_capture()
         self.is_acquiring = True
 
@@ -143,11 +148,9 @@ class ZwoCamera(Service):
             while self.should_be_acquiring and not self.shutdown_flag:
                 img = self.camera.capture_video_frame(timeout=timeout)
 
-                # Submit frame.
-                frame = self.images.request_new_frame()
-                frame.data[:] = img
-                self.images.submit_frame(frame.id)
+                self.images.submit_data(img.astype('float32'))
         finally:
+            # Stop acquisition.
             self.camera.stop_video_capture()
             self.is_acquiring = False
 
@@ -157,7 +160,7 @@ class ZwoCamera(Service):
     def end_acquisition(self):
         self.should_be_acquiring = False
 
-    def shutdown(self):
+    def shut_down(self):
         self.shutdown_flag = True
 
     @property
