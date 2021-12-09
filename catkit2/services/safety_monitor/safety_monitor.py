@@ -1,17 +1,18 @@
-from catkit2.bindings import Module, DataStream, Command, Property, get_timestamp
-from catkit2.testbed import parse_module_args
+from catkit2.protocol.service import Service, parse_service_args
+from catkit2.protocol.client import TestbedClient
+from catkit2.bindings import get_timestamp
 
 import time
 import sys
+import numpy as np
 
-class SafetyMonitorModule(Module):
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+class SafetyMonitor(Service):
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'safety_monitor', testbed_port)
 
-        self.testbed = Testbed(args.testbed_server_port)
-        config = self.testbed.config['modules'][args.module_name]
+        self.testbed = TestbedClient(testbed_port)
 
+        config = self.configuration
         self.check_interval = config['check_interval']
         self.safeties = config['safeties']
         self.checked_safeties = list(sorted(self.safeties.keys()))
@@ -20,14 +21,14 @@ class SafetyMonitorModule(Module):
 
         self.data_streams = {}
 
-        self.is_safe = DataStream.create('is_safe', self.name, 'int8', [len(self.safeties)], 20)
-        self.register_data_stream(self.is_safe)
+        self.is_safe = self.make_data_stream('is_safe', 'int8', [len(self.safeties)], 20)
 
-        self.register_property(Property('checked_safeties', lambda: return self.checked_safeties))
+        self.make_property('checked_safeties', lambda: self.checked_safeties)
 
     def check_safety(self):
-        frame = self.is_safe.request_new_frame()
         current_time = get_timestamp()
+
+        is_safes = np.zeros(len(self.safeties), dtype='int8')
 
         for i, safety_name in enumerate(self.checked_safeties):
             safety_info = self.safeties[safety_name]
@@ -53,17 +54,17 @@ class SafetyMonitorModule(Module):
                 is_safe = False
 
             # Report if conditions are safe.
-            frame.data[i] = is_safe
+            is_safes[i] = is_safe
 
         # Submit safety.
-        self.is_safe.submit_frame(frame.id)
+        self.is_safe.submit_data(is_safes)
 
     def open(self):
         for safety_name in self.checked_safeties:
             safety = self.safeties[safety_name]
 
-            module = getattr(self.testbed, safety['module_name'])
-            self.data_streams[safety_name] = getattr(module, safety['stream_name'])
+            service = getattr(self.testbed, safety['service_name'])
+            self.data_streams[safety_name] = getattr(service, safety['stream_name'])
 
     def main(self):
         while not self.shutdown_flag:
@@ -79,3 +80,9 @@ class SafetyMonitorModule(Module):
 
     def shut_down(self):
         self.shutdown_flag = True
+
+if __name__ == '__main__':
+    service_name, testbed_port = parse_service_args()
+
+    service = SafetyMonitor(service_name, testbed_port)
+    service.run()
