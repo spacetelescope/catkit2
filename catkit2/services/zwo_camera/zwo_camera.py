@@ -1,9 +1,11 @@
-import zwoasi
+from threading import Lock
+import time
+import os
+import numpy as np
 
 from catkit2.protocol.service import Service, parse_service_args
 
-from threading import Lock
-import time
+import zwoasi
 
 try:
     __ZWO_ASI_LIB = 'ZWO_ASI_LIB'
@@ -45,8 +47,6 @@ class ZwoCamera(Service):
     def __init__(self, service_name, testbed_port):
         Service.__init__(self, service_name, 'zwo_camera', testbed_port)
 
-        config = self.configuration
-
         self.shutdown_flag = False
         self.is_acquiring = False
         self.should_be_acquiring = True
@@ -55,6 +55,8 @@ class ZwoCamera(Service):
         self.mutex = Lock()
 
     def open(self):
+        config = self.configuration
+
         # Attempt to find USB camera.
         num_cameras = zwoasi.get_num_cameras()
         if num_cameras == 0:
@@ -96,14 +98,14 @@ class ZwoCamera(Service):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], NUM_FRAMES_IN_BUFFER)
+        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
 
         # Create properties
         def make_property_helper(name, read_only=False):
             if read_only:
-                self.make_property(name, lambda: return getattr(self, name))
+                self.make_property(name, lambda: getattr(self, name))
             else:
-                self.make_property(name, lambda: return getattr(self, name), lambda val: setattr(self, name, val))
+                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
@@ -114,7 +116,7 @@ class ZwoCamera(Service):
         make_property_helper('offset_y')
 
         make_property_helper('temperature', read_only=True)
-        register_property_helper('sensor_width', read_only=True)
+        make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
         make_property_helper('device_name', read_only=True)
@@ -136,7 +138,7 @@ class ZwoCamera(Service):
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
 
         if not has_correct_parameters:
-            self.images.set_parameters('uint16', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
+            self.images.update_parameters('uint16', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
 
         # Start acquisition.
         self.camera.start_video_capture()
@@ -148,7 +150,7 @@ class ZwoCamera(Service):
             while self.should_be_acquiring and not self.shutdown_flag:
                 img = self.camera.capture_video_frame(timeout=timeout)
 
-                self.images.submit_data(img.astype('float32'))
+                self.images.submit_data(img.astype('uint16'))
         finally:
             # Stop acquisition.
             self.camera.stop_video_capture()
@@ -241,3 +243,9 @@ class ZwoCamera(Service):
     @offset_y.setter
     def offset_y(self, offset_y):
         self.camera.set_roi_start_position(self.offset_x, offset_y)
+
+if __name__ == '__main__':
+    service_name, testbed_port = parse_service_args()
+
+    service = ZwoCamera(service_name, testbed_port)
+    service.run()
