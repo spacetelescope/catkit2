@@ -1,7 +1,9 @@
-from catkit2.protocol.service import Serivce, parse_service_args
+from catkit2.protocol.service import Service, parse_service_args
 
 import time
 import socket
+import re
+import numpy as np
 
 class OmegaIthxW3(Service):
     _ADDRESS_FAMILY = socket.AF_INET
@@ -35,7 +37,7 @@ class OmegaIthxW3(Service):
             temp, hum = self.get_temperature_and_humidity()
 
             self.temperature.submit_data(np.array([temp]))
-            self.humdity.submit_data(np.array([hum]))
+            self.humidity.submit_data(np.array([hum]))
 
             while (time.time() < (start + self.time_interval)) and not self.shutdown_flag:
                 time.sleep(0.01)
@@ -48,10 +50,10 @@ class OmegaIthxW3(Service):
         self.connection.setblocking(self._BLOCKING)
         self.connection.settimeout(self._TIMEOUT)
 
-        self.connection.connect((self.host, self.port))
+        self.connection.connect((self.ip_address, self.port))
 
     def get_response(self):
-        data = self.connection.recv(self.BUFFER_SIZE)
+        data = self.connection.recv(self._BUFFER_SIZE)
 
         if data is None or not len(data):
             raise OSError(f"{self.config_id}: Unexpected error - no data received.")
