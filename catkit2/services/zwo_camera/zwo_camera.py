@@ -28,9 +28,9 @@ class StoppedAcquisition:
         self.camera = zwo_camera
 
     def __enter__(self):
-        self.was_stopped = self.camera.is_acquiring
+        self.was_running = self.camera.is_acquiring
 
-        if self.was_stopped:
+        if self.was_running:
             self.camera.end_acquisition()
 
             # Wait for the acquisition to actually end.
@@ -38,8 +38,8 @@ class StoppedAcquisition:
                 time.sleep(0.001)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        if self.was_stopped:
-            self.start_acquisition()
+        if self.was_running:
+            self.camera.start_acquisition()
 
 class ZwoCamera(Service):
     NUM_FRAMES_IN_BUFFER = 20
@@ -91,27 +91,35 @@ class ZwoCamera(Service):
         self.camera.set_image_type(zwoasi.ASI_IMG_RAW16)
 
         # Set device values from config file
-        self.subarray_x = config['subarray_x']
-        self.subarray_y = config['subarray_y']
-        self.width = config['width']
-        self.height = config['height']
+        self.subarray_x = config.get('subarray_x', 0)
+        self.subarray_y = config.get('subarray_y', 0)
+        self.width = config.get('width', self.sensor_width - self.subarray_x)
+        self.height = config.get('height', self.sensor_height - self.subarray_y)
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
 
         # Create properties
-        def make_property_helper(name, read_only=False):
+        def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
             if read_only:
                 self.make_property(name, lambda: getattr(self, name))
             else:
-                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
+                if requires_stopped_acquisition:
+                    def setter(val):
+                        with StoppedAcquisition(self):
+                            setattr(self, name, val)
+                else:
+                    def setter(val):
+                        setattr(self, name, val)
+
+                self.make_property(name, lambda: getattr(self, name), setter)
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
 
-        make_property_helper('width')
-        make_property_helper('height')
+        make_property_helper('width', requires_stopped_acquisition=True)
+        make_property_helper('height', requires_stopped_acquisition=True)
         make_property_helper('offset_x')
         make_property_helper('offset_y')
 
@@ -138,7 +146,7 @@ class ZwoCamera(Service):
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
 
         if not has_correct_parameters:
-            self.images.update_parameters('uint16', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
+            self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
 
         # Start acquisition.
         self.camera.start_video_capture()
@@ -150,7 +158,7 @@ class ZwoCamera(Service):
             while self.should_be_acquiring and not self.shutdown_flag:
                 img = self.camera.capture_video_frame(timeout=timeout)
 
-                self.images.submit_data(img.astype('uint16'))
+                self.images.submit_data(img.astype('float32'))
         finally:
             # Stop acquisition.
             self.camera.stop_video_capture()
@@ -218,7 +226,7 @@ class ZwoCamera(Service):
 
         return height
 
-    @width.setter
+    @height.setter
     def height(self, height):
         roi_format = self.camera.get_roi_format()
         roi_format[1] = height
