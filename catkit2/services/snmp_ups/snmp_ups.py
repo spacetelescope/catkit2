@@ -1,36 +1,36 @@
-from catkit2.bindings import Module, DataStream, Command, Property
-from catkit2.testbed import parse_module_args
+from catkit2.protocol.service import Service, parse_service_args
 
 import time
-import pysnmp
+from pysnmp import hlapi
+import numpy as np
 
-class SnmpUpsodule(Module):
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+class SnmpUps(Service):
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'snmp_ups', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][args.module_name]
+        config = self.configuration
 
         self.ip_address = config['ip_address']
         self.port = config['port']
         self.snmp_oid = config['snmp_oid']
         self.community = config['community']
         self.pass_status = config['pass_status']
+        self.check_interval = config.get('check_interval', 30)
 
-        self.power_ok = DataStream.create('power_ok', self.name, 'int8', [1], 20)
-        self.register_data_stream(self.power_ok)
+        self.power_ok = self.make_data_stream('power_ok', 'int8', [1], 20)
+
+        self.shutdown_flag = False
 
     def get_status(self):
-        res = pysnmp.getCmd(pysnmp.SnmpEngine(),
-                            pysnmp.CommunityData(self.community, mpModel=0),
-                            pysnmp.UdpTransportTarget((self.ip_address, self.port)),
-                            pysnmp.ContextData(),
-                            pysnmp.ObjectType(pysnmp.ObjectIdentity(self.snmp_oid)))
+        res = hlapi.getCmd(hlapi.SnmpEngine(),
+                           hlapi.CommunityData(self.community, mpModel=0),
+                           hlapi.UdpTransportTarget((self.ip_address, self.port)),
+                           hlapi.ContextData(),
+                           hlapi.ObjectType(hlapi.ObjectIdentity(self.snmp_oid)))
 
         for error_indication, error_status, error_index, var_binds in res:
             if error_indication or error_status:
-                raise RuntimeError(f"Error communicating with the UPS: '{self.config_id}'.\n" +
+                raise RuntimeError(f"Error communicating with the UPS: '{self.name}'.\n" +
                                    f"Error Indication: {str(error_indication)}\n" +
                                    f"Error Status: {str(error_status)}")
             else:
@@ -50,12 +50,17 @@ class SnmpUpsodule(Module):
         while not self.shutdown_flag:
             start = time.time()
 
-            frame = self.power_ok.request_new_frame()
-            frame.data[0] = self.get_power_ok()
-            self.power_ok.submit_frame(frame.id)
+            power_ok = self.get_power_ok()
+            frame = self.power_ok.submit_data(np.array([power_ok], dtype='int8'))
 
             while not self.shutdown_flag and time.time() < (start + self.check_interval):
                 time.sleep(0.05)
 
     def shut_down(self):
         self.shutdown_flag = True
+
+if __name__ == '__main__':
+    service_name, testbed_port = parse_service_args()
+
+    service = SnmpUps(service_name, testbed_port)
+    service.run()
