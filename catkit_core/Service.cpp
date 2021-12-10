@@ -43,16 +43,18 @@ Service::Service(std::string service_name, std::string service_type, int testbed
 	signal(SIGTERM, SignalHandler);
 
 	// Set up request handlers.
-	m_RequestHandlers["get_property"] = [this](const nlohmann::json &data){return this->OnGetPropertyRequest(data);};
-	m_RequestHandlers["set_property"] = [this](const nlohmann::json &data){return this->OnSetPropertyRequest(data);};
+	m_RequestHandlers["get_property"] = [this](const json &data){return this->OnGetPropertyRequest(data);};
+	m_RequestHandlers["set_property"] = [this](const json &data){return this->OnSetPropertyRequest(data);};
 
-	m_RequestHandlers["execute_command"] = [this](const nlohmann::json &data){return this->OnExecuteCommandRequest(data);};
+	m_RequestHandlers["execute_command"] = [this](const json &data){return this->OnExecuteCommandRequest(data);};
 
-	m_RequestHandlers["all_properties"] = [this](const nlohmann::json &data){return this->OnAllPropertiesRequest(data);};
-	m_RequestHandlers["all_commands"] = [this](const nlohmann::json &data){return this->OnAllCommandsRequest(data);};
-	m_RequestHandlers["all_datastreams"] = [this](const nlohmann::json &data){return this->OnAllDataStreamsRequest(data);};
+	m_RequestHandlers["all_properties"] = [this](const json &data){return this->OnAllPropertiesRequest(data);};
+	m_RequestHandlers["all_commands"] = [this](const json &data){return this->OnAllCommandsRequest(data);};
+	m_RequestHandlers["all_datastreams"] = [this](const json &data){return this->OnAllDataStreamsRequest(data);};
 
-	m_RequestHandlers["shut_down_request"] = [this](const nlohmann::json &data){return this->OnShutdownRequest(data);};
+	m_RequestHandlers["shut_down_request"] = [this](const json &data){return this->OnShutdownRequest(data);};
+
+	MakeProperty("configuration", [this](){return this->GetConfiguration();});
 
 	LOG_INFO("Service '"s + service_name + "' has been initialized.");
 

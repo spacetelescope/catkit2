@@ -19,6 +19,7 @@ class ServiceProxy:
         super().__setattr__('_property_names', None)
         super().__setattr__('_command_names', None)
         super().__setattr__('_datastream_ids', None)
+        super().__setattr__('_configuration', None)
 
     @property
     def property_names(self):
@@ -44,6 +45,14 @@ class ServiceProxy:
             self._datastream_ids = self.testbed_proxy._make_request('all_datastreams', service_name=self.service_name)
 
         return self._datastream_ids
+
+    @property
+    def configuration(self):
+        if self._configuration is None:
+            # Request configuration.
+            self._configuration = self.__getattr__(self, 'configuration')
+
+        return self._configuration
 
     def __getattr__(self, name):
         if name in self.property_names:
