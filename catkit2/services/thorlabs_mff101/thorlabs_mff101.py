@@ -1,30 +1,26 @@
-from catkit2.bindings import Module, DataStream, Command, Property
-from catkit2.testbed import parse_module_args
+from catkit2.protocol.service import Service, parse_service_args
 
 import time
 import ftd2xx
 
-class ThorlabsMFF101Module(Module):
+class ThorlabsMFF101(Service):
     _MOVE_TO_POSITION_1 = b"\x6A\x04\x00\x01\x21\x01"
     _MOVE_TO_POSITION_2 = b"\x6A\x04\x00\x02\x21\x01"
     _BLINK_LED = b"\x23\x02\x00\x00\x21\x01"
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'snmp_ups', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][args.module_name]
+        config = self.configuration
 
         self.serial_number = config['serial_number']
         self.current_position = None
 
         self.shutdown_flag = False
 
-        self.position = DataStream.create('position', self.name, 'int8', [1], 20)
-        self.register_data_stream(self.position)
+        self.position = self.make_data_stream('position', 'int8', [1], 20)
 
-        self.register_command(Command('blink_led', self.blink_led))
+        self.make_command('blink_led', self.blink_led)
 
     def main(self):
         while not self.shutdown_flag:
@@ -42,7 +38,7 @@ class ThorlabsMFF101Module(Module):
         self.shutdown_flag = True
 
     def open(self):
-        self.connection = ftd2xx.openEx(self.serial_number.encode())
+        self.connection = ftd2xx.openEx(str(self.serial_number).encode())
         self.connection.setDataCharacteristics(ftd2xx.defines.BITS_8,
                                                ftd2xx.defines.STOP_BITS_1,
                                                ftd2xx.defines.PARITY_NONE)
@@ -65,7 +61,7 @@ class ThorlabsMFF101Module(Module):
             command = self._MOVE_TO_POSITION_2
         else:
             # LOG error
-            continue
+            return
 
         self.connection.write(command)
         self.current_position = position
@@ -77,9 +73,8 @@ class ThorlabsMFF101Module(Module):
     def blink_led(self, args=None):
         self.connection.write(self._BLINK_LED)
 
-def main():
-    module = ThorlabsMFF101Module()
-    module.run()
-
 if __name__ == '__main__':
-    main()
+    service_name, testbed_port = parse_service_args()
+
+    service = ThorlabsMFF101(service_name, testbed_port)
+    service.run()
