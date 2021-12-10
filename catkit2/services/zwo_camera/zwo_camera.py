@@ -217,8 +217,10 @@ class ZwoCamera(Service):
     @width.setter
     def width(self, width):
         roi_format = self.camera.get_roi_format()
+        offset_x, offset_y = self.camera.get_roi_start_position()
         roi_format[0] = width
         self.camera.set_roi_format(*roi_format)
+        self.camera.set_roi_start_position(offset_x, offset_y)
 
     @property
     def height(self):
@@ -229,8 +231,10 @@ class ZwoCamera(Service):
     @height.setter
     def height(self, height):
         roi_format = self.camera.get_roi_format()
+        offset_x, offset_y = self.camera.get_roi_start_position()
         roi_format[1] = height
         self.camera.set_roi_format(*roi_format)
+        self.camera.set_roi_start_position(offset_x, offset_y)
 
     @property
     def offset_x(self):
