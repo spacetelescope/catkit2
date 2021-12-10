@@ -45,6 +45,6 @@ class NewportXpsQ8Proxy(ServiceProxy):
             position = self.motor_positions[motor_id][position_name]
 
             # The position may still be a named position, so try to resolve deeper.
-            return self.get_named_position(motor_id, position)
+            return self.resolve_position(motor_id, position)
         else:
             return position
