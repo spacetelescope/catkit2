@@ -195,7 +195,7 @@ auto DataFrame::AsArray()
 	size_t d2 = m_Dimensions[1];
 
 	LOG_WARNING("Discarding imaginary values in conversion to non-complex type.");
-	return Eigen::Map<Eigen::Array<T_src, Eigen::Dynamic, Eigen::Dynamic>>((T_src *) m_Dimensions, d1, d2).real().template cast<T_dest>();
+	return Eigen::Map<Eigen::Array<T_src, Eigen::Dynamic, Eigen::Dynamic>>((T_src *) m_Data, d1, d2).real().template cast<T_dest>();
 }
 
 template<typename T_src, typename T_dest, typename std::enable_if<!std::is_same<T_src, T_dest>::value && (!is_complex<T_src>::value || is_complex<T_dest>::value), void>::type *dummy>
@@ -204,5 +204,5 @@ auto DataFrame::AsArray()
 	size_t d1 = m_Dimensions[0];
 	size_t d2 = m_Dimensions[1];
 
-	return Eigen::Map<Eigen::Array<T_src, Eigen::Dynamic, Eigen::Dynamic>>((T_src *) m_Dimensions, d1, d2).template cast<T_dest>();
+	return Eigen::Map<Eigen::Array<T_src, Eigen::Dynamic, Eigen::Dynamic>>((T_src *) m_Data, d1, d2).template cast<T_dest>();
 }
