@@ -5,6 +5,8 @@
 #include <chrono>
 #include <csignal>
 #include <algorithm>
+#include <cstdlib>
+#include <iostream>
 #include <zmq_addon.hpp>
 
 using namespace zmq;
@@ -622,4 +624,54 @@ void Service::SendHeartbeatMessage()
 	msg.send(*m_ShellSocket);
 
 	m_LastSentHeartbeatTime = GetTimeStamp();
+}
+
+void print_usage()
+{
+	std::cout << "Usage:\n  service --name NAME --port PORT";
+}
+
+std::tuple<std::string, int> ParseServiceArgs(int argc, char *argv[])
+{
+	if (argc != 5)
+	{
+		print_usage();
+		throw std::runtime_error("Too few or too many arguments.");
+	}
+
+	std::string service_name;
+	int testbed_port;
+
+	bool name_found = false;
+	bool port_found = false;
+
+	for (size_t i = 1; i < argc; i += 2)
+	{
+		std::string arg = argv[i];
+		std::string param = argv[i + 1];
+
+		if (arg == "--name" || arg == "-n")
+		{
+			service_name = param;
+			name_found = true;
+		}
+		else if (arg == "--port" || arg == "-p")
+		{
+			testbed_port = std::stoi(param);
+			port_found = true;
+		}
+		else
+		{
+			print_usage();
+			throw std::runtime_error(std::string("Invalid argument '") + arg);
+		}
+	}
+
+	if (!(name_found && port_found))
+	{
+		print_usage();
+		throw std::runtime_error("Did not supply all arguments.");
+	}
+
+	return std::make_tuple(service_name, testbed_port);
 }
