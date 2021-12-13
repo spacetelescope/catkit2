@@ -5,7 +5,7 @@ import argparse
 import threading
 
 from .constants import *
-from ..bindings import DataStream
+from ..catkit_bindings import DataStream
 
 from ..protocol.service_proxy import ServiceProxy
 from ..interfaces import *

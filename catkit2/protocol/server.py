@@ -13,7 +13,7 @@ import yaml
 
 from .constants import *
 from ..config import read_config_files
-from ..bindings import LogConsole, LogPublish
+from ..catkit_bindings import LogConsole, LogPublish
 from .log_handler import *
 
 def decode_json(json_bytes):

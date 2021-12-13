@@ -1,6 +1,6 @@
 from docopt import docopt
 
-from ..bindings import Service
+from ..catkit_bindings import Service
 
 doc = '''
 Usage:

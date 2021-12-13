@@ -1,6 +1,6 @@
 import logging
 
-from ..bindings import submit_log_entry, Severity
+from ..catkit_bindings import submit_log_entry, Severity
 
 class CatkitLogHandler(logging.StreamHandler):
     def emit(self, record):

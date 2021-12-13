@@ -1,4 +1,4 @@
-from catkit2.bindings import Module, DataStream, Command, Property
+from catkit2.catkit_bindings import Module, DataStream, Command, Property
 from catkit2.testbed import parse_module_args
 
 import time

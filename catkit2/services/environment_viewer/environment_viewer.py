@@ -1,6 +1,6 @@
 from threading import Thread
 from catkit2.testbed import *
-from catkit2.bindings import *
+from catkit2.catkit_bindings import *
 
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg

@@ -69,7 +69,7 @@ py::array GetDataFromDataFrame(DataFrame &f)
 		);
 }
 
-PYBIND11_MODULE(bindings, m)
+PYBIND11_MODULE(catkit_bindings, m)
 {
 	py::class_<Service, TrampolineService>(m, "Service")
 		.def(py::init<std::string, std::string, int>())

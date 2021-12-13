@@ -4,7 +4,7 @@ import os
 import argparse
 
 from .constants import *
-from ..bindings import DataStream
+from ..catkit_bindings import DataStream
 
 class ServiceProxy:
     _service_interfaces = {}
