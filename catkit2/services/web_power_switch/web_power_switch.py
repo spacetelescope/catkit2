@@ -1,22 +1,19 @@
-from catkit2.bindings import Module, DataStream, Command, Property
-from catkit2.testbed import parse_module_args
-
 import time
 import sys
 import threading
 
 import requests
+import numpy as np
 
-class WebPowerSwitchModule(Module):
+from catkit2.protocol.service import Service, parse_service_args
+
+class WebPowerSwitch(Service):
     _OK_STATES = (7, 11, 12, 42)
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'web_power_switch', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][args.module_name]
-
+        config = self.configuration
         self.user = config['user']
         self.password = config['password']
         self.ip_address = config['ip_address']
@@ -29,8 +26,7 @@ class WebPowerSwitchModule(Module):
             self.add_outlet(outlet_name)
 
     def add_outlet(self, outlet_name):
-        self.outlets[outlet_name] = DataStream(outlet_name, self.name, 'int8', [1], 20)
-        self.register_data_stream(self.outlets[outlet_name])
+        self.outlets[outlet_name] = self.make_data_stream(outlet_name, 'int8', [1], 20)
 
     def monitor_outlet(self, outlet_name):
         while not self.shutdown_flag:
@@ -76,3 +72,9 @@ class WebPowerSwitchModule(Module):
 
     def shutdown(self):
         self.shutdown_flag = True
+
+if __name__ == '__main__':
+    service_name, testbed_port = parse_service_args()
+
+    service = WebPowerSwitch(service_name, testbed_port)
+    service.run()
