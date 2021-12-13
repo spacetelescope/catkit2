@@ -48,3 +48,7 @@ target_include_directories(catkit_core PUBLIC ${EIGEN_INCLUDE_DIR})
 # Link nlohmann JSON
 set (JSON_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/json-3.9.1/include)
 target_include_directories(catkit_core PUBLIC ${JSON_INCLUDE_DIR})
+
+# Add install files
+install(TARGETS catkit_core DESTINATION lib)
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/ DESTINATION include/catkit_core)

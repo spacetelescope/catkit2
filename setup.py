@@ -2,9 +2,11 @@ import setuptools
 import os
 import re
 import sys
-import sysconfig
+import glob
+import shutil
 import platform
 import subprocess
+from pathlib import Path
 
 from distutils.version import LooseVersion
 from setuptools import setup, find_packages, Extension
@@ -81,12 +83,19 @@ class CMakeBuild(build_ext):
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''), self.distribution.get_version())
 
+        install_dir = os.path.join(ext.sourcedir, 'build')
+
         os.makedirs(self.build_temp, exist_ok=True)
+        os.makedirs(install_dir, exist_ok=True)
 
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
+        subprocess.check_call(['cmake', '--install', '.', '--prefix', install_dir], cwd=self.build_temp)
 
         generate_proto(os.path.join(ext.sourcedir, 'catkit2', 'simulator', 'simulator.proto'))
+
+        for f in glob.glob(os.path.join(install_dir, 'lib', 'catkit_bindings*')):
+            shutil.copy(f, os.path.join(ext.sourcedir, 'catkit2'))
 
 with open("README.md", "r") as f:
     long_description = f.read()
@@ -104,7 +113,7 @@ setup(
     classifiers=[
         "Programming Language :: Python :: 3"
     ],
-    ext_modules=[CMakeExtension('catkit2/bindings')],
+    ext_modules=[CMakeExtension('catkit_bindings')],
     python_requires='>=3.6',
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
