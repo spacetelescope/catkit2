@@ -506,7 +506,11 @@ class TestbedServer:
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         creationflags = subprocess.CREATE_NEW_CONSOLE
 
-        process = psutil.Popen(executable + args, startupinfo=startupinfo, creationflags=creationflags)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        process = psutil.Popen(
+            executable + args,
+            startupinfo=startupinfo,
+            creationflags=creationflags,
+            cwd=dirname)
 
         # Store a reference to the module.
         self.services[service_name] = ServiceReference(process, service_type, service_name, self)
