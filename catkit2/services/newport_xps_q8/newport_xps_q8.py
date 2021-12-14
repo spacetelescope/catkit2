@@ -1,24 +1,22 @@
-from catkit2.catkit_bindings import Module, DataStream, Command, Property
-from catkit2.testbed import parse_module_args
+from catkit2.protocol.service import Service, parse_service_args
 
 import time
 import sys
 import threading
+import numpy as np
 
 library_path = os.environ.get('CATKIT_NEWPORT_LIB_PATH')
 if library_path:
     sys.path.append(library_path)
 import XPS_Q8_drivers
 
-class NewportXpsQ8Module(Module):
+class NewportXpsQ8(Service):
     _OK_STATES = (7, 11, 12, 42)
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'flir_camera', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][args.module_name]
+        config = self.configuration
 
         self.ip_address = config['ip_address']
         self.port = config['port']
@@ -28,7 +26,7 @@ class NewportXpsQ8Module(Module):
         self.motor_ids = list(config['motors'].keys())
         self.atol = config['atol']
 
-        self.shutdown_flag = False
+        self.shutdown_flag = threading.Event()
 
         self.motors = {}
         self.motor_current_positions = {}
@@ -41,11 +39,8 @@ class NewportXpsQ8Module(Module):
         self.socket_set = {}
 
     def add_motor(self, motor_id):
-        self.motors[motor_id] = DataStream.create(motor_id.lower(), self.name, 'float64', [1], 20)
-        self.register_data_stream(self.motors[motor_id])
-
-        self.motor_current_positions[motor_id] = DataStream.create(motor_id.lower() + '_current_position', self.name, 'float64', [1], 20)
-        self.register_data_stream(self.motor_current_positions[motor_id])
+        self.motors[motor_id] = make_data_stream(motor_id.lower(), 'float64', [1], 20)
+        self.motor_current_positions[motor_id] = self.make_data_stream(motor_id.lower() + '_current_position', 'float64', [1], 20)
 
     def set_current_position(self, motor_id, position):
         socket_id, lock = self.socket_set[motor_id]
@@ -72,9 +67,7 @@ class NewportXpsQ8Module(Module):
 
         # Update current position data stream.
         stream = self.motor_current_positions[motor_id]
-        frame = stream.request_new_frame()
-        f.data[:] = current_position
-        stream.submit_frame(frame.id)
+        stream.submit_data(np.array([current_position]))
 
         return current_position
 
@@ -130,7 +123,7 @@ class NewportXpsQ8Module(Module):
 
         command_stream = self.motors[motor_id]
 
-        while not self.shutdown_flag:
+        while not self.shutdown_flag.test():
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
@@ -141,6 +134,8 @@ class NewportXpsQ8Module(Module):
             self.set_current_position(motor_id, frame.data[0])
 
     def open(self):
+        self.shutdown_flag.clear()
+
         # Start the device
         self.device = XPS_Q8_drivers.XPS()
 
@@ -177,7 +172,7 @@ class NewportXpsQ8Module(Module):
     def main(self):
         time_of_last_update = 0
 
-        while not self.shutdown_flag:
+        while not self.shutdown_flag.test():
             # Submit current position of each motor at most every `update_interval` seconds.
             time_since_last_update = time.time() - time_of_last_update
 
@@ -192,7 +187,7 @@ class NewportXpsQ8Module(Module):
 
     def close(self):
         # Stop the motor threads
-        self.shutdown_flag = True
+        self.shut_down()
 
         for thread in self.motor_threads.values():
             thread.join()
@@ -207,4 +202,10 @@ class NewportXpsQ8Module(Module):
                 self.socket_id = None
 
     def shut_down(self):
-        self.shutdown_flag = True
+        self.shutdown_flag.set()
+
+if __name__ == '__main__':
+    service_name, testbed_port = parse_service_args()
+
+    service = NewportXpsQ8(service_name, testbed_port)
+    service.run()

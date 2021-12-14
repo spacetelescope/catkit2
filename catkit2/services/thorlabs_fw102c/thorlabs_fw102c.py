@@ -1,28 +1,34 @@
-from catkit2.catkit_bindings import Module, DataStream, Command, Property
-from catkit2.testbed import parse_module_args
+from catkit2.protocol.service import Service, parse_service_args
 
 import time
 import pyvisa
+import numpy as np
 
-class ThorlabsFW102CModule(Module):
+class ThorlabsFW102C(Service):
     _GET_POSITION = "pos?"
     _SET_POSITION = "pos="
     _MAX_NUM_RETRIES = 3
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'thorlabs_fw102c', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][args.module_name]
+        config = self.configuration
 
         self.visa_id = config['visa_id']
-        self.current_position = None
 
         self.shutdown_flag = False
 
-        self.position = DataStream.create('position', self.name, 'int8', [1], 20)
-        self.register_data_stream(self.position)
+        self.position = self.make_data_stream('position', 'int8', [1], 20)
+        self.current_position = self.make_data_stream('current_position', 'int8', [1], 20)
+
+    def open(self):
+        manager = pyvisa.ResourceManager('@py')
+
+        self.connection = manager.open_resource(self.visa_id,
+                                                baud_rate=115200,
+                                                data_bits=8,
+                                                write_termination='\r',
+                                                read_termination='\r')
 
     def main(self):
         while not self.shutdown_flag:
@@ -41,7 +47,7 @@ class ThorlabsFW102CModule(Module):
                 try:
                     self.set_position(position)
                     break
-                except:
+                except Exception:
                     if num_retries == 0:
                         raise
 
@@ -50,17 +56,12 @@ class ThorlabsFW102CModule(Module):
                     self.close()
                     self.open()
 
+    def close(self):
+        self.connection.close()
+        self.connection = None
+
     def shut_down(self):
         self.shutdown_flag = True
-
-    def open(self):
-        manager = pyvisa.ResourceManager('@py')
-
-        self.connection = manager.open_resource(self.visa_id,
-                                                baud_rate=115200,
-                                                data_bits=8,
-                                                write_termination='\r',
-                                                read_termination='\r')
 
     def send_command(self, command):
         try:
@@ -76,19 +77,19 @@ class ThorlabsFW102CModule(Module):
             raise
 
     def set_position(self, position):
-        if position == self.current_position:
-            return
+        try:
+            if position == self.current_position.get():
+                return
+        except Exception:
+            # No previous position known.
+            pass
 
         self.send_command(f'{self._SET_POSITION}{position}')
-        self.current_position = position
 
-    def close(self):
-        self.connection.close()
-        self.connection = None
-
-def main():
-    module = ThorlabsMFF101Module()
-    module.run()
+        self.current_position.submit_data(np.array([current_position]))
 
 if __name__ == '__main__':
-    main()
+    service_name, testbed_port = parse_service_args()
+
+    service = ThorlabsFW102C(service_name, testbed_port)
+    service.run()

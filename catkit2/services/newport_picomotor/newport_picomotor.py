@@ -1,5 +1,7 @@
-from catkit2.catkit_bindings import Module, DataStream, Command, Property
-from catkit2.testbed import parse_module_args
+from catkit2.protocol.service import Service, parse_service_args
+
+import threading
+import numpy as np
 
 import urllib
 from urllib.parse import urlencode
@@ -18,7 +20,7 @@ def catch_http_exceptions(function):
 
     return wrapper
 
-class NewportPicomotorModule(Module):
+class NewportPicomotor(Service):
     _commands = {
         'set_home_position': 'DH',
         'exact_move': 'PA',
@@ -27,12 +29,10 @@ class NewportPicomotorModule(Module):
         'get_error_message': 'TB?'
     }
 
-    def __init__(self):
-        args = parse_module_args()
-        Module.__init__(self, args.module_name, args.module_port)
+    def __init__(self, service_name, testbed_port):
+        Service.__init__(self, service_name, 'newport_picomotor', testbed_port)
 
-        testbed = Testbed(args.testbed_server_port)
-        config = testbed.config['modules'][args.module_name]
+        config = self.configuration
 
         self.ip = config['ip']
         self.max_step = config['max_step']
@@ -42,7 +42,7 @@ class NewportPicomotorModule(Module):
         self.daisy = f'{config['daisy']}>' if config['daisy'] > 1 else ''
         self.axes = config['axes']
 
-        self.shutdown_flag = False
+        self.shutdown_flag = threading.Event()
 
         self.axis_commands = {}
         self.axis_threads = {}
@@ -54,11 +54,8 @@ class NewportPicomotorModule(Module):
             self.add_axis(axis_name)
 
     def add_axis(self, axis_name):
-        self.axis_commands[axis_name] = DataStream.create(axis_name.lower(), self.name, 'int64', [1], 20)
-        self.register_data_stream(self.axis_commands[axis_name])
-
-        self.axis_current_positions[axis_name], DataStream.create(axis_name.lower() + '_current_position', self.name, 'int64', [1], 20)
-        self.register_data_stream(self.axis_current_positions[axis_name])
+        self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower(), 'int64', [1], 20)
+        self.axis_current_positions[axis_name], self.make_data_stream(axis_name.lower() + '_current_position', 'int64', [1], 20)
 
     def set_current_position(self, axis_name, position):
         axis = self.axes[axis_name]
@@ -82,16 +79,14 @@ class NewportPicomotorModule(Module):
 
         # Update current position data stream.
         stream = self.axis_current_positions[axis_name]
-        frame = stream.request_new_frame()
-        f.data[:] = current_position
-        stream.submit_frame(frame.id)
+        stream..submit_data(np.array([current_position]))
 
         return current_position
 
     def monitor_axis(self, axis_name):
         command_stream = self.axis_commands[axis_name]
 
-        while not self.shutdown_flag:
+        while not self.shutdown_flag.test():
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
@@ -102,6 +97,8 @@ class NewportPicomotorModule(Module):
             self.set_current_position(axis_name, frame.data[0])
 
     def open(self):
+        self.shutdown_flag.clear()
+
         # Ping the connection to make sure it works
         try:
             urllib.request.urlopen(f'https://{self.ip}', timeout=self.timeout)
@@ -114,16 +111,24 @@ class NewportPicomotorModule(Module):
 
         # Start the motor threads
         for axis_name in self.axes.keys():
-            self.motor_threads[axis_name] = threading.Thread(target=self.monitor_axis, args=(axis_name,))
+            thread = threading.Thread(target=self.monitor_axis, args=(axis_name,))
+            thread.start()
+
+            self.motor_threads[axis_name] = thread
 
     def main(self):
-        pass
+        self.shutdown_flag.wait()
 
     def close(self):
+        self.shut_down()
+
+        for thread in self.motor_threads.values():
+            thread.join()
+
         self.reset_all_axes()
 
-    def shutdown(self):
-        self.shutdown_flag = True
+    def shut_down(self):
+        self.shutdown_flag.set()
 
     def reset_all_axes(self):
         for axis in self.axes.values():
@@ -171,3 +176,9 @@ class NewportPicomotorModule(Module):
             axis = int(axis)
 
         return f'{self.daisy}{axis}{cmd}{value}'
+
+if __name__ == '__main__':
+    service_name, testbed_port = parse_service_args()
+
+    service = NewportPicomotor(service_name, testbed_port)
+    service.run()
