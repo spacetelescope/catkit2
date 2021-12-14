@@ -8,9 +8,9 @@
 
 using namespace std;
 
-std::string MakeStreamId(const std::string &stream_name, const std::string &module_name, int pid)
+std::string MakeStreamId(const std::string &stream_name, const std::string &service_name, int pid)
 {
-	return module_name + "." + std::to_string(pid) + "." + stream_name;
+	return service_name + "." + std::to_string(pid) + "." + stream_name;
 }
 
 void CalculateBufferSize(DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer,
@@ -161,14 +161,14 @@ DataStream::~DataStream()
 	CloseHandle(m_FileMapping);
 }
 
-std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &module_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	size_t num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer;
 
 	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
 		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
 
-	auto stream_id = MakeStreamId(stream_name, module_name, GetCurrentProcessId());
+	auto stream_id = MakeStreamId(stream_name, service_name, GetCurrentProcessId());
 
 	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes_in_buffer, (stream_id + ".mem").c_str());
 
@@ -206,9 +206,9 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 	return data_stream;
 }
 
-std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &module_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
 {
-	return Create(stream_name, module_name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
+	return Create(stream_name, service_name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
 }
 
 std::shared_ptr<DataStream> DataStream::Open(const std::string &stream_id)
