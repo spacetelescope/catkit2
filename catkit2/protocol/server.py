@@ -6,6 +6,7 @@ import datetime
 import subprocess
 import traceback
 import socket
+import threading
 
 import psutil
 import zmq
@@ -24,13 +25,48 @@ def decode_json(json_bytes):
 
 class LoggingProxy:
     def __init__(self, context, input_port, output_port):
-        pass
+        self.context = context
+        self.input_port = input_port
+        self.output_port = output_port
+
+        self.shutdown_flag = threading.Event()
+        self.thread = None
 
     def start(self):
-        pass
+        self.thread = threading.Thread(target=self.forwarder)
+        self.thread.start()
 
     def stop(self):
-        pass
+        self.shutdown_flag.set()
+
+        if self.thread:
+            self.thread.join()
+
+    def forwarder(self):
+        collector = self.context.socket(zmq.PULL)
+        collector.RCVTIMEO = 50
+        collector.bind(f'tcp://*:{self.input_port}')
+
+        publicist = self.context.socket(zmq.PUB)
+        publicist.bind(f'tcp://*:{self.output_port}')
+
+        while not self.shutdown_flag.is_set():
+            try:
+                log_message = collector.recv_multipart()
+                publicist.send_multipart(log_message)
+            except zmq.ZMQError as e:
+                if e.errno == zmq.EAGAIN:
+                    # Timed out.
+                    continue
+                else:
+                    raise RuntimeError('Error during receive') from e
+
+            log_message = log_message[0].decode('ascii')
+            log_message = json.loads(log_message)
+
+            print(log_message['message'])
+
+            # TODO: Write to a file.
 
 class ServiceReference:
     def __init__(self, process, service_type, service_name, server):
@@ -129,6 +165,12 @@ class ServiceReference:
 
     def terminate(self):
         self.process.terminate()
+
+    @staticmethod
+    def wait_for_termination(services, timeout):
+        procs = [s.process for n, s in services.items()]
+
+        gone, alive = psutil.wait_procs(procs, timeout)
 
 class TestbedServer:
     def __init__(self, port, is_simulated, config_files):
@@ -289,10 +331,11 @@ class TestbedServer:
                 return
 
     def start_logging_proxy(self):
-        pass
+        self.logging_proxy = LoggingProxy(self.context, self.port + 1, self.port + 2)
+        self.logging_proxy.start()
 
     def stop_logging_proxy(self):
-        pass
+        self.logging_proxy.stop()
 
     def on_client_request(self, client_identity, service_name, parts):
         request = decode_json(parts[0])
@@ -482,7 +525,7 @@ class TestbedServer:
         if self.is_simulated and 'simulated_service_type' in config:
             service_type = config['simulated_service_type']
 
-        # Resolve module type;
+        # Resolve service type;
         dirname = self.resolve_service_type(service_type)
 
         # Find if Python or C++.
@@ -512,7 +555,7 @@ class TestbedServer:
             creationflags=creationflags,
             cwd=dirname)
 
-        # Store a reference to the module.
+        # Store a reference to the service.
         self.services[service_name] = ServiceReference(process, service_type, service_name, self)
 
     def resolve_service_type(self, service_type):
@@ -528,3 +571,14 @@ class TestbedServer:
     def shut_down_all_services(self):
         for service in self.services.values():
             service.send_keyboard_interrupt()
+
+        print('Waiting for services to shut down...')
+
+        try:
+            ServiceReference.wait_for_termination(self.services, None)
+        except KeyboardInterrupt:
+            print("Hard shutdown remaining services...")
+            for service in self.services.values():
+                service.terminate()
+
+        print("All services were shut down safely!")
