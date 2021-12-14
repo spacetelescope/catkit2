@@ -1,4 +1,4 @@
-from threading import Lock
+import threading
 import time
 import os
 import numpy as np
@@ -28,13 +28,13 @@ class StoppedAcquisition:
         self.camera = zwo_camera
 
     def __enter__(self):
-        self.was_running = self.camera.is_acquiring
+        self.was_running = self.camera.is_acquiring.get()[0] > 0
 
         if self.was_running:
             self.camera.end_acquisition()
 
             # Wait for the acquisition to actually end.
-            while self.camera.is_acquiring:
+            while self.camera.is_acquiring.get()[0]:
                 time.sleep(0.001)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
@@ -47,12 +47,11 @@ class ZwoCamera(Service):
     def __init__(self, service_name, testbed_port):
         Service.__init__(self, service_name, 'zwo_camera', testbed_port)
 
-        self.shutdown_flag = False
-        self.is_acquiring = False
-        self.should_be_acquiring = True
+        self.shutdown_flag = threading.Event()
+        self.should_be_acquiring = threading.Event()
 
         # Create lock for camera access
-        self.mutex = Lock()
+        self.mutex = threading.Lock()
 
     def open(self):
         config = self.configuration
@@ -99,6 +98,10 @@ class ZwoCamera(Service):
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
+
+        self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
+        self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         # Create properties
         def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
@@ -123,23 +126,27 @@ class ZwoCamera(Service):
         make_property_helper('offset_x')
         make_property_helper('offset_y')
 
-        make_property_helper('temperature', read_only=True)
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
         make_property_helper('device_name', read_only=True)
-        make_property_helper('is_acquiring', read_only=True)
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
 
-    def main(self):
-        while not self.shutdown_flag:
-            if not self.should_be_acquiring:
-                time.sleep(0.001)
-                continue
+        self.temperature_thread = threading.Thread(target=self.monitor_temperature)
+        self.temperature_thread.start()
 
-            self.acquisition_loop()
+    def main(self):
+        while not self.shutdown_flag.test():
+            if self.should_be_acquiring.wait(0.05):
+                self.acquisition_loop()
+
+    def close(self):
+        self.shutdown_flag.set()
+        self.temperature_thread.join()
+
+        self.camera.close()
 
     def acquisition_loop(self):
         # Make sure the data stream has the right size and datatype.
@@ -150,28 +157,35 @@ class ZwoCamera(Service):
 
         # Start acquisition.
         self.camera.start_video_capture()
-        self.is_acquiring = True
+        self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
         timeout = 10000 # ms
 
         try:
-            while self.should_be_acquiring and not self.shutdown_flag:
+            while self.should_be_acquiring.test() and not self.shutdown_flag.test():
                 img = self.camera.capture_video_frame(timeout=timeout)
 
                 self.images.submit_data(img.astype('float32'))
         finally:
             # Stop acquisition.
             self.camera.stop_video_capture()
-            self.is_acquiring = False
+            self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+
+    def monitor_temperature(self):
+        while not self.shutdown_flag.test():
+            temperature = self.get_temperature()
+            self.temperature.submit_data(np.array([temperature]))
+
+            self.shutdown_flag.wait(1)
 
     def start_acquisition(self):
-        self.should_be_acquiring = True
+        self.should_be_acquiring.set()
 
     def end_acquisition(self):
-        self.should_be_acquiring = False
+        self.should_be_acquiring.clear()
 
     def shut_down(self):
-        self.shutdown_flag = True
+        self.shutdown_flag.set()
 
     @property
     def exposure_time(self):
@@ -191,8 +205,7 @@ class ZwoCamera(Service):
     def gain(self, gain):
         self.camera.set_control_value(zwoasi.ASI_GAIN, gain)
 
-    @property
-    def temperature(self):
+    def get_temperature(self):
         temperature_times_ten, auto = self.camera.get_control_value(zwoasi.ASI_TEMPERATURE)
         return temperature_times_ten / 10
 

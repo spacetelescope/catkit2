@@ -1,5 +1,4 @@
-
-from threading import Lock
+import threading
 import time
 
 from PySpin import PySpin
@@ -16,16 +15,18 @@ def _create_property(flir_property_name, read_only=False, stopped_acquisition=Tr
         setter = None
     else:
         def setter(self, value):
-            if stopped_acquisition:
+            was_running = self.is_acquiring.get()[0] > 0
+
+            if was_running and stopped_acquisition:
                 self.end_acquisition()
 
-                while self.is_acquiring:
+                while self.is_acquiring.get()[0]:
                     time.sleep(0.001)
 
             with self.mutex:
                 getattr(self.cam, flir_property_name).SetValue(value)
 
-            if stopped_acquisition:
+            if was_running and stopped_acquisition:
                 self.start_acquisition()
 
     return property(getter, setter)
@@ -45,16 +46,18 @@ def _create_enum_property(flir_property_name, enum_name, stopped_acquisition=Tru
     def setter(self, value):
         value = getattr(self, enum_name)[value]
 
-        if stopped_acquisition:
+        was_running = self.is_acquiring.get()[0] > 0
+
+        if was_running and stopped_acquisition:
             self.end_acquisition()
 
-            while self.is_acquiring:
+            while self.is_acquiring.get()[0]:
                 time.sleep(0.001)
 
         with self.mutex:
             getattr(self.cam, flir_property_name).SetValue(value)
 
-        if stopped_acquisition:
+        if was_running and stopped_acquisition:
             self.start_acquisition()
 
     return property(getter, setter)
@@ -67,7 +70,7 @@ class FlirCamera(Service):
         'mono12p': PySpin.PixelFormat_Mono12p,
         'mono16': PySpin.PixelFormat_Mono16
     }
-    
+
     adc_bit_depth_enum = {
         '8bit': PySpin.AdcBitDepth_Bit8,
         '10bit': PySpin.AdcBitDepth_Bit10,
@@ -81,13 +84,12 @@ class FlirCamera(Service):
         config = self.configuration
         self.serial_number = config['serial_number']
 
-        self.shutdown_flag = False
-        self.is_acquiring = False
-        self.should_be_acquiring = True
+        self.shutdown_flag = threading.Event()
+        self.should_be_acquiring = threading.Event()
 
         # Create lock for camera access
         self.mutex = Lock()
-    
+
     def open(self):
         config = self.configuration
 
@@ -126,6 +128,10 @@ class FlirCamera(Service):
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
+
+        self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
+        self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         # Create properties
         def make_property_helper(name, read_only=False):
@@ -142,7 +148,6 @@ class FlirCamera(Service):
         make_property_helper('offset_x')
         make_property_helper('offset_y')
 
-        make_property_helper('temperature', read_only=True)
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
@@ -153,22 +158,17 @@ class FlirCamera(Service):
         make_property_helper('acquisition_frame_rate_enable')
 
         make_property_helper('device_name', read_only=True)
-        make_property_helper('is_acquiring', read_only=True)
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
-    
+
+        self.temperature_thread = threading.Thread(target=self.monitor_temperature)
+        self.temperature_thread.start()
+
     def close(self):
-        try:
-            self.cam.EndAcquisition()
-        except PySpin.SpinnakerException as e:
-            if e.errorcode == -1002:
-                # Camera was not running; we can safely ignore this.
-                pass
-            else:
-                print('spin error', e)
-                raise
-        
+        self.shutdown_flag.set()
+        self.temperature_thread.join()
+
         self.cam.DeInit()
         self.cam = None
         self.cam_list.Clear()
@@ -177,12 +177,9 @@ class FlirCamera(Service):
         self.system = None
 
     def main(self):
-        while not self.shutdown_flag:
-            if not self.should_be_acquiring:
-                time.sleep(0.001)
-                continue
-
-            self.acquisition_loop()
+        while not self.shutdown_flag.test():
+            if self.should_be_acquiring.wait(0.05):
+                self.acquisition_loop()
 
     def acquisition_loop(self):
         if self.pixel_format == 'mono8':
@@ -200,46 +197,53 @@ class FlirCamera(Service):
             self.images.update_parameters(pixel_dtype, [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
 
         self.cam.BeginAcquisition()
-        self.is_acquiring = True
+        self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
-        while self.should_be_acquiring and not self.shutdown_flag:
-            try:
-                with self.mutex:
-                    image_result = self.cam.GetNextImage(10)
-            except PySpin.SpinnakerException as e:
-                if e.errorcode == -1011:
-                    # The timeout was triggered. Nothing to worry about.
-                    continue
-                elif e.errorcode == -1010:
-                    # The camera is not streaming anymore.
-                    break
-                raise
+        try:
+            while self.should_be_acquiring.test() and not self.shutdown_flag.test():
+                try:
+                    with self.mutex:
+                        image_result = self.cam.GetNextImage(10)
+                except PySpin.SpinnakerException as e:
+                    if e.errorcode == -1011:
+                        # The timeout was triggered. Nothing to worry about.
+                        continue
+                    elif e.errorcode == -1010:
+                        # The camera is not streaming anymore.
+                        break
+                    raise
 
-            try:
-                if image_result.IsIncomplete():
-                    continue
+                try:
+                    if image_result.IsIncomplete():
+                        continue
 
-                img = image_result.Convert(pixel_format).GetData().astype(pixel_dtype)
-                img = img.reshape((image_result.GetHeight(), image_result.GetWidth()))
+                    img = image_result.Convert(pixel_format).GetData().astype(pixel_dtype)
+                    img = img.reshape((image_result.GetHeight(), image_result.GetWidth()))
 
-                # Submit image to datastream.
-                self.images.submit_data(img)
-                print('Submitted frame!')
+                    # Submit image to datastream.
+                    self.images.submit_data(img)
 
-            finally:
-                image_result.Release()
+                finally:
+                    image_result.Release()
+        finally:
+            self.cam.EndAcquisition()
+            self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
-        self.cam.EndAcquisition()
-        self.is_acquiring = False
+    def monitor_temperature(self):
+        while not self.shutdown_flag.test():
+            temperature = self.get_temperature()
+            self.temperature.submit_data(np.array([temperature]))
+
+            self.shutdown_flag.wait(1)
 
     def start_acquisition(self):
-        self.should_be_acquiring = True
+        self.should_be_acquiring.set()
 
     def end_acquisition(self):
-        self.should_be_acquiring = False
+        self.should_be_acquiring.clear()
 
     def shut_down(self):
-        self.shutdown_flag = True
+        self.shutdown_flag.set()
 
     exposure_time = _create_property('ExposureTime', stopped_acquisition=False)
     gain = _create_property('Gain', stopped_acquisition=False)
@@ -249,7 +253,6 @@ class FlirCamera(Service):
     offset_x = _create_property('OffsetX', stopped_acquisition=False)
     offset_y = _create_property('OffsetY', stopped_acquisition=False)
 
-    temperature = _create_property('DeviceTemperature', read_only=True)
     sensor_width = _create_property('SensorWidth', read_only=True)
     sensor_height = _create_property('SensorHeight', read_only=True)
 
@@ -263,6 +266,10 @@ class FlirCamera(Service):
     def device_name(self):
         with self.mutex:
             return self.cam.TLDevice.DeviceModelName.GetValue()
+
+    def get_temperature(self):
+        with self.mutex:
+            return self.cam.DeviceTemperature.GetValue()
 
 if __name__ == '__main__':
     service_name, testbed_port = parse_service_args()

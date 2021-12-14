@@ -2,6 +2,8 @@ from ..protocol.service_proxy import ServiceProxy
 
 @ServiceProxy.register_service_interface('camera')
 class CameraProxy(ServiceProxy):
+    _is_acquiring_stream = None
+
     def take_exposures(self, num_exposures):
         was_acquiring = self.is_acquiring
 
@@ -22,3 +24,10 @@ class CameraProxy(ServiceProxy):
         finally:
             if not was_acquiring:
                 self.stop_acquisition()
+
+    @property
+    def is_acquiring(self):
+        if self._is_acquiring_stream is None:
+            self._is_acquiring_stream = super().__getattr__('is_acquiring')
+
+        return self._is_acquiring_stream.get()[0] != 0

@@ -8,6 +8,7 @@ from catkit2.protocol.service import Service, parse_service_args
 import time
 from hcipy import *
 import numpy as np
+import threading
 
 class DummyCamera(Service):
     def __init__(self, service_name, testbed_port):
@@ -26,17 +27,22 @@ class DummyCamera(Service):
         self.sensor_width = config['sensor_width']
         self.sensor_height = config['sensor_height']
 
-        self.shutdown_flag = False
+        self.shutdown_flag = threading.Event()
+        self.should_be_acquiring = threading.Event()
 
         self.pupil_grid = make_pupil_grid(128)
         self.aperture = evaluate_supersampled(make_hicat_aperture(True), self.pupil_grid, 4)
         self.wf = Wavefront(self.aperture)
         self.wf.total_power = 1
 
-        self.is_acquiring = False
-        self.should_be_acquiring = True
-
         self.images = self.make_data_stream('images', 'uint16', [self.sensor_height, self.sensor_width], 20)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
+
+        self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
+        self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+
+        self.temperature_thread = threading.Thread(target=self.monitor_temperature)
+        self.temperature_thread.start()
 
         # Create properties
         def make_property_helper(name, read_only=False):
@@ -53,12 +59,10 @@ class DummyCamera(Service):
         make_property_helper('offset_x')
         make_property_helper('offset_y')
 
-        make_property_helper('temperature', read_only=True)
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
         make_property_helper('device_name', read_only=True)
-        make_property_helper('is_acquiring', read_only=True)
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
@@ -83,17 +87,14 @@ class DummyCamera(Service):
         return img
 
     def main(self):
-        while not self.shutdown_flag:
-            if not self.should_be_acquiring:
-                time.sleep(0.001)
-                continue
-
-            self.acquisition_loop()
+        while not self.shutdown_flag.test():
+            if self.should_be_acquiring.wait(0.05):
+                self.acquisition_loop()
 
     def acquisition_loop(self):
-        self.is_acquiring = True
+        self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
-        while self.should_be_acquiring and not self.shutdown_flag:
+        while self.should_be_acquiring.test() and not self.shutdown_flag.test():
             img = self.get_image()
 
             # Make sure the data stream has the right size and datatype.
@@ -106,16 +107,16 @@ class DummyCamera(Service):
             frame.data[:] = img
             self.images.submit_frame(frame.id)
 
-        self.is_acquiring = False
+        self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
     def start_acquisition(self):
-        self.should_be_acquiring = True
+        self.should_be_acquiring.set()
 
     def end_acquisition(self):
-        self.should_be_acquiring = False
+        self.should_be_acquiring.clear()
 
     def shut_down(self):
-        self.shutdown_flag = True
+        self.shutdown_flag.set()
 
     @property
     def width(self):
