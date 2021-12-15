@@ -64,7 +64,7 @@ class LoggingProxy:
             log_message = log_message[0].decode('ascii')
             log_message = json.loads(log_message)
 
-            print(f'  {log_message["service_name"]}: {log_message["message"]}')
+            print(f'[{log_message["service_name"]}] {log_message["message"]}')
 
             # TODO: Write to a file.
 
