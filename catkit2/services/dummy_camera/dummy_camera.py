@@ -29,6 +29,7 @@ class DummyCamera(Service):
 
         self.shutdown_flag = threading.Event()
         self.should_be_acquiring = threading.Event()
+        self.should_be_acquiring.set()
 
         self.pupil_grid = make_pupil_grid(128)
         self.aperture = evaluate_supersampled(make_hicat_aperture(True), self.pupil_grid, 4)
@@ -36,10 +37,11 @@ class DummyCamera(Service):
         self.wf.total_power = 1
 
         self.images = self.make_data_stream('images', 'uint16', [self.sensor_height, self.sensor_width], 20)
-        self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
 
-        self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
+        self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], 20)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+        #self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
@@ -87,14 +89,14 @@ class DummyCamera(Service):
         return img
 
     def main(self):
-        while not self.shutdown_flag.test():
+        while not self.shutdown_flag.is_set():
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
     def acquisition_loop(self):
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
-        while self.should_be_acquiring.test() and not self.shutdown_flag.test():
+        while self.should_be_acquiring.is_set() and not self.shutdown_flag.is_set():
             img = self.get_image()
 
             # Make sure the data stream has the right size and datatype.
@@ -108,6 +110,13 @@ class DummyCamera(Service):
             self.images.submit_frame(frame.id)
 
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+
+    def monitor_temperature(self):
+        while not self.shutdown_flag.is_set():
+            temperature = self.get_temperature()
+            self.temperature.submit_data(np.array([temperature]))
+
+            self.shutdown_flag.wait(1)
 
     def start_acquisition(self):
         self.should_be_acquiring.set()
@@ -174,8 +183,7 @@ class DummyCamera(Service):
 
         self._offset_y = offset_y
 
-    @property
-    def temperature(self):
+    def get_temperature(self):
         return np.sin(2 * np.pi * time.time() / 10)
 
     @property

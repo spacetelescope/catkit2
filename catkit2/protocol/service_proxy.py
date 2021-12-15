@@ -63,31 +63,37 @@ class ServiceProxy:
             return val
         elif name in self.command_names:
             # Return function
-            def command(*kwargs):
+            def command(**kwargs):
                 message_data = {'command_name': name, 'arguments': kwargs}
                 res = self.testbed_proxy._make_request('execute_command', message_data, service_name=self.service_name)
 
                 return res
 
             # Save command in the instance so it doesn't need to be created every time.
-            setattr(self, name, command)
+            super().__setattr__(name, command)
 
             return command
         elif name in self.datastream_ids:
             # Return datastream
             stream = DataStream.open(self.datastream_ids[name])
 
-            setattr(self, name, stream)
+            super().__setattr__(name, stream)
 
             return stream
         else:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'.")
 
     def __setattr__(self, name, value):
-        if name in self.property_names:
+        if name in ['_property_names', '_command_names', '_datastream_ids']:
+            super().__setattr__(name, value)
+        elif name in self.property_names:
             # Set property.
             message_data = {'property_name': name, 'value': value}
             self.testbed_proxy._make_request('set_property', message_data, service_name=self.service_name)
+        elif name in self.command_names:
+            raise AttributeError('Cannot set a command.')
+        elif name in self.datastream_ids:
+            raise AttributeError('Cannot set a data stream. Did you mean .submit_data()?')
         else:
             super().__setattr__(name, value)
 

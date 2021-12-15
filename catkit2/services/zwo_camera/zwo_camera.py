@@ -49,6 +49,7 @@ class ZwoCamera(Service):
 
         self.shutdown_flag = threading.Event()
         self.should_be_acquiring = threading.Event()
+        self.should_be_acquiring.set()
 
         # Create lock for camera access
         self.mutex = threading.Lock()
@@ -138,7 +139,7 @@ class ZwoCamera(Service):
         self.temperature_thread.start()
 
     def main(self):
-        while not self.shutdown_flag.test():
+        while not self.shutdown_flag.is_set():
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
@@ -162,7 +163,7 @@ class ZwoCamera(Service):
         timeout = 10000 # ms
 
         try:
-            while self.should_be_acquiring.test() and not self.shutdown_flag.test():
+            while self.should_be_acquiring.is_set() and not self.shutdown_flag.is_set():
                 img = self.camera.capture_video_frame(timeout=timeout)
 
                 self.images.submit_data(img.astype('float32'))
@@ -172,7 +173,7 @@ class ZwoCamera(Service):
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
     def monitor_temperature(self):
-        while not self.shutdown_flag.test():
+        while not self.shutdown_flag.is_set():
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
