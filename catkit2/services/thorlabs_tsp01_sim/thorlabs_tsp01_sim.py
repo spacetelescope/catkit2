@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import threading
 
 from catkit2.protocol.service import Service, parse_service_args
 
@@ -9,7 +10,7 @@ class ThorlabsTSP01Sim(Service):
 
         self.interval = self.configuration.get('interval', 10)
 
-        self.shutdown_flag = False
+        self.shutdown_flag = threading.Event()
 
         self.temperature_internal = self.make_data_stream('temperature_internal', 'float64', [1], 20)
         self.temperature_header_1 = self.make_data_stream('temperature_header_1', 'float64', [1], 20)
@@ -22,7 +23,7 @@ class ThorlabsTSP01Sim(Service):
         self.offsets = np.random.uniform(20, 21, size=3)
 
     def main(self):
-        while not self.shutdown_flag:
+        while not self.shutdown_flag.is_set():
             t1 = self.get_temperature(1)
             t2 = self.get_temperature(2)
             t3 = self.get_temperature(3)
@@ -33,10 +34,10 @@ class ThorlabsTSP01Sim(Service):
             self.temperature_header_2.submit_data(np.array([t3], dtype='float64'))
             self.humidity_internal.submit_data(np.array([h], dtype='float64'))
 
-            time.sleep(self.interval)
+            self.shutdown_flag.wait(self.interval)
 
     def shut_down(self):
-        self.shutdown_flag = True
+        self.shutdown_flag.set()
 
     def get_temperature(self, channel):
         period = self.periods[channel - 1]
