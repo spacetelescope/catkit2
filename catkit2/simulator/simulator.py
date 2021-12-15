@@ -1,3 +1,5 @@
+import heapq
+
 import zmq
 
 from .simulator_pb2 import *

@@ -3,6 +3,7 @@ from catkit2.protocol.service import Service, parse_service_args
 import time
 import sys
 import threading
+import numpy as np
 
 sdk_path = os.environ.get('CATKIT_BOSTON_SDK_PATH')
 if sdk_path is not None:
@@ -29,11 +30,14 @@ class BmcDm(Service):
         for channel in config['channels']:
             self.add_channel(channel)
 
+        channel_names = list(key.lower() for key in config['channels'].keys())
+        self.make_property('channels', lambda: channel_names)
+
         self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.command_length], 20)
         self.total_surface = self.make_data_stream('total_surface', 'float64', [self.command_length], 20)
 
     def add_channel(self, channel_name):
-        self.channels[channel_name] = self.make_data_stream('channel_' + channel_name, 'float64', [self.command_length], 20)
+        self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.command_length], 20)
 
         # Zero-out the channel.
         frame = self.channels[channel_name].submit_data(np.zeros(command_length))

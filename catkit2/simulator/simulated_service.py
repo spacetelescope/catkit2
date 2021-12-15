@@ -1,3 +1,5 @@
+import sys
+
 import zmq
 
 from ..protocol.service import Service
@@ -148,7 +150,7 @@ class SimulatorClient:
                 # Reply is either "ok " + description or "error " + description.
                 reply = reply.decode('ascii')
 
-                if reply.startwith('error '):
+                if reply.startswith('error '):
                     # Raise an error with the error description.
                     raise RuntimeError(reply[6:])
                 else:
