@@ -482,12 +482,10 @@ DataFrame DataStream::GetNextFrame(long wait_time_in_ms, void (*error_check)())
 
 DataFrame DataStream::GetLatestFrame()
 {
-	size_t id = GetNewestAvailableFrameId();
-
-	if (id == 0)
+	if (m_Header->m_LastId == 0)
 		throw std::runtime_error("DataStream does not have any frames when trying to get the latest one.");
 
-	return GetFrame(id, -1);
+	return GetFrame(GetNewestAvailableFrameId(), -1);
 }
 
 BufferHandlingMode DataStream::GetBufferHandlingMode()
