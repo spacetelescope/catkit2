@@ -524,11 +524,11 @@ json Service::OnAllCommandsRequest(const nlohmann::json &data)
 
 json Service::OnAllDataStreamsRequest(const nlohmann::json &data)
 {
-	json streams;
+	std::map<std::string, std::string> streams;
 	for (auto const &i : m_DataStreams)
 		streams[i.first] = i.second->GetStreamId();
 
-	return streams;
+	return json(streams);
 }
 
 json Service::OnShutdownRequest(const nlohmann::json &data)
