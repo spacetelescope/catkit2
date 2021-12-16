@@ -45,6 +45,7 @@ class NewportPicomotor(Service):
         self.shutdown_flag = threading.Event()
 
         self.axis_commands = {}
+        self.axis_current_positions = {}
         self.axis_threads = {}
 
         self.lock_for_setter = threading.Lock()
@@ -54,8 +55,8 @@ class NewportPicomotor(Service):
             self.add_axis(axis_name)
 
     def add_axis(self, axis_name):
-        self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower(), 'int64', [1], 20)
-        self.axis_current_positions[axis_name], self.make_data_stream(axis_name.lower() + '_current_position', 'int64', [1], 20)
+        self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower() + '_command', 'int64', [1], 20)
+        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int64', [1], 20)
 
     def set_current_position(self, axis_name, position):
         axis = self.axes[axis_name]
@@ -114,7 +115,7 @@ class NewportPicomotor(Service):
             thread = threading.Thread(target=self.monitor_axis, args=(axis_name,))
             thread.start()
 
-            self.motor_threads[axis_name] = thread
+            self.axis_threads[axis_name] = thread
 
     def main(self):
         self.shutdown_flag.wait()
@@ -122,7 +123,7 @@ class NewportPicomotor(Service):
     def close(self):
         self.shut_down()
 
-        for thread in self.motor_threads.values():
+        for thread in self.axis_threads.values():
             thread.join()
 
         self.reset_all_axes()

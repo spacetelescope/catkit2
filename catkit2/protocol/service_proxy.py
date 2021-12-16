@@ -50,7 +50,7 @@ class ServiceProxy:
     def configuration(self):
         if self._configuration is None:
             # Request configuration.
-            self._configuration = self.__getattr__(self, 'configuration')
+            self._configuration = self.__getattr__('configuration')
 
         return self._configuration
 

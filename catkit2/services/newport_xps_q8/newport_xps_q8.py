@@ -14,7 +14,7 @@ class NewportXpsQ8(Service):
     _OK_STATES = (7, 11, 12, 42)
 
     def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'flir_camera', testbed_port)
+        Service.__init__(self, service_name, 'newport_xps_q8', testbed_port)
 
         config = self.configuration
 
@@ -28,7 +28,7 @@ class NewportXpsQ8(Service):
 
         self.shutdown_flag = threading.Event()
 
-        self.motors = {}
+        self.motor_commands = {}
         self.motor_current_positions = {}
         self.motor_threads = {}
 
@@ -39,7 +39,7 @@ class NewportXpsQ8(Service):
         self.socket_set = {}
 
     def add_motor(self, motor_id):
-        self.motors[motor_id] = make_data_stream(motor_id.lower(), 'float64', [1], 20)
+        self.motor_commands[motor_id] = self.make_data_stream(motor_id.lower() + '_command', 'float64', [1], 20)
         self.motor_current_positions[motor_id] = self.make_data_stream(motor_id.lower() + '_current_position', 'float64', [1], 20)
 
     def set_current_position(self, motor_id, position):
@@ -121,9 +121,9 @@ class NewportXpsQ8(Service):
         # Initialize motor if not already initialized.
         self._ensure_initialized(motor_id)
 
-        command_stream = self.motors[motor_id]
+        command_stream = self.motor_commands[motor_id]
 
-        while not self.shutdown_flag.test():
+        while not self.shutdown_flag.is_set():
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
@@ -167,23 +167,17 @@ class NewportXpsQ8(Service):
 
         # Start the motor threads
         for motor_id in self.motor_ids:
-            self.motor_threads[motor_id] = threading.Thread(target=self.monitor_motor, args=(motor_id,))
+            thread = threading.Thread(target=self.monitor_motor, args=(motor_id,))
+            thread.start()
+
+            self.motor_threads[motor_id] = thread
 
     def main(self):
-        time_of_last_update = 0
+        while not self.shutdown_flag.is_set():
+            for motor_id in self.motor_ids:
+                self.get_current_position(motor_id)
 
-        while not self.shutdown_flag.test():
-            # Submit current position of each motor at most every `update_interval` seconds.
-            time_since_last_update = time.time() - time_of_last_update
-
-            if time_since_last_update > self.update_interval:
-                for motor_id in self.motor_ids:
-                    self.get_current_position(motor_id)
-
-                time_of_last_update = time.time()
-
-            # Sleep a little bit, but not too long since we need to periodically check the shutdown flag.
-            time.sleep(0.01)
+            self.shutdown_flag.wait(self.update_interval)
 
     def close(self):
         # Stop the motor threads
