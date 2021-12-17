@@ -5,6 +5,7 @@ import time
 import sys
 import threading
 import numpy as np
+from astropy.io import fits
 
 class BmcDmSim(Service):
     def __init__(self, service_name, testbed_port):
@@ -43,9 +44,14 @@ class BmcDmSim(Service):
         frame = self.channels[channel_name].submit_data(np.zeros(self.command_length))
 
     def main(self):
+        self.channel_threads = {}
+
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
-            self.channel_threads[channel_name] = threading.Thread(target=self.monitor_channel, args=(channel_name,))
+            thread = threading.Thread(target=self.monitor_channel, args=(channel_name,))
+            thread.start()
+
+            self.channel_threads[channel_name] = thread
 
         while not self.shutdown_flag:
             time.sleep(0.01)
@@ -81,15 +87,22 @@ class BmcDmSim(Service):
         self.total_surface.submit_data(total_surface)
 
         # Compute the voltages from the request total surface.
-        voltages = self.flat_map + total_surface * self.gain_map
+        voltages = self.flat_map + total_surface * self.gain_map_inv
 
         with self.lock:
-            self.simulator_connection.actuate_dm(-1, self.name, voltages)
+            pass#self.simulator_connection.actuate_dm(-1, self.name, voltages)
 
         # Submit these voltages to the total voltage data stream.
         self.total_voltage.submit_data(voltages)
 
     def open(self):
+        self.flat_map = fits.getdata(self.flat_map_fname)
+        self.gain_map = fits.getdata(self.gain_map_fname)
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            self.gain_map_inv = 1 / self.gain_map
+            self.gain_map_inv[np.abs(self.gain_map) < 1e-10] = 0
+
         zeros = np.zeros(self.command_length, dtype='float64')
         self.send_surface(zeros)
 

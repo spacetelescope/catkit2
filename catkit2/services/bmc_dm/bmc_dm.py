@@ -4,6 +4,7 @@ import time
 import sys
 import threading
 import numpy as np
+from astropy.io import fits
 
 sdk_path = os.environ.get('CATKIT_BOSTON_SDK_PATH')
 if sdk_path is not None:
@@ -50,9 +51,12 @@ class BmcDm(Service):
         while not self.shutdown_flag:
             time.sleep(0.01)
 
-        for thread in self.channel_threads.values():
-            thread.join()
         self.channel_threads = {}
+        for thread in self.channel_threads.values():
+            thread = threading.Thread(target=self.monitor_channel, args=(channel_name,))
+            thread.start()
+
+            self.channel_threads[channel_name] = thread
 
     def shut_down(self):
         self.shutdown_flag = True
@@ -81,7 +85,7 @@ class BmcDm(Service):
 
     def send_surface(self, data):
         # Compute the voltages from the request total surface.
-        voltages = self.flat_map + total_surface * self.gain_map
+        voltages = self.flat_map + total_surface * self.gain_map_inv
 
         with self.lock:
             status = self.device.send_data(total_command)
@@ -93,6 +97,13 @@ class BmcDm(Service):
         self.total_voltage.submit_data(data)
 
     def open(self):
+        self.flat_map = fits.getdata(self.flat_map_fname)
+        self.gain_map = fits.getdata(self.gain_map_fname)
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            self.gain_map_inv = 1 / self.gain_map
+            self.gain_map_inv[np.abs(self.gain_map) < 1e-10] = 0
+
         self.device = bmc.BmcDm()
         status = self.device.open_dm(self.serial_number)
 
