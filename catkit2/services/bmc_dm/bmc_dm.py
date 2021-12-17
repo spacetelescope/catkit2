@@ -2,6 +2,7 @@ from catkit2.protocol.service import Service, parse_service_args
 
 import time
 import sys
+import os
 import threading
 import numpy as np
 from astropy.io import fits
@@ -32,7 +33,7 @@ class BmcDm(Service):
         for channel in config['channels']:
             self.add_channel(channel)
 
-        channel_names = list(key.lower() for key in config['channels'].keys())
+        channel_names = list(channel.lower() for channel in config['channels'])
         self.make_property('channels', lambda: channel_names)
 
         self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.command_length], 20)
@@ -42,22 +43,24 @@ class BmcDm(Service):
         self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.command_length], 20)
 
         # Zero-out the channel.
-        frame = self.channels[channel_name].submit_data(np.zeros(command_length))
+        frame = self.channels[channel_name].submit_data(np.zeros(self.command_length))
 
     def main(self):
+        self.channel_threads = {}
+
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
-            self.channel_threads[channel_name] = threading.Thread(target=self.monitor_channel, args=(channel_name,))
-
-        while not self.shutdown_flag:
-            time.sleep(0.01)
-
-        self.channel_threads = {}
-        for thread in self.channel_threads.values():
             thread = threading.Thread(target=self.monitor_channel, args=(channel_name,))
             thread.start()
 
             self.channel_threads[channel_name] = thread
+
+        while not self.shutdown_flag:
+            time.sleep(0.01)
+
+        for thread in self.channel_threads.values():
+            thread.join()
+        self.channel_threads = {}
 
     def shut_down(self):
         self.shutdown_flag = True
@@ -81,7 +84,7 @@ class BmcDm(Service):
         # Apply the command on the DM.
         self.send_surface(total_surface)
 
-    def send_surface(self, data):
+    def send_surface(self, total_surface):
         # Submit this surface to the total surface data stream.
         self.total_surface.submit_data(total_surface)
 
@@ -112,17 +115,17 @@ class BmcDm(Service):
         if status != bmc.NO_ERR:
             raise RuntimeError(f'Failed to connect: {self.dm.error_string(status)}.')
 
-        command_length = dm.num_actuators()
+        command_length = self.device.num_actuators()
         if self.command_length != command_length:
             raise ValueError(f'Command length in config: {self.command_length}. Command length on hardware: {command_length}.')
 
         zeros = np.zeros(self.command_length, dtype='float64')
-        self.send_data(zeros)
+        self.send_surface(zeros)
 
     def close(self):
         try:
             zeros = np.zeros(self.command_length, dtype='float64')
-            self.send_data(zeros)
+            self.send_surface(zeros)
         finally:
             self.device.close_dm()
             self.device = None

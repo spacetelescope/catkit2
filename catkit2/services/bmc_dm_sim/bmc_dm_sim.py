@@ -30,7 +30,7 @@ class BmcDmSim(Service):
         for channel in config['channels']:
             self.add_channel(channel)
 
-        channel_names = [key.lower() for key in config['channels']]
+        channel_names = [channel.lower() for channel in config['channels']]
         self.make_property('channels', lambda: channel_names)
 
         self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.command_length], 20)
