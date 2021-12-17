@@ -17,6 +17,7 @@ class BmcDmSim(Service):
         self.command_length = config['command_length']
         self.flat_map_fname = config['flat_map_fname']
         self.gain_map_fname = config['gain_map_fname']
+        self.max_volts = config['max_volts']
 
         self.flat_map = np.zeros(self.command_length)
         self.gain_map = np.ones(self.command_length)
@@ -88,6 +89,7 @@ class BmcDmSim(Service):
 
         # Compute the voltages from the request total surface.
         voltages = self.flat_map + total_surface * self.gain_map_inv
+        voltages /= self.max_volts
 
         with self.lock:
             pass#self.simulator_connection.actuate_dm(-1, self.name, voltages)

@@ -22,6 +22,7 @@ class BmcDm(Service):
         self.command_length = config['command_length']
         self.flat_map_fname = config['flat_map_fname']
         self.gain_map_fname = config['gain_map_fname']
+        self.max_volts = config['max_volts']
 
         self.lock = threading.Lock()
         self.shutdown_flag = False
@@ -77,24 +78,25 @@ class BmcDm(Service):
         for stream in self.channels.values():
             total_surface += stream.get_latest_frame().data
 
-        # Submit this surface to the total surface data stream.
-        self.total_surface.submit_data(total_surface)
-
         # Apply the command on the DM.
         self.send_surface(total_surface)
 
     def send_surface(self, data):
+        # Submit this surface to the total surface data stream.
+        self.total_surface.submit_data(total_surface)
+
         # Compute the voltages from the request total surface.
         voltages = self.flat_map + total_surface * self.gain_map_inv
+        voltages /= self.max_volts
 
         with self.lock:
-            status = self.device.send_data(total_command)
+            status = self.device.send_data(voltages)
 
             if status != bmc.NO_ERR:
                 raise RuntimeError(f'Failed to send data: {self.device.error_string(status)}.')
 
         # Submit these voltages to the total voltage data stream.
-        self.total_voltage.submit_data(data)
+        self.total_voltage.submit_data(voltages)
 
     def open(self):
         self.flat_map = fits.getdata(self.flat_map_fname)
