@@ -89,7 +89,7 @@ class FlirCamera(Service):
         self.should_be_acquiring.set()
 
         # Create lock for camera access
-        self.mutex = Lock()
+        self.mutex = threading.Lock()
 
     def open(self):
         config = self.configuration
@@ -117,15 +117,6 @@ class FlirCamera(Service):
         self.cam.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
         self.cam.TLStream.StreamBufferHandlingMode.SetValue(PySpin.StreamBufferHandlingMode_NewestOnly)
 
-        # Set properties from config.
-        self.width = config['width']
-        self.height = config['height']
-        self.offset_x = config['offset_x']
-        self.offset_y = config['offset_y']
-
-        self.pixel_format = config['pixel_format']
-        self.adc_bit_depth = config['adc_bit_depth']
-
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
@@ -140,6 +131,15 @@ class FlirCamera(Service):
                 self.make_property(name, lambda: getattr(self, name))
             else:
                 self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
+
+        # Set properties from config.
+        self.width = config['width']
+        self.height = config['height']
+        self.offset_x = config['offset_x']
+        self.offset_y = config['offset_y']
+
+        self.pixel_format = config['pixel_format']
+        self.adc_bit_depth = config['adc_bit_depth']
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
