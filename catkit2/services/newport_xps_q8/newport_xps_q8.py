@@ -2,6 +2,7 @@ from catkit2.protocol.service import Service, parse_service_args
 
 import time
 import sys
+import os
 import threading
 import numpy as np
 
@@ -67,7 +68,7 @@ class NewportXpsQ8(Service):
 
         # Update current position data stream.
         stream = self.motor_current_positions[motor_id]
-        stream.submit_data(np.array([current_position]))
+        stream.submit_data(np.array([current_position], dtype='float64'))
 
         return current_position
 
@@ -119,7 +120,7 @@ class NewportXpsQ8(Service):
 
     def monitor_motor(self, motor_id):
         # Initialize motor if not already initialized.
-        self._ensure_initialized(motor_id)
+        #self._ensure_initialized(motor_id)
 
         command_stream = self.motor_commands[motor_id]
 
@@ -145,14 +146,14 @@ class NewportXpsQ8(Service):
             self.socket_set = {}
 
             for motor_id in self.motor_ids:
-                socket_id_get = self.device.TCP_ConnectToServer(self.host, self.port, self.timeout)
+                socket_id_get = self.device.TCP_ConnectToServer(self.ip_address, self.port, self.timeout)
 
                 if socket_id_get == -1:
                     raise RuntimeError('Connection to XPS failed, check IP & port (invalid socket)')
 
                 self.socket_get[motor_id] = (socket_id_get, threading.Lock())
 
-                socket_id_set = self.device.TCP_ConnectToServer(self.host, self.port, self.timeout)
+                socket_id_set = self.device.TCP_ConnectToServer(self.ip_address, self.port, self.timeout)
                 if socket_id_set == -1:
                     raise RuntimeError('Connection to XPS failed, check IP & port (invalid socket)')
 
@@ -188,12 +189,12 @@ class NewportXpsQ8(Service):
 
         self.motor_threads = {}
 
-        # Close the socket to the driver.
-        if self.socket_id is not None:
-            try:
-                self.device.TCP_CloseSocket(self.socket_id)
-            finally:
-                self.socket_id = None
+        # Close the opened sockets.
+        for socket_id, lock in self.socket_get.values():
+            self.device.TCP_CloseSocket(socket_id)
+
+        for socket_id, lock in self.socket_set.values():
+            self.device.TCP_CloseSocket(socket_id)
 
     def shut_down(self):
         self.shutdown_flag.set()

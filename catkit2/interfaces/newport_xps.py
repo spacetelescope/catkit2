@@ -5,7 +5,7 @@ from ..protocol.service_proxy import ServiceProxy
 @ServiceProxy.register_service_interface('newport_xps_q8')
 class NewportXpsQ8Proxy(ServiceProxy):
     def move_absolute(self, motor_id, position, timeout=float('inf')):
-        command_stream = getattr(self, motor_id.lower())
+        command_stream = getattr(self, motor_id.lower() + '_command')
         current_position_stream = getattr(self, motor_id.lower() + '_current_position')
 
         position = self.resolve_position(motor_id, position)
@@ -40,11 +40,11 @@ class NewportXpsQ8Proxy(ServiceProxy):
         self.move_absolute(motor_id, new_position, timeout=timeout)
 
     def resolve_position(self, motor_id, position_name):
-        if type(position) == str:
+        if type(position_name) == str:
             # The position is a named position.
-            position = self.motor_positions[motor_id][position_name]
+            position = self.configuration['motors'][motor_id][position_name]
 
             # The position may still be a named position, so try to resolve deeper.
             return self.resolve_position(motor_id, position)
         else:
-            return position
+            return position_name
