@@ -20,6 +20,8 @@ class WebPowerSwitch(Service):
         self.dns = config['dns']
 
         self.outlet_ids = config['outlets']
+        
+        self.shutdown_flag = threading.Event()
 
         self.outlets = {}
         for outlet_name in self.outlet_ids.keys():
@@ -29,7 +31,7 @@ class WebPowerSwitch(Service):
         self.outlets[outlet_name] = self.make_data_stream(outlet_name, 'int8', [1], 20)
 
     def monitor_outlet(self, outlet_name):
-        while not self.shutdown_flag:
+        while not self.shutdown_flag.is_set():
             try:
                 frame = self.outlets[outlet_name].get_next_frame(10)
             except:
@@ -44,7 +46,7 @@ class WebPowerSwitch(Service):
         outlet_id = self.outlet_ids[outlet_name]
 
         script_line = outlet_id * 4 if on else outlet_id * 4 - 2
-        ip_string = f'http://{self.ip}/script?run{script_line:03d}=run'
+        ip_string = f'http://{self.ip_address}/script?run{script_line:03d}=run'
 
         response = requests.get(ip_string, auth=(self.user, self.password))
         response.raise_for_status()
@@ -54,24 +56,28 @@ class WebPowerSwitch(Service):
 
     def open(self):
         # Start the outlet threads
+        self.outlet_threads = {}
+
         for outlet_name in self.outlet_ids.keys():
-            self.outlet_threads[outlet_name] = threading.Thread(target=self.monitor_outlet, args=(outlet_name,))
+            thread = threading.Thread(target=self.monitor_outlet, args=(outlet_name,))
+            thread.start()
+
+            self.outlet_threads[outlet_name] = thread
 
     def main(self):
-        while not self.shutdown_flag:
-            time.sleep(0.01)
+        self.shutdown_flag.wait()
 
     def close(self):
         # Stop the outlet threads
-        self.shutdown_flag = True
+        self.shutdown_flag.set()
 
         for thread in self.outlet_threads.values():
             thread.join()
 
         self.outlet_threads = {}
 
-    def shutdown(self):
-        self.shutdown_flag = True
+    def shut_down(self):
+        self.shutdown_flag.set()
 
 if __name__ == '__main__':
     service_name, testbed_port = parse_service_args()
