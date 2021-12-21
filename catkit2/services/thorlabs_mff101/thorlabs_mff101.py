@@ -1,7 +1,9 @@
 from catkit2.protocol.service import Service, parse_service_args
 
 import time
+import threading
 import ftd2xx
+import numpy as np
 
 class ThorlabsMFF101(Service):
     _MOVE_TO_POSITION_1 = b"\x6A\x04\x00\x01\x21\x01"
@@ -9,21 +11,21 @@ class ThorlabsMFF101(Service):
     _BLINK_LED = b"\x23\x02\x00\x00\x21\x01"
 
     def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'snmp_ups', testbed_port)
+        Service.__init__(self, service_name, 'thorlabs_mff101', testbed_port)
 
         config = self.configuration
 
         self.serial_number = config['serial_number']
         self.current_position = None
 
-        self.shutdown_flag = False
+        self.shutdown_flag = threading.Event()
 
         self.position = self.make_data_stream('position', 'int8', [1], 20)
 
         self.make_command('blink_led', self.blink_led)
 
     def main(self):
-        while not self.shutdown_flag:
+        while not self.shutdown_flag.is_set():
             try:
                 frame = self.position.get_next_frame(10)
             except:
@@ -35,7 +37,7 @@ class ThorlabsMFF101(Service):
             self.set_position(position)
 
     def shut_down(self):
-        self.shutdown_flag = True
+        self.shutdown_flag.set()
 
     def open(self):
         self.connection = ftd2xx.openEx(str(self.serial_number).encode())
