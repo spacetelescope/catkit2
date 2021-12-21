@@ -90,11 +90,17 @@ class ZwoCamera(Service):
         # Set image format to be RAW16, although camera is only 12-bit.
         self.camera.set_image_type(zwoasi.ASI_IMG_RAW16)
 
-        # Set device values from config file
-        self.subarray_x = config.get('subarray_x', 0)
-        self.subarray_y = config.get('subarray_y', 0)
-        self.width = config.get('width', self.sensor_width - self.subarray_x)
-        self.height = config.get('height', self.sensor_height - self.subarray_y)
+        # Set device values from config file (set width and height before offsets)
+        offset_x = config.get('offset_x', 0)
+        offset_y = config.get('offset_y', 0)
+
+        self.width = config.get('width', self.sensor_width - offset_x)
+        self.height = config.get('height', self.sensor_height - offset_y)
+        self.offset_x = offset_x
+        self.offset_y = offset_y
+
+        self.gain = config.get('gain', 0)
+        self.exposure_time = config.get('exposure_time', 1000)
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
@@ -204,7 +210,7 @@ class ZwoCamera(Service):
 
     @gain.setter
     def gain(self, gain):
-        self.camera.set_control_value(zwoasi.ASI_GAIN, gain)
+        self.camera.set_control_value(zwoasi.ASI_GAIN, int(gain))
 
     def get_temperature(self):
         temperature_times_ten, auto = self.camera.get_control_value(zwoasi.ASI_TEMPERATURE)
