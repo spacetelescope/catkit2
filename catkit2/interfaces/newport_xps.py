@@ -26,6 +26,9 @@ class NewportXpsQ8Proxy(ServiceProxy):
                         break
 
                     frame = current_position_stream.get_next_frame(wait_time_ms)
+
+                    if abs(frame.data[0] - distance) < self.atol:
+                        break
                 except RuntimeError:
                     # Timed out. This is to facilitate wait time checking.
                     continue
@@ -33,7 +36,7 @@ class NewportXpsQ8Proxy(ServiceProxy):
     def move_relative(self, motor_id, distance, timeout=float('inf')):
         # Get current position.
         stream = getattr(self, motor_id.lower() + '_current_position')
-        current_position = stream.get_latest_frame().data[0]
+        current_position = stream.get()
 
         new_position = current_position + distance
 
@@ -42,9 +45,17 @@ class NewportXpsQ8Proxy(ServiceProxy):
     def resolve_position(self, motor_id, position_name):
         if type(position_name) == str:
             # The position is a named position.
-            position = self.configuration['motors'][motor_id][position_name]
+            position = self.positions[motor_id][position_name]
 
             # The position may still be a named position, so try to resolve deeper.
             return self.resolve_position(motor_id, position)
         else:
             return position_name
+
+    @property
+    def positions(self):
+        return {key.lower(): value for key, value in self.configuration['motors'].items()}
+
+    @property
+    def atol(self):
+        return self.configuration['atol']
