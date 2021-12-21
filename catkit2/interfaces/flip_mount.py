@@ -1,19 +1,23 @@
 from ..protocol.service_proxy import ServiceProxy
 
 import numpy as np
+import time
 
 @ServiceProxy.register_service_interface('flip_mount')
 class FlipMountProxy(ServiceProxy):
-    def move_to(self, position):
+    def move_to(self, position, wait=True):
         position = self.resolve_position(position)
 
         self.position.submit_data(np.array([position], dtype='int8'))
 
-    def move_in_beam(self):
-        self.move_to('in_beam')
+        if wait:
+            time.sleep(1)
 
-    def move_out_of_beam(self):
-        self.move_to('out_of_beam')
+    def move_in_beam(self, wait=True):
+        self.move_to('in_beam', wait)
+
+    def move_out_of_beam(self, wait=True):
+        self.move_to('out_of_beam', wait)
 
     def resolve_position(self, position):
         if isinstance(position, str):
