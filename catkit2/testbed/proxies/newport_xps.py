@@ -1,6 +1,6 @@
 import time
 
-from ..protocol.service_proxy import ServiceProxy
+from ..service_proxy import ServiceProxy
 
 @ServiceProxy.register_service_interface('newport_xps_q8')
 class NewportXpsQ8Proxy(ServiceProxy):

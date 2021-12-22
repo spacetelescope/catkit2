@@ -5,7 +5,7 @@ import os
 import time
 import numpy as np
 
-from catkit2.protocol.service import Service, parse_service_args
+from catkit2.testbed.service import Service, parse_service_args
 
 class ThorlabsTSP01(Service):
     _BUFFER_SIZE = 256

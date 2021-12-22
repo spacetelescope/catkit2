@@ -1,15 +1,13 @@
-from . import protocol
-from . import interfaces
+from . import testbed
 from . import simulator
 from . import config
 
-from .protocol import *
-from .interfaces import *
+from .testbed import *
 from .simulator import *
 from .config import *
 
 __all__ = []
-__all__.extend(protocol.__all__)
+__all__.extend(testbed.__all__)
 __all__.extend(interfaces.__all__)
 __all__.extend(simulator.__all__)
 

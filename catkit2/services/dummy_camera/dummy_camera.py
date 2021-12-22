@@ -3,7 +3,7 @@
 import os
 os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 
-from catkit2.protocol.service import Service, parse_service_args
+from catkit2.testbed.service import Service, parse_service_args
 
 import time
 from hcipy import *

@@ -3,7 +3,7 @@ import heapq
 import zmq
 
 from .simulator_pb2 import *
-from ..protocol import Service
+from ..testbed.service import Service
 
 def simulator_request_handler(request_class):
     def decorator(func):

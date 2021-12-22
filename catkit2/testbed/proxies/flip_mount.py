@@ -1,4 +1,4 @@
-from ..protocol.service_proxy import ServiceProxy
+from ..service_proxy import ServiceProxy
 
 import numpy as np
 import time

@@ -1,5 +1,5 @@
-from catkit2.protocol.service import Service, parse_service_args
-from catkit2.protocol.client import TestbedClient
+from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.client import TestbedClient
 from catkit2.catkit_bindings import get_timestamp
 
 import time

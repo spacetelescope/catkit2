@@ -5,7 +5,7 @@ import threading
 import requests
 import numpy as np
 
-from catkit2.protocol.service import Service, parse_service_args
+from catkit2.testbed.service import Service, parse_service_args
 
 class WebPowerSwitch(Service):
     _OK_STATES = (7, 11, 12, 42)
@@ -20,7 +20,7 @@ class WebPowerSwitch(Service):
         self.dns = config['dns']
 
         self.outlet_ids = config['outlets']
-        
+
         self.shutdown_flag = threading.Event()
 
         self.outlets = {}

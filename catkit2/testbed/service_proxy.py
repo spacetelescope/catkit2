@@ -3,7 +3,7 @@ import json
 import os
 import argparse
 
-from .constants import *
+from .protocol import *
 from ..catkit_bindings import DataStream
 
 class ServiceProxy:

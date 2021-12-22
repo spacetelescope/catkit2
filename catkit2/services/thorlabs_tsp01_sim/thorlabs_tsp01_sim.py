@@ -2,7 +2,7 @@ import numpy as np
 import time
 import threading
 
-from catkit2.protocol.service import Service, parse_service_args
+from catkit2.testbed.service import Service, parse_service_args
 
 class ThorlabsTSP01Sim(Service):
     def __init__(self, service_name, testbed_port):

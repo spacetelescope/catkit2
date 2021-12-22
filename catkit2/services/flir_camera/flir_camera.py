@@ -4,7 +4,7 @@ import time
 from PySpin import PySpin
 import numpy as np
 
-from catkit2.protocol.service import Service, parse_service_args
+from catkit2.testbed.service import Service, parse_service_args
 
 def _create_property(flir_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):

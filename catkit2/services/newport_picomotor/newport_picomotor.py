@@ -1,4 +1,4 @@
-from catkit2.protocol.service import Service, parse_service_args
+from catkit2.testbed.service import Service, parse_service_args
 
 import threading
 import numpy as np

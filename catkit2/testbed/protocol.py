@@ -7,7 +7,6 @@ CONFIGURATION_ID = b'CONFIGURATION'
 HEARTBEAT_ID = b'HEARTBEAT'
 REQUEST_ID = b'REQUEST'
 REPLY_ID = b'REPLY'
-ERROR_ID = b'ERROR'
 
 # Needs to miss `liveness` heartbeats to be considered dead.
 HEARTBEAT_LIVENESS = 5

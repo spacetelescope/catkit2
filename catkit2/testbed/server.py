@@ -12,7 +12,7 @@ import psutil
 import zmq
 import yaml
 
-from .constants import *
+from .protocol import *
 from ..config import read_config_files
 from ..catkit_bindings import LogConsole, LogPublish
 from .log_handler import *

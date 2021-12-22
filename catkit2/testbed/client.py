@@ -4,11 +4,11 @@ import os
 import argparse
 import threading
 
-from .constants import *
+from .protocol import *
 from ..catkit_bindings import DataStream
 
-from ..protocol.service_proxy import ServiceProxy
-from ..interfaces import *
+from .service_proxy import ServiceProxy
+from .proxies import *
 
 class TestbedClient(object):
     def __init__(self, server_port):
@@ -123,7 +123,7 @@ class TestbedClient(object):
     def start_new_experiment(self, experiment_name, metadata=None):
         if metadata is None:
             metadata = {}
-        
+
         data = {
             'experiment_name': experiment_name,
             'metadata': metadata

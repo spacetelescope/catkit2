@@ -1,4 +1,4 @@
-from ..protocol.service_proxy import ServiceProxy
+from ..service_proxy import ServiceProxy
 
 @ServiceProxy.register_service_interface('camera')
 class CameraProxy(ServiceProxy):
