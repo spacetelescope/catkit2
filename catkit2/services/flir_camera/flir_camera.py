@@ -113,7 +113,7 @@ class FlirCamera(Service):
         self.cam.GainAuto.SetValue(PySpin.GainAuto_Off)
         self.cam.GammaEnable.SetValue(False)
         self.cam.BlackLevelClampingEnable.SetValue(True)
-        self.cam.BlackLevel.SetValue(5 / 255 * 100)
+        self.cam.BlackLevel.SetValue(1 / 255 * 100)
         self.cam.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
         self.cam.TLStream.StreamBufferHandlingMode.SetValue(PySpin.StreamBufferHandlingMode_NewestOnly)
 
