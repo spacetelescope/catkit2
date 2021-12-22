@@ -8,7 +8,6 @@ from .config import *
 
 __all__ = []
 __all__.extend(testbed.__all__)
-__all__.extend(interfaces.__all__)
 __all__.extend(simulator.__all__)
 
 from .version import get_version

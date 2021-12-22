@@ -2,8 +2,8 @@ import sys
 
 import zmq
 
-from ..protocol.service import Service
-from ..protocol.client import TestbedClient
+from ..testbed.service import Service
+from ..testbed.client import TestbedClient
 from .simulator_pb2 import *
 
 def numpy_to_proto(arr, out=None):
