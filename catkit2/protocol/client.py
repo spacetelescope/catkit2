@@ -119,3 +119,14 @@ class TestbedClient(object):
             self._config = self._make_request('configuration')
 
         return self._config
+
+    def start_new_experiment(self, experiment_name, metadata=None):
+        if metadata is None:
+            metadata = {}
+        
+        data = {
+            'experiment_name': experiment_name,
+            'metadata': metadata
+        }
+
+        return self._make_request('start_new_experiment', data=data)
