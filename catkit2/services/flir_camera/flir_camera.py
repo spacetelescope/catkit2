@@ -218,8 +218,7 @@ class FlirCamera(Service):
                     if image_result.IsIncomplete():
                         continue
 
-                    img = image_result.Convert(pixel_format).GetData().astype(pixel_dtype)
-                    img = img.reshape((image_result.GetHeight(), image_result.GetWidth()))
+                    img = image_result.Convert(pixel_format).GetNDArray().astype(pixel_dtype, copy=False)
 
                     # Submit image to datastream.
                     self.images.submit_data(img)
