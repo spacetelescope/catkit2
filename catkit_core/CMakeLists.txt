@@ -23,8 +23,6 @@ add_library(catkit_core STATIC
     Property.cpp
     Service.cpp)
 
-target_include_directories(catkit_core PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
-
 # Use local version of ZeroMQ
 set(ZeroMQ_LIBRARY ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/build/lib/Release/libzmq-static-v142-mt-s-4_2_1.lib)
 set(ZeroMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/include)
@@ -34,7 +32,9 @@ add_definitions(-DZMQ_STATIC)
 # Link ZeroMQ
 target_include_directories(catkit_core PUBLIC ${ZeroMQ_INCLUDE_DIR})
 target_link_libraries(catkit_core PUBLIC ${ZeroMQ_LIBRARY})
-target_link_libraries(catkit_core PUBLIC wsock32 ws2_32 Iphlpapi)
+if (WIN32)
+  target_link_libraries(catkit_core PUBLIC wsock32 ws2_32 Iphlpapi)
+endif (WIN32)
 
 # Add includes for cppzmq
 set(CPPZMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/cppzmq-4.7.1)
@@ -50,4 +50,9 @@ target_include_directories(catkit_core PUBLIC ${JSON_INCLUDE_DIR})
 
 # Add install files
 install(TARGETS catkit_core DESTINATION lib)
-install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/ DESTINATION include/catkit_core)
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        DESTINATION include
+        FILES_MATCHING
+        PATTERN "*.h"
+        PATTERN "*.inl"
+)

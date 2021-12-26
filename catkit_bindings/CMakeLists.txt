@@ -11,6 +11,7 @@ add_subdirectory(../extern/pybind11 pybind11)
 pybind11_add_module(catkit_bindings ${SOURCES})
 
 target_include_directories(catkit_bindings PUBLIC ../extern/pybind11_json-0.2.11/include)
+target_include_directories(catkit_bindings PUBLIC ../catkit_core)
 
 target_link_libraries(catkit_bindings PUBLIC catkit_core)
 
