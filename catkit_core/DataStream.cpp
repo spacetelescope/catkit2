@@ -283,6 +283,11 @@ void DataStream::SubmitFrame(size_t id)
 	// Notify waiting processes.
 	long num_readers_waiting = m_Header->m_NumReadersWaiting.exchange(0);
 
+	// If a reader times out in between us reading the number of readers that are waiting
+	// and us releasing the semaphore, we are releasing one too many readers. This
+	// results in a future reader being released immediately, which is not a problem,
+	// as there are checks in place for that.
+
 	if (num_readers_waiting > 0)
 		ReleaseSemaphore(m_FrameWritten, (LONG) num_readers_waiting, NULL);
 }
@@ -408,7 +413,15 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 		while (m_Header->m_LastId <= id)
 		{
 			if (res == WAIT_OBJECT_0)
-				m_Header->m_NumReadersWaiting++;
+			{
+				// Increment the number of readers that are waiting, making sure the counter
+				// is at least 1 after the increment. This can occur when a previous reader got
+				// interrupted and the trigger happening before decrementing the
+				// m_NumReadersWaiting counter.
+				while (m_Header->m_NumReadersWaiting++ < 0)
+				{
+				}
+			}
 
 			// Wait for a maximum of 20ms to perform periodic error checking.
 			auto res = WaitForSingleObject(m_FrameWritten, (unsigned long) min(20, wait_time_in_ms));
