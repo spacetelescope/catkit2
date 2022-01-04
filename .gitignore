@@ -9,3 +9,6 @@ __pycache__/
 *CMakeCache.txt
 extern/*/
 *_pb2.py
+docs/doxygen/xml/
+docs/_build
+docs/api
