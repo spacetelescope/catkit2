@@ -38,11 +38,28 @@ def _read_config_file(config_file):
     loader = _get_yaml_loader(config_file.parent)
 
     conf = yaml.load(contents, Loader=loader)
-    config[config_file.name[:-4]] = conf
+    config[os.path.splitext(config_file.name)[0]] = conf
 
     return config
 
 def read_config_files(config_files):
+    '''Read all configuration files and return a single configuration.
+
+    `config_files` is an ordered list. Files later in this list will overwrite
+    the read in values from files earlier in the list. Each file creates its own
+    section in the returned configuration dictionary, named after its filename
+    without file extension.
+
+    Parameters
+    ----------
+    config_files : list of Path objects
+        A list of configuration files to be read in.
+
+    Returns
+    -------
+    dict
+        A dictionary containing all configuration as read in from the files.
+    '''
     config = {}
 
     for config_file in config_files:

@@ -18,12 +18,42 @@ from ..catkit_bindings import LogConsole, LogPublish
 from .log_handler import *
 
 def decode_json(json_bytes):
+    '''Decode the byte array into a string and interpret as JSON.
+
+    Parameters
+    ----------
+    json_bytes : bytearray
+        The bytes to decode.
+
+    Returns
+    -------
+    Python object
+        The JSON decoded object.
+
+    Raises
+    ------
+    RuntimeError
+        If the JSON is malformed.
+    '''
     try:
         return json.loads(json_bytes.decode('ascii'))
     except json.JSONDecodeError as err:
         raise RuntimeError(f'JSON of data is malformed: "{err.msg}".') from err
 
 class LoggingProxy:
+    '''A proxy to collect log messages from services and clients, and re-publish them.
+
+    This proxy operates on a separate thread after it is started.
+
+    Parameters
+    ----------
+    context : zmq.Context
+        A previously-created ZMQ context. All sockets will be created on this context.
+    input_port : integer
+        The port number for the incoming log messages.
+    output_port : integer
+        The port number for the outgoing log messages.
+    '''
     def __init__(self, context, input_port, output_port):
         self.context = context
         self.input_port = input_port
@@ -33,16 +63,28 @@ class LoggingProxy:
         self.thread = None
 
     def start(self):
+        '''Start the proxy thread.
+        '''
         self.thread = threading.Thread(target=self.forwarder)
         self.thread.start()
 
     def stop(self):
+        '''Stop the proxy thread.
+
+        This function waits until the thread is actually stopped.
+        '''
         self.shutdown_flag.set()
 
         if self.thread:
             self.thread.join()
 
     def forwarder(self):
+        '''Create sockets and republish all received log messages.
+
+        .. note::
+            This function should not be called directly. Use
+            :func:`~catkit2.testbed.LoggingProxy.start` to start the proxy.
+        '''
         collector = self.context.socket(zmq.PULL)
         collector.RCVTIMEO = 50
         collector.bind(f'tcp://*:{self.input_port}')
@@ -69,6 +111,19 @@ class LoggingProxy:
             # TODO: Write to a file.
 
 class ServiceReference:
+    '''A reference to a service process.
+
+    Parameters
+    ----------
+    process : psutil.Process
+        The process belonging to this service.
+    service_type : string
+        The type of the service that is running on this process.
+    service_name : string
+        The name of the service that is running on this process.
+    server : Server
+        The server object on which the service is registered.
+    '''
     def __init__(self, process, service_type, service_name, server):
         self.process = process
         self.service_type = service_type
@@ -79,13 +134,14 @@ class ServiceReference:
         self._socket_identity = None
         self._request_queue = []
         self.expiry_time = 0
-        self._is_ready = False
         self.is_open = False
 
         self.last_sent_heartbeat = 0
 
     @property
     def socket_identity(self):
+        '''The ZMQ socket identity associated with this service.
+        '''
         return self._socket_identity
 
     @socket_identity.setter
@@ -99,6 +155,11 @@ class ServiceReference:
 
     @property
     def is_alive(self):
+        '''Whether this service is still alive.
+
+        A service is deemed alive when its process is running, and
+        if heartbeats have been received within the allotted time.
+        '''
         if self.process.is_running():
             if self.is_connected:
                 return self.expiry_time > time.time()
@@ -108,24 +169,45 @@ class ServiceReference:
 
     @property
     def is_connected(self):
+        '''Whether the service is connected to the server.
+        '''
         return self.socket_identity is not None and self.process.is_running()
 
-    @property
-    def is_ready(self):
-        return self._is_ready
-
     def send_request(self, client_identity, request):
+        '''Send a request to this service.
+
+        .. note::
+            The request will be added to a queue if the service is not yet open.
+            All requests will be sent to the service as soon as an opened message
+            is received by the server.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The client that initiated the request.
+        request : dictionary
+            The request from the client.
+        '''
         self.log.debug(f'Sending request to {self.service_name}.')
         self._request_queue.append([client_identity, request])
 
         self.dispatch_all()
 
     def send_configuration(self, configuration):
+        '''Send a service configuration to the service.
+
+        Parameters
+        ----------
+        configuration : dictionary
+            The configuration to send.
+        '''
         self.log.debug(f'Sending configuration to {self.service_name}.')
 
         self.server.send_message(self.socket_identity, CONFIGURATION_ID, data=configuration)
 
     def dispatch_all(self):
+        '''Send all messsages in the message queue to the service if it has been opened.
+        '''
         if self.is_open:
             for client_identity, data in self._request_queue:
                 self.server.send_message(self.socket_identity, REQUEST_ID, client_identity=client_identity, data=data)
@@ -133,6 +215,8 @@ class ServiceReference:
             self._request_queue = []
 
     def on_opened(self):
+        '''Handler for receival of an opened message from a service.
+        '''
         self.on_heartbeat()
 
         self.is_open = True
@@ -141,9 +225,16 @@ class ServiceReference:
         self.dispatch_all()
 
     def on_heartbeat(self):
+        '''Handler for receival of a heartbeat message from a service.
+        '''
         self.expiry_time = time.time() + HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS
 
     def send_heartbeat(self):
+        '''Send a heartbeat message to the service if one is needed.
+
+        This function is safe to be called as many times as needed, and will not flood
+        the service with messages.
+        '''
         if self.is_connected and (self.last_sent_heartbeat + HEARTBEAT_INTERVAL) < time.time():
             self.last_sent_heartbeat = time.time()
 
@@ -151,6 +242,8 @@ class ServiceReference:
             self.server.send_message(self.socket_identity, HEARTBEAT_ID)
 
     def send_keyboard_interrupt(self):
+        '''Send a keyboard interrupt to the service.
+        '''
         ctrl_c_code = ';'.join([
             'import ctypes',
             'kernel = ctypes.windll.kernel32',
@@ -164,15 +257,44 @@ class ServiceReference:
             psutil.Popen([sys.executable, '-c', ctrl_c_code.format(pid=self.process.pid)])
 
     def terminate(self):
+        '''Terminate the service.
+
+        This kills the process directly and should be used as a last resort.
+        '''
         self.process.terminate()
 
     @staticmethod
     def wait_for_termination(services, timeout):
+        '''Wait for termination of a list of services until timeout.
+
+        This function will block until all services have been closed, or when
+        the timeout occurs.
+
+        Parameters
+        ----------
+        services : list of Service objects
+            The list of services to wait for termination.
+        timeout : float or None
+            The timeout in seconds. If this is None, this function will wait indefinitely.
+        '''
         procs = [s.process for n, s in services.items()]
 
         gone, alive = psutil.wait_procs(procs, timeout)
 
 class TestbedServer:
+    '''Manages services and client-service communcation.
+
+    Parameters
+    ----------
+    port : integer
+        The port on which the server should operate.
+    is_simulated : boolean
+        Whether the server should operate in simulated mode or not.
+        This changes whether a simulated or hardware service is launched when
+        a specific service is requested.
+    config_files : list of Path objects
+        The ordered list of configuration files to read in.
+    '''
     def __init__(self, port, is_simulated, config_files):
         self.port = port
         self.is_simulated = is_simulated
@@ -234,6 +356,8 @@ class TestbedServer:
         }
 
     def run(self):
+        '''Run the main loop of the server.
+        '''
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
 
@@ -271,6 +395,8 @@ class TestbedServer:
             self.context = None
 
     def setup_logging(self):
+        '''Set up all logging.
+        '''
         self.log_handler = CatkitLogHandler()
         logging.getLogger().addHandler(self.log_handler)
 
@@ -278,11 +404,15 @@ class TestbedServer:
         self.log_publish = LogPublish('server', f'tcp://localhost:{self.port + 1}')
 
     def destroy_logging(self):
+        '''Shut down all logging.
+        '''
         if self.log_handler:
             logging.getLogger().removeHandler(self.log_handler)
             self.log_handler = None
 
     def purge_stopped_services(self):
+        '''Remove services that are no longer alive from the list of running services.
+        '''
         dead_services = [service_name for service_name, service in self.services.items() if not service.is_alive]
 
         for service_name in dead_services:
@@ -293,10 +423,20 @@ class TestbedServer:
             del self.services[service_name]
 
     def send_heartbeats(self):
+        '''Send a heartbeat message to any service that needs one.
+
+        This function is safe to call as many times as needed. Services will not
+        get flooded with messages.
+        '''
         for service in self.services.values():
             service.send_heartbeat()
 
     def handle_incoming_message(self):
+        '''Try to receive and handle an incoming message.
+
+        This function blocks until a message is handled, or when the socket
+        timeout occurs.
+        '''
         try:
             try:
                 # Receive multipart message.
@@ -331,13 +471,30 @@ class TestbedServer:
                 return
 
     def start_logging_proxy(self):
+        '''Start the logging proxy.
+        '''
         self.logging_proxy = LoggingProxy(self.context, self.port + 1, self.port + 2)
         self.logging_proxy.start()
 
     def stop_logging_proxy(self):
+        '''Stop the logging proxy.
+        '''
         self.logging_proxy.stop()
 
     def on_client_request(self, client_identity, service_name, parts):
+        '''Handler for messages from clients.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        service_name : string
+            The name of the service that this request is meant for. If this is
+            "server", then the message is meant for this server rather than any
+            service.
+        parts : list of ZMQ messages
+            The remaining parts of the incoming request.
+        '''
         request = decode_json(parts[0])
         request_type = request['request_type']
         request_data = request['data']
@@ -355,6 +512,18 @@ class TestbedServer:
                 service.send_request(client_identity, request)
 
     def on_require_service(self, client_identity, request_data):
+        '''Handler for a require service request.
+
+        This handler makes sure that a certain service is running, and if it's not,
+        the server will launch it.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        request_data : dictionary
+            The data for this request. This should contain the service name.
+        '''
         # Ensure that service is started.
         service_name = request_data['service_name']
 
@@ -377,6 +546,15 @@ class TestbedServer:
         self.send_reply_ok(client_identity, 'require_service', reply_data)
 
     def on_running_services(self, client_identity, request_data):
+        '''Handler for a running services request.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        request_data : dictionary
+            The data for this request. This is ignored by this handler.
+        '''
         reply_data = {}
 
         for service_name, service in self.services.items():
@@ -389,6 +567,16 @@ class TestbedServer:
         self.send_reply_ok(client_identity, 'running_services', reply_data)
 
     def on_start_new_experiment(self, client_identity, request_data):
+        '''Handler for a start new experiment request.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        request_data : dictionary
+            The data for this request. This should contain the experiment name
+            and experiment metadata.
+        '''
         experiment_name = request_data['experiment_name']
         metadata = request_data.get('metadata', {})
 
@@ -397,6 +585,24 @@ class TestbedServer:
         self.send_reply_ok(client_identity, 'start_new_experiment', data_path)
 
     def start_new_experiment(self, experiment_name, metadata=None):
+        '''Start a new experiment.
+
+        This will create a new experiment output directory and write the configuration and metadata
+        to that directory.
+
+        Parameters
+        ----------
+        experiment_name : string
+            The name of the new experiment.
+        metadata : dictionary or None
+            The experiment metadata. This is stored as a YAML file in the newly-created
+            experiment directory.
+
+        Returns
+        -------
+        string
+            The newly-created path to the experiment directory.
+        '''
         if metadata is None:
             metadata = {}
 
@@ -426,15 +632,53 @@ class TestbedServer:
         return output_path
 
     def on_output_path(self, client_identity, request_data):
+        '''Handler for an output path request.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        request_data : dictionary
+            The data for this request. This is ignored for this handler.
+        '''
         self.send_reply_ok(client_identity, 'output_path', self.output_path)
 
     def on_is_simulated(self, client_identity, request_data):
+        '''Handler for an is_simulated request.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        request_data : dictionary
+            The data for this request. This is ignored for this handler.
+        '''
         self.send_reply_ok(client_identity, 'is_simulated', self.is_simulated)
 
     def on_configuration(self, client_identity, request_data):
+        '''Handler for a configuration request.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        request_data : dictionary
+            The data for this request. This is ignored for this handler.
+        '''
         self.send_reply_ok(client_identity, 'configuration', self.config)
 
     def on_service_register(self, service_identity, service_name, parts):
+        '''Handler for a registration message from a service.
+
+        Parameters
+        ----------
+        service_identity : ZMQ socket identity
+            The source of this message.
+        service_name : string
+            The name of the originating service.
+        parts : list of ZMQ messages
+            The remaining parts of the incoming message.
+        '''
         data = decode_json(parts[0])
 
         self.log.debug(f'Handling service register for "{service_name}" with data "{data}".')
@@ -456,6 +700,17 @@ class TestbedServer:
         print(f'Service {service_name} ({service.service_type}) registered.')
 
     def on_service_opened(self, service_identity, service_name, parts):
+        '''Handler for an opened message from a service.
+
+        Parameters
+        ----------
+        service_identity : ZMQ socket identity
+            The source of this message.
+        service_name : string
+            The name of the originating service.
+        parts : list of ZMQ messages
+            The remaining parts of the incoming message.
+        '''
         self.log.debug(f'Handling service opened for "{service_name}".')
 
         service = self.services[service_name]
@@ -463,6 +718,17 @@ class TestbedServer:
         service.on_heartbeat()
 
     def on_service_heartbeat(self, service_identity, service_name, parts):
+        '''Handler for a heartbeat message from a service.
+
+        Parameters
+        ----------
+        service_identity : ZMQ socket identity
+            The source of this message.
+        service_name : string
+            The name of the originating service.
+        parts : list of ZMQ messages
+            The remaining parts of the incoming message.
+        '''
         if service_name not in self.services:
             self.log.error(f"Received a heartbeat from '{service_name}, which is not running. Ignoring.")
             return
@@ -471,6 +737,17 @@ class TestbedServer:
         service.on_heartbeat()
 
     def on_service_reply(self, service_identity, service_name, parts):
+        '''Handler for a reply message from a service.
+
+        Parameters
+        ----------
+        service_identity : ZMQ socket identity
+            The source of this message.
+        service_name : string
+            The name of the originating service.
+        parts : list of ZMQ messages
+            The remaining parts of the incoming message.
+        '''
         client_identity = parts[0]
         data = decode_json(parts[1])
 
@@ -482,6 +759,18 @@ class TestbedServer:
         self.send_message(client_identity, REPLY_ID, data=data)
 
     def send_reply_ok(self, identity, reply_type, data):
+        '''Convenience function to send an OK reply to a client or service.
+
+        Parameters
+        ----------
+        identity : ZMQ socket identity
+            The destination socket identity for this reply.
+        reply_type : string
+            The reply type for this request. Usually this indicates the type of request
+            that was made for which this is the reply.
+        data : dictionary
+            The data accompanying the reply.
+        '''
         reply_data = {
             'status': 'ok',
             'description': 'success',
@@ -492,6 +781,18 @@ class TestbedServer:
         self.send_message(identity, REPLY_ID, data=reply_data)
 
     def send_reply_error(self, identity, reply_type, description):
+        '''Convenience function to send an ERROR reply to a client or service.
+
+        Parameters
+        ----------
+        identity : ZMQ socket identity
+            The destination socket identity for this reply.
+        reply_type : string
+            The reply type for this request. Usually this indicates the type of request
+            that was made for which this is the reply.
+        description : string
+            A description of the error. Usually this is the error message formatted as a string.
+        '''
         reply_data = {
             'status': 'error',
             'reply_type': reply_type,
@@ -502,6 +803,20 @@ class TestbedServer:
         self.send_message(identity, REPLY_ID, data=reply_data)
 
     def send_message(self, identity, message_type, client_identity=None, data=None):
+        '''Send a message to a client or service.
+
+        Parameters
+        ----------
+        identity : ZMQ socket identity
+            The destination socket identity for this message.
+        message_type : bytearray
+            The type of message. This should be one of the pre-defined message types of the protocol.
+        client_identity : ZMQ socket identity or None
+            The identity of the client that initiated this message. This should be None for
+            a message to a client. This should be not None for a message to a service.
+        data : Python object or None
+            The data for the message. This data should be convertable to JSON for serialization.
+        '''
         msg = [identity, b'', message_type]
 
         if client_identity is not None:
@@ -514,6 +829,22 @@ class TestbedServer:
         self.socket.send_multipart(msg)
 
     def start_service(self, service_name):
+        '''Start a service.
+
+        Parameters
+        ----------
+        service_name : string
+            The name of the service. This should correspond to an entry in the services section of
+            the configuration of this server.
+
+        Raises
+        ------
+        RuntimeError
+            If the service is not found in the configuration.
+            If the service type path did not contain an executable or Python script.
+        ValueError
+            If the service type could not be found in the known services paths.
+        '''
         self.log.debug(f'Trying to start service "{service_name}".')
 
         if service_name not in self.config['services']:
@@ -559,6 +890,19 @@ class TestbedServer:
         self.services[service_name] = ServiceReference(process, service_type, service_name, self)
 
     def resolve_service_type(self, service_type):
+        '''Resolve a service type into a path.
+
+        Parameters
+        ----------
+        service_type : string
+            The type of the service.
+
+        Returns
+        -------
+        string
+            The path to where the Python script or executable for the
+            service can be found.
+        '''
         for base_path in self.service_paths:
             dirname = os.path.join(base_path, service_type)
             if os.path.exists(dirname):
@@ -569,16 +913,29 @@ class TestbedServer:
         return dirname
 
     def shut_down_all_services(self):
+        '''Shut down all running services.
+
+        This sends a keyboard interrupt to all running services, and waits for each
+        service to shut down. If a KeyboardInterrupt occurs during this shutdown process,
+        all services that have not shut down already will be killed.
+        '''
         for service in self.services.values():
             service.send_keyboard_interrupt()
 
         print('Waiting for services to shut down...')
 
-        try:
-            ServiceReference.wait_for_termination(self.services, None)
-        except KeyboardInterrupt:
-            print("Hard shutdown remaining services...")
-            for service in self.services.values():
-                service.terminate()
+        while True
+            try:
+                ServiceReference.wait_for_termination(self.services, None)
+            except KeyboardInterrupt:
+                start = time.time()
+                try:
+                    print('Are you sure you want to kill all remaining services?')
+                    print('Press Ctrl+C again in the next five seconds if yes.')
+                    time.sleep(5)
+                except KeyboardInterrupt:
+                    print("Hard shutdown of all remaining services...")
+                    for service in self.services.values():
+                        service.terminate()
 
-        print("All services were shut down safely!")
+        print("All services were shut down!")

@@ -10,7 +10,8 @@ Testbed
     :no-heading:
 
 Proxies
-~~~~~~~
+-------
+
 .. automodapi:: catkit2.testbed.proxies
     :no-inheritance-diagram:
     :include-all-objects:

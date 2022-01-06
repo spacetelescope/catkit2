@@ -1,4 +1,11 @@
 def get_version():
+	'''Return the version of this package.
+
+	Returns
+	-------
+	string
+		The version of the catkit2 package.
+	'''
 	if get_version._version is None:
 		from pkg_resources import get_distribution, DistributionNotFound
 
