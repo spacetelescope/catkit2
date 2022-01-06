@@ -261,7 +261,11 @@ class ServiceReference:
 
         This kills the process directly and should be used as a last resort.
         '''
-        self.process.terminate()
+        try:
+            self.process.terminate()
+        except psutil.NoSuchProcess:
+            # Process was already shut down by itself.
+            pass
 
     @staticmethod
     def wait_for_termination(services, timeout):
@@ -924,7 +928,7 @@ class TestbedServer:
 
         print('Waiting for services to shut down...')
 
-        while True
+        while True:
             try:
                 ServiceReference.wait_for_termination(self.services, None)
             except KeyboardInterrupt:
@@ -933,9 +937,11 @@ class TestbedServer:
                     print('Are you sure you want to kill all remaining services?')
                     print('Press Ctrl+C again in the next five seconds if yes.')
                     time.sleep(5)
+                    print('Resuming wait for safe shutdown...')
                 except KeyboardInterrupt:
-                    print("Hard shutdown of all remaining services...")
+                    print('Hard shutdown of all remaining services...')
                     for service in self.services.values():
                         service.terminate()
+                break
 
         print("All services were shut down!")
