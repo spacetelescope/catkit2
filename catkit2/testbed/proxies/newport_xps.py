@@ -4,7 +4,7 @@ from ..service_proxy import ServiceProxy
 
 @ServiceProxy.register_service_interface('newport_xps_q8')
 class NewportXpsQ8Proxy(ServiceProxy):
-    def move_absolute(self, motor_id, position, timeout=float('inf')):
+    def move_absolute(self, motor_id, position, timeout=None):
         command_stream = getattr(self, motor_id.lower() + '_command')
         current_position_stream = getattr(self, motor_id.lower() + '_current_position')
 
@@ -12,28 +12,28 @@ class NewportXpsQ8Proxy(ServiceProxy):
 
         # Set new position.
         frame = command_stream.request_new_frame()
-        frame.data[:] = distance
+        frame.data[:] = position
         command_stream.submit_frame(frame.id)
 
         # Wait until actuator reaches new position.
         waiting_start = time.time()
 
-        if timeout > 0:
+        if timeout is None or timeout > 0:
             while True:
                 try:
-                    wait_time_ms = int((time.time() - waiting_start - timeout) * 1000)
-                    if wait_time_ms <= 0:
+                    wait_time_ms = None if timeout is None else int((timeout - (time.time() - waiting_start)) * 1000)
+                    if wait_time_ms is not None and wait_time_ms <= 0:
                         break
 
                     frame = current_position_stream.get_next_frame(wait_time_ms)
 
-                    if abs(frame.data[0] - distance) < self.atol:
+                    if abs(frame.data[0] - position) < self.atol:
                         break
                 except RuntimeError:
                     # Timed out. This is to facilitate wait time checking.
                     continue
 
-    def move_relative(self, motor_id, distance, timeout=float('inf')):
+    def move_relative(self, motor_id, distance, timeout=None):
         # Get current position.
         stream = getattr(self, motor_id.lower() + '_current_position')
         current_position = stream.get()
