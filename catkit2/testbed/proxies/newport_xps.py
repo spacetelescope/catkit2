@@ -21,7 +21,7 @@ class NewportXpsQ8Proxy(ServiceProxy):
         if timeout is None or timeout > 0:
             while True:
                 try:
-                    wait_time_ms = None if timeout is None else int((timeout - (time.time() - waiting_start)) * 1000)
+                    wait_time_ms = 1#None if timeout is None else int((timeout - (time.time() - waiting_start)) * 1000)
                     if wait_time_ms is not None and wait_time_ms <= 0:
                         break
 
