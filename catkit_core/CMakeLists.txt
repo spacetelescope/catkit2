@@ -13,6 +13,8 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP1>)
 
 add_library(catkit_core STATIC
     DataStream.cpp
+    SharedMemory.cpp
+    Synchronization.cpp
     TimeStamp.cpp
     Log.cpp
     LogConsole.cpp
@@ -34,6 +36,8 @@ target_include_directories(catkit_core PUBLIC ${ZeroMQ_INCLUDE_DIR})
 target_link_libraries(catkit_core PUBLIC ${ZeroMQ_LIBRARY})
 if (WIN32)
   target_link_libraries(catkit_core PUBLIC wsock32 ws2_32 Iphlpapi)
+else()
+  target_link_libraries(catkit_core PUBLIC pthread)
 endif (WIN32)
 
 # Add includes for cppzmq

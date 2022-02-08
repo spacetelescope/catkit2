@@ -609,7 +609,7 @@ void Service::SendRegisterMessage()
 	LOG_DEBUG("Sending register message.");
 
 	json data = {
-		{"pid", GetCurrentProcessId()},
+		{"pid", GetPID()},
 		{"service_type", m_ServiceType}
 	};
 
