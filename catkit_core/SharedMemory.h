@@ -8,8 +8,10 @@
 	#define WIN32_LEAN_AND_MEAN
 	#include <windows.h>
 #else
-	#include <sys/shm.h>
+	#include <sys/mman.h>
 	#include <sys/stat.h>
+	#include <fcntl.h>
+	#include <unistd.h>
 #endif // _WIN32
 
 #ifdef _WIN32

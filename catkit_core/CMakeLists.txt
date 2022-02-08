@@ -26,7 +26,11 @@ add_library(catkit_core STATIC
     Service.cpp)
 
 # Use local version of ZeroMQ
-set(ZeroMQ_LIBRARY ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/build/lib/Release/libzmq-static-v142-mt-s-4_2_1.lib)
+if (WIN32)
+  set(ZeroMQ_LIBRARY ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/build/lib/Release/libzmq-static-v142-mt-s-4_2_1.lib)
+else()
+  set(ZeroMQ_LIBRARY ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/build/lib/libzmq-static.a)
+endif (WIN32)
 set(ZeroMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/zeromq-4.2.1/include)
 
 add_definitions(-DZMQ_STATIC)

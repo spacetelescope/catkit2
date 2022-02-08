@@ -159,9 +159,6 @@ void DataFrame::CopyInto(EigenType &out)
 		case DataType::DT_FLOAT64:
 			out = AsArray<double, T>();
 			break;
-		case DataType::DT_FLOAT128:
-			out = AsArray<long double, T>();
-			break;
 		case DataType::DT_COMPLEX64:
 			out = AsArray<std::complex<float>, T>();
 			break;

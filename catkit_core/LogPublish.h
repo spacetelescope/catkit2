@@ -8,6 +8,7 @@
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
+#include <thread>
 
 #include "Log.h"
 

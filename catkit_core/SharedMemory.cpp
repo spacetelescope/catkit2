@@ -13,7 +13,7 @@ SharedMemory::~SharedMemory()
 		if (m_IsOwner)
 			shm_unlink((m_Id + ".mem").c_str());
 
-		stat stat_buf;
+		struct stat stat_buf;
 		fstat(m_File, &stat_buf);
 
 		munmap(m_Buffer, stat_buf.st_size);
@@ -39,7 +39,7 @@ std::shared_ptr<SharedMemory> SharedMemory::Create(const std::string &id, size_t
 
 	if (res < 0)
 	{
-		shm_unlink((id + ".mem").c_str();
+		shm_unlink((id + ".mem").c_str());
 		close(file);
 
 		throw std::runtime_error("Something went wrong while setting the size of shared memory.");
@@ -72,7 +72,7 @@ SharedMemory::SharedMemory(const std::string &id, FileObject file, bool is_owner
 #ifdef _WIN32
 	m_Buffer = MapViewOfFile(m_File, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 #else
-	stat stat_buf;
+	struct stat stat_buf;
 	fstat(m_File, &stat_buf);
 
 	m_Buffer = mmap(0, stat_buf.st_size, PROT_WRITE, MAP_SHARED, m_File, 0);

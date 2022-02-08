@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 
 #ifndef _WIN32
 	#include <sys/mman.h>
