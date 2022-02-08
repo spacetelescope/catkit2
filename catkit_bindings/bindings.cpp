@@ -173,6 +173,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			return DataStream::Open(stream_id);
 		})
+		.def("copy", [](DataStream &s)
+		{
+			return DataStream::Open(s.GetStreamId());
+		})
 		.def("request_new_frame", &DataStream::RequestNewFrame)
 		.def("submit_frame", &DataStream::SubmitFrame)
 		.def("submit_data", [](DataStream &s, py::buffer data)
