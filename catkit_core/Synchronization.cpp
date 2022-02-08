@@ -49,6 +49,17 @@ void Synchronization::Create(const std::string &id, SynchronizationSharedData *s
 
 	shared_data->m_NumReadersWaiting = 0;
 #else
+	shared_data->m_Mutex = PTHREAD_MUTEX_INITIALIZER;
+	shared_data->m_Condition = PTHREAD_COND_INITIALIZER;
+
+	pthread_mutexattr_t mutex_attr = {};
+	pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED);
+	pthread_mutex_init(&(shared_data->m_Mutex), &mutex_attr);
+
+	pthread_condattr_t cond_attr = {};
+	pthread_contattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
+	pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
+	pthread_cond_init(&(shared_data->m_Condition), &cond_attr);
 #endif
 
 	m_SharedData = shared_data;
@@ -119,7 +130,39 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 		}
 	}
 #else
+	TimeDelta timer;
 
+	pthread_mutex_lock(&(m_SharedData->m_Mutex));
+
+	while (!condition())
+	{
+		// Wait for a maximum of 20ms to perform periodic error checking.
+		timespec timeout;
+		clock_gettime(CLOCK_MONOTONIC, &timeout);
+		timeout.tv_nsec += 10000000 * min(20, timeout_in_ms);
+
+		int res = pthread_cond_timedwait(&(m_SharedData->m_Condition), &(m_SharedData->m_Mutex), &timeout);
+
+		if (res == ETIMEDOUT && timer.GetTimeDelta() > (timeout_in_ms * 0.001))
+		{
+			pthread_mutex_unlock(&(m_SharedData->m_Mutex));
+			throw std::runtime_error("Waiting time has expired.");
+		}
+
+		if (error_check != nullptr)
+		{
+			try
+			{
+				error_check();
+			}
+			catch (...)
+			{
+				pthread_mutex_unlock(&(m_SharedData->m_Mutex));
+				throw;
+			}
+		}
+	}
+	pthread_mutex_unlock(&(m_SharedData->m_Mutex));
 #endif
 }
 
@@ -140,5 +183,6 @@ void Synchronization::Signal()
 	if (num_readers_waiting > 0)
 		ReleaseSemaphore(m_Semaphore, (LONG) num_readers_waiting, NULL);
 #else
+	pthread_cond_broadcast(&(m_SharedData->m_Condition));
 #endif
 }

@@ -18,6 +18,8 @@ struct SynchronizationSharedData
 #ifdef _WIN32
 	std::atomic_long m_NumReadersWaiting;
 #else
+	pthread_cond_t m_Condition;
+	pthread_mutex_t m_Mutex;
 #endif
 };
 
@@ -45,8 +47,6 @@ private:
 
 #ifdef _WIN32
 	HANDLE m_Semaphore;
-#else
-
 #endif
 };
 
