@@ -1,6 +1,12 @@
 #include "Synchronization.h"
 
 #include <stdexcept>
+#include <algorithm>
+
+
+#ifndef _WIN32
+	#include <errno.h>
+#endif
 
 #include "TimeStamp.h"
 
@@ -49,16 +55,15 @@ void Synchronization::Create(const std::string &id, SynchronizationSharedData *s
 
 	shared_data->m_NumReadersWaiting = 0;
 #else
-	shared_data->m_Mutex = PTHREAD_MUTEX_INITIALIZER;
-	shared_data->m_Condition = PTHREAD_COND_INITIALIZER;
-
 	pthread_mutexattr_t mutex_attr = {};
 	pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED);
 	pthread_mutex_init(&(shared_data->m_Mutex), &mutex_attr);
 
 	pthread_condattr_t cond_attr = {};
-	pthread_contattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
+	pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
+#ifndef __APPLE__
 	pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
+#endif
 	pthread_cond_init(&(shared_data->m_Condition), &cond_attr);
 #endif
 
@@ -108,7 +113,7 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 		}
 
 		// Wait for a maximum of 20ms to perform periodic error checking.
-		auto res = WaitForSingleObject(m_Semaphore, (unsigned long) min(20, timeout_in_ms));
+		auto res = WaitForSingleObject(m_Semaphore, (unsigned long) std::min(20, timeout_in_ms));
 
 		if (res == WAIT_TIMEOUT && timer.GetTimeDelta() > (timeout_in_ms * 0.001))
 		{
@@ -137,12 +142,25 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 	while (!condition())
 	{
 		// Wait for a maximum of 20ms to perform periodic error checking.
+		long timeout_wait = std::min(20L, timeout_in_ms);
+
+#ifdef __APPLE__
+		// Relative timespec.
+		timespec timeout;
+		timeout.tv_sec = timeout_wait / 1000;
+		timeout.tv_nsec = 1000000 * (timeout_wait % 1000);
+		
+		int res = pthread_cond_timedwait_relative_np(&(m_SharedData->m_Condition), &(m_SharedData->m_Mutex), &timeout);
+#else
+
+		// Absolute timespec.
 		timespec timeout;
 		clock_gettime(CLOCK_MONOTONIC, &timeout);
-		timeout.tv_nsec += 10000000 * min(20, timeout_in_ms);
+		timeout.tv_sec += timeout_wait / 1000;
+		timeout.tv_nsec += 10000000 * (timeout_wait % 1000);
 
 		int res = pthread_cond_timedwait(&(m_SharedData->m_Condition), &(m_SharedData->m_Mutex), &timeout);
-
+#endif
 		if (res == ETIMEDOUT && timer.GetTimeDelta() > (timeout_in_ms * 0.001))
 		{
 			pthread_mutex_unlock(&(m_SharedData->m_Mutex));

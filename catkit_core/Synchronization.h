@@ -11,6 +11,7 @@
 	#include <windows.h>
 #else
 	#include <semaphore.h>
+	#include <pthread.h>
 #endif // _WIN32
 
 struct SynchronizationSharedData
