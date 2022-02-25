@@ -14,7 +14,7 @@ class ThorlabsPM(Service):
         Service.__init__(self, service_name, 'thorlabs_pm', testbed_port)
 
         config = self.configuration
-        self.serial_number = config['serial_number']
+        self.serial_number = str(config['serial_number'])
         self.interval = config.get('interval', 10)
 
         self.shutdown_flag = False
@@ -119,7 +119,7 @@ class ThorlabsPM(Service):
         if status:
             raise RuntimeError("TLPM: Failed to get power - '{}'".format(self.get_error_message(status)))
 
-        return power
+        return power.value
 
     def close(self):
         if self.instrument.value:
