@@ -57,9 +57,9 @@ const char *GetDataTypeAsString(DataType type)
 		case DataType::DT_FLOAT64:
 			return "d";
 		case DataType::DT_COMPLEX64:
-			return "zf";
+			return "Zf";
 		case DataType::DT_COMPLEX128:
-			return "zd";
+			return "Zd";
 		default:
 			return "unknown";
 	}
@@ -92,9 +92,9 @@ DataType GetDataTypeFromString(string type)
 		return DataType::DT_FLOAT32;
 	if (type == "d" || type == "float64")
 		return DataType::DT_FLOAT64;
-	if (type == "zf" || type == "complex64")
+	if (type == "Zf" || type == "complex64")
 		return DataType::DT_COMPLEX64;
-	if (type == "zd" || type == "complex128")
+	if (type == "Zd" || type == "complex128")
 		return DataType::DT_COMPLEX128;
 	return DataType::DT_UNKNOWN;
 }

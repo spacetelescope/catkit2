@@ -48,6 +48,39 @@ public:
 	}
 };
 
+py::dtype GetNumpyDataType(DataType type)
+{
+	switch (type)
+	{
+		case DataType::DT_UINT8:
+			return py::dtype("uint8");
+		case DataType::DT_UINT16:
+			return py::dtype("uint16");
+		case DataType::DT_UINT32:
+			return py::dtype("uint32");
+		case DataType::DT_UINT64:
+			return py::dtype("uint64");
+		case DataType::DT_INT8:
+			return py::dtype("int8");
+		case DataType::DT_INT16:
+			return py::dtype("int16");
+		case DataType::DT_INT32:
+			return py::dtype("int32");
+		case DataType::DT_INT64:
+			return py::dtype("int64");
+		case DataType::DT_FLOAT32:
+			return py::dtype("float32");
+		case DataType::DT_FLOAT64:
+			return py::dtype("float64");
+		case DataType::DT_COMPLEX64:
+			return py::dtype("complex64");
+		case DataType::DT_COMPLEX128:
+			return py::dtype("complex128");
+		default:
+			throw pybind11::type_error("Data type is unknown.");
+	}
+}
+
 py::array GetDataFromDataFrame(DataFrame &f)
 {
 	size_t item_size = GetSizeOfDataType(f.m_DataType);
@@ -61,7 +94,7 @@ py::array GetDataFromDataFrame(DataFrame &f)
 	auto strides = py::detail::c_strides(shape, item_size);
 
 	return py::array(
-		py::dtype(GetDataTypeAsString(f.m_DataType)),
+		GetNumpyDataType(f.m_DataType),
 		shape,
 		strides,
 		f.m_Data,
@@ -147,7 +180,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			// Check if data has the right dtype.
 			if (GetDataTypeAsString(s.GetDataType()) != buffer_info.format)
-				throw std::runtime_error("Incompatible array dtype.");
+				throw std::runtime_error(std::string("Incompatible array dtype. Stream: ") + GetDataTypeAsString(s.GetDataType()) + ". Input: " + buffer_info.format);
 
 			// Check if data has the right shape.
 			size_t ndim = s.GetNumDimensions();
