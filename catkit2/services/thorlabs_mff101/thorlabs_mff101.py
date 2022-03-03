@@ -16,18 +16,21 @@ class ThorlabsMFF101(Service):
         config = self.configuration
 
         self.serial_number = config['serial_number']
-        self.current_position = None
+        self.out_of_beam_position = config['positions']['out_of_beam']
 
         self.shutdown_flag = threading.Event()
 
-        self.position = self.make_data_stream('position', 'int8', [1], 20)
+        self.commanded_position = self.make_data_stream('commanded_position', 'int8', [1], 20)
+        self.current_position = self.make_data_stream('current_position', 'int8', [1], 20)
+
+        self.current_position.submit_data(np.array([-1], dtype='int8'))
 
         self.make_command('blink_led', self.blink_led)
 
     def main(self):
         while not self.shutdown_flag.is_set():
             try:
-                frame = self.position.get_next_frame(10)
+                frame = self.commanded_position.get_next_frame(10)
             except:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
@@ -53,9 +56,13 @@ class ThorlabsMFF101(Service):
         self.connection.setFlowControl(ftd2xx.defines.FLOW_RTS_CTS, 0, 0)
         self.connection.setRts()
 
+        self.set_position(self.out_of_beam_position)
+
     def set_position(self, position):
-        if position == self.current_position:
+        if position == self.current_position.get()[0]:
             return
+
+        self.current_position.submit_data(np.array([-1], dtype='int8'))
 
         if position == 1:
             command = self._MOVE_TO_POSITION_1
@@ -66,7 +73,9 @@ class ThorlabsMFF101(Service):
             return
 
         self.connection.write(command)
-        self.current_position = position
+        self.shutdown_flag.wait(1)
+
+        self.current_position.submit_data(np.array([position], dtype='int8'))
 
     def close(self):
         self.connection.close()

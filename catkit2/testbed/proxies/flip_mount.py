@@ -8,10 +8,17 @@ class FlipMountProxy(ServiceProxy):
     def move_to(self, position, wait=True):
         position = self.resolve_position(position)
 
-        self.position.submit_data(np.array([position], dtype='int8'))
+        self.commanded_position.submit_data(np.array([position], dtype='int8'))
 
         if wait:
-            time.sleep(1)
+            while self.current_position.get()[0] != position:
+                try:
+                    frame = self.current_position.get_next_frame(10)
+                    if frame.data[0] == position:
+                        break
+                except Exception:
+                    # Timed out. No problem.
+                    pass
 
     def move_in_beam(self, wait=True):
         self.move_to('in_beam', wait)
