@@ -183,12 +183,12 @@ class FlirCamera(Service):
                 self.acquisition_loop()
 
     def acquisition_loop(self):
+        pixel_dtype = 'float32'
+
         if self.pixel_format == 'mono8':
             pixel_format = PySpin.PixelFormat_Mono8
-            pixel_dtype = 'uint8'
         else:
             pixel_format = PySpin.PixelFormat_Mono16
-            pixel_dtype = 'uint16'
 
         # Make sure the data stream has the right size and datatype.
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
