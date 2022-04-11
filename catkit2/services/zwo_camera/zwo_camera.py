@@ -127,6 +127,7 @@ class ZwoCamera(Service):
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
+        make_property_helper('brightness')
 
         make_property_helper('width', requires_stopped_acquisition=True)
         make_property_helper('height', requires_stopped_acquisition=True)
@@ -211,6 +212,15 @@ class ZwoCamera(Service):
     @gain.setter
     def gain(self, gain):
         self.camera.set_control_value(zwoasi.ASI_GAIN, int(gain))
+
+    @property
+    def brightness(self):
+        brightness, auto = self.camera.get_control_value(zwoasi.ASI_BRIGHTNESS)
+        return brightness
+
+    @brightness.setter
+    def brightness(self, brightness):
+        self.camera.set_control_value(zwoasi.ASI_BRIGHTNESS, int(brightness))
 
     def get_temperature(self):
         temperature_times_ten, auto = self.camera.get_control_value(zwoasi.ASI_TEMPERATURE)
