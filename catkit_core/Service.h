@@ -39,6 +39,7 @@ public:
 	std::shared_ptr<Property> MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter = nullptr);
 	std::shared_ptr<Command> MakeCommand(std::string command_name, Command::CommandFunction func);
 	std::shared_ptr<DataStream> MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	std::shared_ptr<DataStream> ReuseDataStream(std::string stream_name, std::string stream_id);
 
 private:
 	void MonitorInterface();
@@ -82,6 +83,8 @@ private:
 
 	uint64_t m_LastSentHeartbeatTime;
 	uint64_t m_LastReceivedHeartbeatTime;
+
+	std::shared_ptr<DataStream> m_HeartbeatStream;
 
 	std::thread m_InterfaceThread;
 

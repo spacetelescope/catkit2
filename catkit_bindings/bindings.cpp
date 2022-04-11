@@ -130,7 +130,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			DataType dtype = GetDataTypeFromString(type);
 			return service.MakeDataStream(stream_name, dtype, dimensions, num_frames_in_buffer);
-		});
+		})
+		.def("reuse_data_stream", &Service::ReuseDataStream);
 
 	py::class_<Command, std::shared_ptr<Command>>(m, "Command")
 		.def(py::init([](std::string name, py::object command)

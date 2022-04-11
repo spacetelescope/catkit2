@@ -57,6 +57,10 @@ Service::Service(std::string service_name, std::string service_type, int testbed
 	m_RequestHandlers["shut_down_request"] = [this](const json &data){return this->OnShutdownRequest(data);};
 
 	MakeProperty("configuration", [this](){return this->GetConfiguration();});
+	m_HeartbeatStream = MakeDataStream("heartbeat", DataType::DT_UINT64, {1}, 10);
+
+	uint64_t start_time = GetTimeStamp();
+	m_HeartbeatStream->SubmitData(&start_time);
 
 	LOG_INFO("Service '"s + service_name + "' has been initialized.");
 
@@ -436,6 +440,14 @@ std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, Dat
 	return stream;
 }
 
+std::shared_ptr<DataStream> Service::ReuseDataStream(std::string stream_name, std::string stream_id)
+{
+	auto stream = DataStream::Open(stream_id);
+	m_DataStreams[stream_name] = stream;
+
+	return stream;
+}
+
 json Service::OnGetPropertyRequest(const nlohmann::json &data)
 {
 	if (!data.count("property_name"))
@@ -624,6 +636,8 @@ void Service::SendHeartbeatMessage()
 	msg.send(*m_ShellSocket);
 
 	m_LastSentHeartbeatTime = GetTimeStamp();
+
+	m_HeartbeatStream->SubmitData(&m_LastSentHeartbeatTime);
 }
 
 void print_usage()
