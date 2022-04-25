@@ -267,6 +267,10 @@ void DataStream::SubmitFrame(size_t id)
 	DataFrameMetadata *meta = m_Header->m_FrameMetadata + (id % m_Header->m_NumFramesInBuffer);
 	meta->m_TimeStamp = GetTimeStamp();
 
+	// Obtain a lock as we are about to modify the condition of the
+	// synchronization.
+	auto lock = SynchronizationLock(&m_Synchronization);
+
 	// Make frame available:
 	// Use a do-while loop to ensure we are never decrementing the last id.
 	size_t last_id;
@@ -397,6 +401,8 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 			throw std::runtime_error("Frame is not available yet.");
 
 		// Wait until frame becomes available.
+		// Obtain a lock first.
+		auto lock = SynchronizationLock(&m_Synchronization);
 		m_Synchronization.Wait(wait_time_in_ms, [this, id]() { return this->m_Header->m_LastId > id; }, error_check);
 	}
 

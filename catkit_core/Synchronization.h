@@ -14,6 +14,8 @@
 	#include <pthread.h>
 #endif // _WIN32
 
+class Synchronization;
+
 struct SynchronizationSharedData
 {
 #ifdef _WIN32
@@ -22,6 +24,16 @@ struct SynchronizationSharedData
 	pthread_cond_t m_Condition;
 	pthread_mutex_t m_Mutex;
 #endif
+};
+
+class SynchronizationLock
+{
+public:
+	SynchronizationLock(Synchronization *sync);
+	~SynchronizationLock();
+
+private:
+	Synchronization *m_Sync;
 };
 
 class Synchronization
@@ -37,6 +49,9 @@ public:
 
 	void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());
 	void Signal();
+
+	void Lock();
+	void Unlock();
 
 private:
 	void Create(const std::string &id, SynchronizationSharedData *shared_data);

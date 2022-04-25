@@ -10,6 +10,17 @@
 
 #include "TimeStamp.h"
 
+SynchronizationLock::SynchronizationLock(Synchronization *sync)
+	: m_Sync(sync)
+{
+	m_Sync->Lock();
+}
+
+SynchronizationLock::~SynchronizationLock()
+{
+	m_Sync->Unlock();
+}
+
 Synchronization::Synchronization()
 	: m_IsOwner(false), m_SharedData(nullptr)
 {
@@ -63,9 +74,9 @@ void Synchronization::Create(const std::string &id, SynchronizationSharedData *s
 	pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
 #ifndef __APPLE__
 	pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
-#endif
+#endif // __APPLE__
 	pthread_cond_init(&(shared_data->m_Condition), &cond_attr);
-#endif
+#endif // _WIN32
 
 	m_SharedData = shared_data;
 }
@@ -137,8 +148,6 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 #else
 	TimeDelta timer;
 
-	pthread_mutex_lock(&(m_SharedData->m_Mutex));
-
 	while (!condition())
 	{
 		// Wait for a maximum of 20ms to perform periodic error checking.
@@ -149,39 +158,26 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 		timespec timeout;
 		timeout.tv_sec = timeout_wait / 1000;
 		timeout.tv_nsec = 1000000 * (timeout_wait % 1000);
-		
+
 		int res = pthread_cond_timedwait_relative_np(&(m_SharedData->m_Condition), &(m_SharedData->m_Mutex), &timeout);
 #else
-
 		// Absolute timespec.
 		timespec timeout;
 		clock_gettime(CLOCK_MONOTONIC, &timeout);
 		timeout.tv_sec += timeout_wait / 1000;
-		timeout.tv_nsec += 10000000 * (timeout_wait % 1000);
+		timeout.tv_nsec += 1000000 * (timeout_wait % 1000);
 
 		int res = pthread_cond_timedwait(&(m_SharedData->m_Condition), &(m_SharedData->m_Mutex), &timeout);
-#endif
+#endif // __APPLE__
 		if (res == ETIMEDOUT && timer.GetTimeDelta() > (timeout_in_ms * 0.001))
 		{
-			pthread_mutex_unlock(&(m_SharedData->m_Mutex));
 			throw std::runtime_error("Waiting time has expired.");
 		}
 
 		if (error_check != nullptr)
-		{
-			try
-			{
-				error_check();
-			}
-			catch (...)
-			{
-				pthread_mutex_unlock(&(m_SharedData->m_Mutex));
-				throw;
-			}
-		}
+			error_check();
 	}
-	pthread_mutex_unlock(&(m_SharedData->m_Mutex));
-#endif
+#endif // _WIN32
 }
 
 void Synchronization::Signal()
@@ -202,5 +198,19 @@ void Synchronization::Signal()
 		ReleaseSemaphore(m_Semaphore, (LONG) num_readers_waiting, NULL);
 #else
 	pthread_cond_broadcast(&(m_SharedData->m_Condition));
-#endif
+#endif // _WIN32
+}
+
+void Synchronization::Lock()
+{
+#ifndef _WIN32
+	pthread_mutex_lock(&(m_SharedData->m_Mutex));
+#endif // _WIN32
+}
+
+void Synchronization::Unlock()
+{
+#ifndef _WIN32
+	pthread_mutex_unlock(&(m_SharedData->m_Mutex));
+#endif // _WIN32
 }
