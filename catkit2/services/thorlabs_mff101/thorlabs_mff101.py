@@ -4,6 +4,7 @@ import time
 import threading
 import ftd2xx
 import numpy as np
+import random
 
 class ThorlabsMFF101(Service):
     _MOVE_TO_POSITION_1 = b"\x6A\x04\x00\x01\x21\x01"
@@ -43,7 +44,17 @@ class ThorlabsMFF101(Service):
         self.shutdown_flag.set()
 
     def open(self):
-        self.connection = ftd2xx.openEx(str(self.serial_number).encode())
+        num_retries = 5
+
+        # Retry connecting to the flip mount a few times.
+        while num_retries > 0:
+            try:
+                self.connection = ftd2xx.openEx(str(self.serial_number).encode())
+            except ftd2xx.DeviceError:
+                num_retries -= 1
+                time.sleep(0.1 + 0.1 * random.random())
+
+                continue
         self.connection.setDataCharacteristics(ftd2xx.defines.BITS_8,
                                                ftd2xx.defines.STOP_BITS_1,
                                                ftd2xx.defines.PARITY_NONE)
