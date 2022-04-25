@@ -18,7 +18,7 @@ class CameraProxy(ServiceProxy):
 
         try:
             for i in range(num_exposures):
-                yield self.images.get_frame(first_frame_id + i).data.copy()
+                yield self.images.get_frame(first_frame_id + i, 100000).data.copy()
         finally:
             if not was_acquiring:
                 self.stop_acquisition()
