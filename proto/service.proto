@@ -14,30 +14,30 @@ message GetServiceInfoReply
     string service_type = 2;
     string config = 3;
 
-    repeated string parameter_names = 4;
+    repeated string property_names = 4;
     repeated string command_names = 5;
-    repeated string datastream_ids = 6;
+    Dict datastream_ids = 6;
 }
 
-message GetParameterRequest
+message GetPropertyRequest
 {
-    string parameter_name = 1;
+    string property_name = 1;
 }
 
-message GetParameterReply
+message GetPropertyReply
 {
-    Value parameter_value = 1;
+    Value property_value = 1;
 }
 
-message SetParameterRequest
+message SetPropertyRequest
 {
-    string parameter_name = 1;
-    Value parameter_value = 2;
+    string property_name = 1;
+    Value property_value = 2;
 }
 
-message SetParameterReply
+message SetPropertyReply
 {
-    Value parameter_value = 1;
+    Value property_value = 1;
 }
 
 message ExecuteCommandRequest

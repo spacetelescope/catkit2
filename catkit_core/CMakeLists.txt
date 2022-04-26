@@ -23,7 +23,13 @@ add_library(catkit_core STATIC
     HostName.cpp
     Command.cpp
     Property.cpp
-    Service.cpp)
+    Service.cpp
+    ../proto/gen/cpp/core.pb.cc
+    ../proto/gen/cpp/logging.pb.cc
+    ../proto/gen/cpp/server.pb.cc
+    ../proto/gen/cpp/service.pb.cc)
+
+  target_include_directories(catkit_core PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../proto/gen/cpp)
 
 set_property(TARGET catkit_core PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -49,6 +55,12 @@ target_include_directories(catkit_core PUBLIC ${EIGEN_INCLUDE_DIR})
 set (JSON_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/json-3.9.1/include)
 target_include_directories(catkit_core PUBLIC ${JSON_INCLUDE_DIR})
 
+# Link protobuf
+INCLUDE(FindProtobuf)
+find_package(Protobuf REQUIRED)
+target_include_directories(catkit_core PUBLIC ${PROTOBUF_INCLUDE_DIR})
+target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARY})
+
 # Add install files
 install(TARGETS catkit_core DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
@@ -56,4 +68,9 @@ install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.inl"
+)
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../proto/gen/cpp/
+        DESTINATION include/catkit_core
+        FILES_MATCHING
+        PATTERN "*.h"
 )

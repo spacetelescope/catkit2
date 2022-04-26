@@ -53,7 +53,7 @@ message DataLogEntry
 message LogEntry
 {
     string filename = 1;
-    int32 line = 2;
+    uint32 line = 2;
     string function = 3;
     Severity severity = 4;
     string message = 5;
