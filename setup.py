@@ -19,30 +19,37 @@ if 'PROTOC' in os.environ and os.path.exists(os.environ['PROTOC']):
 else:
     protoc = find_executable("protoc")
 
-def generate_proto(source):
-    """Invokes the Protocol Compiler to generate a _pb2.py from the given
-    .proto file.  Does nothing if the output already exists and is newer than
-    the input."""
-    output = source.replace(".proto", "_pb2.py")
+if protoc is None:
+    sys.stderr.write(
+    "protoc is not installed nor found in ../src.  Please compile it "
+    "or install the binary package.\n")
+    sys.exit(-1)
 
-    if (not os.path.exists(output) or
-            (os.path.exists(source) and os.path.getmtime(source) > os.path.getmtime(output))):
-        print ("Generating %s..." % output)
+def generate_protos(source_dir):
+    '''Invokes the Protobuf Compiler to generate C++ and Python source files
+    from all .proto files in the proto directory. Does nothing if the output
+    already exists and is newer than the input.
+    '''
+    proto_path = os.path.join(source_dir, 'proto')
 
-        if not os.path.exists(source):
-            sys.stderr.write("Can't find required file: %s\n" % source)
-            sys.exit(-1)
+    files = glob.glob(os.path.join(proto_path, '**.proto'))
+    files = [os.path.relpath(f, proto_path) for f in files]
 
-        if protoc is None:
-            sys.stderr.write(
-            "protoc is not installed nor found in ../src.  Please compile it "
-            "or install the binary package.\n")
-            sys.exit(-1)
+    python_path = os.path.join(proto_path, 'gen/python')
+    cpp_path = os.path.join(proto_path, 'gen/cpp')
 
-        protoc_command = [protoc, "--proto_path=.", "--python_out=.", os.path.relpath(source)]
+    os.makedirs(python_path, exist_ok=True)
+    os.makedirs(cpp_path, exist_ok=True)
 
-        if subprocess.call(protoc_command) != 0:
-            sys.exit(-1)
+    protoc_command = [
+        protoc,
+        '--proto_path', proto_path,
+        '--python_out', python_path,
+        '--cpp_out', cpp_path,
+        *files]
+
+    if subprocess.run(protoc_command).returncode != 0:
+        sys.exit(-1)
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=''):
@@ -88,11 +95,12 @@ class CMakeBuild(build_ext):
         os.makedirs(self.build_temp, exist_ok=True)
         os.makedirs(install_dir, exist_ok=True)
 
+        print('Compiling protobuffers...')
+        generate_protos(ext.sourcedir)
+
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
         subprocess.check_call(['cmake', '--install', '.', '--prefix', install_dir], cwd=self.build_temp)
-
-        generate_proto(os.path.join(ext.sourcedir, 'catkit2', 'simulator', 'simulator.proto'))
 
         for f in glob.glob(os.path.join(install_dir, 'lib', 'catkit_bindings*')):
             shutil.copy(f, os.path.join(ext.sourcedir, 'catkit2'))
