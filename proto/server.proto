@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package catkit_core.server;
+
+enum ServiceState
+{
+    INACTIVE = 0;
+    INTIALIZING = 1;
+    OPENING = 2;
+    OPERATIONAL = 3;
+    CLOSING = 4;
+    UNRESPONSIVE = 5;
+    CRASHED = 6;
+}
+
+message ServiceReference
+{
+    string id = 1;
+    string type = 2;
+    ServiceState state = 3;
+    string host = 4;
+    uint32 port = 5;
+}
+
+message GetServerInfoRequest
+{
+}
+
+message GetServerInfoReply
+{
+    uint32 port = 1;
+    string experiment_path = 2;
+    string config = 3;
+    string heartbeat_stream_id = 4;
+    uint32 logging_ingress_port = 5;
+    uint32 logging_egress_port = 6;
+}
+
+message GetServicesRequest
+{
+}
+
+message GetServicesReply
+{
+    repeated ServiceReference running_services = 1;
+    repeated ServiceReference inactive_services = 2;
+}
+
+message GetServiceInfoRequest
+{
+    string service_id = 1;
+}
+
+message GetServiceInfoReply
+{
+    ServiceReference service = 1;
+}
+
+message RequireServiceRequest
+{
+    string service_id = 1;
+}
+
+message RequireServiceReply
+{
+    ServiceReference service = 1;
+}
+
+message RegisterServiceRequest
+{
+    string service_id = 1;
+    string service_type = 2;
+    string host = 3;
+    uint32 port = 4;
+}
+
+message RegisterServiceReply
+{
+    string service_config = 1;
+}
+
+message UpdateServiceStateRequest
+{
+    string service_id = 1;
+    ServiceState new_state = 2;
+}
+
+message UpdateServiceStateReply
+{
+    ServiceState new_state = 1;
+}

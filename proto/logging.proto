@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+import "core.proto";
+
+package catkit_core;
+
+// Wraps two Numpy arrays to form a, for example, contrast curve.
+message Curve
+{
+    Tensor x = 1;
+    Tensor y = 2;
+}
+
+// Wraps a Figure from Matplotlib, saved in png format.
+message Figure
+{
+    bytes png = 1;
+}
+
+// Wraps an external reference to a file.
+message File
+{
+    // This URI is relative to the experiment directory.
+    string uri = 1;
+}
+
+message DataLogEntry
+{
+    // The wall clock time as a Unix time stamp.
+    double wall_time = 1;
+
+    // The tag of this event. This describes what is contained in
+    // the value. Example: "contrast" or "dark_zone_SNR".
+    string tag = 2;
+
+    // The type of value that is wrapped. This can be either
+    // the type of value in the binary file, or, otherwise,
+    // an arbitrary string. In these cases, the value is not
+    // stored inside the binary file.
+    string value_type = 3;
+
+    // The value in this event.
+    oneof value
+    {
+        float scalar = 8;
+        Tensor tensor = 9;
+        Curve curve = 10;
+        Figure figure = 11;
+        File file = 12;
+    }
+}
+
+message LogEntry
+{
+    string filename = 1;
+    int32 line = 2;
+    string function = 3;
+    Severity severity = 4;
+    string message = 5;
+    uint64 timestamp = 6;
+}
+
+enum Severity
+{
+    UNSPECIFIED = 0;
+    DEBUG = 10;
+    INFO = 20;
+    WARNING = 30;
+    ERROR = 40;
+    CRITICAL = 50;
+}
