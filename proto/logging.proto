@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "core.proto";
 
-package catkit_core;
+package catkit.logging;
 
 // Wraps two Numpy arrays to form a, for example, contrast curve.
 message Curve

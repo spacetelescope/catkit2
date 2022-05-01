@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package catkit_core;
+package catkit;
 
 message List
 {

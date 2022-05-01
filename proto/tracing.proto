@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package catkit.tracing;
+
+enum TraceEventPhase
+{
+    BEGIN = 0;
+    END = 1;
+    INTERVAL = 2;
+    INSTANT = 3;
+    COUNTER = 4;
+}
+
+message TraceEvent
+{
+    string name = 1;
+    TraceEventPhase type = 2;
+    uint32 process_id = 3;
+    uint32 thread_id = 4;
+    uint64 timestamp = 5;
+    uint64 duration = 6;
+    double counter = 7;
+}

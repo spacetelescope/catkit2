@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "core.proto";
 
-package catkit_core.service;
+package catkit.service;
 
 message GetServiceInfoRequest
 {
