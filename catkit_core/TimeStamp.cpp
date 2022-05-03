@@ -29,16 +29,14 @@ string ConvertTimestampToString(uint64_t timestamp)
 	return ss.str();
 }
 
-TimeDelta::TimeDelta()
+Timer::Timer()
 {
-	m_LastTime = steady_clock::now();
+	m_StartTime = steady_clock::now();
 }
 
-double TimeDelta::GetTimeDelta()
+double Timer::GetTime()
 {
 	auto now = steady_clock::now();
-	double sec = duration_cast<duration<double>>(now - m_LastTime).count();
 
-	m_LastTime = now;
-	return sec;
+	return duration_cast<duration<double>>(now - m_StartTime).count();
 }
