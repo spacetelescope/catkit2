@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package catkit.server;
+package catkit_proto.server;
 
 enum ServiceState
 {
-    INACTIVE = 0;
+    CLOSED = 0;
     INTIALIZING = 1;
     OPENING = 2;
     OPERATIONAL = 3;
@@ -29,11 +29,13 @@ message GetServerInfoRequest
 message GetServerInfoReply
 {
     uint32 port = 1;
-    string experiment_path = 2;
-    string config = 3;
+    string config = 2;
+    bool is_simulated = 3;
     string heartbeat_stream_id = 4;
     uint32 logging_ingress_port = 5;
     uint32 logging_egress_port = 6;
+    uint32 data_logging_ingress_port = 7;
+    uint32 tracing_ingress_port = 8;
 }
 
 message GetServicesRequest

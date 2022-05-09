@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "core.proto";
 
-package catkit.service;
+package catkit_proto.service;
 
 message GetServiceInfoRequest
 {
@@ -16,7 +16,7 @@ message GetServiceInfoReply
 
     repeated string property_names = 4;
     repeated string command_names = 5;
-    Dict datastream_ids = 6;
+    map<string, string> datastream_ids = 6;
 }
 
 message GetPropertyRequest
