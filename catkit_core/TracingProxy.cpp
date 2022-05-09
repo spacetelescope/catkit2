@@ -17,6 +17,16 @@ TracingProxy::TracingProxy(std::shared_ptr<TestbedProxy> testbed)
 {
 	m_Host = testbed->GetHost();
 	m_Port = testbed->GetTracingIngressPort();
+
+	m_MessageLoopThread = std::thread(&TracingProxy::MessageLoop, this);
+}
+
+TracingProxy::~TracingProxy()
+{
+	ShutDown();
+
+	if (m_MessageLoopThread.joinable())
+		m_MessageLoopThread.join();
 }
 
 void TracingProxy::TraceBegin(string func, string what)
@@ -106,14 +116,59 @@ void TracingProxy::TraceThreadName(string thread_name)
 
 void TracingProxy::SendTraceMessage(string contents)
 {
-	thread_local static zmq::socket_t socket(m_Context, ZMQ_PUSH);
-	thread_local static bool connected(false);
+	std::unique_lock<std::mutex> lock(m_Mutex);
+	m_LogMessages.push(contents);
 
-	if (!connected)
+	m_ConditionVariable.notify_all();
+}
+
+void TracingProxy::MessageLoop()
+{
+	zmq::context_t context;
+	zmq::socket_t socket(context, ZMQ_PUSH);
+
+	socket.set(zmq::sockopt::linger, 0);
+	socket.set(zmq::sockopt::sndtimeo, 10);
+
+	socket.connect("tcp://"s + m_Host + ":" + to_string(m_Port));
+
+	std::string message;
+
+	while (!m_ShutDown)
 	{
-		socket.connect("tcp://"s + m_Host + ":" + to_string(m_Port));
-		connected = true;
+		// Get next message from the queue.
+		{
+			std::unique_lock<std::mutex> lock(m_Mutex);
+
+			while (m_TraceMessages.empty() && !m_ShutDown)
+			{
+				m_ConditionVariable.wait(lock);
+			}
+
+			if (m_ShutDown)
+				break;
+
+			message = m_TraceMessages.front();
+			m_TraceMessages.pop();
+		}
+
+		// Construct message.
+		message_t message_zmq(message.size());
+		memcpy(message_zmq.data(), message.c_str(), message.size());
+
+		zmq::send_result_t res;
+		do
+		{
+			res = socket.send(message_zmq, zmq::send_flags::none);
+		}
+		while (!res.has_value() && m_ShutDown);
 	}
 
-	socket.send_string(contents);
+	socket.close();
+}
+
+void TracingProxy::ShutDown()
+{
+	m_ShutDown = true;
+	m_ConditionVariable.notify_all();
 }

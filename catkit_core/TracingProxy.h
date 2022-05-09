@@ -1,12 +1,16 @@
 #ifndef TRACING_PROXY_H
 #define TRACING_PROXY_H
 
+#include "TestbedProxy.h"
+
+#include <zmq.hpp>
+
 #include <thread>
 
 class TracingProxy
 {
 public:
-    TracingProxy(int tracing_port, std::shared_ptr<TestbedProxy> testbed);
+    TracingProxy(std::shared_ptr<TestbedProxy> testbed);
     ~TracingProxy();
 
     void TraceBegin(std::string func, std::string what);
@@ -22,9 +26,15 @@ public:
 private:
     void SendTraceMessage(std::string contents);
 
-    static std::map<std::thread::id, int> m_ThreadIds;
+    void MessageLoop();
+    void ShutDown();
 
-    zmq::context_t m_Context;
+    std::thread m_MessageLoopThread;
+    std::atomic_bool m_ShutDown;
+
+    std::queue<std::string> m_TraceMessages;
+    std::mutex m_Mutex;
+    std::condition_variable m_ConditionVariable;
 
     std::string m_Host;
     int m_Port;
