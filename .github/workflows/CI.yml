@@ -1,0 +1,66 @@
+name: catkit2 CI
+
+on:
+  workflow_dispatch:
+    branches:
+      - master
+      - develop
+  pull_request:
+    types: [review_requested, ready_for_review]
+    branches:
+    - master
+    - develop
+
+jobs:
+  syntax-lint:
+    name: flake8 (syntax only) on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        python-version: [3.7.6]
+    env:
+        # http://flake8.pycqa.org/en/latest/user/error-codes.html
+        EXCLUDE_DIRS: ""
+        SELECTIONS: E9
+        IGNORE: ""
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install flake8
+      shell: bash
+    - name: Lint with flake8
+      run: flake8 . --max-line-length=127 --count --statistics --exclude=$EXCLUDE_DIRS --select=$SELECTIONS --ignore=$IGNORE
+      shell: bash
+
+  style-lint:
+    name: flake8 on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 2
+      matrix:
+        python-version: [3.7.6]
+    env:
+      # http://flake8.pycqa.org/en/latest/user/error-codes.html
+      EXCLUDE_DIRS: ""
+      SELECTIONS: E4,E7,W6,F821,F822
+      IGNORE: W605
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install flake8
+        shell: bash
+      - name: Lint with flake8
+        run: flake8 . --max-line-length=127 --count --statistics --exclude=$EXCLUDE_DIRS --select=$SELECTIONS --ignore=$IGNORE
+        shell: bash
+        
