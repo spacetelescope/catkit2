@@ -42,7 +42,7 @@ ProtoService::ProtoService(std::string service_name, std::string service_type, i
 
 	m_RequestHandlers["execute_command"] = [this](const string &data){return this->OnExecuteCommandRequest(data);};
 
-    m_RequestHandlers["info"] = [this](const string &data){return this->OnGetInfoRequest(data);};
+	m_RequestHandlers["info"] = [this](const string &data){return this->OnGetInfoRequest(data);};
 
 	MakeProperty("config", [this](){return this->GetConfiguration();});
 	m_ServiceHeartbeat = MakeDataStream("heartbeat", DataType::DT_UINT64, {1}, 10);
@@ -72,20 +72,20 @@ void ProtoService::MonitorInterface()
 	LOG_INFO("Connecting to testbed server on port "s + std::to_string(m_Port) + ".");
 
 	m_ShellSocket = new socket_t(m_Context, ZMQ_ROUTER);
-    m_ServerSocket = new socket_t(m_Context, ZMQ_DEALER);
+	m_ServerSocket = new socket_t(m_Context, ZMQ_DEALER);
 
 	m_ShellSocket->set(zmq::sockopt::rcvtimeo, 100);
 	m_ShellSocket->set(zmq::sockopt::linger, 0);
 
-    m_ServerSocket->set(zmq::sockopt::rcvtimeo, 500);
-    m_ServerSocket->set(zmq::sockopt::linger, 0);
+	m_ServerSocket->set(zmq::sockopt::rcvtimeo, 500);
+	m_ServerSocket->set(zmq::sockopt::linger, 0);
 
 	m_ShellSocket->bind("tcp://127.0.0.1:*");
-    m_ServerSocket->connect("tcp://127.0.0.1:"s + to_string(m_ServerPort));
+	m_ServerSocket->connect("tcp://127.0.0.1:"s + to_string(m_ServerPort));
 
-    const string endpoint = m_ShellSocket->get(zmq::sockopt::last_endpoint);
-    const string port_string = endpoint.substr(endpoint.rfind(":") + 1);
-    m_ServicePort = stoi(port_string);
+	const string endpoint = m_ShellSocket->get(zmq::sockopt::last_endpoint);
+	const string port_string = endpoint.substr(endpoint.rfind(":") + 1);
+	m_ServicePort = stoi(port_string);
 
 	m_IsRunning = true;
 	m_LastReceivedHeartbeatTime = GetTimeStamp();
@@ -290,16 +290,47 @@ private:
 
 void ProtoService::Run()
 {
-    std::jthread service_thread = std::jthread(&ProtoService::RunService);
+	m_ShouldShutDown = false;
+
+	std::jthread service_thread = std::jthread(&ProtoService::RunService);
+
+	MonitorInterface();
+}
+
+void ProtoService::Sleep(double sleep_time_in_ms, void (*error_check)()=nullptr)
+{
+	Timer timer;
+
+	while (true)
+	{
+		double sleep_remaining = sleep_time_in_ms - timer.GetTime() * 1000;
+
+		if (sleep_remaining > 0)
+			break;
+
+		if (m_ShouldShutDown)
+			break;
+
+		if (error_check)
+			error_check();
+
+		std::this_thread::sleep_for(chrono::milliseconds(min(20, sleep_remaining)));
+	}
+}
+
+void ProtoService::ShutDown()
+{
+	m_ShouldShutDown = true;
+}
 
 void ProtoService::RunService()
 {
-    m_IsRunning = true;
+	m_IsRunning = true;
 
-    Finally end_service([this]()
-    {
-        m_IsRunning = false;
-    });
+	Finally end_service([this]()
+	{
+		m_IsRunning = false;
+	});
 
 	LOG_INFO("Opening service...");
 
@@ -315,21 +346,6 @@ void ProtoService::RunService()
 	}
 
 	LOG_INFO("Service succesfully opened. Starting main loop.");
-
-	// Shut down monitoring thread at the end of this function no matter what.
-	Finally cleanup_interface_thread([this]()
-	{
-		m_IsRunning = false;
-
-		try
-		{
-			m_InterfaceThread.join();
-		}
-		catch (...)
-		{
-			// Thread was already stopped. Ignore errors.
-		}
-	});
 
 	try
 	{

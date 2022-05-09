@@ -18,6 +18,12 @@
 class Service
 {
 public:
+
+}
+
+class Service
+{
+public:
 	Service(std::string service_name, int testbed_port);
 	virtual ~Service();
 
@@ -61,8 +67,8 @@ private:
 	void SendReplyOk(const std::string &client_identity, const std::string &reply_type, const nlohmann::json &data);
 	void SendReplyError(const std::string &client_identity, const std::string &reply_type, const std::string &error_description);
 
-    void RegisterWithServer();
-    void HandleHeartbeat();
+	void RegisterWithServer();
+	void HandleHeartbeat();
 
 	zmq::context_t m_Context;
 	zmq::socket_t *m_ShellSocket;
@@ -71,7 +77,7 @@ private:
 	std::string m_ServiceName;
 	std::string m_ServiceType;
 	int m_ServerPort;
-    int m_ServicePort;
+	int m_ServicePort;
 
 	// Whether the shell interface is running.
 	bool m_IsRunning;
@@ -86,7 +92,7 @@ private:
 	uint64_t m_LastReceivedHeartbeatTime;
 
 	std::shared_ptr<DataStream> m_ServiceHeartbeat;
-    std::shared_ptr<DataStream> m_ServerHeartbeat;
+	std::shared_ptr<DataStream> m_ServerHeartbeat;
 
 	std::thread m_InterfaceThread;
 
