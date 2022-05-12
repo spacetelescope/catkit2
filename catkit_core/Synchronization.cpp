@@ -105,7 +105,7 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 		throw std::runtime_error("Wait() was called before the synchronization was intialized.");
 
 #ifdef _WIN32
-	TimeDelta timer;
+	Timer timer;
 	DWORD res = WAIT_OBJECT_0;
 
 	while (!condition())
@@ -124,7 +124,7 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 		// Wait for a maximum of 20ms to perform periodic error checking.
 		auto res = WaitForSingleObject(m_Semaphore, (unsigned long) (std::min)(20L, timeout_in_ms));
 
-		if (res == WAIT_TIMEOUT && timer.GetTimeDelta() > (timeout_in_ms * 0.001))
+		if (res == WAIT_TIMEOUT && timer.GetTime() > (timeout_in_ms * 0.001))
 		{
 			m_SharedData->m_NumReadersWaiting--;
 			throw std::runtime_error("Waiting time has expired.");
