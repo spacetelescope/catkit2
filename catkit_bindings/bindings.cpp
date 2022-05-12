@@ -173,6 +173,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			return DataStream::Open(stream_id);
 		})
+		.def("copy", [](DataStream &s)
+		{
+			return DataStream::Open(s.GetStreamId());
+		})
 		.def("request_new_frame", &DataStream::RequestNewFrame)
 		.def("submit_frame", &DataStream::SubmitFrame)
 		.def("submit_data", [](DataStream &s, py::buffer data)
@@ -265,7 +269,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("stream_name", &DataStream::GetStreamName)
 		.def_property_readonly("stream_id", &DataStream::GetStreamId)
 		.def_property_readonly("time_created", &DataStream::GetTimeCreated)
-		.def_property_readonly("creator_pid", &DataStream::GetCreatorPID)
+		.def_property_readonly("owner_pid", &DataStream::GetOwnerPID)
 		.def("is_frame_available", &DataStream::IsFrameAvailable)
 		.def("will_frame_be_available", &DataStream::WillFrameBeAvailable)
 		.def_property_readonly("newest_available_frame_id", &DataStream::GetNewestAvailableFrameId)

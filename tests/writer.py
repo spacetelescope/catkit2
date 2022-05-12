@@ -6,4 +6,10 @@ stream = DataStream.create('correction_howfs', 'boston_dm', 'float64', [2048], 2
 stream.submit_data(np.zeros(2048))
 
 print(stream.stream_id)
-time.sleep(100000)
+time.sleep(10)
+for i in range(1000):
+    #time.sleep(1)
+    np.random.randn(10000)
+    print(stream.newest_available_frame_id)
+    stream.submit_data(np.random.randn(2048))
+

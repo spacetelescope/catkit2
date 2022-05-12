@@ -5,12 +5,36 @@
 
 #include <algorithm>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
+
+#ifndef _WIN32
+	#include <sys/mman.h>
+    #include <sys/stat.h>
+	#include <fcntl.h>
+#endif // _WIN32
 
 using namespace std;
 
-std::string MakeStreamId(const std::string &stream_name, const std::string &service_name, int pid)
+std::string MakeStreamId(const std::string &stream_name, const std::string &service_name, ProcessId pid)
 {
-	return service_name + "." + std::to_string(pid) + "." + stream_name;
+#ifdef _WIN32
+	return std::to_string(pid) + "." + service_name + "." + stream_name;
+#elif __APPLE__
+	// MacOS shared memory names have a strongly reduced length. So we only use
+	// the pid and a hash based on stream name and service name.
+	size_t hash =  std::hash<std::string>{}(service_name + "." + stream_name);
+
+	std::stringstream stream;
+	stream << "/" << pid << "."
+		<< std::setfill ('0') << std::setw(sizeof(size_t) * 2)
+		<< std::hex << hash;
+
+	return stream.str();
+#elif __linux__
+	// Linux shared memory names should preferably start with a '/'.
+	return "/"s + std::to_string(pid) + "." + service_name + "." + stream_name;
+#endif
 }
 
 void CalculateBufferSize(DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer,
@@ -125,6 +149,15 @@ size_t GetSizeOfDataType(DataType type)
 	}
 }
 
+ProcessId GetPID()
+{
+#ifdef _WIN32
+	return GetCurrentProcessId();
+#else
+	return getpid();
+#endif // _WIN32
+}
+
 size_t DataFrame::GetNumElements()
 {
 	return m_Dimensions[0] * m_Dimensions[1] * m_Dimensions[2] * m_Dimensions[3];
@@ -135,30 +168,21 @@ size_t DataFrame::GetSizeInBytes()
 	return GetNumElements() * GetSizeOfDataType(m_DataType);
 }
 
-DataStream::DataStream(HANDLE file_mapping, HANDLE frame_written)
-	: m_FileMapping(file_mapping), m_FrameWritten(frame_written),
+DataStream::DataStream(const std::string &stream_id, std::shared_ptr<SharedMemory> shared_memory, bool create)
+	: m_SharedMemory(shared_memory),
 	m_Header(nullptr), m_Buffer(nullptr),
 	m_NextFrameIdToRead(0),
 	m_BufferHandlingMode(BM_NEWEST_ONLY)
 {
-	void *buffer = MapViewOfFile(m_FileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-
-	if (!buffer)
-	{
-		// Something went wrong with the memory mapping.
-		return;
-	}
-
+	auto buffer = m_SharedMemory->GetAddress();
 	m_Header = (DataStreamHeader *) buffer;
-	m_Buffer = ((char *)buffer) + sizeof(DataStreamHeader);
+	m_Buffer = ((char *) buffer) + sizeof(DataStreamHeader);
+
+	m_Synchronization.Initialize(stream_id, &(m_Header->m_SynchronizationSharedData), create);
 }
 
 DataStream::~DataStream()
 {
-	CloseHandle(m_FrameWritten);
-
-	UnmapViewOfFile(m_Header);
-	CloseHandle(m_FileMapping);
 }
 
 std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
@@ -168,23 +192,11 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
 		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
 
-	auto stream_id = MakeStreamId(stream_name, service_name, GetCurrentProcessId());
+	auto stream_id = MakeStreamId(stream_name, service_name, GetPID());
 
-	HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes_in_buffer, (stream_id + ".mem").c_str());
+	auto shared_memory = SharedMemory::Create(stream_id, num_bytes_in_buffer);
+	auto data_stream = std::shared_ptr<DataStream>(new DataStream(stream_id, shared_memory, true));
 
-	if (file_mapping == NULL)
-		throw std::runtime_error("Something went wrong while creating shared memory.");
-
-	HANDLE semaphore = CreateSemaphore(NULL, 0, 9999, (stream_id + ".sem").c_str());
-
-	if (semaphore == NULL)
-	{
-		CloseHandle(file_mapping);
-
-		throw std::runtime_error("Something went wrong while creating semaphore.");
-	}
-
-	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
 	auto header = data_stream->m_Header;
 
 	strcpy(header->m_Version, CURRENT_DATASTREAM_VERSION);
@@ -192,12 +204,11 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 	strcpy(header->m_StreamName, stream_name.c_str());
 	strcpy(header->m_StreamId, stream_id.c_str());
 	header->m_TimeCreated = GetTimeStamp();
-	header->m_CreatorPID = GetCurrentProcessId();
+	header->m_OwnerPID = GetPID();
 
 	header->m_FirstId = 0;
 	header->m_LastId = 0;
 	header->m_NextRequestId = 0;
-	header->m_NumReadersWaiting = 0;
 
 	header->m_NumBytesInBuffer = num_bytes_in_buffer;
 
@@ -213,21 +224,8 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 
 std::shared_ptr<DataStream> DataStream::Open(const std::string &stream_id)
 {
-	HANDLE file_mapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, (stream_id + ".mem").c_str());
-
-	if (file_mapping == NULL)
-		throw std::runtime_error("Something went wrong while opening shared memory.");
-
-	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (stream_id + ".sem").c_str());
-
-	if (semaphore == NULL)
-	{
-		CloseHandle(file_mapping);
-
-		throw std::runtime_error("Something went wrong while opening semaphore.");
-	}
-
-	auto data_stream = std::unique_ptr<DataStream>(new DataStream(file_mapping, semaphore));
+	auto shared_memory = SharedMemory::Open(stream_id);
+	auto data_stream = std::shared_ptr<DataStream>(new DataStream(stream_id, shared_memory, false));
 
 	if (strcmp(data_stream->m_Header->m_Version, CURRENT_DATASTREAM_VERSION) != 0)
 	{
@@ -269,6 +267,10 @@ void DataStream::SubmitFrame(size_t id)
 	DataFrameMetadata *meta = m_Header->m_FrameMetadata + (id % m_Header->m_NumFramesInBuffer);
 	meta->m_TimeStamp = GetTimeStamp();
 
+	// Obtain a lock as we are about to modify the condition of the
+	// synchronization.
+	auto lock = SynchronizationLock(&m_Synchronization);
+
 	// Make frame available:
 	// Use a do-while loop to ensure we are never decrementing the last id.
 	size_t last_id;
@@ -280,16 +282,7 @@ void DataStream::SubmitFrame(size_t id)
 			break;
 	} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
 
-	// Notify waiting processes.
-	long num_readers_waiting = m_Header->m_NumReadersWaiting.exchange(0);
-
-	// If a reader times out in between us reading the number of readers that are waiting
-	// and us releasing the semaphore, we are releasing one too many readers. This
-	// results in a future reader being released immediately, which is not a problem,
-	// as there are checks in place for that.
-
-	if (num_readers_waiting > 0)
-		ReleaseSemaphore(m_FrameWritten, (LONG) num_readers_waiting, NULL);
+	m_Synchronization.Signal();
 }
 
 void DataStream::SubmitData(void *data)
@@ -387,9 +380,9 @@ std::uint64_t DataStream::GetTimeCreated()
 	return m_Header->m_TimeCreated;
 }
 
-unsigned long DataStream::GetCreatorPID()
+ProcessId DataStream::GetOwnerPID()
 {
-	return m_Header->m_CreatorPID;
+	return m_Header->m_OwnerPID;
 }
 
 DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_check)())
@@ -407,44 +400,10 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 		if (!wait)
 			throw std::runtime_error("Frame is not available yet.");
 
-		TimeDelta timer;
-		DWORD res = WAIT_OBJECT_0;
-
-		while (m_Header->m_LastId <= id)
-		{
-			if (res == WAIT_OBJECT_0)
-			{
-				// Increment the number of readers that are waiting, making sure the counter
-				// is at least 1 after the increment. This can occur when a previous reader got
-				// interrupted and the trigger happening before decrementing the
-				// m_NumReadersWaiting counter.
-				while (m_Header->m_NumReadersWaiting++ < 0)
-				{
-				}
-			}
-
-			// Wait for a maximum of 20ms to perform periodic error checking.
-			auto res = WaitForSingleObject(m_FrameWritten, (unsigned long) min(20, wait_time_in_ms));
-
-			if (res == WAIT_TIMEOUT && timer.GetTimeDelta() > (wait_time_in_ms * 0.001))
-			{
-				m_Header->m_NumReadersWaiting--;
-				throw std::runtime_error("Waiting time has expired.");
-			}
-
-			if (error_check != nullptr)
-			{
-				try
-				{
-					error_check();
-				}
-				catch (...)
-				{
-					m_Header->m_NumReadersWaiting--;
-					throw;
-				}
-			}
-		}
+		// Wait until frame becomes available.
+		// Obtain a lock first.
+		auto lock = SynchronizationLock(&m_Synchronization);
+		m_Synchronization.Wait(wait_time_in_ms, [this, id]() { return this->m_Header->m_LastId > id; }, error_check);
 	}
 
 	size_t offset = (id % m_Header->m_NumFramesInBuffer) * m_Header->m_NumBytesPerFrame;

@@ -5,18 +5,22 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <atomic>
 #include <vector>
 #include <climits>
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 #include "ComplexTraits.h"
+#include "SharedMemory.h"
+#include "Synchronization.h"
 
 const char * const CURRENT_DATASTREAM_VERSION = "0.1";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
 const long INFINITE_WAIT_TIME = LONG_MAX;
+
+#ifdef _WIN32
+	typedef DWORD ProcessId;
+#else
+	typedef pid_t ProcessId;
+#endif // _WIN32
 
 enum class DataType
 {
@@ -48,6 +52,8 @@ DataType GetDataTypeFromString(std::string type);
 
 size_t GetSizeOfDataType(DataType type);
 
+ProcessId GetPID();
+
 struct DataFrameMetadata
 {
 	std::uint64_t m_TimeStamp;
@@ -60,7 +66,7 @@ struct DataStreamHeader
 	char m_StreamName[256];
 	char m_StreamId[256];
 	std::uint64_t m_TimeCreated;
-	unsigned long m_CreatorPID;
+	ProcessId m_OwnerPID;
 
 	DataType m_DataType;
 	size_t m_NumDimensions;
@@ -78,7 +84,7 @@ struct DataStreamHeader
 	std::atomic_size_t m_LastId;
 	std::atomic_size_t m_NextRequestId;
 
-	std::atomic_long m_NumReadersWaiting;
+	SynchronizationSharedData m_SynchronizationSharedData;
 };
 
 struct DataFrame
@@ -122,7 +128,7 @@ enum BufferHandlingMode
 class DataStream
 {
 private:
-	DataStream(HANDLE file_mapping, HANDLE semaphore);
+	DataStream(const std::string &stream_id, std::shared_ptr<SharedMemory> shared_memory, bool create);
 
 public:
 	~DataStream();
@@ -152,7 +158,7 @@ public:
 	std::string GetStreamName();
 	std::string GetStreamId();
 	std::uint64_t GetTimeCreated();
-	unsigned long GetCreatorPID();
+	ProcessId GetOwnerPID();
 
 	DataFrame GetFrame(size_t id, long wait_time_in_ms=INFINITE_WAIT_TIME, void (*error_check)()=nullptr);
 	DataFrame GetNextFrame(long wait_time_in_ms=INFINITE_WAIT_TIME, void (*error_check)()=nullptr);
@@ -168,11 +174,11 @@ public:
 	size_t GetOldestAvailableFrameId();
 
 private:
-	HANDLE m_FileMapping;
-	HANDLE m_FrameWritten;
-
+	std::shared_ptr<SharedMemory> m_SharedMemory;
 	DataStreamHeader *m_Header;
 	char *m_Buffer;
+
+	Synchronization m_Synchronization;
 
 	size_t m_NextFrameIdToRead;
 	BufferHandlingMode m_BufferHandlingMode;
