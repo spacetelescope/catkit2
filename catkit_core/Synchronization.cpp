@@ -3,7 +3,6 @@
 #include <stdexcept>
 #include <algorithm>
 
-
 #ifndef _WIN32
 	#include <errno.h>
 #endif
@@ -124,7 +123,7 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 		}
 
 		// Wait for a maximum of 20ms to perform periodic error checking.
-		auto res = WaitForSingleObject(m_Semaphore, (unsigned long) std::min(20, timeout_in_ms));
+		auto res = WaitForSingleObject(m_Semaphore, (unsigned long) (std::min)(20L, timeout_in_ms));
 
 		if (res == WAIT_TIMEOUT && timer.GetTimeDelta() > (timeout_in_ms * 0.001))
 		{
