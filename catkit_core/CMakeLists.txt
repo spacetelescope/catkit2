@@ -24,6 +24,7 @@ add_library(catkit_core STATIC
     Command.cpp
     Property.cpp
     Service.cpp
+    Communication.cpp
     ../proto/gen/cpp/core.pb.cc
     ../proto/gen/cpp/logging.pb.cc
     ../proto/gen/cpp/server.pb.cc

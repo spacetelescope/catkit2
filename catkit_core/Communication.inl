@@ -1,5 +1,9 @@
+#include "Timestamp.h"
+
+#include <zmq_addon.hpp>
+
 template<typename ProtoRequest, typename ProtoReply>
-void Client MakeRequest(const std::string &what, const ProtoRequest &request, ProtoReply &reply);
+void Client::MakeRequest(const std::string &what, const ProtoRequest &request, ProtoReply &reply)
 {
     auto socket = GetSocket();
 
@@ -8,17 +12,17 @@ void Client MakeRequest(const std::string &what, const ProtoRequest &request, Pr
 
 	zmq::multipart_t request_msg;
 
-	msg.addstr(what);
-	msg.addstr(send_string);
+	request_msg.addstr(what);
+	request_msg.addstr(send_string);
 
-	msg.send(socket);
+	request_msg.send(*socket);
 
 	Timer timer;
 
 	try
 	{
 		zmq::multipart_t reply_msg;
-		auto res = zmq::recv_multipart(socket, std::back_inserter(reply_msg));
+		auto res = zmq::recv_multipart(*socket, std::back_inserter(reply_msg));
 
 		if (!res.has_value())
 		{
