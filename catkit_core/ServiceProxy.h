@@ -2,17 +2,20 @@
 #define SERVICE_PROXY_H
 
 #include "Types.h"
-#include "TestbedProxy.h"
+#include "DataStream.h"
+#include "ServiceState.h"
 
 #include <zmq.hpp>
 
 #include <string>
 
+class TestbedProxy;
+
 class ServiceProxy
 {
 public:
 	ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id);
-	~ServiceProxy();
+	virtual ~ServiceProxy();
 
 	Value GetProperty(const std::string &name);
 	Value SetProperty(const std::string &name, const Value &value);

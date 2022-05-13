@@ -25,10 +25,14 @@ add_library(catkit_core STATIC
     Property.cpp
     Service.cpp
     Communication.cpp
+    TestbedProxy.cpp
+    ServiceProxy.cpp
+    ServiceState.cpp
     ../proto/gen/cpp/core.pb.cc
     ../proto/gen/cpp/logging.pb.cc
-    ../proto/gen/cpp/server.pb.cc
-    ../proto/gen/cpp/service.pb.cc)
+    ../proto/gen/cpp/testbed.pb.cc
+    ../proto/gen/cpp/service.pb.cc
+    ../proto/gen/cpp/tracing.pb.cc)
 
   target_include_directories(catkit_core PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../proto/gen/cpp)
 

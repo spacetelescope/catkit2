@@ -1,5 +1,9 @@
 #include "ServiceProxy.h"
 
+#include "TestbedProxy.h"
+
+using namespace std::string_literals;
+
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
 	: m_Testbed(testbed), m_ServiceId(service_id)
 {
@@ -8,7 +12,7 @@ ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string se
 
 	if (!testbed_config["services"].contains(service_id))
 	{
-		throw std::value_error("Service "s + service_id + " is a non-existant service id.");
+		throw std::runtime_error("Service "s + service_id + " is a non-existant service id.");
 	}
 }
 
@@ -17,21 +21,22 @@ Value ServiceProxy::GetProperty(const std::string &name)
 	if (!IsAlive())
 		throw std::runtime_error("Cannot get a property from a dead service.");
 
+	return Value();
 }
 
 Value ServiceProxy::SetProperty(const std::string &name, const Value &value)
 {
-
+	return Value();
 }
 
 Value ServiceProxy::ExecuteCommand(const Dict &arguments)
 {
-
+	return Value();
 }
 
 std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name)
 {
-
+	return nullptr;
 }
 
 ServiceState ServiceProxy::GetState()
@@ -51,11 +56,10 @@ ServiceState ServiceProxy::GetState()
 bool ServiceProxy::IsAlive()
 {
 	if (m_LastKnownState)
+		;
 	auto state = GetState();
 
-	return state == ServiceState::INITIALIZING
-		|| state == ServiceState::OPENING
-		|| state == ServiceState::OPERATIONAL;
+	return IsAliveState(state);
 }
 
 void ServiceProxy::Start()
