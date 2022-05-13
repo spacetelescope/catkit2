@@ -39,7 +39,7 @@ class NewportPicomotor(Service):
         self.timeout = config['timeout']
         self.sleep_per_step = config['sleep_per_step']
         self.sleep_base = config['sleep_base']
-        self.daisy = f'{config['daisy']}>' if config['daisy'] > 1 else ''
+        self.daisy = f"{config['daisy']}>" if config['daisy'] > 1 else ''
         self.axes = config['axes']
 
         self.shutdown_flag = threading.Event()
