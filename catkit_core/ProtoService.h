@@ -14,11 +14,38 @@
 #include "DataStream.h"
 #include "LogConsole.h"
 #include "LogPublish.h"
+#include "Communication.h"
 
-class Service
+class Service : public Server
 {
 public:
+	Service(std::string service_id, int service_port, int testbed_port);
 
+	void Run();
+
+	virtual void Open();
+	virtual void Main();
+	virtual void Close();
+
+	std::shared_ptr<Property> GetProperty(const std::string &property_name) const;
+	std::shared_ptr<Command> GetCommand(const std::string &command_name) const;
+	std::shared_ptr<DataStream> GetDataStream(const std::string &stream_name) const;
+
+	nlohmann::json GetConfig() const;
+	const std::string &GetName() const;
+
+	std::shared_ptr<Property> MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter = nullptr);
+	std::shared_ptr<Command> MakeCommand(std::string command_name, Command::CommandFunction func);
+	std::shared_ptr<DataStream> MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	std::shared_ptr<DataStream> ReuseDataStream(std::string stream_name, std::string stream_id);
+
+private:
+	std::string HandleGetInfo(const std::string &data);
+
+	std::string HandleGetProperty(const std::string &data);
+	std::string HandleSetProperty(const std::string &data);
+
+	std::string HandleExecuteCommand(const std::string &data);
 }
 
 class Service
