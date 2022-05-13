@@ -11,6 +11,7 @@ dependencies:
   - scipy
   - matplotlib
   - pyzmq
+  - zeromq>=4.0.0
   - conda-forge::pyvisa>=1.10
   - conda-forge::pyvisa-py
   - pyserial
@@ -20,7 +21,10 @@ dependencies:
   - asdf
   - psutil
   - protobuf
+  - libprotobuf
   - conda-forge:hcipy
   - docopt
+  - pip
+  - cmake>=3.0.0
   - pip:
     - zwoasi>=0.0.21 # Requires additional manual install of driver(s) from https://astronomy-imaging-camera.com/software-drivers

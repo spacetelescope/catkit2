@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Download ZeroMQ
-curl -L https://github.com/zeromq/libzmq/releases/download/v4.2.1/zeromq-4.2.1.tar.gz -O
-tar xfz zeromq-4.2.1.tar.gz
-rm -f zeromq-4.2.1.tar.gz
-
 # Download cppzmq
 curl -L https://github.com/zeromq/cppzmq/archive/refs/tags/v4.7.1.tar.gz -O
 tar xfz v4.7.1.tar.gz
