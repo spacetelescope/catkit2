@@ -2,6 +2,8 @@ from catkit2.testbed.service import Service, parse_service_args
 
 import threading
 import numpy as np
+import time
+import functools
 
 import urllib
 from urllib.parse import urlencode
