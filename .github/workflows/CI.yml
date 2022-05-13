@@ -63,4 +63,27 @@ jobs:
       - name: Lint with flake8
         run: flake8 . --max-line-length=127 --count --statistics --exclude=$EXCLUDE_DIRS --select=$SELECTIONS --ignore=$IGNORE
         shell: bash
-        
+
+  pytest:
+    name: Build and test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+          auto-update-conda: true
+          auto-activate-base: false
+    - name: Install dependencies
+      run: |
+        cd extern/
+        bash ./download.sh
+        cd ../
+        conda env create --name ci-env --file environment.yml
+        conda activate ci-env
+        python setup.py develop
+      shell: bash -l {0}

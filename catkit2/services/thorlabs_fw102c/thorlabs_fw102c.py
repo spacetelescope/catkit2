@@ -36,7 +36,7 @@ class ThorlabsFW102C(Service):
 
             try:
                 frame = self.position.get_next_frame(10)
-            except:
+            except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 
@@ -67,12 +67,12 @@ class ThorlabsFW102C(Service):
         try:
             bytes_written = self.connection.write(command)
 
-            if self.connection.last_status is visapy.constants.StatusCode.success:
+            if self.connection.last_status is pyvisa.constants.StatusCode.success:
                 # Read the echo.
                 self.connection.read()
             else:
                 raise RuntimeError(f'Filter wheel returned an unexpected response: {self.instrument.last_status}.')
-        except:
+        except Exception:
             self.current_position = None
             raise
 
@@ -86,7 +86,7 @@ class ThorlabsFW102C(Service):
 
         self.send_command(f'{self._SET_POSITION}{position}')
 
-        self.current_position.submit_data(np.array([current_position]))
+        self.current_position.submit_data(np.array([position]))
 
 if __name__ == '__main__':
     service_name, testbed_port = parse_service_args()

@@ -3,6 +3,7 @@ from catkit2.simulator.simulated_service import SimulatorClient
 
 import threading
 import numpy as np
+import time
 
 class NewportPicomotorSim(Service):
     def __init__(self, service_name, testbed_port):
@@ -53,7 +54,7 @@ class NewportPicomotorSim(Service):
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
-            except:
+            except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 

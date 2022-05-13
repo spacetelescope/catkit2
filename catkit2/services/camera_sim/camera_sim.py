@@ -14,9 +14,6 @@ class CameraSim(Service):
 
         self.simulator_connection = SimulatorClient(service_name, testbed_port)
 
-    @property
-    def
-
     def start_acquisition(self):
         self.simulator_connection.start_camera_acquisition(self.service_name, -1, self.exposure_time, self.frame_interval)
 

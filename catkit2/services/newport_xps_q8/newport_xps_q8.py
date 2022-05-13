@@ -6,10 +6,14 @@ import os
 import threading
 import numpy as np
 
-library_path = os.environ.get('CATKIT_NEWPORT_LIB_PATH')
-if library_path:
-    sys.path.append(library_path)
-import XPS_Q8_drivers
+try:
+    library_path = os.environ.get('CATKIT_NEWPORT_LIB_PATH')
+    if library_path:
+        sys.path.append(library_path)
+    import XPS_Q8_drivers
+except ImportError:
+    print("To use the Newport XPS-Q8, you need to set the CATKIT_NEWPORT_LIB_PATH environment variable.")
+    raise
 
 class NewportXpsQ8(Service):
     _OK_STATES = (7, 11, 12, 42)
@@ -128,7 +132,7 @@ class NewportXpsQ8(Service):
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
-            except:
+            except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 

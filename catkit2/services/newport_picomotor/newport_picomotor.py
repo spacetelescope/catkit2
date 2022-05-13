@@ -2,6 +2,8 @@ from catkit2.testbed.service import Service, parse_service_args
 
 import threading
 import numpy as np
+import time
+import functools
 
 import urllib
 from urllib.parse import urlencode
@@ -39,7 +41,7 @@ class NewportPicomotor(Service):
         self.timeout = config['timeout']
         self.sleep_per_step = config['sleep_per_step']
         self.sleep_base = config['sleep_base']
-        self.daisy = f'{config['daisy']}>' if config['daisy'] > 1 else ''
+        self.daisy = f"{config['daisy']}>" if config['daisy'] > 1 else ''
         self.axes = config['axes']
 
         self.shutdown_flag = threading.Event()
@@ -80,7 +82,7 @@ class NewportPicomotor(Service):
 
         # Update current position data stream.
         stream = self.axis_current_positions[axis_name]
-        stream..submit_data(np.array([current_position]))
+        stream.submit_data(np.array([current_position]))
 
         return current_position
 
@@ -91,7 +93,7 @@ class NewportPicomotor(Service):
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
-            except:
+            except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 

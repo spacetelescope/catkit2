@@ -49,7 +49,7 @@ class NewportXpsQ8Sim(Service):
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
-            except:
+            except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 

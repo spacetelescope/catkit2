@@ -11,7 +11,7 @@ On MacOS you need to increase the amount of shared memory that is available to p
 Installation
 ------------
 
-The following will download and install all third-party C++ dependencies and create a new Conda environment with the required Python packages. The download can be performed on a separate machine with internet connectivity and the resulting folders can be copy-pasted in the extern folder on the machine without internet connectivity.
+The following will download all third-party C++ dependencies and create a new Conda environment with the required Python packages. The download can be performed on a separate machine with internet connectivity and the resulting folders can be copy-pasted in the extern folder on the machine without internet connectivity.
 
 You will need to install drivers and SDKs for some devices yourself to use those devices.
 
@@ -19,7 +19,6 @@ You will need to install drivers and SDKs for some devices yourself to use those
 cd catkit2
 cd extern
 ./download.sh
-./install.sh
 cd ..
 conda env create --file environment.yml
 conda activate catkit2

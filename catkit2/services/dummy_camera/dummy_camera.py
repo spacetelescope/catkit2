@@ -1,8 +1,3 @@
-# Disable the Fortran Ctrl-C handler as it interferes with safe closing of
-# the service.
-import os
-os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
-
 from catkit2.testbed.service import Service, parse_service_args
 
 import time
