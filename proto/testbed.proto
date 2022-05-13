@@ -5,7 +5,7 @@ package catkit_proto.testbed;
 enum ServiceState
 {
     CLOSED = 0;
-    INTIALIZING = 1;
+    INITIALIZING = 1;
     OPENING = 2;
     OPERATIONAL = 3;
     CLOSING = 4;
@@ -90,4 +90,24 @@ message UpdateServiceStateRequest
 message UpdateServiceStateReply
 {
     ServiceState new_state = 1;
+}
+
+message GetExperimentPathRequest
+{
+}
+
+message GetExperimentPathReply
+{
+    string experiment_path = 1;
+}
+
+message StartNewExperimentRequest
+{
+    string experiment_name = 1;
+    string metadata = 2;
+}
+
+message StartNewExperimentReply
+{
+    string experiment_path = 1;
 }

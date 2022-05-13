@@ -4,8 +4,8 @@
 #include "ServiceProxy.h"
 #include "LoggingProxy.h"
 #include "DataStream.h"
-#include "Client.h"
-#include "server.pb.h"
+#include "Communication.h"
+#include "testbed.pb.h"
 
 #include <zmq.hpp>
 #include <nlohmann/json.hpp>
@@ -13,7 +13,7 @@
 #include <string>
 #include <mutex>
 
-using ServiceState = catkit_proto::ServiceState;
+#include "ServiceState.h"
 
 struct ServiceReference
 {
@@ -24,17 +24,18 @@ struct ServiceReference
 	unsigned long port;
 };
 
-class TestbedProxy : public Client
+class TestbedProxy : public Client, std::enable_shared_from_this<TestbedProxy>
 {
 public:
 	TestbedProxy(std::string host, int port);
-	~TestbedProxy();
+	virtual ~TestbedProxy();
 
 	std::shared_ptr<ServiceProxy> GetService(const std::string &service_id);
 
 	void RequireService(const std::string &service_id);
 	void RequireServices(std::vector<std::string> service_ids);
 
+	ServiceReference GetServiceInfo(const std::string &service_id);
 	ServiceState GetServiceState(const std::string &service_id);
 
 	void RegisterService(std::string service_id, std::string service_type, int port);
@@ -55,13 +56,9 @@ public:
 	std::vector<std::string> GetInactiveServices();
 
 private:
-	template<typename ProtoRequest, typename ProtoReply>
-	void MakeRequest(std::string what, const ProtoRequest &request, ProtoReply &reply);
-
 	void GetServerInfo();
 
 	std::string m_Host;
-	int m_TestbedPort;
 
 	int m_LoggingIngressPort;
 	int m_LoggingEgressPort;
@@ -69,14 +66,14 @@ private:
 	int m_DataLoggingIngressPort;
 	int m_TracingIngressPort;
 
-	zmq::socket_t GetSocket();
-
 	bool m_HasGottenInfo;
 
 	std::shared_ptr<DataStream> m_HeartbeatStream;
 
 	bool m_IsSimulated;
 	nlohmann::json m_Config;
+
+	std::map<std::string, std::shared_ptr<ServiceProxy>> m_Services;
 };
 
 #endif // TESTBED_PROXY_H
