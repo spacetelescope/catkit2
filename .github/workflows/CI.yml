@@ -80,7 +80,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd extern/
-        sh ./download.sh
+        bash ./download.sh
         cd ../
         conda env create --name ci-env --file environment.yml
         conda activate ci-env
