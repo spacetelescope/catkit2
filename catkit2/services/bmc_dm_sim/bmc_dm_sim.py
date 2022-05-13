@@ -68,7 +68,7 @@ class BmcDmSim(Service):
         while not self.shutdown_flag:
             try:
                 frame = self.channels[channel_name].get_next_frame(10)
-            except:
+            except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 

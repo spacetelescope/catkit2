@@ -32,7 +32,7 @@ class ThorlabsMFF101(Service):
         while not self.shutdown_flag.is_set():
             try:
                 frame = self.commanded_position.get_next_frame(10)
-            except:
+            except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 

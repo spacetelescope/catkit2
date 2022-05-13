@@ -35,7 +35,7 @@ class SafetyMonitor(Service):
 
             try:
                 last_frame = self.data_streams[safety_name].get_latest_frame()
-            except:
+            except Exception:
                 last_frame = self.data_streams[safety_name].get_next_frame()
 
             is_safe = True

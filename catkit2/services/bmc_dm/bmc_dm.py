@@ -7,11 +7,15 @@ import threading
 import numpy as np
 from astropy.io import fits
 
-sdk_path = os.environ.get('CATKIT_BOSTON_SDK_PATH')
-if sdk_path is not None:
-    sys.path.append(sdk_path)
+try:
+    sdk_path = os.environ.get('CATKIT_BOSTON_SDK_PATH')
+    if sdk_path is not None:
+        sys.path.append(sdk_path)
 
-import bmc
+    import bmc
+except ImportError:
+    print('To use Boston DMs, you need to set the CATKIT_BOSTON_SDK_PATH environment variable.')
+    raise
 
 class BmcDm(Service):
     def __init__(self, service_name, testbed_port):
@@ -69,7 +73,7 @@ class BmcDm(Service):
         while not self.shutdown_flag:
             try:
                 frame = self.channels[channel_name].get_next_frame(10)
-            except:
+            except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 

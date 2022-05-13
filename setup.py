@@ -33,7 +33,7 @@ def generate_proto(source):
             sys.stderr.write("Can't find required file: %s\n" % source)
             sys.exit(-1)
 
-        if protoc == None:
+        if protoc is None:
             sys.stderr.write(
             "protoc is not installed nor found in ../src.  Please compile it "
             "or install the binary package.\n")
