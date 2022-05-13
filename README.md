@@ -11,6 +11,8 @@ On MacOS you need to increase the amount of shared memory that is available to p
 Installation
 ------------
 
+This procedure requires a pre-installed C++ compiler. On windows, you can for example install Cmake. The installation can be done using the Visual Studio installer to get the "C++ CMake tools for Windows". 
+
 The following will download all third-party C++ dependencies and create a new Conda environment with the required Python packages. The download can be performed on a separate machine with internet connectivity and the resulting folders can be copy-pasted in the extern folder on the machine without internet connectivity.
 
 You will need to install drivers and SDKs for some devices yourself to use those devices.
