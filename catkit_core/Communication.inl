@@ -1,4 +1,5 @@
 #include "Timestamp.h"
+#include "Log.h"
 
 #include <zmq_addon.hpp>
 
@@ -26,11 +27,13 @@ void Client::MakeRequest(const std::string &what, const ProtoRequest &request, P
 
 		if (!res.has_value())
 		{
+			LOG_ERROR("The server took too long to respond to our request.");
 			throw std::runtime_error("The server did not respond in time. Is it running?");
 		}
 
 		if (reply_msg.size() != 2)
 		{
+			LOG_ERROR("The server responded with " + std::to_string(reply_msg.size()) + " parts rather than 2.");
 			throw std::runtime_error("The server responded in a wrong format.");
 		}
 
@@ -44,15 +47,17 @@ void Client::MakeRequest(const std::string &what, const ProtoRequest &request, P
 		}
 		else if (reply_type == "ERROR")
 		{
-			throw std::runtime_error("The server responded with an error: " + reply_data);
+			throw std::runtime_error(reply_data);
 		}
 		else
 		{
+			LOG_ERROR("The server responded with \"" + reply_type + "\" rather than OK or ERROR.");
 			throw std::runtime_error("The server responded in a wrong format.");
 		}
 	}
-	catch (zmq::error_t)
+	catch (const zmq::error_t &e)
 	{
-		// TODO: Log error.
+		LOG_ERROR(std::string("ZeroMQ error: ") + e.what());
+		throw;
 	}
 }
