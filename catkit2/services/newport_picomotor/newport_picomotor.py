@@ -80,7 +80,7 @@ class NewportPicomotor(Service):
 
         # Update current position data stream.
         stream = self.axis_current_positions[axis_name]
-        stream..submit_data(np.array([current_position]))
+        stream.submit_data(np.array([current_position]))
 
         return current_position
 
