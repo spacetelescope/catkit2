@@ -25,6 +25,8 @@ add_library(catkit_core STATIC
     Property.cpp
     Service.cpp)
 
+set_property(TARGET catkit_core PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 # Link ZeroMQ
 find_package(ZeroMQ REQUIRED)
 target_include_directories(catkit_core PUBLIC ${ZeroMQ_INCLUDE_DIR})
