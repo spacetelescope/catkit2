@@ -28,6 +28,7 @@ add_library(catkit_core STATIC
     TestbedProxy.cpp
     ServiceProxy.cpp
     ServiceState.cpp
+    Tensor.cpp
     ../proto/gen/cpp/core.pb.cc
     ../proto/gen/cpp/logging.pb.cc
     ../proto/gen/cpp/testbed.pb.cc

@@ -56,99 +56,6 @@ void CalculateBufferSize(DataType type, std::vector<size_t> dimensions, size_t n
 	num_bytes_in_buffer = sizeof(DataStreamHeader) + num_bytes_per_frame * num_frames_in_buffer;
 }
 
-const char *GetDataTypeAsString(DataType type)
-{
-	switch (type)
-	{
-		case DataType::DT_UINT8:
-			return "B";
-		case DataType::DT_UINT16:
-			return "H";
-		case DataType::DT_UINT32:
-			return "L";
-		case DataType::DT_UINT64:
-			return "Q";
-		case DataType::DT_INT8:
-			return "b";
-		case DataType::DT_INT16:
-			return "h";
-		case DataType::DT_INT32:
-			return "l";
-		case DataType::DT_INT64:
-			return "q";
-		case DataType::DT_FLOAT32:
-			return "f";
-		case DataType::DT_FLOAT64:
-			return "d";
-		case DataType::DT_COMPLEX64:
-			return "Zf";
-		case DataType::DT_COMPLEX128:
-			return "Zd";
-		default:
-			return "unknown";
-	}
-}
-
-DataType GetDataTypeFromString(const char *type)
-{
-	return GetDataTypeFromString(string(type));
-}
-
-DataType GetDataTypeFromString(string type)
-{
-	if (type == "B" || type == "uint8")
-		return DataType::DT_UINT8;
-	if (type == "H" || type == "uint16")
-		return DataType::DT_UINT16;
-	if (type == "L" || type == "uin32")
-		return DataType::DT_UINT32;
-	if (type == "Q" || type == "uint64")
-		return DataType::DT_UINT64;
-	if (type == "b" || type == "int8")
-		return DataType::DT_INT8;
-	if (type == "h" || type == "int16")
-		return DataType::DT_INT16;
-	if (type == "l" || type == "int32")
-		return DataType::DT_INT32;
-	if (type == "q" || type == "int64")
-		return DataType::DT_INT64;
-	if (type == "f" || type == "float32")
-		return DataType::DT_FLOAT32;
-	if (type == "d" || type == "float64")
-		return DataType::DT_FLOAT64;
-	if (type == "Zf" || type == "complex64")
-		return DataType::DT_COMPLEX64;
-	if (type == "Zd" || type == "complex128")
-		return DataType::DT_COMPLEX128;
-	return DataType::DT_UNKNOWN;
-}
-
-size_t GetSizeOfDataType(DataType type)
-{
-	switch (type)
-	{
-		case DataType::DT_UINT8:
-		case DataType::DT_INT8:
-			return 1;
-		case DataType::DT_UINT16:
-		case DataType::DT_INT16:
-			return 2;
-		case DataType::DT_UINT32:
-		case DataType::DT_INT32:
-		case DataType::DT_FLOAT32:
-			return 4;
-		case DataType::DT_UINT64:
-		case DataType::DT_INT64:
-		case DataType::DT_FLOAT64:
-		case DataType::DT_COMPLEX64:
-			return 8;
-		case DataType::DT_COMPLEX128:
-			return 16;
-		default:
-			return 0;
-	}
-}
-
 ProcessId GetPID()
 {
 #ifdef _WIN32
@@ -158,14 +65,9 @@ ProcessId GetPID()
 #endif // _WIN32
 }
 
-size_t DataFrame::GetNumElements()
+void CopyString(char *dest, const char *src, size_t n)
 {
-	return m_Dimensions[0] * m_Dimensions[1] * m_Dimensions[2] * m_Dimensions[3];
-}
-
-size_t DataFrame::GetSizeInBytes()
-{
-	return GetNumElements() * GetSizeOfDataType(m_DataType);
+	snprintf(dest, n, "%s", src);
 }
 
 DataStream::DataStream(const std::string &stream_id, std::shared_ptr<SharedMemory> shared_memory, bool create)
@@ -253,10 +155,8 @@ DataFrame DataStream::RequestNewFrame()
 	DataFrame frame;
 	frame.m_Id = new_frame_id;
 	frame.m_TimeStamp = 0;
-	frame.m_DataType = m_Header->m_DataType;
-	frame.m_NumDimensions = m_Header->m_NumDimensions;
-	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
-	frame.m_Data = m_Buffer + offset;
+
+	frame.Set(m_Header->m_DataType, m_Header->m_NumDimensions, m_Header->m_Dimensions, m_Buffer + offset, false);
 
 	return frame;
 }
@@ -388,7 +288,6 @@ ProcessId DataStream::GetOwnerPID()
 DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_check)())
 {
 	DataFrame frame;
-	frame.m_Id = 0;
 
 	bool wait = wait_time_in_ms > 0;
 
@@ -411,10 +310,8 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 	// Build a DataFrame and return it.
 	frame.m_Id = id;
 	frame.m_TimeStamp = m_Header->m_FrameMetadata[id % m_Header->m_NumFramesInBuffer].m_TimeStamp;
-	frame.m_DataType = m_Header->m_DataType;
-	frame.m_NumDimensions = m_Header->m_NumDimensions;
-	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
-	frame.m_Data = m_Buffer + offset;
+
+	frame.Set(m_Header->m_DataType, m_Header->m_NumDimensions, m_Header->m_Dimensions, m_Buffer + offset, false);
 
 	return frame;
 }
