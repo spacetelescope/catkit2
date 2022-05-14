@@ -101,10 +101,15 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 
 	auto header = data_stream->m_Header;
 
-	strcpy(header->m_Version, CURRENT_DATASTREAM_VERSION);
+	size_t n = sizeof(header->m_Version) / sizeof(header->m_Version[0]);
+	CopyString(header->m_Version, CURRENT_DATASTREAM_VERSION, n);
 
-	strcpy(header->m_StreamName, stream_name.c_str());
-	strcpy(header->m_StreamId, stream_id.c_str());
+	n = sizeof(header->m_StreamName) / sizeof(header->m_StreamName[0]);
+	CopyString(header->m_StreamName, stream_name.c_str(), n);
+
+	n = sizeof(header->m_StreamId) / sizeof(header->m_StreamId[0]);
+	CopyString(header->m_StreamId, stream_id.c_str(), n);
+
 	header->m_TimeCreated = GetTimeStamp();
 	header->m_OwnerPID = GetPID();
 
