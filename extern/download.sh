@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Download cppzmq
-curl -L https://github.com/zeromq/cppzmq/archive/refs/tags/v4.7.1.tar.gz -O
-tar xfz v4.7.1.tar.gz
-rm -f v4.7.1.tar.gz
+curl -L https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.tar.gz -O
+tar xfz v4.8.1.tar.gz
+rm -f v4.8.1.tar.gz
 
 # Download pybind11
 git clone https://github.com/pybind/pybind11

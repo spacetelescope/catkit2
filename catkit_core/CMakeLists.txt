@@ -38,7 +38,7 @@ else()
 endif (WIN32)
 
 # Add includes for cppzmq
-set(CPPZMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/cppzmq-4.7.1)
+set(CPPZMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/cppzmq-4.8.1)
 target_include_directories(catkit_core PUBLIC ${CPPZMQ_INCLUDE_DIR})
 
 # Link Eigen
