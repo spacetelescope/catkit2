@@ -58,8 +58,6 @@ struct DataStreamHeader
 class DataFrame : public Tensor
 {
 public:
-	DataFrame();
-
 	size_t m_Id;
 	std::uint64_t m_TimeStamp;
 };
