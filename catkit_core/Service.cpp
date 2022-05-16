@@ -1,6 +1,7 @@
 #include "Service.h"
 
 #include "TimeStamp.h"
+#include "TestbedProxy.h"
 #include "service.pb.h"
 
 #include <chrono>
@@ -35,8 +36,9 @@ private:
 	std::function<void()> m_Func;
 };
 
-Service::Service(string service_id, int service_port, int testbed_port)
-	: Server(service_port), m_ServiceId(service_id),
+Service::Service(string service_id, string service_type, int service_port, int testbed_port)
+	: Server(service_port),
+	m_ServiceId(service_id), m_ServiceType(service_type),
 	m_LoggerConsole(), m_LoggerPublish(service_id, "tcp://127.0.0.1:"s + to_string(testbed_port + 1))
 {
 	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
@@ -59,7 +61,7 @@ void Service::Run()
 
 	LOG_INFO("Opening service.");
 
-	m_Testbed.UpdateServiceState(m_ServiceId, ServiceState::OPENING);
+	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::OPENING);
 
 	try
 	{
@@ -70,13 +72,13 @@ void Service::Run()
 		LOG_CRITICAL("Something went wrong when opening service: "s + e.what());
 		LOG_CRITICAL("Shutting down service.");
 
-		m_Testbed->UpdateServiceState(m_SerivceId, ServiceState::CRASHED);
+		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CRASHED);
 		return;
 	}
 
 	LOG_INFO("Service was succesfully opened.");
 
-	m_Testbed.UpdateServiceState(m_ServiceId, ServiceState::OPERATIONAL);
+	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::OPERATIONAL);
 
 	LOG_INFO("Starting service main function.");
 
@@ -115,7 +117,7 @@ void Service::Run()
 		RunServer();
 	}
 
-	LOG_INFO("Service main has ended.")
+	LOG_INFO("Service main has ended.");
 
 	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CLOSING);
 
@@ -152,85 +154,6 @@ void Service::MonitorSafety()
 bool Service::IsSafe()
 {
 	return true;
-}
-
-ProtoService::ProtoService(std::string service_name, std::string service_type, int server_port)
-	: m_ShellSocket(nullptr),
-	m_ServiceName(service_name), m_ServiceType(service_type),
-	m_Port(testbed_port), m_IsRunning(false),
-	m_HasGottenConfiguration(false), m_IsOpened(false),
-	m_LoggerConsole(), m_LoggerPublish(service_name, "tcp://localhost:"s + std::to_string(server_port + 1))
-{
-	LOG_INFO("Initializing service '"s + service_name + "'.");
-
-	// Catching Ctrl+C and similar process killers and shut down gracefully.
-	signal(SIGINT, SignalHandler);
-	signal(SIGTERM, SignalHandler);
-
-	// Set up request handlers.
-	m_RequestHandlers["get_property"] = [this](const string &data){return this->OnGetPropertyRequest(data);};
-	m_RequestHandlers["set_property"] = [this](const string &data){return this->OnSetPropertyRequest(data);};
-
-	m_RequestHandlers["execute_command"] = [this](const string &data){return this->OnExecuteCommandRequest(data);};
-
-	m_RequestHandlers["info"] = [this](const string &data){return this->OnGetInfoRequest(data);};
-
-	MakeProperty("config", [this](){return this->GetConfiguration();});
-	m_ServiceHeartbeat = MakeDataStream("heartbeat", DataType::DT_UINT64, {1}, 10);
-
-	uint64_t start_time = GetTimeStamp();
-	m_ServiceHeartbeat->SubmitData(&start_time);
-
-	LOG_INFO("Service '"s + service_name + "' has been initialized.");
-
-	m_InterfaceThread = std::thread(&ProtoService::MonitorInterface, this);
-}
-
-ProtoService::~ProtoService()
-{
-	LOG_INFO("Service '"s + m_ServiceName + "' is being destroyed.");
-
-	m_IsRunning = false;
-
-	if (m_InterfaceThread.joinable())
-		m_InterfaceThread.join();
-
-	LOG_INFO("Service '"s + m_ServiceName + "' has been destroyed.");
-}
-
-void ProtoService::Run()
-{
-	m_ShouldShutDown = false;
-
-	std::jthread service_thread = std::jthread(&ProtoService::RunService);
-
-	MonitorInterface();
-}
-
-void ProtoService::Sleep(double sleep_time_in_ms, void (*error_check)()=nullptr)
-{
-	Timer timer;
-
-	while (true)
-	{
-		double sleep_remaining = sleep_time_in_ms - timer.GetTime() * 1000;
-
-		if (sleep_remaining > 0)
-			break;
-
-		if (m_ShouldShutDown)
-			break;
-
-		if (error_check)
-			error_check();
-
-		std::this_thread::sleep_for(chrono::milliseconds(min(20, sleep_remaining)));
-	}
-}
-
-void ProtoService::ShutDown()
-{
-	m_ShouldShutDown = true;
 }
 
 void Service::Open()
@@ -304,7 +227,7 @@ std::shared_ptr<Command> Service::MakeCommand(std::string command_name, Command:
 
 std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
-	auto stream = DataStream::Create(stream_name, GetServiceName(), type, dimensions, num_frames_in_buffer);
+	auto stream = DataStream::Create(stream_name, GetId(), type, dimensions, num_frames_in_buffer);
 	m_DataStreams[stream_name] = stream;
 
 	return stream;
@@ -332,14 +255,17 @@ string Service::HandleGetInfo(const string &data)
 		reply.add_property_names(key);
 
 	for (auto& [key, value] : m_Commands)
-		reply.addProperty_names(key);
+		reply.add_property_names(key);
 
 	auto map = reply.datastream_ids();
 
 	for (auto& [key, value] : m_DataStreams)
 		map[key] = value->GetStreamId();
 
-	return reply.SerializeToString();
+	std::string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
 }
 
 string Service::HandleGetProperty(const string &data)
@@ -356,9 +282,12 @@ string Service::HandleGetProperty(const string &data)
 	auto value = property->Get();
 
 	catkit_proto::service::GetPropertyReply reply;
-	ToProto(value, &reply.value());
+	ToProto(value, &reply.property_value());
 
-	return reply.SerializeToString();
+	string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
 }
 
 string Service::HandleSetProperty(const string &data)

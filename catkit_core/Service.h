@@ -16,6 +16,8 @@
 #include "LogPublish.h"
 #include "Communication.h"
 
+class TestbedProxy;
+
 class Service : public Server
 {
 public:
@@ -53,7 +55,10 @@ private:
 
 	std::shared_ptr<TestbedProxy> m_Testbed;
 
-	nlohmann::json m_Configuration;
+	std::string m_ServiceId;
+	std::string m_ServiceType;
+
+	nlohmann::json m_Config;
 
 	std::shared_ptr<DataStream> m_ServiceHeartbeat;
 	std::shared_ptr<DataStream> m_ServerHeartbeat;
