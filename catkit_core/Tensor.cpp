@@ -133,19 +133,29 @@ bool Tensor::IsOwner() const
 	return m_IsOwner;
 }
 
-void Tensor::Set(DataType data_type, size_t num_dimensions, size_t *dimensions, char *data, bool is_owner)
+void Tensor::Set(DataType data_type, size_t num_dimensions, size_t *dimensions, char *data, bool copy)
 {
 	if (m_IsOwner && m_Data)
 	{
 		delete[] m_Data;
+		m_Data = nullptr;
 	}
 
 	m_DataType = data_type;
 	m_NumDimensions = num_dimensions;
 	std::copy(dimensions, dimensions + 4, m_Dimensions);
 
-	m_Data = data;
-	m_IsOwner = is_owner;
+	if (copy)
+	{
+		m_Data = new char[GetSizeInBytes()];
+		std::copy(data, data + GetSizeInBytes(), m_Data);
+	}
+	else
+	{
+		m_Data = data;
+	}
+
+	m_IsOwner = copy;
 }
 
 size_t Tensor::GetNumElements()
@@ -156,4 +166,28 @@ size_t Tensor::GetNumElements()
 size_t Tensor::GetSizeInBytes()
 {
 	return GetNumElements() * GetSizeOfDataType(m_DataType);
+}
+
+void ToProto(const Tensor &tensor, catkit_proto::Tensor *proto_tensor)
+{
+	proto_tensor->set_dtype(GetDataTypeAsString(tensor.GetDataType()));
+
+	for (size_t i = 0; i < tensor.GetNumDimensions(); ++i)
+		proto_tensor->add_dimensions(tensor.GetDimensions()[i]);
+
+	proto_tensor->set_data(tensor.GetData(), tensor.GetSizeInBytes());
+}
+
+void FromProto(const catkit_proto::Tensor *proto_tensor, Tensor &tensor)
+{
+	auto dtype = GetDataTypeFromString(proto_tensor->dtype());
+	auto num_dimensions = proto_tensor->dimensions_size();
+
+	size_t dimensions[4];
+	for (size_t i = 0; i < num_dimensions; ++i)
+		dimensions[i] = proto_tensor->dimensions(i);
+	for (size_t i = num_dimensions; i < 4; ++i)
+		dimensions[i] = 1;
+
+	tensor.Set(dtype, num_dimensions, dimensions, proto_tensor->data().c_str(), true);
 }

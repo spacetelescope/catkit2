@@ -14,10 +14,9 @@ message Dict
 
 message Tensor
 {
-    repeated int64 shape = 1;
-    string dtype = 2;
-    string byte_order = 3;
-    bytes data = 4;
+    string dtype = 1;
+    repeated int64 dimensions = 2;
+    bytes data = 3;
 }
 
 message Value

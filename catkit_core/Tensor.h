@@ -2,6 +2,7 @@
 #define TENSOR_H
 
 #include "ComplexTraits.h"
+#include "core.pb.h"
 
 #include <Eigen/Dense>
 
@@ -55,7 +56,7 @@ public:
 	char *GetData() const;
 	bool IsOwner() const;
 
-	void Set(DataType data_type, size_t num_dimensions, size_t *dimensions, char *data, bool is_owner=true);
+	void Set(DataType data_type, size_t num_dimensions, size_t *dimensions, char *data, bool copy=true);
 
 	// Accessors for Eigen mapped arrays.
 	template<typename EigenType>
@@ -81,5 +82,8 @@ public:
 	char *m_Data;
 	bool m_IsOwner;
 };
+
+void ToProto(const Tensor &tensor, catkit_proto::Tensor *proto_tensor);
+void FromProto(const catkit_proto::Tensor *proto_tensor, Tensor &tensor);
 
 #endif // TENSOR_H
