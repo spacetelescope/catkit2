@@ -133,7 +133,7 @@ bool Tensor::IsOwner() const
 	return m_IsOwner;
 }
 
-void Tensor::Set(DataType data_type, size_t num_dimensions, size_t *dimensions, char *data, bool copy)
+void Tensor::SetCommon(DataType data_type, size_t num_dimensions, size_t *dimensions)
 {
 	if (m_IsOwner && m_Data)
 	{
@@ -144,26 +144,36 @@ void Tensor::Set(DataType data_type, size_t num_dimensions, size_t *dimensions, 
 	m_DataType = data_type;
 	m_NumDimensions = num_dimensions;
 	std::copy(dimensions, dimensions + 4, m_Dimensions);
-
-	if (copy)
-	{
-		m_Data = new char[GetSizeInBytes()];
-		std::copy(data, data + GetSizeInBytes(), m_Data);
-	}
-	else
-	{
-		m_Data = data;
-	}
-
-	m_IsOwner = copy;
 }
 
-size_t Tensor::GetNumElements()
+void Tensor::Set(DataType data_type, size_t num_dimensions, size_t *dimensions, char *data, bool copy)
+{
+	if (copy)
+		return Set(data_type, num_dimensions, dimensions, data);
+
+	SetCommon(data_type, num_dimensions, dimensions);
+
+	m_Data = data;
+
+	m_IsOwner = false;
+}
+
+void Tensor::Set(DataType data_type, size_t num_dimensions, size_t *dimensions, const char *data)
+{
+	SetCommon(data_type, num_dimensions, dimensions);
+
+	m_Data = new char[GetSizeInBytes()];
+	std::copy(data, data + GetSizeInBytes(), m_Data);
+
+	m_IsOwner = true;
+}
+
+size_t Tensor::GetNumElements() const
 {
 	return m_Dimensions[0] * m_Dimensions[1] * m_Dimensions[2] * m_Dimensions[3];
 }
 
-size_t Tensor::GetSizeInBytes()
+size_t Tensor::GetSizeInBytes() const
 {
 	return GetNumElements() * GetSizeOfDataType(m_DataType);
 }
@@ -184,10 +194,10 @@ void FromProto(const catkit_proto::Tensor *proto_tensor, Tensor &tensor)
 	auto num_dimensions = proto_tensor->dimensions_size();
 
 	size_t dimensions[4];
-	for (size_t i = 0; i < num_dimensions; ++i)
+	for (int i = 0; i < num_dimensions; ++i)
 		dimensions[i] = proto_tensor->dimensions(i);
 	for (size_t i = num_dimensions; i < 4; ++i)
 		dimensions[i] = 1;
 
-	tensor.Set(dtype, num_dimensions, dimensions, proto_tensor->data().c_str(), true);
+	tensor.Set(dtype, num_dimensions, dimensions, proto_tensor->data().c_str());
 }

@@ -46,8 +46,8 @@ public:
 	~Tensor();
 
 	// Convenience functions.
-	size_t GetNumElements();
-	size_t GetSizeInBytes();
+	size_t GetNumElements() const;
+	size_t GetSizeInBytes() const;
 
 	// Accessors.
 	DataType GetDataType() const;
@@ -57,6 +57,7 @@ public:
 	bool IsOwner() const;
 
 	void Set(DataType data_type, size_t num_dimensions, size_t *dimensions, char *data, bool copy=true);
+	void Set(DataType data_type, size_t num_dimensions, size_t *dimensions, const char *data);
 
 	// Accessors for Eigen mapped arrays.
 	template<typename EigenType>
@@ -81,6 +82,9 @@ public:
 
 	char *m_Data;
 	bool m_IsOwner;
+
+private:
+	void SetCommon(DataType data_type, size_t num_dimensions, size_t *dimensions);
 };
 
 void ToProto(const Tensor &tensor, catkit_proto::Tensor *proto_tensor);
