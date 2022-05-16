@@ -6,14 +6,13 @@
 #include "DataStream.h"
 #include "Communication.h"
 #include "testbed.pb.h"
+#include "ServiceState.h"
 
 #include <zmq.hpp>
 #include <nlohmann/json.hpp>
 
 #include <string>
 #include <mutex>
-
-#include "ServiceState.h"
 
 struct ServiceReference
 {
