@@ -23,7 +23,7 @@ Installation
 
 This procedure requires a pre-installed C++ compiler.
 - On Windows, you can for example install the Visual Studio Compiler, either by installing the Build Tools, or by installing the full IDE with compiler (the community edition is free).
-- On MacOS, nothing should be needed assuming XCode is installed. It does install components on first startup, so it is recommended to start XCode on your mac if you have never used it.
+- On MacOS, nothing should be needed, but some machines require Xcode to be installed. It does install components on first startup, so it is recommended to start XCode on your mac if you have never used it.
 
 The following will download all third-party C++ dependencies and create a new Conda environment with the required Python packages. The download can be performed on a separate machine with internet connectivity and the resulting folders can be copy-pasted in the extern folder on the machine without internet connectivity.
 
