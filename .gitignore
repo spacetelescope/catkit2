@@ -12,3 +12,4 @@ extern/*/
 docs/doxygen/xml/
 docs/_build
 docs/api
+.idea/
