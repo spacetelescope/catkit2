@@ -41,6 +41,8 @@ public:
 	void RunServer();
 	void ShutDown();
 
+	void Sleep(double sleep_time_in_ms, void (*error_check)()=nullptr);
+
 protected:
 	int m_Port;
 

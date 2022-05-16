@@ -2,6 +2,9 @@
 
 #include "Log.h"
 
+#include <algorithm>
+#include <chrono>
+
 using namespace std;
 using namespace zmq;
 
@@ -140,4 +143,25 @@ void Server::RunServer()
 void Server::ShutDown()
 {
 	m_ShouldShutDown = true;
+}
+
+void Server::Sleep(double sleep_time_in_ms, void (*error_check)())
+{
+	Timer timer;
+
+	while (true)
+	{
+		double sleep_remaining = sleep_time_in_ms - timer.GetTime() * 1000;
+
+		if (sleep_remaining > 0)
+			break;
+
+		if (m_ShouldShutDown)
+			break;
+
+		if (error_check)
+			error_check();
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(std::min(double(1.0), sleep_remaining)));
+	}
 }
