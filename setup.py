@@ -41,15 +41,33 @@ def generate_protos(source_dir):
     os.makedirs(python_path, exist_ok=True)
     os.makedirs(cpp_path, exist_ok=True)
 
-    protoc_command = [
-        protoc,
-        '--proto_path', proto_path,
-        '--python_out', python_path,
-        '--cpp_out', cpp_path,
-        *files]
+    for f in files:
+        src_time = os.path.getmtime(os.path.join(proto_path, f))
 
-    if subprocess.run(protoc_command).returncode != 0:
-        sys.exit(-1)
+        python_output = os.path.splitext(os.path.join(python_path, f))[0] + '_pb2.py'
+        cpp_h_output = os.path.splitext(os.path.join(cpp_path, f))[0] + '.pb.h'
+        cpp_cc_output = os.path.splitext(os.path.join(cpp_path, f))[0] + '.pb.cc'
+
+        try:
+            dest_time_python = os.path.getmtime(python_output)
+            dest_time_cpp_h = os.path.getmtime(cpp_h_output)
+            dest_time_cpp_cc = os.path.getmtime(cpp_cc_output)
+
+            should_compile = min(dest_time_python, dest_time_cpp_h, dest_time_cpp_cc) < src_time
+        except OSError:
+            # Either the Python or C++ did not exist.
+            should_compile = True
+
+        if should_compile:
+            protoc_command = [
+                protoc,
+                '--proto_path', proto_path,
+                '--python_out', python_path,
+                '--cpp_out', cpp_path,
+                f]
+
+            if subprocess.run(protoc_command).returncode != 0:
+                sys.exit(-1)
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=''):
