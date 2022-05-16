@@ -6,7 +6,7 @@ tar xfz v4.8.1.tar.gz
 rm -f v4.8.1.tar.gz
 
 # Download pybind11
-git clone https://github.com/pybind/pybind11
+git clone -b v2.9.2 https://github.com/pybind/pybind11
 
 # Download Eigen
 curl -L https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.tar.gz -O
