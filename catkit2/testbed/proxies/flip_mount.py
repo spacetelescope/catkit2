@@ -20,12 +20,6 @@ class FlipMountProxy(ServiceProxy):
                     # Timed out. No problem.
                     pass
 
-    def move_in_beam(self, wait=True):
-        self.move_to('in_beam', wait)
-
-    def move_out_of_beam(self, wait=True):
-        self.move_to('out_of_beam', wait)
-
     def resolve_position(self, position):
         if isinstance(position, str):
             # The position is a named position.
@@ -39,3 +33,6 @@ class FlipMountProxy(ServiceProxy):
     @property
     def positions(self):
         return self.configuration['positions']
+
+    def is_at(self, position):
+        return self.current_position.get()[0] == self.resolve_position(position)
