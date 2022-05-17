@@ -162,6 +162,6 @@ void Server::Sleep(double sleep_time_in_ms, void (*error_check)())
 		if (error_check)
 			error_check();
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(std::min(double(1.0), sleep_remaining)));
+		std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(std::min(double(1.0), sleep_remaining)));
 	}
 }
