@@ -28,7 +28,7 @@ dependencies:
   - cmake>=3.0.0
   - conda-forge::doxygen
   - sphinx
-  - conda-forge::sphinx_automodapi
+  - conda-forge::sphinx-automodapi
   - conda-forge::breathe==4.32.0
   - conda-forge::sphinx_rtd_theme
   - pip:
