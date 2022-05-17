@@ -282,7 +282,7 @@ string Service::HandleGetProperty(const string &data)
 	auto value = property->Get();
 
 	catkit_proto::service::GetPropertyReply reply;
-	ToProto(value, &reply.property_value());
+	ToProto(value, reply.mutable_property_value());
 
 	string reply_string;
 	reply.SerializeToString(&reply_string);
@@ -292,38 +292,52 @@ string Service::HandleGetProperty(const string &data)
 
 string Service::HandleSetProperty(const string &data)
 {
-	if (!data.count("property_name"))
-		throw std::runtime_error("Request must contain a property name.");
+	catkit_proto::service::SetPropertyRequest request;
+	request.ParseFromString(data);
 
-	std::string property_name = data["property_name"];
+	std::string property_name = request.property_name();
 	auto property = GetProperty(property_name);
 
 	if (!property)
 		throw std::runtime_error("Property \""s + property_name + "\" does not exist.");
 
-	if (!data.count("value"))
-		throw std::runtime_error("Request must contain a value.");
+	Value set_value;
+	FromProto(&request.property_value(), set_value);
+	property->Set(set_value);
 
-	property->Set(data["value"]);
+	auto value = property->Get();
 
-	return json();
+	catkit_proto::service::SetPropertyReply reply;
+	ToProto(value, reply.mutable_property_value());
+
+	string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
 }
 
 string Service::HandleExecuteCommand(const string &data)
 {
-	if (!data.count("command_name"))
-		throw std::runtime_error("Request must contain a command name.");
+	catkit_proto::service::ExecuteCommandRequest request;
+	request.ParseFromString(data);
 
-	std::string command_name = data["command_name"];
+	std::string command_name = request.command_name();
 	auto command = GetCommand(command_name);
 
 	if (!command)
 		throw std::runtime_error("Command \""s + command_name + "\" does not exist.");
 
-	if (!data.count("arguments"))
-		throw std::runtime_error("Request must contain arguments.");
+	Dict args;
+	FromProto(&request.arguments(), args);
+	auto res = command->Execute(args);
 
-	return command->Execute(data["arguments"]);
+	catkit_proto::service::ExecuteCommandReply reply;
+	ToProto(res, reply.mutable_result());
+
+	string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
 }
 
 void print_usage()
