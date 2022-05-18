@@ -150,7 +150,7 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 		}
 	}
 #else
-	TimeDelta timer;
+	Timer timer;
 
 	while (!condition())
 	{
