@@ -9,23 +9,28 @@
 #include <variant>
 #include <string>
 
-class Value;
+class List;
+class Dict;
 
 class NoneValue
 {
 };
 
-typedef std::list<Value> List;
-typedef std::map<std::string, Value> Dict;
-
-class Value : public std::variant<
+using Value = std::variant<
 	NoneValue,
+	int,
 	double,
 	std::string,
 	bool,
 	Dict,
 	List,
-	Tensor>
+	Tensor>;
+
+class List : public std::list<Value>
+{
+};
+
+class Dict : public std::map<std::string, Value>
 {
 };
 
