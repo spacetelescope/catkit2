@@ -27,4 +27,4 @@ class CameraProxy(ServiceProxy):
 
     def take_exposures(self, *args, **kwargs):
         warnings.warn('Please use camera.take_raw_exposures() instead.', DeprecationWarning)
-        return self.take_raw_exposures(*args, **kwargs)
+        yield from self.take_raw_exposures(*args, **kwargs)
