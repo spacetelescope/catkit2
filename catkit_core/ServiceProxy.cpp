@@ -16,6 +16,10 @@ ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string se
 	}
 }
 
+ServiceProxy::~ServiceProxy()
+{
+}
+
 Value ServiceProxy::GetProperty(const std::string &name)
 {
 	if (!IsAlive())
