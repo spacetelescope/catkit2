@@ -39,6 +39,7 @@ add_library(catkit_core STATIC
   target_include_directories(catkit_core PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../proto/gen/cpp)
 
 set_property(TARGET catkit_core PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(catkit_core PUBLIC PROTOBUF_USE_DLLS)
 
 # Link ZeroMQ
 find_package(ZeroMQ REQUIRED)
