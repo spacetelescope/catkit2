@@ -327,9 +327,10 @@ class TestbedServer:
         else:
             raise RuntimeError('No data path could be found in the config files nor as an environment variable.')
 
-        self.experiment_path = self.config['testbed']['experiment_path']
-
-        self.start_new_experiment('server_boot')
+        self.base_experiment_path = self.config['testbed']['base_experiment_path']
+        self.sub_experiment_path = self.config['testbed']['sub_experiment_path']
+        self.experiment_paths = []
+        self.experiment_ids = [0]
 
         self.service_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'services'))]
         if 'service_paths' in self.config['testbed']:
@@ -354,6 +355,7 @@ class TestbedServer:
             'require_service': self.on_require_service,
             'running_services': self.on_running_services,
             'start_new_experiment': self.on_start_new_experiment,
+            'end_experiment': self.on_end_experiment,
             'output_path': self.on_output_path,
             'is_simulated': self.on_is_simulated,
             'configuration': self.on_configuration
@@ -584,9 +586,23 @@ class TestbedServer:
         experiment_name = request_data['experiment_name']
         metadata = request_data.get('metadata', {})
 
-        data_path = self.start_new_experiment(experiment_name)
+        self.start_new_experiment(experiment_name)
 
-        self.send_reply_ok(client_identity, 'start_new_experiment', data_path)
+        self.send_reply_ok(client_identity, 'start_new_experiment', self.output_path)
+
+    def on_end_experiment(self, client_identity, request_data):
+        '''Handler for an end experiment request.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        request_data : dictionary
+            The data for this request.
+        '''
+        self.end_experiment()
+
+        self.send_reply_ok(client_identity, 'end_experiment', data_path)
 
     def start_new_experiment(self, experiment_name, metadata=None):
         '''Start a new experiment.
@@ -618,12 +634,21 @@ class TestbedServer:
         format_dict = {
             'simulator_or_hardware': 'simulator' if self.is_simulated else 'hardware',
             'date_and_time': date_and_time,
-            'experiment_name': experiment_name
+            'experiment_name': experiment_name,
+            'experiment_id': self.experiment_ids[-1]
         }
-        experiment_path = self.experiment_path.format(**format_dict)
+
+        if self.experiment_paths:
+            experiment_path = self.base_experiment_path.format(**format_dict)
+        else:
+            experiment_path = self.sub_experiment_path.format(**format_dict)
+
+        self.experiment_paths.append(experiment_path)
+        self.experiment_ids[-1] += 1
+        self.experiment_ids.append(0)
 
         # Create a directory for the output path.
-        output_path = os.path.join(self.base_data_path, experiment_path)
+        output_path = self.output_path
         os.makedirs(output_path, exist_ok=True)
 
         # Write out metadata and configuration files.
@@ -632,8 +657,10 @@ class TestbedServer:
         with open(os.path.join(output_path, 'config.yml'), 'w') as f:
             yaml.dump(self.config, f)
 
-        self.output_path = output_path
-        return output_path
+    def end_experiment(self):
+        '''End the current running experiment.
+        '''
+        self.experiment_paths.pop()
 
     def on_output_path(self, client_identity, request_data):
         '''Handler for an output path request.
@@ -646,6 +673,10 @@ class TestbedServer:
             The data for this request. This is ignored for this handler.
         '''
         self.send_reply_ok(client_identity, 'output_path', self.output_path)
+
+    @property
+    def output_path(self):
+        return os.path.join(self.base_data_path, *self.experiment_paths)
 
     def on_is_simulated(self, client_identity, request_data):
         '''Handler for an is_simulated request.
