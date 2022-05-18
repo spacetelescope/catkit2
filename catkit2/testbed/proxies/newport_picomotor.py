@@ -1,15 +1,15 @@
-from ..service_proxy import ServiceProxy
-import numpy as np
 import time
+import numpy as np
+from ..service_proxy import ServiceProxy
 
 
 @ServiceProxy.register_service_interface('newport_picomotor')
-class NewportPicomotor(ServiceProxy):
+class NewportPicomotorProxy(ServiceProxy):
 
     def move_relative(self, axis_name, distance, timeout=None):
         # Get current position.
         stream = getattr(self, axis_name.lower() + '_current_position')
-        current_position = stream.get()
+        current_position = stream.get()[0]
 
         new_position = current_position + distance
 
@@ -17,7 +17,34 @@ class NewportPicomotor(ServiceProxy):
 
     def move_absolute(self, axis_name, position, timeout=None):
         command_stream = getattr(self, axis_name.lower() + '_command')
-        current_position_stream = getattr(self, axis_name.lower() + '_current_position')
 
         # Set new position.
         command_stream.submit_data(np.array([position], dtype='int32'))
+
+        # Get current position.
+        stream = getattr(self, axis_name.lower() + '_current_position')
+
+        # Wait until actuator reaches new position.
+        waiting_start = time.time()
+
+        exception_text = 'Moving the picomotor timed out.'
+        if timeout is None or timeout > 0:
+            while True:
+                try:
+                    wait_time_ms = None if timeout is None else int((timeout - (time.time() - waiting_start)) * 1000)
+                    if wait_time_ms is not None and wait_time_ms <= 0:
+                        raise RuntimeError(exception_text)
+
+                    current_position = stream.get()[0]
+                    if abs(current_position - position) < self.atol:
+                        break
+                except RuntimeError as e:
+                    if str(e) == exception_text:
+                        raise
+                    else:
+                        # Datastream read timed out. This is to facilitate wait time checking.
+                        continue
+
+    @property
+    def atol(self):
+        return self.configuration['atol']

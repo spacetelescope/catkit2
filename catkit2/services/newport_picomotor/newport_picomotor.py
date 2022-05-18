@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 from http.client import IncompleteRead
 from requests.exceptions import HTTPError
 
+
 def catch_http_exceptions(function):
     """Decorator to catch http/web exceptions."""
 
@@ -21,6 +22,7 @@ def catch_http_exceptions(function):
             raise Exception('Issues connecting to the webpage.') from e
 
     return wrapper
+
 
 class NewportPicomotor(Service):
     _commands = {
@@ -105,12 +107,13 @@ class NewportPicomotor(Service):
         except Exception as e:
             raise OSError(f'The controller IP address {self.ip} is not responding.') from e
 
-        for axis_name in self.axes.keys():
-            self.add_axis(axis_name)
-
         # Set current position as home.
         for axis in self.axes.values():
             self.send_command('set_home_position', axis, 0)
+
+        for axis_name in self.axes.keys():
+            self.add_axis(axis_name)
+            self.get_current_position(axis_name)
 
         # Start the motor threads
         for axis_name in self.axes.keys():
@@ -179,6 +182,7 @@ class NewportPicomotor(Service):
             axis = int(axis)
 
         return f'{self.daisy}{axis}{cmd}{value}'
+
 
 if __name__ == '__main__':
     service_name, testbed_port = parse_service_args()
