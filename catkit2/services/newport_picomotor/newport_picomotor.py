@@ -36,7 +36,7 @@ class NewportPicomotor(Service):
 
         config = self.configuration
 
-        self.ip = config['ip']
+        self.ip = config['ip_address']
         self.max_step = config['max_step']
         self.timeout = config['timeout']
         self.sleep_per_step = config['sleep_per_step']
@@ -53,12 +53,9 @@ class NewportPicomotor(Service):
         self.lock_for_setter = threading.Lock()
         self.lock_for_getter = threading.Lock()
 
-        for axis_name in self.axes.keys():
-            self.add_axis(axis_name)
-
     def add_axis(self, axis_name):
-        self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower() + '_command', 'int64', [1], 20)
-        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int64', [1], 20)
+        self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower() + '_command', 'int32', [1], 20)
+        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int32', [1], 20)
 
     def set_current_position(self, axis_name, position):
         axis = self.axes[axis_name]
@@ -89,7 +86,7 @@ class NewportPicomotor(Service):
     def monitor_axis(self, axis_name):
         command_stream = self.axis_commands[axis_name]
 
-        while not self.shutdown_flag.test():
+        while not self.shutdown_flag.is_set():
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
@@ -104,9 +101,12 @@ class NewportPicomotor(Service):
 
         # Ping the connection to make sure it works
         try:
-            urllib.request.urlopen(f'https://{self.ip}', timeout=self.timeout)
+            urllib.request.urlopen(f'http://{self.ip}', timeout=self.timeout)
         except Exception as e:
             raise OSError(f'The controller IP address {self.ip} is not responding.') from e
+
+        for axis_name in self.axes.keys():
+            self.add_axis(axis_name)
 
         # Set current position as home.
         for axis in self.axes.values():
@@ -157,7 +157,7 @@ class NewportPicomotor(Service):
 
         form_data = urlencode({'cmd': command_string, 'submit': 'Send'})
 
-        with self.instrument_lib.urlopen(f'http://{self.ip}/cmd_send.cgi?{form_data}', timeout=self.timeout) as html:
+        with urllib.request.urlopen(f'http://{self.ip}/cmd_send.cgi?{form_data}', timeout=self.timeout) as html:
             resp = str(html.read())
 
         # Pull out the response from the html on the page
