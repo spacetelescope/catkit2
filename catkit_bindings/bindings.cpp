@@ -12,6 +12,9 @@
 #include "Log.h"
 #include "LogConsole.h"
 #include "LogPublish.h"
+#include "Types.h"
+
+#include "testbed.pb.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -39,12 +42,6 @@ public:
 	{
 		py::gil_scoped_acquire acquire;
 		PYBIND11_OVERRIDE_NAME(void, Service, "close", Close);
-	}
-
-	void ShutDown() override
-	{
-		py::gil_scoped_acquire acquire;
-		PYBIND11_OVERRIDE_NAME(void, Service, "shut_down", ShutDown);
 	}
 };
 
@@ -102,12 +99,78 @@ py::array GetDataFromDataFrame(DataFrame &f)
 		);
 }
 
+py::object ToPython(const Value &value)
+{
+	return py::none();
+}
+
+py::object ToPython(const List &value)
+{
+	return py::none();
+}
+
+py::object ToPython(const Dict &value)
+{
+	return py::none();
+}
+
+py::object ToPython(const Tensor &value)
+{
+	return py::none();
+}
+
+Value ValueFromPython(const py::handle &python_value)
+{
+	if (py::isinstance<py::none>(python_value))
+	{
+		return NoneValue();
+	}
+	else if (py::isinstance<py::array>(python_value))
+	{
+		return Value();
+	}
+	else if (py::isinstance<py::int_>(python_value))
+	{
+		return python_value.cast<int>();
+	}
+	else if (py::isinstance<py::float_>(python_value))
+	{
+		return python_value.cast<double>();
+	}
+	else if (py::isinstance<py::bool_>(python_value))
+	{
+		return python_value.cast<bool>();
+	}
+	else if (py::isinstance<py::list>(python_value))
+	{
+		List list;
+
+		for (const py::handle &item : python_value.cast<py::list>())
+			list.push_back(ValueFromPython(item));
+
+		return list;
+	}
+	else if (py::isinstance<py::dict>(python_value))
+	{
+		Dict dict;
+
+		for (const auto &item : python_value.cast<py::dict>())
+		{
+			auto key = item.first.cast<std::string>();
+			dict[key] = ValueFromPython(item.second);
+		}
+
+		return dict;
+	}
+	return NoneValue();
+}
+
 PYBIND11_MODULE(catkit_bindings, m)
 {
 	py::class_<Service, TrampolineService>(m, "Service")
-		.def(py::init<std::string, std::string, int>())
-		.def_property_readonly("name", &Service::GetServiceName)
-		.def_property_readonly("configuration", &Service::GetConfiguration)
+		.def(py::init<std::string, std::string, int, int>())
+		.def_property_readonly("id", &Service::GetId)
+		.def_property_readonly("config", &Service::GetConfig)
 		.def("run", &Service::Run, py::call_guard<py::gil_scoped_release>())
 		.def("open", &Service::Open)
 		.def("main", &Service::Main)
@@ -119,11 +182,13 @@ PYBIND11_MODULE(catkit_bindings, m)
 			py::arg("setter") = nullptr)
 		.def("make_command", [](Service &service, std::string name, py::object command)
 		{
-			return service.MakeCommand(name, [command](const nlohmann::json &arguments)
+			return service.MakeCommand(name, [command](const Dict &arguments)
 			{
 				py::gil_scoped_acquire acquire;
-				py::dict kwargs = py::cast(arguments);
-				return command(**kwargs);
+
+				py::dict kwargs = py::cast<py::dict>(ToPython(arguments));
+
+				return ValueFromPython(command(**kwargs));
 			});
 		})
 		.def("make_data_stream", [](Service &service, std::string stream_name, std::string type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
@@ -136,11 +201,13 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<Command, std::shared_ptr<Command>>(m, "Command")
 		.def(py::init([](std::string name, py::object command)
 			{
-				return std::make_shared<Command>(name, [command](const nlohmann::json &arguments)
+				return std::make_shared<Command>(name, [command](const Dict &arguments)
 				{
 					py::gil_scoped_acquire acquire;
-					py::dict kwargs = py::cast(arguments);
-					return command(**kwargs);
+
+					py::dict kwargs = py::cast<py::dict>(ToPython(arguments));
+
+					return ValueFromPython(command(**kwargs));
 				});
 			}))
 		.def_property_readonly("name", &Command::GetName);
