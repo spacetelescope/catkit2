@@ -3,7 +3,16 @@
 
 #include "testbed.pb.h"
 
-using ServiceState = catkit_proto::testbed::ServiceState;
+enum ServiceState
+{
+    CLOSED = 0,
+    INITIALIZING = 1,
+    OPENING = 2,
+    OPERATIONAL = 3,
+    CLOSING = 4,
+    UNRESPONSIVE = 5,
+    CRASHED = 6
+};
 
 bool IsAliveState(const ServiceState &state);
 
