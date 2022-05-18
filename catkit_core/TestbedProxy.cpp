@@ -1,5 +1,6 @@
 #include "TestbedProxy.h"
 
+#include "TimeStamp.h"
 #include "testbed.pb.h"
 
 #include <memory>
@@ -44,7 +45,7 @@ void TestbedProxy::RequireService(const std::string &service_id)
 
 	try
 	{
-		MakeRequest("require_service", request, reply);
+		reply.ParseFromString(MakeRequest("require_service", Serialize(request)));
 	}
 	catch (...)
 	{
@@ -67,7 +68,7 @@ ServiceReference TestbedProxy::GetServiceInfo(const std::string &service_id)
 
 	try
 	{
-		MakeRequest("get_service_info", request, reply);
+		reply.ParseFromString(MakeRequest("get_service_info", Serialize(request)));
 	}
 	catch (...)
 	{
@@ -78,7 +79,7 @@ ServiceReference TestbedProxy::GetServiceInfo(const std::string &service_id)
 
 	res.id = reply.service().id();
 	res.type = reply.service().type();
-	res.state = reply.service().state();
+	res.state = (ServiceState) (int) reply.service().state();
 	res.host = reply.service().host();
 	res.port = reply.service().port();
 
@@ -102,7 +103,7 @@ void TestbedProxy::RegisterService(std::string service_id, std::string service_t
 
 	try
 	{
-		MakeRequest("register_service", request, reply);
+		reply.ParseFromString(MakeRequest("register_service", Serialize(request)));
 	}
 	catch (...)
 	{
@@ -116,13 +117,13 @@ void TestbedProxy::UpdateServiceState(std::string service_id, ServiceState new_s
 {
 	catkit_proto::testbed::UpdateServiceStateRequest request;
 	request.set_service_id(service_id);
-	request.set_new_state(new_state);
+	request.set_new_state((catkit_proto::testbed::ServiceState)(int)new_state);
 
 	catkit_proto::testbed::UpdateServiceStateReply reply;
 
 	try
 	{
-		MakeRequest("update_service_state", request, reply);
+		reply.ParseFromString(MakeRequest("update_service_state", Serialize(request)));
 	}
 	catch (...)
 	{
@@ -152,7 +153,7 @@ std::string TestbedProxy::GetExperimentPath()
 
 	try
 	{
-		MakeRequest("get_experiment_path", request, reply);
+		reply.ParseFromString(MakeRequest("get_experiment_path", Serialize(request)));
 	}
 	catch (...)
 	{
@@ -171,7 +172,7 @@ std::string TestbedProxy::StartNewExperiment(std::string experiment_name, json m
 	catkit_proto::testbed::StartNewExperimentReply reply;
 	try
 	{
-		MakeRequest("start_new_experiment", request, reply);
+		reply.ParseFromString(MakeRequest("start_new_experiment", Serialize(request)));
 	}
 	catch (...)
 	{
@@ -223,7 +224,7 @@ void TestbedProxy::GetServerInfo()
 	catkit_proto::testbed::GetInfoRequest request;
 
 	catkit_proto::testbed::GetInfoReply reply;
-	MakeRequest("get_server_info", request, reply);
+	reply.ParseFromString(MakeRequest("get_server_info", Serialize(request)));
 
 	m_Config = json::parse(reply.config());
 	m_IsSimulated = reply.is_simulated();

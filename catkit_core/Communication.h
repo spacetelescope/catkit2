@@ -18,8 +18,7 @@ protected:
 	std::string m_Host;
 	int m_Port;
 
-	template<typename ProtoRequest, typename ProtoReply>
-	void MakeRequest(const std::string &what, const ProtoRequest &request, ProtoReply &reply);
+	std::string MakeRequest(const std::string &what, const std::string &request);
 
 private:
 	typedef std::unique_ptr<zmq::socket_t, std::function<void(zmq::socket_t *)>> socket_ptr;
@@ -52,6 +51,9 @@ protected:
 private:
 	std::map<std::string, RequestHandler> m_RequestHandlers;
 };
+
+template<typename ProtoRequest>
+std::string Serialize(const ProtoRequest &request);
 
 #include "Communication.inl"
 
