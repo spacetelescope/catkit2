@@ -639,9 +639,11 @@ class TestbedServer:
         }
 
         if self.experiment_paths:
-            experiment_path = self.base_experiment_path.format(**format_dict)
-        else:
+            # There is already an experiment running, so this is a sub-experiment.
             experiment_path = self.sub_experiment_path.format(**format_dict)
+        else:
+            # There is no experiment running, so this is a base experiment.
+            experiment_path = self.base_experiment_path.format(**format_dict)
 
         self.experiment_paths.append(experiment_path)
         self.experiment_ids[-1] += 1
@@ -660,7 +662,11 @@ class TestbedServer:
     def end_experiment(self):
         '''End the current running experiment.
         '''
-        self.experiment_paths.pop()
+        # We cannot end the experiment if no experiment is running. This if-statement
+        # guards against that happening. If things are working, this should never happen.
+        if self.experiment_paths:
+            self.experiment_paths.pop()
+            self.experiment_ids.pop()
 
     def on_output_path(self, client_identity, request_data):
         '''Handler for an output path request.
@@ -677,6 +683,18 @@ class TestbedServer:
     @property
     def output_path(self):
         return os.path.join(self.base_data_path, *self.experiment_paths)
+
+    def on_experiment_depth(self, client_identity, request_data):
+        '''Handler for an experiment depth request.
+
+        Parameters
+        ----------
+        client_identity : ZMQ socket identity
+            The source of this request.
+        request_data : dictionary
+            The data for this request. This is ignored for this handler.
+        '''
+        self.send_reply_ok(client_identity, 'experiment_depth', len(self.experiment_paths))
 
     def on_is_simulated(self, client_identity, request_data):
         '''Handler for an is_simulated request.
