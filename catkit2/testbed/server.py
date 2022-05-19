@@ -358,7 +358,8 @@ class TestbedServer:
             'end_experiment': self.on_end_experiment,
             'output_path': self.on_output_path,
             'is_simulated': self.on_is_simulated,
-            'configuration': self.on_configuration
+            'configuration': self.on_configuration,
+            'experiment_depth': self.on_experiment_depth
         }
 
     def run(self):
@@ -602,7 +603,7 @@ class TestbedServer:
         '''
         self.end_experiment()
 
-        self.send_reply_ok(client_identity, 'end_experiment', data_path)
+        self.send_reply_ok(client_identity, 'end_experiment', self.output_path)
 
     def start_new_experiment(self, experiment_name, metadata=None):
         '''Start a new experiment.

@@ -40,7 +40,7 @@ class TestbedClient(object):
 
         self.socket = self.context.socket(zmq.REQ)
         self.socket.LINGER = 1
-        self.socket.RCVTIMEO = 5000
+        self.socket.RCVTIMEO = 30000
 
         self.socket.connect(f'tcp://localhost:{self.server_port}')
 
@@ -238,3 +238,9 @@ class TestbedClient(object):
         }
 
         return self._make_request('start_new_experiment', data=data)
+
+    def end_experiment(self):
+        '''End experiment on the server.
+        '''
+
+        return self._make_request('end_experiment', data={})
