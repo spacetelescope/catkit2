@@ -586,7 +586,7 @@ class TestbedServer:
         experiment_name = request_data['experiment_name']
         metadata = request_data.get('metadata', {})
 
-        self.start_new_experiment(experiment_name)
+        self.start_new_experiment(experiment_name, metadata)
 
         self.send_reply_ok(client_identity, 'start_new_experiment', self.output_path)
 
