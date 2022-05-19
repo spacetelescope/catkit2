@@ -193,6 +193,13 @@ class TestbedClient(object):
         return self._make_request('output_path')
 
     @property
+    def experiment_depth(self):
+        '''The current experiment depth. This is zero if there is no experiment running,
+        and it increases by one with every nested running experiment.
+        '''
+        return self._make_request('experiment_depth')
+
+    @property
     def config(self):
         '''The full configuration of the testbed server.
 
