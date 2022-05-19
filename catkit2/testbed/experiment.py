@@ -1,7 +1,7 @@
 class Experiment:
     name = 'default_experiment_name'
 
-    def __init__(self, testbed, metadata, is_base_experiment=None):
+    def __init__(self, testbed, metadata=None, is_base_experiment=None):
         self.testbed = testbed
         self.metadata = metadata
         self.is_base_experiment = is_base_experiment
