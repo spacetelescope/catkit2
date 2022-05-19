@@ -9,7 +9,7 @@ class Experiment:
     def run(self):
         # Let testbed know that a new experiment has started.
         self.testbed.start_new_experiment(self.name, self.metadata)
-        self.output_path = testbed.output_path
+        self.output_path = self.testbed.output_path
 
         try:
             # Get if we are a main experiment or not
