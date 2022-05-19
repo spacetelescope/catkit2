@@ -8,7 +8,7 @@ class NewportXpsQ8Proxy(ServiceProxy):
         command_stream = getattr(self, motor_id.lower() + '_command')
         current_position_stream = getattr(self, motor_id.lower() + '_current_position')
 
-        position = self.resolve_position(motor_id, position)
+        position = self.resolve_position(motor_id.lower(), position)
 
         # Set new position.
         frame = command_stream.request_new_frame()
@@ -40,15 +40,15 @@ class NewportXpsQ8Proxy(ServiceProxy):
 
         new_position = current_position + distance
 
-        self.move_absolute(motor_id, new_position, timeout=timeout)
+        self.move_absolute(motor_id.lower(), new_position, timeout=timeout)
 
     def resolve_position(self, motor_id, position_name):
         if type(position_name) == str:
             # The position is a named position.
-            position = self.positions[motor_id][position_name]
+            position = self.positions[motor_id.lower()][position_name]
 
             # The position may still be a named position, so try to resolve deeper.
-            return self.resolve_position(motor_id, position)
+            return self.resolve_position(motor_id.lower(), position)
         else:
             return position_name
 
@@ -59,3 +59,7 @@ class NewportXpsQ8Proxy(ServiceProxy):
     @property
     def atol(self):
         return self.configuration['atol']
+
+    @property
+    def motors(self):
+        return self.configuration['motors']
