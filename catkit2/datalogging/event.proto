@@ -1,0 +1,70 @@
+/*
+This defines a forward and backwards compatible definition of the
+binary event data format using protobuffers. This proto file
+should be compiled using the protobuffer compiler using:
+
+    protoc event.proto --python_out=.
+
+This recreates the event_pb2.py file in this directory. This
+recompilation should be done every time this file is changed.
+*/
+
+syntax = "proto3";
+
+package catkit.datalogging;
+
+// Wraps a Numpy array.
+message Tensor
+{
+    repeated int64 shape = 1;
+    string dtype = 2;
+    string byte_order = 3;
+    bytes data = 4;
+}
+
+// Wraps two Numpy arrays to form a, for example, contrast curve.
+message Curve
+{
+    Tensor x = 1;
+    Tensor y = 2;
+}
+
+// Wraps a Figure from Matplotlib, saved in png format.
+message Figure
+{
+    bytes png = 1;
+}
+
+// Wraps an external reference to a fits file.
+message FitsFile
+{
+    // This URI is relative to the experiment directory.
+    string uri = 1;
+}
+
+// Wraps a full event.
+message Event
+{
+    // The wall clock time as a Unix time stamp.
+    double wall_time = 1;
+
+    // The tag of this event. This describes what is contained in
+    // the value. Example: "contrast" or "dark_zone_SNR".
+    string tag = 2;
+
+    // The type of value that is wrapped. This can be either
+    // the type of value in the binary file, or, otherwise,
+    // an arbitrary string. In these cases, the value is not
+    // stored inside the binary file.
+    string value_type = 3;
+
+    // The value in this event.
+    oneof value
+    {
+        float scalar = 8;
+        Tensor tensor = 9;
+        Curve curve = 10;
+        Figure figure = 11;
+        FitsFile fits_file = 12;
+    }
+}
