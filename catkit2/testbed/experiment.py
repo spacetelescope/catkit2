@@ -1,11 +1,12 @@
 import logging
 from catkit2.testbed.log_handler import CatkitLogHandler
-
+import catkit2.datalogging
 
 class Experiment:
     name = 'default_experiment_name'
 
     log = logging.getLogger(__name__)
+    data_log = catkit2.datalogging.get_logger(__name__)
 
     def __init__(self, testbed, metadata=None, is_base_experiment=None):
         self.testbed = testbed
