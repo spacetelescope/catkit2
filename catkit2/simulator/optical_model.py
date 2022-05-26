@@ -15,6 +15,16 @@ def with_cached_result(getter):
         return res
     return new_getter
 
+def property_with_logic(logic_func):
+    def getter(self):
+        return getattr(self, '_' + logic_func.__name__)
+
+    def setter(self, value):
+        setattr(self, '_' + logic_func.__name__, value)
+        logic_func(self)
+
+    return property(getter, setter)
+
 class OpticalModel:
     def __init__(self):
         self._plane_dependencies = {}
@@ -33,7 +43,7 @@ class OpticalModel:
             self.purge_plane(dep)
 
     @contextmanager
-    def _temperary_cache(self, new_cache=None):
+    def _temporary_cache(self, new_cache=None):
         if new_cache is None:
             new_cache = defaultdict(lambda: None)
 
@@ -79,21 +89,28 @@ class OpticalModel:
         self._cached_wavefronts[plane] = wavefronts
 
     def get_wavefronts(self, plane):
+        # Try to get the wavefronts from the cache.
         in_cache = self._cached_wavefronts[plane]
 
+        # If they are in the cache, return them.
         if in_cache is not None:
             return in_cache
 
+        # Otherwise, we do the propagation ourselves.
+        # Get the propagator and dependencies.
         prop = self._plane_propagators[plane]
         dependencies = self._plane_dependencies[plane]
 
+        # Get the dependencies recursively.
         input_wavefronts = []
         for dep in dependencies:
             input_wavefronts.append(self.get_wavefronts(dep))
 
+        # Compute the propagation, one wavefront at a time.
         output_wavefronts = []
         for args in zip(*input_wavefronts):
             output_wavefronts.append(prop(*args))
 
+        # Store the computed wavefronts in the cache and return them.
         self._cached_wavefronts[plane] = output_wavefronts
         return output_wavefronts
