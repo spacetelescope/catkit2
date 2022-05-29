@@ -41,6 +41,11 @@ add_library(catkit_core STATIC
 set_property(TARGET catkit_core PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(catkit_core PUBLIC PROTOBUF_USE_DLLS)
 
+if (MSVC)
+  # disable warning: 'identifier': class 'type' needs to have dll-interface to be used by clients of class 'type2'
+  target_compile_options(catkit_core PUBLIC /wd4251)
+endif()
+
 # Link ZeroMQ
 find_package(ZeroMQ REQUIRED)
 target_include_directories(catkit_core PUBLIC ${ZeroMQ_INCLUDE_DIR})
