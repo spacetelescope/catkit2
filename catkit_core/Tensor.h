@@ -90,4 +90,6 @@ private:
 void ToProto(const Tensor &tensor, catkit_proto::Tensor *proto_tensor);
 void FromProto(const catkit_proto::Tensor *proto_tensor, Tensor &tensor);
 
+#include "Tensor.inl"
+
 #endif // TENSOR_H
