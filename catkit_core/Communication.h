@@ -14,13 +14,16 @@ class Client
 public:
 	Client(std::string host, int port);
 
-protected:
-	std::string m_Host;
-	int m_Port;
+	std::string GetHost();
+	int GetPort();
 
+protected:
 	std::string MakeRequest(const std::string &what, const std::string &request);
 
 private:
+	std::string m_Host;
+	int m_Port;
+
 	typedef std::unique_ptr<zmq::socket_t, std::function<void(zmq::socket_t *)>> socket_ptr;
 	socket_ptr GetSocket();
 
@@ -40,16 +43,21 @@ public:
 	void RunServer();
 	void ShutDown();
 
+	bool ShouldShutDown();
+	bool IsRunning();
+
+	int GetPort();
+
 	void Sleep(double sleep_time_in_ms, void (*error_check)()=nullptr);
 
 protected:
 	int m_Port;
 
-	std::atomic_bool m_IsRunning;
-	std::atomic_bool m_ShouldShutDown;
-
 private:
 	std::map<std::string, RequestHandler> m_RequestHandlers;
+
+	std::atomic_bool m_IsRunning;
+	std::atomic_bool m_ShouldShutDown;
 };
 
 template<typename ProtoRequest>

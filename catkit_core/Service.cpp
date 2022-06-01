@@ -139,7 +139,7 @@ void Service::Run()
 
 void Service::MonitorSafety()
 {
-	while (!m_ShouldShutDown)
+	while (!ShouldShutDown())
 	{
 		if (!IsSafe())
 		{

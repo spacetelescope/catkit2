@@ -70,6 +70,16 @@ string Client::MakeRequest(const string &what, const string &request)
 	}
 }
 
+std::string Client::GetHost()
+{
+	return m_Host;
+}
+
+int Client::GetPort()
+{
+	return m_Port;
+}
+
 Client::socket_ptr Client::GetSocket()
 {
 	static zmq::context_t context;
@@ -200,6 +210,21 @@ void Server::RunServer()
 void Server::ShutDown()
 {
 	m_ShouldShutDown = true;
+}
+
+bool Server::ShouldShutDown()
+{
+	return m_ShouldShutDown;
+}
+
+bool Server::IsRunning()
+{
+	return m_IsRunning;
+}
+
+int Server::GetPort()
+{
+	return m_Port;
 }
 
 void Server::Sleep(double sleep_time_in_ms, void (*error_check)())

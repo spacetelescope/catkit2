@@ -227,6 +227,9 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def("run_server", &Server::RunServer)
 		.def("shut_down", &Server::ShutDown)
+		.def_property_readonly("should_shut_down", &Server::ShouldShutDown)
+		.def_property_readonly("is_running", &Server::IsRunning)
+		.def_property_readonly("port", &Server::GetPort)
 		.def("sleep", [](Server &server, double sleep_time_in_sec)
 		{
 			server.Sleep(1000 * sleep_time_in_sec, []()
@@ -239,6 +242,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 	py::class_<Client>(m, "Client")
 		.def(py::init<std::string, int>())
+		.def_property_readonly("host", &Client::GetHost)
+		.def_property_readonly("port", &Client::GetPort)
 		.def("make_request", &ClientPublicist::MakeRequest);
 
 	py::class_<Service, TrampolineService>(m, "Service")
