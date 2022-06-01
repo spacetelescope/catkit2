@@ -81,45 +81,83 @@ py::dtype GetNumpyDataType(DataType type)
 	}
 }
 
-py::array GetDataFromDataFrame(DataFrame &f)
+py::object ToPython(const Value &value);
+
+py::object ToPython(const List &list)
 {
-	size_t item_size = GetSizeOfDataType(f.m_DataType);
+	py::list py_list;
+
+	for (auto &item : list)
+		py_list.append(ToPython(item));
+
+	return py_list;
+}
+
+py::object ToPython(const Dict &dict)
+{
+	py::dict py_dict;
+
+	for (auto const& [key, val] : dict)
+		py_dict[py::cast(key)] = ToPython(val);
+
+	return py_dict;
+}
+
+py::array ToPython(const Tensor &tensor)
+{
+	size_t item_size = GetSizeOfDataType(tensor.m_DataType);
 
 	std::vector<py::ssize_t> shape;
-	for (size_t i = 0; i < f.m_NumDimensions; ++i)
+	for (size_t i = 0; i < tensor.m_NumDimensions; ++i)
 	{
-		shape.push_back(f.m_Dimensions[i]);
+		shape.push_back(tensor.m_Dimensions[i]);
 	}
 
 	auto strides = py::detail::c_strides(shape, item_size);
 
 	return py::array(
-		GetNumpyDataType(f.m_DataType),
+		GetNumpyDataType(tensor.m_DataType),
 		shape,
 		strides,
-		f.m_Data,
+		tensor.m_Data,
 		py::none()
 		);
 }
 
 py::object ToPython(const Value &value)
 {
-	return py::none();
-}
-
-py::object ToPython(const List &value)
-{
-	return py::none();
-}
-
-py::object ToPython(const Dict &value)
-{
-	return py::none();
-}
-
-py::object ToPython(const Tensor &value)
-{
-	return py::none();
+	if (std::holds_alternative<NoneValue>(value))
+	{
+		return py::none();
+	}
+	else if (std::holds_alternative<double>(value))
+	{
+		return py::float_(std::get<double>(value));
+	}
+	else if (std::holds_alternative<std::string>(value))
+	{
+		return py::str(std::get<std::string>(value));
+	}
+	else if (std::holds_alternative<bool>(value))
+	{
+		return py::bool_(std::get<bool>(value));
+	}
+	else if (std::holds_alternative<Dict>(value))
+	{
+		return ToPython(std::get<Dict>(value));
+	}
+	else if (std::holds_alternative<List>(value))
+	{
+		return ToPython(std::get<List>(value));
+	}
+	else if (std::holds_alternative<Tensor>(value))
+	{
+		return ToPython(std::get<Tensor>(value));
+	}
+	else
+	{
+		throw std::runtime_error("Unknown value type.");
+	}
 }
 
 Value ValueFromPython(const py::handle &python_value)
@@ -281,27 +319,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("active_services", &TestbedProxy::GetActiveServices)
 		.def_property_readonly("inactive_services", &TestbedProxy::GetInactiveServices);
 
-	py::class_<Command, std::shared_ptr<Command>>(m, "Command")
-		.def(py::init([](std::string name, py::object command)
-			{
-				return std::make_shared<Command>(name, [command](const Dict &arguments)
-				{
-					py::gil_scoped_acquire acquire;
-
-					py::dict kwargs = py::cast<py::dict>(ToPython(arguments));
-
-					return ValueFromPython(command(**kwargs));
-				});
-			}))
-		.def_property_readonly("name", &Command::GetName);
-
-	py::class_<Property, std::shared_ptr<Property>>(m, "Property")
-		.def(py::init<std::string, Property::Getter, Property::Setter>(),
-			py::arg("name"),
-			py::arg("getter") = nullptr,
-			py::arg("setter") = nullptr)
-		.def_property_readonly("name", &Property::GetName);
-
 	py::class_<DataFrame>(m, "DataFrame")
 		.def_property_readonly("id", [](const DataFrame &f)
 			{
@@ -311,7 +328,11 @@ PYBIND11_MODULE(catkit_bindings, m)
 			{
 				return f.m_TimeStamp;
 			})
-		.def_property_readonly("data", &GetDataFromDataFrame);
+		.def_property_readonly("data", [](DataFrame &frame)
+		{
+			Tensor &tensor = frame;
+			return ToPython(tensor);
+		});
 
 	py::class_<DataStream, std::shared_ptr<DataStream>>(m, "DataStream")
 		.def_static("create", [](std::string &stream_name, std::string &service_name, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
@@ -402,7 +423,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get", [](DataStream &s)
 		{
 			DataFrame frame = s.GetLatestFrame();
-			return GetDataFromDataFrame(frame);
+			return ToPython(frame);
 		})
 		.def_property("shape", &DataStream::GetDimensions, &DataStream::SetDimensions)
 		.def_property("num_frames_in_buffer", &DataStream::GetNumFramesInBuffer, &DataStream::SetNumFramesInBuffer)
