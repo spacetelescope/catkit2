@@ -23,7 +23,7 @@ struct ServiceReference
 	unsigned long port;
 };
 
-class TestbedProxy : public Client, std::enable_shared_from_this<TestbedProxy>
+class TestbedProxy : public Client, public std::enable_shared_from_this<TestbedProxy>
 {
 public:
 	TestbedProxy(std::string host, int port);
@@ -45,6 +45,7 @@ public:
 
 	std::string GetExperimentPath();
 	std::string StartNewExperiment(std::string experiment_name, nlohmann::json metadata);
+	void EndExperiment();
 	nlohmann::json GetConfig();
 
 	std::string GetHost();

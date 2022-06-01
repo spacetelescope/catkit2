@@ -182,6 +182,10 @@ std::string TestbedProxy::StartNewExperiment(std::string experiment_name, json m
 	return reply.experiment_path();
 }
 
+void TestbedProxy::EndExperiment()
+{
+}
+
 json TestbedProxy::GetConfig()
 {
 	GetServerInfo();
