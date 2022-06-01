@@ -13,6 +13,9 @@
 #include "LogConsole.h"
 #include "LogPublish.h"
 #include "Types.h"
+#include "TestbedProxy.h"
+#include "ServiceProxy.h"
+#include "Communication.h"
 
 #include "testbed.pb.h"
 
@@ -165,8 +168,41 @@ Value ValueFromPython(const py::handle &python_value)
 	return NoneValue();
 }
 
+class ClientPublicist : public Client
+{
+public:
+    using Client::MakeRequest;
+};
+
 PYBIND11_MODULE(catkit_bindings, m)
 {
+	py::class_<Server>(m, "Server")
+		.def(py::init<int>())
+		.def("register_request_handler", [](Server &server, std::string type, Server::RequestHandler request_handler)
+		{
+			server.RegisterRequestHandler(type, [request_handler](const std::string &data)
+			{
+				// Acquire the GIL before calling the request handler.
+				py::gil_scoped_acquire acquire;
+				return request_handler(data);
+			});
+		})
+		.def("run_server", &Server::RunServer)
+		.def("shut_down", &Server::ShutDown)
+		.def("sleep", [](Server &server, double sleep_time_in_sec)
+		{
+			server.Sleep(1000 * sleep_time_in_sec, []()
+			{
+				py::gil_scoped_acquire acquire;
+				if (PyErr_CheckSignals() != 0)
+					throw py::error_already_set();
+			});
+		});
+
+	py::class_<Client>(m, "Client")
+		.def(py::init<std::string, int>())
+		.def("make_request", &ClientPublicist::MakeRequest);
+
 	py::class_<Service, TrampolineService>(m, "Service")
 		.def(py::init<std::string, std::string, int, int>())
 		.def_property_readonly("id", &Service::GetId)
@@ -197,6 +233,53 @@ PYBIND11_MODULE(catkit_bindings, m)
 			return service.MakeDataStream(stream_name, dtype, dimensions, num_frames_in_buffer);
 		})
 		.def("reuse_data_stream", &Service::ReuseDataStream);
+
+	py::enum_<ServiceState>(m, "ServiceState")
+		.value("CLOSED", ServiceState::CLOSED)
+		.value("INITIALIZING", ServiceState::INITIALIZING)
+		.value("OPENING", ServiceState::OPENING)
+		.value("OPERATIONAL", ServiceState::OPERATIONAL)
+		.value("CLOSING", ServiceState::CLOSING)
+		.value("UNRESPONSIVE", ServiceState::UNRESPONSIVE)
+		.value("CRASHED", ServiceState::CRASHED);
+
+	py::class_<ServiceProxy, std::shared_ptr<ServiceProxy>>(m, "ServiceProxy")
+		.def(py::init<std::shared_ptr<TestbedProxy>, std::string>())
+		.def("get_property", [](ServiceProxy &service, std::string name)
+		{
+			return ToPython(service.GetProperty(name));
+		})
+		.def("set_property", [](ServiceProxy &service, std::string name, py::handle obj)
+		{
+			auto val = service.SetProperty(name, ValueFromPython(obj));
+			return ToPython(val);
+		})
+		.def("execute_command", [](ServiceProxy &service, std::string name, py::dict args)
+		{
+			auto res = service.ExecuteCommand(name, std::get<Dict>(ValueFromPython(args)));
+			return ToPython(res);
+		})
+		.def("get_data_stream", &ServiceProxy::GetDataStream)
+		.def_property_readonly("state", &ServiceProxy::GetState)
+		.def_property_readonly("is_alive", &ServiceProxy::IsAlive)
+		.def("start", &ServiceProxy::Start)
+		.def("stop", &ServiceProxy::Stop);
+
+	py::class_<TestbedProxy, std::shared_ptr<TestbedProxy>>(m, "TestbedProxy")
+		.def(py::init<std::string, int>())
+		.def("get_service", &TestbedProxy::GetService)
+		.def("require_service", &TestbedProxy::RequireService)
+		.def("require_services", &TestbedProxy::RequireServices)
+		.def_property_readonly("is_simulated", &TestbedProxy::IsSimulated)
+		.def_property_readonly("is_alive", &TestbedProxy::IsAlive)
+		.def_property_readonly("experiment_path", &TestbedProxy::GetExperimentPath)
+		.def("start_new_experiment", &TestbedProxy::StartNewExperiment)
+		.def("end_experiment", &TestbedProxy::EndExperiment)
+		.def_property_readonly("config", &TestbedProxy::GetConfig)
+		.def_property_readonly("host", &TestbedProxy::GetHost)
+		.def_property_readonly("logging_egress_port", &TestbedProxy::GetLoggingEgressPort)
+		.def_property_readonly("active_services", &TestbedProxy::GetActiveServices)
+		.def_property_readonly("inactive_services", &TestbedProxy::GetInactiveServices);
 
 	py::class_<Command, std::shared_ptr<Command>>(m, "Command")
 		.def(py::init([](std::string name, py::object command)
