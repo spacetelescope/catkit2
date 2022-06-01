@@ -20,7 +20,7 @@ public:
 	Value GetProperty(const std::string &name);
 	Value SetProperty(const std::string &name, const Value &value);
 
-	Value ExecuteCommand(const Dict &arguments);
+	Value ExecuteCommand(const std::string &name, const Dict &arguments);
 
 	std::shared_ptr<DataStream> GetDataStream(const std::string &name);
 

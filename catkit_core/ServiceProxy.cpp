@@ -33,7 +33,7 @@ Value ServiceProxy::SetProperty(const std::string &name, const Value &value)
 	return Value();
 }
 
-Value ServiceProxy::ExecuteCommand(const Dict &arguments)
+Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &arguments)
 {
 	return Value();
 }
