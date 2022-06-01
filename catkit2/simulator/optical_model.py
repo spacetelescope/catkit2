@@ -2,8 +2,6 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 import networkx as nx
-import pydot
-from networkx.drawing.nx_pydot import graphviz_layout
 
 import random
 

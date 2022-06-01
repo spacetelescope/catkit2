@@ -31,5 +31,6 @@ dependencies:
   - conda-forge::sphinx-automodapi
   - conda-forge::breathe==4.32.0
   - conda-forge::sphinx_rtd_theme
+  - networkx
   - pip:
     - zwoasi>=0.0.21 # Requires additional manual install of driver(s) from https://astronomy-imaging-camera.com/software-drivers
