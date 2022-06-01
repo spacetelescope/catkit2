@@ -345,19 +345,21 @@ void print_usage()
 	std::cout << "Usage:\n  service --name NAME --port PORT";
 }
 
-std::tuple<std::string, int> ParseServiceArgs(int argc, char *argv[])
+std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 {
-	if (argc != 5)
+	if (argc != 7)
 	{
 		print_usage();
 		throw std::runtime_error("Too few or too many arguments.");
 	}
 
 	std::string service_name;
+	int service_port;
 	int testbed_port;
 
 	bool name_found = false;
-	bool port_found = false;
+	bool service_port_found = false;
+	bool testbed_port_found = false;
 
 	for (size_t i = 1; i < argc; i += 2)
 	{
@@ -371,8 +373,13 @@ std::tuple<std::string, int> ParseServiceArgs(int argc, char *argv[])
 		}
 		else if (arg == "--port" || arg == "-p")
 		{
+			service_port = std::stoi(param);
+			service_port_found = true;
+		}
+		else if (arg == "--testbed" || arg == "-t")
+		{
 			testbed_port = std::stoi(param);
-			port_found = true;
+			testbed_port_found = true;
 		}
 		else
 		{
@@ -381,11 +388,11 @@ std::tuple<std::string, int> ParseServiceArgs(int argc, char *argv[])
 		}
 	}
 
-	if (!(name_found && port_found))
+	if (!(name_found && service_port_found && testbed_port_found))
 	{
 		print_usage();
 		throw std::runtime_error("Did not supply all arguments.");
 	}
 
-	return std::make_tuple(service_name, testbed_port);
+	return std::make_tuple(service_name, service_port, testbed_port);
 }

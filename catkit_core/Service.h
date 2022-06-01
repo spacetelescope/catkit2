@@ -75,6 +75,6 @@ private:
 	LogPublish m_LoggerPublish;
 };
 
-std::tuple<std::string, int> ParseServiceArgs(int argc, char *argv[]);
+std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[]);
 
 #endif // SERVICE_H
