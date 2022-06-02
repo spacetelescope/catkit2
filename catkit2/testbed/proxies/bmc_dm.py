@@ -41,7 +41,7 @@ class BmcDmProxy(ServiceProxy):
         getattr(self, channel).submit_data(command)
 
 
-def make_poke(actuators, amplitude = quantity(700, units.nanometer), bias = False, flat_map = True, return_shortname = False, dm_num = 1):
+def make_poke(actuators, amplitude = quantity(700, units.nanometer), dm_num = 1):
     """
     Creates a 1D array DM command that can poke actuators at a given amplitude.
     :param actuators: List of actuators, or a single actuator.
@@ -52,33 +52,32 @@ def make_poke(actuators, amplitude = quantity(700, units.nanometer), bias = Fals
     :param dm_num: 1 or 2, for DM1 or DM2.
     :return: 1d list size 2x952
     """
-
-    short_name = "poke"
     total_actuators = 2*952
     poke_array = np.zeros(total_actuators)
 
     # Convert peak the valley from a quantity to nanometers, and get the magnitude.
     amplitude = amplitude.to(units.meter).m
 
-    # Bias.
-    if flat_map:
-        short_name += "_flat_map"
-    if bias:
-        short_name += "_bias"
-
     if isinstance(actuators, list):
         for actuator in actuators:
             poke_array[actuator] = amplitude
-            short_name += "_" + str(actuator)
+
     else:
-        short_name += "_" + str(actuators)
         poke_array[actuators] = amplitude
 
-
-    if return_shortname:
-        return poke_array, short_name
-    else:
-        return poke_array
+    return poke_array
 
 
+def make_poke_f(amplitude = quantity(700, units.nanometer), bias = False, flat_map = True, return_shortname = False, dm_num = 1)
+
+    actuators = [529,599,669,736,799,857,424,354,284,217,154,96,526,559,592,525,658,690,721,751,780,627,692,725,753,784,814,
+                810,838,864,888,427,394,361,328,295,263,232,202,173,326,261,228,200,169,139,143,115,89,65]
+
+    total_actuators = 2*952
+    poke_array = np.zeros(total_actuators)
+
+    for actuator in actuators:
+        poke_array[actuator] = amplitude
+
+    return poke_array
 
