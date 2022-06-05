@@ -24,6 +24,8 @@ private:
 	std::string m_Host;
 	int m_Port;
 
+	zmq::context_t m_Context;
+
 	typedef std::unique_ptr<zmq::socket_t, std::function<void(zmq::socket_t *)>> socket_ptr;
 	socket_ptr GetSocket();
 

@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <chrono>
 
+#include <iostream>
+
 using namespace std;
 using namespace zmq;
 
@@ -82,16 +84,16 @@ int Client::GetPort()
 
 Client::socket_ptr Client::GetSocket()
 {
-	static zmq::context_t context;
-
 	std::scoped_lock<std::mutex> lock(m_Mutex);
 
 	zmq::socket_t *socket;
 	if (m_Sockets.empty())
 	{
-		socket = new zmq::socket_t(context, ZMQ_REQ);
+		LOG_DEBUG("Creating new socket.");
 
-		socket->set(zmq::sockopt::rcvtimeo, 20);
+		socket = new zmq::socket_t(m_Context, ZMQ_REQ);
+
+		socket->set(zmq::sockopt::rcvtimeo, 2000);
 		socket->set(zmq::sockopt::linger, 0);
 		socket->set(zmq::sockopt::req_relaxed, 1);
 		socket->set(zmq::sockopt::req_correlate, 1);
@@ -152,37 +154,40 @@ void Server::RunServer()
 			continue;
 		}
 
-		std::string request_id = request_msg.popstr();
 		std::string client_identity = request_msg.popstr();
+		std::string request_id = request_msg.popstr();
 		std::string empty = request_msg.popstr();
 		std::string request_type = request_msg.popstr();
 		std::string request_data = request_msg.popstr();
 
 		LOG_DEBUG("Request received: "s + request_type);
 
+		// Call the request handler and return the result if no error occurred.
+		string reply_data;
+		string reply_type = "OK";
+
 		// Find the correct request handler.
 		auto handler = m_RequestHandlers.find(request_type);
 
 		if (handler == m_RequestHandlers.end())
 		{
-			LOG_ERROR("An unknown request type was received: "s + request_type + ". Ignoring message.");
-			continue;
-		}
-
-		// Call the request handler and return the result if no error occurred.
-		string reply_data;
-		string reply_type = "OK";
-
-		try
-		{
-			reply_data = handler->second(request_data);
-		}
-		catch (std::exception &e)
-		{
-			LOG_ERROR("Encountered error during handling of request: "s + e.what());
-
+			LOG_ERROR("An unknown request type was received: "s + request_type + ".");
 			reply_type = "ERROR";
-			reply_data = e.what();
+			reply_data = "Unknown request type";
+		}
+		else
+		{
+			try
+			{
+				reply_data = handler->second(request_data);
+			}
+			catch (std::exception &e)
+			{
+				LOG_ERROR("Encountered error during handling of request: "s + e.what());
+
+				reply_type = "ERROR";
+				reply_data = e.what();
+			}
 		}
 
 		// Send reply to the client.
@@ -209,6 +214,7 @@ void Server::RunServer()
 
 void Server::ShutDown()
 {
+	LOG_INFO("Shut down called.");
 	m_ShouldShutDown = true;
 }
 
