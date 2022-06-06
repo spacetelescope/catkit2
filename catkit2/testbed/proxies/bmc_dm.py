@@ -14,6 +14,10 @@ class BmcDmProxy(ServiceProxy):
 
         return self._dm_mask
 
+    @property
+    def num_actuators(self):
+        return self.configuration['num_actuators']
+
     def dm_shapes_to_command(self, dm1_shape, dm2_shape=None):
         command = np.zeros(2048)
 
