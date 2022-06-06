@@ -16,6 +16,8 @@
 #include "LogPublish.h"
 #include "Communication.h"
 
+const double SERVICE_LIVELINESS = 10;
+
 class TestbedProxy;
 
 class Service : public Server
@@ -52,6 +54,8 @@ private:
 
 	void MonitorSafety();
 	bool IsSafe();
+
+	void MonitorHeartbeats();
 
 	std::shared_ptr<TestbedProxy> m_Testbed;
 

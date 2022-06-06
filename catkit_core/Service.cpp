@@ -102,6 +102,7 @@ void Service::Run()
 		});
 
 		std::thread safety(&Service::MonitorSafety, this);
+		std::thread heartbeat(&Service::MonitorHeartbeats, this);
 
 		Finally end_threads([&, this]()
 		{
@@ -112,6 +113,9 @@ void Service::Run()
 
 			if (safety.joinable())
 				safety.join();
+
+			if (heartbeat.joinable())
+				heartbeat.join();
 		});
 
 		RunServer();
@@ -143,6 +147,7 @@ void Service::MonitorSafety()
 	{
 		if (!IsSafe())
 		{
+			LOG_CRITICAL("The testbed is deemed unsafe. Shutting down.");
 			ShutDown();
 			return;
 		}
@@ -154,6 +159,27 @@ void Service::MonitorSafety()
 bool Service::IsSafe()
 {
 	return true;
+}
+
+void Service::MonitorHeartbeats()
+{
+	while (!ShouldShutDown())
+	{
+		// Update my own heartbeat.
+		std::uint64_t timestamp = GetTimeStamp();
+		m_HeartbeatStream->SubmitData(&timestamp);
+
+		// Check the testbed heartbeat.
+		if (!m_Testbed->IsAlive())
+		{
+			LOG_CRITICAL("Testbed has likely crashed. Shutting down.");
+			ShutDown();
+			return;
+		}
+
+		// Sleep until next check.
+		Sleep(SERVICE_LIVELINESS / 5);
+	}
 }
 
 void Service::Open()
