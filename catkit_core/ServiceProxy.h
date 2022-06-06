@@ -4,6 +4,7 @@
 #include "Types.h"
 #include "DataStream.h"
 #include "ServiceState.h"
+#include "Communication.h"
 
 #include <zmq.hpp>
 
@@ -25,16 +26,20 @@ public:
 	std::shared_ptr<DataStream> GetDataStream(const std::string &name);
 
 	ServiceState GetState();
-	bool IsAlive();
+	bool IsRunning();
 
 	void Start();
 	void Stop();
 
+	void WaitUntilRunning();
+
 private:
+	void Connect();
+
 	std::shared_ptr<TestbedProxy> m_Testbed;
 	std::string m_ServiceId;
 
-	zmq::socket_t GetSocket();
+	std::unique_ptr<Client> m_Client;
 
 	std::vector<std::string> m_PropertyNames;
 	std::vector<std::string> m_CommandNames;

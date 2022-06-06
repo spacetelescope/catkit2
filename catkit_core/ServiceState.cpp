@@ -4,5 +4,5 @@ bool IsAliveState(const ServiceState &state)
 {
     return state == ServiceState::INITIALIZING
 		|| state == ServiceState::OPENING
-		|| state == ServiceState::OPERATIONAL;
+		|| state == ServiceState::RUNNING;
 }

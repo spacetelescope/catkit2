@@ -7,7 +7,7 @@ enum ServiceState
     CLOSED = 0;
     INITIALIZING = 1;
     OPENING = 2;
-    OPERATIONAL = 3;
+    RUNNING = 3;
     CLOSING = 4;
     UNRESPONSIVE = 5;
     CRASHED = 6;
