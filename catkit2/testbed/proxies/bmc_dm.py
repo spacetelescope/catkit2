@@ -4,6 +4,7 @@ import numpy as np
 from astropy.io import fits
 from astropy import units
 from astropy.units import Quantity
+from scipy.ndimage import map_coordinates
 
 @ServiceProxy.register_service_interface('bmc_dm')
 class BmcDmProxy(ServiceProxy):
