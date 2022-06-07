@@ -13,7 +13,6 @@ import zmq
 import yaml
 
 from .protocol import *
-from ..config import read_config_files
 from ..catkit_bindings import LogConsole, LogPublish
 from .log_handler import *
 
@@ -296,21 +295,19 @@ class TestbedServer:
         Whether the server should operate in simulated mode or not.
         This changes whether a simulated or hardware service is launched when
         a specific service is requested.
-    config_files : list of Path objects
-        The ordered list of configuration files to read in.
+    config : dictionary
+        The full configuration as read in from the configuration files.
     '''
-    def __init__(self, port, is_simulated, config_files):
+    def __init__(self, port, is_simulated, config):
         self.port = port
         self.is_simulated = is_simulated
-        self.config_files = config_files
+        self.config = config
 
         self.services = {}
         self.is_running = False
 
         self.log_handler = None
         self.log = logging.getLogger(__name__)
-
-        self.config = read_config_files(self.config_files)
 
         self.base_data_path = None
 
