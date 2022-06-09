@@ -3,7 +3,8 @@ __all__ = [
     'NewportXpsQ8Proxy',
     'FlipMountProxy',
     'BmcDmProxy',
-    'NewportPicomotorProxy'
+    'NewportPicomotorProxy',
+    'WebPowerSwitchProxy'
 ]
 
 from .bmc_dm import *
@@ -11,3 +12,4 @@ from .camera import *
 from .newport_xps import *
 from .flip_mount import *
 from .newport_picomotor import *
+from .web_power_switch import *

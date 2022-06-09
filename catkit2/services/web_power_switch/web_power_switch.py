@@ -28,7 +28,7 @@ class WebPowerSwitch(Service):
             self.add_outlet(outlet_name)
 
     def add_outlet(self, outlet_name):
-        self.outlets[outlet_name] = self.make_data_stream(outlet_name, 'int8', [1], 20)
+        self.outlets[outlet_name] = self.make_data_stream(outlet_name.lower(), 'int8', [1], 20)
 
     def monitor_outlet(self, outlet_name):
         while not self.shutdown_flag.is_set():
