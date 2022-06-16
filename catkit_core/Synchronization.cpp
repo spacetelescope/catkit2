@@ -130,6 +130,12 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 			throw std::runtime_error("Waiting time has expired.");
 		}
 
+		if (res == WAIT_FAILED)
+		{
+			m_SharedData->m_NumReadersWaiting--;
+			throw std::runtime_error("An error occured during waiting for the semaphore: " + std::to_string(GetLastError()));
+		}
+
 		if (error_check != nullptr)
 		{
 			try
