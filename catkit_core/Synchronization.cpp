@@ -89,11 +89,10 @@ void Synchronization::Open(const std::string &id, SynchronizationSharedData *sha
 		throw std::runtime_error("The passed shared data was a nullptr.");
 
 #ifdef _WIN32
-	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
+	m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
 
-	if (semaphore == NULL)
+	if (m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while opening semaphore.");
-
 #else
 #endif
 
