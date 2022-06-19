@@ -31,8 +31,10 @@ public:
 
 	std::shared_ptr<ServiceProxy> GetService(const std::string &service_id);
 
-	void RequireService(const std::string &service_id);
-	void RequireServices(std::vector<std::string> service_ids);
+	void StartService(const std::string &service_id);
+	void StartServices(std::vector<std::string> service_ids);
+
+	void StopService(const std::string &service_id);
 
 	ServiceReference GetServiceInfo(const std::string &service_id);
 	ServiceState GetServiceState(const std::string &service_id);

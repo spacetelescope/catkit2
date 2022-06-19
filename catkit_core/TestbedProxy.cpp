@@ -36,27 +36,44 @@ std::shared_ptr<ServiceProxy> TestbedProxy::GetService(const std::string &servic
 	return service_iterator->second;
 }
 
-void TestbedProxy::RequireService(const std::string &service_id)
+void TestbedProxy::StartService(const std::string &service_id)
 {
-	catkit_proto::testbed::RequireServiceRequest request;
+	catkit_proto::testbed::StartServiceRequest request;
 	request.set_service_id(service_id);
 
-	catkit_proto::testbed::RequireServiceReply reply;
+	catkit_proto::testbed::StartServiceReply reply;
 
 	try
 	{
-		reply.ParseFromString(MakeRequest("require_service", Serialize(request)));
+		reply.ParseFromString(MakeRequest("start_service", Serialize(request)));
 	}
 	catch (...)
 	{
-		throw std::runtime_error("Unable to require service.");
+		throw std::runtime_error("Unable to start service.");
 	}
 }
 
-void TestbedProxy::RequireServices(std::vector<std::string> service_ids)
+void TestbedProxy::StartServices(std::vector<std::string> service_ids)
 {
 	for (const std::string &service_id : service_ids)
-		RequireService(service_id);
+		StartService(service_id);
+}
+
+void TestbedProxy::StopService(const std::string &service_id)
+{
+	catkit_proto::testbed::StopServiceRequest request;
+	request.set_service_id(service_id);
+
+	catkit_proto::testbed::StopServiceReply reply;
+
+	try
+	{
+		reply.ParseFromString(MakeRequest("stop_service", Serialize(request)));
+	}
+	catch (...)
+	{
+		throw std::runtime_error("Unable to stop service.");
+	}
 }
 
 ServiceReference TestbedProxy::GetServiceInfo(const std::string &service_id)
