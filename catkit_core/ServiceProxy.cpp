@@ -2,6 +2,7 @@
 
 #include "TestbedProxy.h"
 #include "Service.h"
+#include "service.pb.h"
 
 using namespace std::string_literals;
 
@@ -87,7 +88,7 @@ void ServiceProxy::Start()
 	if (IsAlive())
 		return;
 
-
+	m_Testbed->RequireService(m_ServiceId);
 }
 
 void ServiceProxy::Stop()
@@ -95,13 +96,62 @@ void ServiceProxy::Stop()
 	if (!IsAlive())
 		return;
 
-
+	m_Testbed->ShutDownService(m_ServiceId);
 }
 
-void ServiceProxy::WaitUntilRunning()
+void ServiceProxy::WaitUntilRunning(double timeout_in_sec, void (*error_check)())
 {
+	if (IsRunning())
+		return;
+
+	Start();
+
+	Timer timer;
+
+	while (!IsRunning())
+	{
+		double timeout_remaining = timeout_in_sec - timer.GetTimeDelta();
+
+		if (timeout_remaining <= 0)
+			throw std::runtime_error("Timeout has expired.");
+
+		std::this_thread::sleep_for(std::chrono::duration<double, std::second>(std::min(double(0.05), timeout_remaining));
+
+		if (error_check)
+			error_check();
+	}
 }
 
-void ServiceProxy::Connect()
+bool ServiceProxy::Connect()
 {
+	// Check if the service is running.
+	if (!IsRunning())
+		return false;
+
+	// Check if we are already connected.
+	if (m_Client)
+		return true;
+
+	// Get the host and port of the service.
+	auto service_info = m_Testbed->GetServiceInfo(m_ServiceId);
+
+	// Connect to the service.
+	m_Client = std::make_unique<Client>(service_info.host, service_info.port);
+
+	// Get property, command and datastream names.
+	std::string reply = m_Client->MakeRequest("get_info", "");
+
+	catkit_proto::service::GetInfoReply reply;
+	reply.ParseFromString(reply);
+
+	m_PropertyNames.clear();
+	for (auto i : reply.property_names())
+		m_PropertyNames.push_back(i);
+
+	m_CommandNames.clear();
+	for (auto i : reply.command_names())
+		m_CommandNames.push_back(i);
+
+	for (auto& [key, value] : reply.datastream_ids)
+		m_DataStreamIds[key] = value;
 }
