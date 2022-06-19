@@ -45,6 +45,11 @@ Service::Service(string service_id, string service_type, int service_port, int t
 	m_Config = m_Testbed->GetConfig()["services"][service_id];
 
 	m_Testbed->UpdateServiceState(service_id, ServiceState::INITIALIZING);
+
+	RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data)});
+	RegisterRequestHandler("get_property", [this](const string &data) { return this->HandleGetProperty(data)});
+	RegisterRequestHandler("set_property", [this](const string &data) { return this->HandleSetProperty(data)});
+	RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data)});
 }
 
 Service::~Service()
