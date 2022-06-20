@@ -54,6 +54,7 @@ private:
 
 	void MonitorSafety();
 	bool IsSafe();
+	bool RequiresSafety();
 
 	void MonitorHeartbeats();
 

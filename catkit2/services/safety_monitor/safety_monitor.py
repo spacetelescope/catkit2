@@ -7,8 +7,8 @@ import sys
 import numpy as np
 
 class SafetyMonitor(Service):
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'safety_monitor', testbed_port)
+    def __init__(self, service_name, service_port, testbed_port):
+        Service.__init__(self, service_name, 'safety_monitor', service_port, testbed_port)
 
         self.testbed = TestbedClient(testbed_port)
 
@@ -67,22 +67,18 @@ class SafetyMonitor(Service):
             self.data_streams[safety_name] = getattr(service, safety['stream_name'])
 
     def main(self):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             start = time.time()
 
             self.check_safety()
 
-            while not self.shutdown_flag and time.time() < (start + self.check_interval):
-                time.sleep(0.05)
+            self.sleep(self.check_interval)
 
     def close(self):
         self.data_streams = {}
 
-    def shut_down(self):
-        self.shutdown_flag = True
-
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
+    service_name, service_port, testbed_port = parse_service_args()
 
-    service = SafetyMonitor(service_name, testbed_port)
+    service = SafetyMonitor(service_name, service_port, testbed_port)
     service.run()

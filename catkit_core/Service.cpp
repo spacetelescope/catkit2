@@ -163,7 +163,41 @@ void Service::MonitorSafety()
 
 bool Service::IsSafe()
 {
+	if (!RequiresSafety())
+		return true;
+
+	static std::shared_ptr<ServiceProxy> safety_service(m_Testbed->GetService("safety"));
+
+	auto stream = safety_service->GetDataStream("is_safe");
+	auto frame = stream->GetLatestFrame();
+
+	std::uint64_t current_time = GetTimeStamp();
+
+	if ((current_time - frame.m_TimeStamp) / 1.0e9 > 3 * SAFETY_INTERVAL)
+	{
+		// The safety check is too old.
+		// This is deemed unsafe.
+		return false;
+	}
+
+	auto data = frame.AsArray<std::uint8_t>();
+
+	if (data.sum() != data.cols())
+	{
+		// At least one safety has failed.
+		// This is deemed unsafe.
+		return false;
+	}
+
 	return true;
+}
+
+bool Service::RequiresSafety()
+{
+	if (m_Config.contains("requires_safety"))
+		return m_Config["requires_safety"];
+
+	return false;
 }
 
 void Service::MonitorHeartbeats()
