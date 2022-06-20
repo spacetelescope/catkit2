@@ -35,10 +35,7 @@ Value ServiceProxy::GetProperty(const std::string &name)
 	catkit_proto::service::GetPropertyRequest request;
 	request.set_property_name(name);
 
-	std::string request_string;
-	request.SerializeToString(&request_string);
-
-	std::string reply_string = m_Client->MakeRequest("get_property", request_string);
+	std::string reply_string = m_Client->MakeRequest("get_property", Serialize(request));
 
 	catkit_proto::service::GetPropertyReply reply;
 	reply.ParseFromString(reply_string);
@@ -62,10 +59,7 @@ Value ServiceProxy::SetProperty(const std::string &name, const Value &value)
 	request.set_property_name(name);
 	ToProto(value, request.mutable_property_value());
 
-	std::string request_string;
-	request.SerializeToString(&request_string);
-
-	std::string reply_string = m_Client->MakeRequest("set_property", request_string);
+	std::string reply_string = m_Client->MakeRequest("set_property", Serialize(request));
 
 	catkit_proto::service::SetPropertyReply reply;
 	reply.ParseFromString(reply_string);
@@ -89,10 +83,7 @@ Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &argument
 	request.set_command_name(name);
 	ToProto(arguments, request.mutable_arguments());
 
-	std::string request_string;
-	request.SerializeToString(&request_string);
-
-	std::string reply_string = m_Client->MakeRequest("execute_command", request_string);
+	std::string reply_string = m_Client->MakeRequest("execute_command", Serialize(request));
 
 	catkit_proto::service::ExecuteCommandReply reply;
 	reply.ParseFromString(reply_string);
