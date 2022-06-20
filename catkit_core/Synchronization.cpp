@@ -173,7 +173,7 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 
 		int res = pthread_cond_timedwait(&(m_SharedData->m_Condition), &(m_SharedData->m_Mutex), &timeout);
 #endif // __APPLE__
-		if (res == ETIMEDOUT && timer.GetTimeDelta() > (timeout_in_ms * 0.001))
+		if (res == ETIMEDOUT && timer.GetTime() > (timeout_in_ms * 0.001))
 		{
 			throw std::runtime_error("Waiting time has expired.");
 		}
