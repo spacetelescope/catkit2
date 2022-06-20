@@ -27,11 +27,12 @@ public:
 
 	ServiceState GetState();
 	bool IsRunning();
+	bool IsAlive();
 
 	void Start();
 	void Stop();
 
-	void WaitUntilRunning();
+	void WaitUntilRunning(double timeout_in_sec, void (*error_check)() = nullptr);
 
 private:
 	void Connect();

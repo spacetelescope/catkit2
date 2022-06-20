@@ -1,6 +1,7 @@
 #include "ServiceProxy.h"
 
 #include "TestbedProxy.h"
+#include "Timestamp.h"
 #include "Service.h"
 #include "service.pb.h"
 
@@ -24,34 +25,103 @@ ServiceProxy::~ServiceProxy()
 
 Value ServiceProxy::GetProperty(const std::string &name)
 {
-	if (!IsAlive())
-		throw std::runtime_error("Cannot get a property from a dead service.");
+	// Connect if we're not already connected.
+	Connect();
 
-	return Value();
+	// Check if the name is a valid property.
+	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
+		throw std::runtime_error("This is not a valid property name.");
+
+	catkit_proto::service::GetPropertyRequest request;
+	request.set_property_name(name);
+
+	std::string request_string;
+	request.SerializeToString(&request_string);
+
+	std::string reply_string = m_Client->MakeRequest("get_property", request_string);
+
+	catkit_proto::service::GetPropertyReply reply;
+	reply.ParseFromString(reply_string);
+
+	Value res;
+	FromProto(&reply.property_value(), res);
+
+	return res;
 }
 
 Value ServiceProxy::SetProperty(const std::string &name, const Value &value)
 {
-	if (!IsAlive())
-		throw std::runtime_error("Cannot set a property on a dead service.");
+	// Connect if we're not already connected.
+	Connect();
 
-	return Value();
+	// Check if the name is a valid property.
+	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
+		throw std::runtime_error("This is not a valid property name.");
+
+	catkit_proto::service::SetPropertyRequest request;
+	request.set_property_name(name);
+	ToProto(value, request.mutable_property_value());
+
+	std::string request_string;
+	request.SerializeToString(&request_string);
+
+	std::string reply_string = m_Client->MakeRequest("set_property", request_string);
+
+	catkit_proto::service::SetPropertyReply reply;
+	reply.ParseFromString(reply_string);
+
+	Value res;
+	FromProto(&reply.property_value(), res);
+
+	return res;
 }
 
 Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &arguments)
 {
-	if (!IsAlive())
-		throw std::runtime_error("Cannot execute a command on a dead service.");
+	// Connect if we're not already connected.
+	Connect();
 
-	return Value();
+	// Check if the name is a valid command.
+	if (std::find(m_CommandNames.begin(), m_CommandNames.end(), name) == m_CommandNames.end())
+		throw std::runtime_error("This is not a valid command name.");
+
+	catkit_proto::service::ExecuteCommandRequest request;
+	request.set_command_name(name);
+	ToProto(arguments, request.mutable_arguments());
+
+	std::string request_string;
+	request.SerializeToString(&request_string);
+
+	std::string reply_string = m_Client->MakeRequest("execute_command", request_string);
+
+	catkit_proto::service::ExecuteCommandReply reply;
+	reply.ParseFromString(reply_string);
+
+	Value res;
+	FromProto(&reply.result(), res);
+
+	return res;
 }
 
 std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name)
 {
-	if (!IsAlive())
-		throw std::runtime_error("Cannot get a data stream from a dead service.");
+	// Connect if we're not already connected.
+	Connect();
 
-	return nullptr;
+	// Check if the name is a valid data stream name.
+	if (m_DataStreamIds.find(name) == m_DataStreamIds.end())
+		throw std::runtime_error("This is not a valid data stream name.");
+
+	auto stream = m_DataStreams.find(name);
+
+	// Check if we already opened this data stream.
+	if (stream == m_DataStreams.end())
+	{
+		// Open it now.
+		m_DataStreams[name] = DataStream::Open(m_DataStreamIds[name]);
+	}
+
+	return m_DataStreams[name];
 }
 
 ServiceState ServiceProxy::GetState()
@@ -63,13 +133,13 @@ ServiceState ServiceProxy::GetState()
 		std::uint64_t current_time = GetTimeStamp();
 
 		if ((current_time - heartbeat_time) / 1e9 < SERVICE_LIVELINESS)
-			return ServiceState::OPERATIONAL;
+			return ServiceState::RUNNING;
 	}
 
 	auto state = m_Testbed->GetServiceState(m_ServiceId);
 
 	// Connect if the service became operational.
-	if (m_LastKnownState != ServiceState::OPERATIONAL && state == ServiceState::OPERATIONAL)
+	if (m_LastKnownState != ServiceState::RUNNING && state == ServiceState::RUNNING)
 		Connect();
 
 	m_LastKnownState = state;
@@ -79,8 +149,12 @@ ServiceState ServiceProxy::GetState()
 
 bool ServiceProxy::IsRunning()
 {
-	auto state = GetState();
-	return GetState() == ServiceState::OPERATIONAL;
+	return GetState() == ServiceState::RUNNING;
+}
+
+bool ServiceProxy::IsAlive()
+{
+	return IsAliveState(GetState());
 }
 
 void ServiceProxy::Start()
@@ -88,7 +162,7 @@ void ServiceProxy::Start()
 	if (IsAlive())
 		return;
 
-	m_Testbed->RequireService(m_ServiceId);
+	m_Testbed->StartService(m_ServiceId);
 }
 
 void ServiceProxy::Stop()
@@ -96,7 +170,7 @@ void ServiceProxy::Stop()
 	if (!IsAlive())
 		return;
 
-	m_Testbed->ShutDownService(m_ServiceId);
+	m_Testbed->StopService(m_ServiceId);
 }
 
 void ServiceProxy::WaitUntilRunning(double timeout_in_sec, void (*error_check)())
@@ -110,27 +184,27 @@ void ServiceProxy::WaitUntilRunning(double timeout_in_sec, void (*error_check)()
 
 	while (!IsRunning())
 	{
-		double timeout_remaining = timeout_in_sec - timer.GetTimeDelta();
+		double timeout_remaining = timeout_in_sec - timer.GetTime();
 
 		if (timeout_remaining <= 0)
 			throw std::runtime_error("Timeout has expired.");
 
-		std::this_thread::sleep_for(std::chrono::duration<double, std::second>(std::min(double(0.05), timeout_remaining));
+		std::this_thread::sleep_for(std::chrono::duration<double>(std::min(double(0.05), timeout_remaining)));
 
 		if (error_check)
 			error_check();
 	}
 }
 
-bool ServiceProxy::Connect()
+void ServiceProxy::Connect()
 {
-	// Check if the service is running.
-	if (!IsRunning())
-		return false;
-
 	// Check if we are already connected.
 	if (m_Client)
-		return true;
+		return;
+
+	// Check if the service is running.
+	if (!IsRunning())
+		return;
 
 	// Get the host and port of the service.
 	auto service_info = m_Testbed->GetServiceInfo(m_ServiceId);
@@ -139,19 +213,21 @@ bool ServiceProxy::Connect()
 	m_Client = std::make_unique<Client>(service_info.host, service_info.port);
 
 	// Get property, command and datastream names.
-	std::string reply = m_Client->MakeRequest("get_info", "");
+	std::string reply_string = m_Client->MakeRequest("get_info", "");
 
 	catkit_proto::service::GetInfoReply reply;
-	reply.ParseFromString(reply);
+	reply.ParseFromString(reply_string);
 
 	m_PropertyNames.clear();
-	for (auto i : reply.property_names())
+	for (auto &i : reply.property_names())
 		m_PropertyNames.push_back(i);
 
 	m_CommandNames.clear();
-	for (auto i : reply.command_names())
+	for (auto &i : reply.command_names())
 		m_CommandNames.push_back(i);
 
-	for (auto& [key, value] : reply.datastream_ids)
+	for (auto& [key, value] : reply.datastream_ids())
 		m_DataStreamIds[key] = value;
+
+	m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
 }

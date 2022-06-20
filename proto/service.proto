@@ -17,6 +17,8 @@ message GetInfoReply
     repeated string property_names = 4;
     repeated string command_names = 5;
     map<string, string> datastream_ids = 6;
+
+    string heartbeat_stream_id = 7;
 }
 
 message GetPropertyRequest

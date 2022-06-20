@@ -17,7 +17,6 @@ public:
 	std::string GetHost();
 	int GetPort();
 
-protected:
 	std::string MakeRequest(const std::string &what, const std::string &request);
 
 private:

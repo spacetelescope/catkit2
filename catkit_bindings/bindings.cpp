@@ -206,12 +206,6 @@ Value ValueFromPython(const py::handle &python_value)
 	return NoneValue();
 }
 
-class ClientPublicist : public Client
-{
-public:
-    using Client::MakeRequest;
-};
-
 PYBIND11_MODULE(catkit_bindings, m)
 {
 	py::class_<Server>(m, "Server")
@@ -244,7 +238,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def(py::init<std::string, int>())
 		.def_property_readonly("host", &Client::GetHost)
 		.def_property_readonly("port", &Client::GetPort)
-		.def("make_request", &ClientPublicist::MakeRequest);
+		.def("make_request", &Client::MakeRequest);
 
 	py::class_<Service, TrampolineService>(m, "Service")
 		.def(py::init<std::string, std::string, int, int>())
@@ -281,7 +275,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.value("CLOSED", ServiceState::CLOSED)
 		.value("INITIALIZING", ServiceState::INITIALIZING)
 		.value("OPENING", ServiceState::OPENING)
-		.value("OPERATIONAL", ServiceState::OPERATIONAL)
+		.value("RUNNING", ServiceState::RUNNING)
 		.value("CLOSING", ServiceState::CLOSING)
 		.value("UNRESPONSIVE", ServiceState::UNRESPONSIVE)
 		.value("CRASHED", ServiceState::CRASHED);
@@ -305,6 +299,16 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get_data_stream", &ServiceProxy::GetDataStream)
 		.def_property_readonly("state", &ServiceProxy::GetState)
 		.def_property_readonly("is_alive", &ServiceProxy::IsAlive)
+		.def_property_readonly("is_running", &ServiceProxy::IsRunning)
+		.def("wait_until_running", [](ServiceProxy &service, double timeout_in_sec)
+		{
+			service.WaitUntilRunning(timeout_in_sec, []()
+			{
+				py::gil_scoped_acquire acquire;
+				if (PyErr_CheckSignals() != 0)
+					throw py::error_already_set();
+			});
+		})
 		.def("start", &ServiceProxy::Start)
 		.def("stop", &ServiceProxy::Stop);
 

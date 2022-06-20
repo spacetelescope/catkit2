@@ -201,6 +201,15 @@ std::string TestbedProxy::StartNewExperiment(std::string experiment_name, json m
 
 void TestbedProxy::EndExperiment()
 {
+	catkit_proto::testbed::EndExperimentReply reply;
+	try
+	{
+		MakeRequest("end_experiment", "");
+	}
+	catch (...)
+	{
+		throw std::runtime_error("Could not start a new experiment.");
+	}
 }
 
 json TestbedProxy::GetConfig()

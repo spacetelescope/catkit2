@@ -58,12 +58,22 @@ message GetServiceInfoReply
     ServiceReference service = 1;
 }
 
-message RequireServiceRequest
+message StartServiceRequest
 {
     string service_id = 1;
 }
 
-message RequireServiceReply
+message StartServiceReply
+{
+    ServiceReference service = 1;
+}
+
+message StopServiceRequest
+{
+    string service_id = 1;
+}
+
+message StopServiceReply
 {
     ServiceReference service = 1;
 }
@@ -110,4 +120,12 @@ message StartNewExperimentRequest
 message StartNewExperimentReply
 {
     string experiment_path = 1;
+}
+
+message EndExperimentRequest
+{
+}
+
+message EndExperimentReply
+{
 }
