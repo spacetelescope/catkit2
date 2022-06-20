@@ -1,7 +1,7 @@
 #include "ServiceProxy.h"
 
 #include "TestbedProxy.h"
-#include "Timestamp.h"
+#include "TimeStamp.h"
 #include "Service.h"
 #include "service.pb.h"
 
