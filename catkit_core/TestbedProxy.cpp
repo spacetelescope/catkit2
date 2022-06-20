@@ -163,55 +163,6 @@ bool TestbedProxy::IsAlive()
 	return (current_timestamp - alive_timestamp) < HEARTBEAT_LIVENESS * 1e9;
 }
 
-std::string TestbedProxy::GetExperimentPath()
-{
-	catkit_proto::testbed::GetExperimentPathRequest request;
-	catkit_proto::testbed::GetExperimentPathReply reply;
-
-	try
-	{
-		reply.ParseFromString(MakeRequest("get_experiment_path", Serialize(request)));
-	}
-	catch (...)
-	{
-		throw std::runtime_error("Could not get the experiment path.");
-	}
-
-	return reply.experiment_path();
-}
-
-std::string TestbedProxy::StartNewExperiment(std::string experiment_name, json metadata)
-{
-	catkit_proto::testbed::StartNewExperimentRequest request;
-	request.set_experiment_name(experiment_name);
-	request.set_metadata(metadata.dump());
-
-	catkit_proto::testbed::StartNewExperimentReply reply;
-	try
-	{
-		reply.ParseFromString(MakeRequest("start_new_experiment", Serialize(request)));
-	}
-	catch (...)
-	{
-		throw std::runtime_error("Could not start a new experiment.");
-	}
-
-	return reply.experiment_path();
-}
-
-void TestbedProxy::EndExperiment()
-{
-	catkit_proto::testbed::EndExperimentReply reply;
-	try
-	{
-		MakeRequest("end_experiment", "");
-	}
-	catch (...)
-	{
-		throw std::runtime_error("Could not start a new experiment.");
-	}
-}
-
 json TestbedProxy::GetConfig()
 {
 	GetServerInfo();

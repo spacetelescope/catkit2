@@ -101,31 +101,3 @@ message UpdateServiceStateReply
 {
     ServiceState new_state = 1;
 }
-
-message GetExperimentPathRequest
-{
-}
-
-message GetExperimentPathReply
-{
-    string experiment_path = 1;
-}
-
-message StartNewExperimentRequest
-{
-    string experiment_name = 1;
-    string metadata = 2;
-}
-
-message StartNewExperimentReply
-{
-    string experiment_path = 1;
-}
-
-message EndExperimentRequest
-{
-}
-
-message EndExperimentReply
-{
-}

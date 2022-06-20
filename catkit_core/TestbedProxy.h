@@ -45,9 +45,6 @@ public:
 	bool IsSimulated();
 	bool IsAlive();
 
-	std::string GetExperimentPath();
-	std::string StartNewExperiment(std::string experiment_name, nlohmann::json metadata);
-	void EndExperiment();
 	nlohmann::json GetConfig();
 
 	std::string GetHost();
