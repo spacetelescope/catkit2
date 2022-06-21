@@ -21,6 +21,7 @@ class CameraProxy(ServiceProxy):
         try:
             i = 0
             num_exposures_remaining = num_exposures
+
             while num_exposures_remaining >= 1:
                 try:
                     frame = self.images.get_frame(first_frame_id + i, 100000)
@@ -31,7 +32,6 @@ class CameraProxy(ServiceProxy):
                     i += 1
 
                 yield frame.data.copy()
-
                 num_exposures_remaining -= 1
         finally:
             if not was_acquiring:
