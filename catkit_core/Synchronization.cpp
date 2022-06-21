@@ -89,11 +89,10 @@ void Synchronization::Open(const std::string &id, SynchronizationSharedData *sha
 		throw std::runtime_error("The passed shared data was a nullptr.");
 
 #ifdef _WIN32
-	HANDLE semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
+	m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
 
-	if (semaphore == NULL)
+	if (m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while opening semaphore.");
-
 #else
 #endif
 
@@ -129,6 +128,12 @@ void Synchronization::Wait(long timeout_in_ms, std::function<bool()> condition, 
 		{
 			m_SharedData->m_NumReadersWaiting--;
 			throw std::runtime_error("Waiting time has expired.");
+		}
+
+		if (res == WAIT_FAILED)
+		{
+			m_SharedData->m_NumReadersWaiting--;
+			throw std::runtime_error("An error occured during waiting for the semaphore: " + std::to_string(GetLastError()));
 		}
 
 		if (error_check != nullptr)
