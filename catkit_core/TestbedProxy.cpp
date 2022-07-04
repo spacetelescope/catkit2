@@ -150,7 +150,7 @@ void TestbedProxy::UpdateServiceState(std::string service_id, ServiceState new_s
 
 bool TestbedProxy::IsSimulated()
 {
-	GetServerInfo();
+	GetTestbedInfo();
 
 	return m_IsSimulated;
 }
@@ -165,7 +165,7 @@ bool TestbedProxy::IsAlive()
 
 json TestbedProxy::GetConfig()
 {
-	GetServerInfo();
+	GetTestbedInfo();
 
 	return m_Config;
 }
@@ -195,7 +195,7 @@ std::vector<std::string> TestbedProxy::GetInactiveServices()
 	return std::vector<std::string>();
 }
 
-void TestbedProxy::GetServerInfo()
+void TestbedProxy::GetTestbedInfo()
 {
 	// Do not communicate with the server unnecessarily.
 	// The server info will not change over its lifetime.

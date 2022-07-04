@@ -55,7 +55,7 @@ public:
 	std::vector<std::string> GetInactiveServices();
 
 private:
-	void GetServerInfo();
+	void GetTestbedInfo();
 
 	std::string m_Host;
 
