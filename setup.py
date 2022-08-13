@@ -35,8 +35,8 @@ def generate_protos(source_dir):
     files = glob.glob(os.path.join(proto_path, '**.proto'))
     files = [os.path.relpath(f, proto_path) for f in files]
 
-    python_path = os.path.join(proto_path, 'gen/python')
-    cpp_path = os.path.join(proto_path, 'gen/cpp')
+    python_path = os.path.join(source_dir, 'catkit2', 'proto')
+    cpp_path = os.path.join(source_dir, 'catkit_core', 'proto')
 
     os.makedirs(python_path, exist_ok=True)
     os.makedirs(cpp_path, exist_ok=True)

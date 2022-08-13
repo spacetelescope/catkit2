@@ -17,7 +17,7 @@
 #include "ServiceProxy.h"
 #include "Communication.h"
 
-#include "testbed.pb.h"
+#include "proto/testbed.pb.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)

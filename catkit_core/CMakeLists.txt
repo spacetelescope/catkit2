@@ -30,13 +30,11 @@ add_library(catkit_core STATIC
     ServiceState.cpp
     Tensor.cpp
     Types.cpp
-    ../proto/gen/cpp/core.pb.cc
-    ../proto/gen/cpp/logging.pb.cc
-    ../proto/gen/cpp/testbed.pb.cc
-    ../proto/gen/cpp/service.pb.cc
-    ../proto/gen/cpp/tracing.pb.cc)
-
-  target_include_directories(catkit_core PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../proto/gen/cpp)
+    proto/core.pb.cc
+    proto/logging.pb.cc
+    proto/testbed.pb.cc
+    proto/service.pb.cc
+    proto/tracing.pb.cc)
 
 set_property(TARGET catkit_core PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(catkit_core PUBLIC PROTOBUF_USE_DLLS)

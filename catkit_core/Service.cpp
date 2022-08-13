@@ -2,7 +2,7 @@
 
 #include "TimeStamp.h"
 #include "TestbedProxy.h"
-#include "service.pb.h"
+#include "proto/service.pb.h"
 
 #include <chrono>
 #include <csignal>
