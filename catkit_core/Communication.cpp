@@ -2,6 +2,7 @@
 
 #include "Log.h"
 #include "TimeStamp.h"
+#include "Finally.h"
 
 #include <zmq_addon.hpp>
 
@@ -15,6 +16,10 @@ using namespace zmq;
 
 Client::Client(std::string host, int port)
     : m_Host(host), m_Port(port)
+{
+}
+
+Client::~Client()
 {
 }
 
@@ -117,6 +122,10 @@ Server::Server(int port)
 {
 }
 
+Server::~Server()
+{
+}
+
 void Server::RegisterRequestHandler(std::string type, RequestHandler func)
 {
 	m_RequestHandlers[type] = func;
@@ -135,6 +144,16 @@ void Server::RunServer(void (*error_check)())
 	socket.bind("tcp://*:"s + std::to_string(m_Port));
 	socket.set(zmq::sockopt::rcvtimeo, 20);
 	socket.set(zmq::sockopt::linger, 0);
+
+	Finally finally([this, &socket]()
+	{
+		socket.close();
+
+		this->m_IsRunning = false;
+		this->m_ShouldShutDown = true;
+
+		LOG_INFO("Server has shut down.");
+	});
 
 	while (!m_ShouldShutDown)
 	{
@@ -206,13 +225,6 @@ void Server::RunServer(void (*error_check)())
 
 		LOG_DEBUG("Sent reply: "s + reply_type);
 	}
-
-	socket.close();
-
-	LOG_INFO("Server has shut down.");
-
-	m_IsRunning = false;
-	m_ShouldShutDown = true;
 }
 
 void Server::ShutDown()

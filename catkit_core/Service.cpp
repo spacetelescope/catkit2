@@ -1,5 +1,6 @@
 #include "Service.h"
 
+#include "Finally.h"
 #include "TimeStamp.h"
 #include "TestbedProxy.h"
 #include "proto/service.pb.h"
@@ -18,23 +19,6 @@ using json = nlohmann::json;
 using namespace std::string_literals;
 
 const double SAFETY_INTERVAL = 60;
-
-class Finally
-{
-public:
-	Finally(std::function<void()> func)
-		: m_Func(func)
-	{
-	}
-
-	~Finally()
-	{
-		m_Func();
-	}
-
-private:
-	std::function<void()> m_Func;
-};
 
 Service::Service(string service_id, string service_type, int service_port, int testbed_port)
 	: Server(service_port),

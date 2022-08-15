@@ -13,6 +13,7 @@ class Client
 {
 public:
 	Client(std::string host, int port);
+	virtual ~Client();
 
 	std::string GetHost();
 	int GetPort();
@@ -36,6 +37,7 @@ class Server
 {
 public:
 	Server(int port);
+	virtual ~Server();
 
 	typedef std::function<std::string(const std::string&)> RequestHandler;
 
