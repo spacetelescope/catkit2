@@ -41,7 +41,7 @@ public:
 
 	void RegisterRequestHandler(std::string type, RequestHandler func);
 
-	void RunServer();
+	void RunServer(void (*error_check)()=nullptr);
 	void ShutDown();
 
 	bool ShouldShutDown();

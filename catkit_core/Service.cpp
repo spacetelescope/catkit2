@@ -56,7 +56,7 @@ Service::~Service()
 {
 }
 
-void Service::Run()
+void Service::Run(void (*error_check)())
 {
 	if (!IsSafe())
 	{
@@ -123,7 +123,7 @@ void Service::Run()
 				heartbeat.join();
 		});
 
-		RunServer();
+		RunServer(error_check);
 	}
 
 	LOG_INFO("Service main has ended.");

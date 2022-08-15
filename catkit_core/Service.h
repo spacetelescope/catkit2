@@ -26,7 +26,7 @@ public:
 	Service(std::string service_id, std::string service_type, int service_port, int testbed_port);
 	virtual ~Service();
 
-	void Run();
+	void Run(void (*error_check)()=nullptr);
 
 	virtual void Open();
 	virtual void Main();

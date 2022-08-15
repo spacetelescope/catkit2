@@ -206,6 +206,16 @@ Value ValueFromPython(const py::handle &python_value)
 	return NoneValue();
 }
 
+// A callback for long-running C++ functions. This function gets called
+// periodically during the function call to allow Python KeyboardInterrupt
+// to cancel the operation.
+void error_check_python()
+{
+	py::gil_scoped_acquire acquire;
+	if (PyErr_CheckSignals() != 0)
+		throw py::error_already_set();
+}
+
 PYBIND11_MODULE(catkit_bindings, m)
 {
 	py::class_<Server>(m, "Server")
@@ -219,32 +229,33 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return request_handler(data);
 			});
 		})
-		.def("run_server", &Server::RunServer, py::call_guard<py::gil_scoped_release>())
+		.def("run_server", [](Server &server)
+		{
+			server.RunServer(error_check_python);
+		}, py::call_guard<py::gil_scoped_release>())
 		.def("shut_down", &Server::ShutDown)
 		.def_property_readonly("should_shut_down", &Server::ShouldShutDown)
 		.def_property_readonly("is_running", &Server::IsRunning)
 		.def_property_readonly("port", &Server::GetPort)
 		.def("sleep", [](Server &server, double sleep_time_in_sec)
 		{
-			server.Sleep(1000 * sleep_time_in_sec, []()
-			{
-				py::gil_scoped_acquire acquire;
-				if (PyErr_CheckSignals() != 0)
-					throw py::error_already_set();
-			});
-		});
+			server.Sleep(1000 * sleep_time_in_sec, error_check_python);
+		}, py::call_guard<py::gil_scoped_release>());
 
 	py::class_<Client>(m, "Client")
 		.def(py::init<std::string, int>())
 		.def_property_readonly("host", &Client::GetHost)
 		.def_property_readonly("port", &Client::GetPort)
-		.def("make_request", &Client::MakeRequest);
+		.def("make_request", &Client::MakeRequest, py::call_guard<py::gil_scoped_release>());
 
 	py::class_<Service, TrampolineService>(m, "Service")
 		.def(py::init<std::string, std::string, int, int>())
 		.def_property_readonly("id", &Service::GetId)
 		.def_property_readonly("config", &Service::GetConfig)
-		.def("run", &Service::Run, py::call_guard<py::gil_scoped_release>())
+		.def("run", [](Service &service)
+		{
+			service.Run(error_check_python);
+		}, py::call_guard<py::gil_scoped_release>())
 		.def("open", &Service::Open)
 		.def("main", &Service::Main)
 		.def("close", &Service::Close)
@@ -302,12 +313,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("is_running", &ServiceProxy::IsRunning)
 		.def("wait_until_running", [](ServiceProxy &service, double timeout_in_sec)
 		{
-			service.WaitUntilRunning(timeout_in_sec, []()
-			{
-				py::gil_scoped_acquire acquire;
-				if (PyErr_CheckSignals() != 0)
-					throw py::error_already_set();
-			});
+			service.WaitUntilRunning(timeout_in_sec, error_check_python);
 		})
 		.def("start", &ServiceProxy::Start)
 		.def("stop", &ServiceProxy::Stop);
@@ -397,21 +403,11 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def("get_frame", [](DataStream &s, size_t id, unsigned long wait_time_in_ms)
 		{
-			return s.GetFrame(id, wait_time_in_ms, []()
-			{
-				py::gil_scoped_acquire acquire;
-				if (PyErr_CheckSignals() != 0)
-					throw py::error_already_set();
-			});
+			return s.GetFrame(id, wait_time_in_ms, error_check_python);
 		}, py::arg("id"), py::arg("wait_time_in_ms") = INFINITE_WAIT_TIME, py::call_guard<py::gil_scoped_release>())
 		.def("get_next_frame", [](DataStream &s, long wait_time_in_ms)
 		{
-			return s.GetNextFrame(wait_time_in_ms, []()
-			{
-				py::gil_scoped_acquire acquire;
-				if (PyErr_CheckSignals() != 0)
-					throw py::error_already_set();
-			});
+			return s.GetNextFrame(wait_time_in_ms, error_check_python);
 		}, py::arg("wait_time_in_ms") = INFINITE_WAIT_TIME, py::call_guard<py::gil_scoped_release>())
 		.def("get_latest_frame", &DataStream::GetLatestFrame, py::call_guard<py::gil_scoped_release>())
 		.def_property("dtype", [](DataStream &s)

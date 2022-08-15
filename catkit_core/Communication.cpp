@@ -122,7 +122,7 @@ void Server::RegisterRequestHandler(std::string type, RequestHandler func)
 	m_RequestHandlers[type] = func;
 }
 
-void Server::RunServer()
+void Server::RunServer(void (*error_check)())
 {
 	m_IsRunning = true;
 	m_ShouldShutDown = false;
@@ -138,6 +138,9 @@ void Server::RunServer()
 
 	while (!m_ShouldShutDown)
 	{
+		if (error_check)
+			error_check();
+
 		zmq::multipart_t request_msg;
 		auto res = zmq::recv_multipart(socket, std::back_inserter(request_msg));
 
