@@ -304,7 +304,7 @@ class Testbed(Server):
         ----------
         service_id : string
             The identifier of the service. This should correspond to an entry in the services section of
-            the configuration of this server.
+            the configuration of this testbed.
 
         Raises
         ------

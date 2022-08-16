@@ -7,7 +7,7 @@ __all__ = [
     'ServiceProxy',
 ]
 
-from .server import *
+from .testbed import *
 from .service import *
 from .log_handler import *
 from .client import *
