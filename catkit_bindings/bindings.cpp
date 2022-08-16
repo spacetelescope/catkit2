@@ -230,10 +230,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return request_handler(data);
 			});
 		})
-		.def("run_server", [](Server &server)
-		{
-			server.RunServer(error_check_python);
-		}, py::call_guard<py::gil_scoped_release>())
+		.def("start", &Server::Start)
 		.def("shut_down", &Server::ShutDown)
 		.def_property_readonly("should_shut_down", &Server::ShouldShutDown)
 		.def_property_readonly("is_running", &Server::IsRunning)

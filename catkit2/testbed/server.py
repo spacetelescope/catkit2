@@ -184,6 +184,9 @@ class Testbed(Server):
         for service_id, service_info in self.config['services'].items():
             service_type = service_info['service_type']
 
+            if self.is_simulated and 'simulated_service_type' in service_info:
+                service_type = service_info['simulated_service_type']
+
             self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED)
 
         self.register_request_handler('start_service', self.on_start_service)
@@ -198,20 +201,36 @@ class Testbed(Server):
         '''
         self.context = zmq.Context()
 
+        # Start the logging.
         self.start_logging_proxy()
         self.setup_logging()
 
+        # Start the server
+        self.start()
+
+        # Start the startup services.
         #for service_name in self.startup_services:
         #    self.start_service(service_name)
 
         try:
-            self.run_server()
+            # For now, wait until Ctrl+C.
+            # In the future, monitor services.
+            while True:
+                self.sleep(1)
         except KeyboardInterrupt:
             self.log.info('Interrupted by the user...')
         finally:
             self.log.info('Shutting down all running services.')
             self.shut_down_all_services()
 
+            # Shut down the server.
+            self.shut_down()
+
+            # Wait until we are fully shut down.
+            while self.is_running:
+                time.sleep(0.1)
+
+            # Stop the logging.
             self.destroy_logging()
             self.stop_logging_proxy()
 
@@ -224,7 +243,7 @@ class Testbed(Server):
         logging.getLogger().addHandler(self.log_handler)
         logging.getLogger().setLevel(logging.DEBUG)
 
-        self.log_console = LogConsole()
+        #self.log_console = LogConsole()
         self.log_publish = LogPublish('testbed', f'tcp://localhost:{self.port + 1}')
 
     def destroy_logging(self):
@@ -297,14 +316,10 @@ class Testbed(Server):
         '''
         self.log.debug(f'Trying to start service "{service_id}".')
 
-        if service_id not in self.config['services']:
+        if service_id not in self.services:
             raise RuntimeError(f'Service "{service_id}" is not a known service.')
 
-        config = self.config['services'][service_id]
-        service_type = config['service_type']
-
-        if self.is_simulated and 'simulated_service_type' in config:
-            service_type = config['simulated_service_type']
+        service_type = self.services.service_type
 
         # Resolve service type;
         dirname = self.resolve_service_type(service_type)

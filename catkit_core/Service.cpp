@@ -107,7 +107,10 @@ void Service::Run(void (*error_check)())
 				heartbeat.join();
 		});
 
-		RunServer(error_check);
+		Start();
+
+		while (IsRunning())
+			Sleep(1000, error_check);
 	}
 
 	LOG_INFO("Service main has ended.");

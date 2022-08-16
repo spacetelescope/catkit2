@@ -21,6 +21,8 @@ Server::Server(int port)
 
 Server::~Server()
 {
+    if (m_RunThread.joinable())
+        m_RunThread.join();
 }
 
 void Server::RegisterRequestHandler(std::string type, RequestHandler func)
@@ -28,11 +30,19 @@ void Server::RegisterRequestHandler(std::string type, RequestHandler func)
 	m_RequestHandlers[type] = func;
 }
 
-void Server::RunServer(void (*error_check)())
+void Server::Start()
 {
-	m_IsRunning = true;
-	m_ShouldShutDown = false;
+    if (IsRunning())
+        throw runtime_error("This server is already running.");
 
+	m_ShouldShutDown = false;
+	m_IsRunning = true;
+
+    m_RunThread = thread(&Server::RunInternal, this);
+}
+
+void Server::RunInternal()
+{
 	LOG_INFO("Starting server on port "s + to_string(m_Port) + ".");
 
 	zmq::context_t context;
@@ -46,17 +56,14 @@ void Server::RunServer(void (*error_check)())
 	{
 		socket.close();
 
-		this->m_IsRunning = false;
 		this->m_ShouldShutDown = true;
+		this->m_IsRunning = false;
 
 		LOG_INFO("Server has shut down.");
 	});
 
 	while (!m_ShouldShutDown)
 	{
-		if (error_check)
-			error_check();
-
 		zmq::multipart_t request_msg;
 		auto res = zmq::recv_multipart(socket, std::back_inserter(request_msg));
 

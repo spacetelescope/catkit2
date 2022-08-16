@@ -5,6 +5,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <thread>
 
 class Server
 {
@@ -16,7 +17,7 @@ public:
 
 	void RegisterRequestHandler(std::string type, RequestHandler func);
 
-	void RunServer(void (*error_check)()=nullptr);
+	void Start();
 	void ShutDown();
 
 	bool ShouldShutDown();
@@ -30,6 +31,10 @@ protected:
 	int m_Port;
 
 private:
+    void RunInternal();
+
+    std::thread m_RunThread;
+
 	std::map<std::string, RequestHandler> m_RequestHandlers;
 
 	std::atomic_bool m_IsRunning;
