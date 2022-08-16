@@ -1,5 +1,5 @@
 __all__ = [
-    'TestbedServer',
+    'Testbed',
     'Service',
     'parse_service_args',
     'CatkitLogHandler',
