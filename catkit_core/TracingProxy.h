@@ -7,6 +7,7 @@
 
 #include <thread>
 #include <queue>
+#include <condition_variable>
 
 class TracingProxy
 {
