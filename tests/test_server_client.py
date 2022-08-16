@@ -47,18 +47,17 @@ if __name__ == '__main__':
 
         N = 100000
 
+        print('Doing performance testing...')
         start = time.perf_counter()
         for i in range(N):
             client.foo()
         end = time.perf_counter()
 
-        print(int((end - start) / N * 1000000), 'us per request')
+        print('On average,', int((end - start) / N * 1000000), 'us per request')
 
     if args['server']:
         server = OurServer(port)
-
-        thread = threading.Thread(target=server.run_server)
-        thread.start()
+        server.start()
 
         try:
             while True:
@@ -67,4 +66,3 @@ if __name__ == '__main__':
             pass
         finally:
             server.shut_down()
-            thread.join()
