@@ -4,9 +4,10 @@
 #include "ServiceProxy.h"
 #include "LoggingProxy.h"
 #include "DataStream.h"
-#include "Communication.h"
+#include "Client.h"
 #include "proto/testbed.pb.h"
 #include "ServiceState.h"
+#include "Util.h"
 
 #include <zmq.hpp>
 #include <nlohmann/json.hpp>

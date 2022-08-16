@@ -15,7 +15,8 @@
 #include "Types.h"
 #include "TestbedProxy.h"
 #include "ServiceProxy.h"
-#include "Communication.h"
+#include "Server.h"
+#include "Client.h"
 
 #include "proto/testbed.pb.h"
 

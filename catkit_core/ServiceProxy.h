@@ -4,7 +4,7 @@
 #include "Types.h"
 #include "DataStream.h"
 #include "ServiceState.h"
-#include "Communication.h"
+#include "Client.h"
 
 #include <zmq.hpp>
 

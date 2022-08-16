@@ -3,6 +3,7 @@
 #include "TestbedProxy.h"
 #include "TimeStamp.h"
 #include "Service.h"
+#include "Util.h"
 #include "proto/service.pb.h"
 
 using namespace std::string_literals;

@@ -24,7 +24,8 @@ add_library(catkit_core STATIC
     Command.cpp
     Property.cpp
     Service.cpp
-    Communication.cpp
+    Server.cpp
+    Client.cpp
     TestbedProxy.cpp
     ServiceProxy.cpp
     ServiceState.cpp

@@ -14,7 +14,7 @@
 #include "DataStream.h"
 #include "LogConsole.h"
 #include "LogPublish.h"
-#include "Communication.h"
+#include "Server.h"
 
 const double SERVICE_LIVELINESS = 10;
 
