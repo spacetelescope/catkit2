@@ -14,14 +14,6 @@ const char * const CURRENT_DATASTREAM_VERSION = "0.1";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
 const long INFINITE_WAIT_TIME = LONG_MAX;
 
-#ifdef _WIN32
-	typedef DWORD ProcessId;
-#else
-	typedef pid_t ProcessId;
-#endif // _WIN32
-
-ProcessId GetPID();
-
 struct DataFrameMetadata
 {
 	std::uint64_t m_TimeStamp;
@@ -34,7 +26,7 @@ struct DataStreamHeader
 	char m_StreamName[256];
 	char m_StreamId[256];
 	std::uint64_t m_TimeCreated;
-	ProcessId m_OwnerPID;
+	int m_OwnerPID;
 
 	DataType m_DataType;
 	size_t m_NumDimensions;
@@ -101,7 +93,7 @@ public:
 	std::string GetStreamName();
 	std::string GetStreamId();
 	std::uint64_t GetTimeCreated();
-	ProcessId GetOwnerPID();
+	int GetOwnerPID();
 
 	DataFrame GetFrame(size_t id, long wait_time_in_ms=INFINITE_WAIT_TIME, void (*error_check)()=nullptr);
 	DataFrame GetNextFrame(long wait_time_in_ms=INFINITE_WAIT_TIME, void (*error_check)()=nullptr);

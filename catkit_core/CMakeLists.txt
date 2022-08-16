@@ -31,6 +31,7 @@ add_library(catkit_core STATIC
     Tensor.cpp
     TracingProxy.cpp
     Types.cpp
+    Util.cpp
     proto/core.pb.cc
     proto/logging.pb.cc
     proto/testbed.pb.cc

@@ -2,6 +2,7 @@
 
 //#include "Log.h"
 #include "TimeStamp.h"
+#include "Util.h"
 
 #include <algorithm>
 #include <iostream>
@@ -16,7 +17,7 @@
 
 using namespace std;
 
-std::string MakeStreamId(const std::string &stream_name, const std::string &service_name, ProcessId pid)
+std::string MakeStreamId(const std::string &stream_name, const std::string &service_name, int pid)
 {
 #ifdef _WIN32
 	return std::to_string(pid) + "." + service_name + "." + stream_name;
@@ -56,15 +57,6 @@ void CalculateBufferSize(DataType type, std::vector<size_t> dimensions, size_t n
 	num_bytes_in_buffer = sizeof(DataStreamHeader) + num_bytes_per_frame * num_frames_in_buffer;
 }
 
-ProcessId GetPID()
-{
-#ifdef _WIN32
-	return GetCurrentProcessId();
-#else
-	return getpid();
-#endif // _WIN32
-}
-
 void CopyString(char *dest, const char *src, size_t n)
 {
 	snprintf(dest, n, "%s", src);
@@ -94,7 +86,7 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
 		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
 
-	auto stream_id = MakeStreamId(stream_name, service_name, GetPID());
+	auto stream_id = MakeStreamId(stream_name, service_name, GetProcessId());
 
 	auto shared_memory = SharedMemory::Create(stream_id, num_bytes_in_buffer);
 	auto data_stream = std::shared_ptr<DataStream>(new DataStream(stream_id, shared_memory, true));
@@ -111,7 +103,7 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 	CopyString(header->m_StreamId, stream_id.c_str(), n);
 
 	header->m_TimeCreated = GetTimeStamp();
-	header->m_OwnerPID = GetPID();
+	header->m_OwnerPID = GetProcessId();
 
 	header->m_FirstId = 0;
 	header->m_LastId = 0;
@@ -285,7 +277,7 @@ std::uint64_t DataStream::GetTimeCreated()
 	return m_Header->m_TimeCreated;
 }
 
-ProcessId DataStream::GetOwnerPID()
+int DataStream::GetOwnerPID()
 {
 	return m_Header->m_OwnerPID;
 }

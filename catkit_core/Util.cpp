@@ -10,21 +10,16 @@
 #include <thread>
 #include <atomic>
 
+int GetProcessId()
+{
 #ifdef _WIN32
-	int GetProcessId()
-	{
-		static int process_id(GetCurrentProcessId());
-		return process_id;
-	}
+	static int process_id(GetCurrentProcessId());
+	return process_id;
 #else
-	typedef pid_t ProcessId;
-
-	int GetProcessId()
-	{
-		static int process_id(getpid());
-		return process_id;
-	}
+	static int process_id(getpid());
+	return process_id;
 #endif // _WIN32
+}
 
 int GetThreadId()
 {
