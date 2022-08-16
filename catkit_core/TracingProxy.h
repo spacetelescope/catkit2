@@ -6,6 +6,7 @@
 #include <zmq.hpp>
 
 #include <thread>
+#include <queue>
 
 class TracingProxy
 {
@@ -18,7 +19,7 @@ public:
 
     void TraceInterval(std::string func, std::string what, uint64_t timestamp_start, uint64_t timestamp_end);
 
-    void TraceCounter(std::string func, double counter);
+    void TraceCounter(std::string func, std::string series, double counter);
 
     void TraceProcessName(std::string process_name);
     void TraceThreadName(std::string thread_name);

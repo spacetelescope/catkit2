@@ -108,7 +108,7 @@ void TracingProxy::TraceThreadName(string thread_name)
 	string contents = "{\"name\":\"thread_name\",\"ph\":\"M\"";
 	AddProcessThreadIds(contents);
 	contents += ",\"args\":{\"name\":\"";
-	contents += process_name;
+	contents += thread_name;
 	contents += "}}";
 
 	SendTraceMessage(contents);
@@ -117,7 +117,7 @@ void TracingProxy::TraceThreadName(string thread_name)
 void TracingProxy::SendTraceMessage(string contents)
 {
 	std::unique_lock<std::mutex> lock(m_Mutex);
-	m_LogMessages.push(contents);
+	m_TraceMessages.push(contents);
 
 	m_ConditionVariable.notify_all();
 }
@@ -153,7 +153,7 @@ void TracingProxy::MessageLoop()
 		}
 
 		// Construct message.
-		message_t message_zmq(message.size());
+		zmq::message_t message_zmq(message.size());
 		memcpy(message_zmq.data(), message.c_str(), message.size());
 
 		zmq::send_result_t res;
