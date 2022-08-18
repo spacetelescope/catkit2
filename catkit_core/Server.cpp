@@ -160,7 +160,7 @@ void Server::Sleep(double sleep_time_in_ms, void (*error_check)())
 	{
 		double sleep_remaining = sleep_time_in_ms - timer.GetTime() * 1000;
 
-		if (sleep_remaining > 0)
+		if (sleep_remaining < 0)
 			break;
 
 		if (m_ShouldShutDown)
