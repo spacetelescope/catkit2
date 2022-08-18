@@ -16,6 +16,12 @@ from ..catkit_bindings import LogConsole, LogPublish, Server, ServiceState
 from .log_handler import *
 
 from ..proto import testbed_pb2 as testbed_proto
+from ..proto import service_pb2 as service_proto
+
+def get_unused_port():
+    with socket.socket() as sock:
+        sock.bind(('', 0))
+        return sock.getsockname()[1]
 
 class LoggingProxy:
     '''A proxy to collect log messages from services and clients, and re-publish them.
@@ -110,6 +116,7 @@ class ServiceReference:
 
         self.state = state
         self.process = None
+        self.port = None
 
         self.log = logging.getLogger(__name__)
 
@@ -276,26 +283,80 @@ class Testbed(Server):
 
     def on_start_service(self, data):
         request = testbed_proto.StartServiceRequest()
-        request.ParseFromString(data)
+        request.ParseFromString(bytes(data, 'ascii'))
 
         service_id = request.service_id
 
         self.start_service(service_id)
 
+        ref = self.services[service_id]
+
+        reply = testbed_proto.StartServiceReply()
+
+        service_ref = reply.service
+        service_ref.id = service_id
+        service_ref.type = ref.service_type
+        service_ref.state = ref.state.value
+        service_ref.host = '127.0.0.1'
+        service_ref.port = ref.port
+
+        return reply.SerializeToString()
+
     def on_stop_service(self, data):
         pass  # TODO
 
     def on_get_info(self, data):
-        pass  # TODO
+        reply = testbed_proto.GetInfoReply()
+
+        reply.port = self.port
+        reply.config = json.dumps(self.config)
+        reply.is_simulated = self.is_simulated
+        reply.heartbeat_stream_id = 'a'
+        reply.logging_ingress_port = self.port + 1
+        reply.logging_egress_port = self.port + 2
+        reply.data_logging_ingress_port = 0
+        reply.tracing_ingress_port = 0
+
+        return reply.SerializeToString()
 
     def on_get_service_info(self, data):
-        pass  # TODO
+        request = testbed_proto.GetServiceInfoRequest()
+        request.ParseFromString(bytes(data, 'ascii'))
+
+        service_id = request.service_id
+
+        self.start_service(service_id)
+
+        ref = self.services[service_id]
+
+        service_ref = testbed_proto.ServiceReference()
+        service_ref.id = service_id
+        service_ref.type = ref.service_type
+        service_ref.state = ref.state
+        service_ref.host = self.host
+        service_ref.port = ref.port
+
+        reply = testbed_proto.GetServiceInfoReply()
+        reply.service = service_ref
+
+        return reply.SerializeToString()
 
     def on_register_service(self, data):
         pass  # TODO
 
     def on_update_service_status(self, data):
-        pass  # TODO
+        request = testbed_proto.UpdateServiceStateRequest()
+        request.ParseFromString(bytes(data, 'ascii'))
+
+        service_id = request.service_id
+        new_state = request.new_state  # TODO: conversion
+
+        self.services[service_id].update_state(new_state)
+
+        reply = testbed_proto.UpdateServiceStateReply()
+        reply.new_state = request.new_state
+
+        return reply.SerializeToString()
 
     def start_service(self, service_id):
         '''Start a service.
@@ -319,7 +380,7 @@ class Testbed(Server):
         if service_id not in self.services:
             raise RuntimeError(f'Service "{service_id}" is not a known service.')
 
-        service_type = self.services.service_type
+        service_type = self.services[service_id].service_type
 
         # Resolve service type;
         dirname = self.resolve_service_type(service_type)
@@ -332,14 +393,21 @@ class Testbed(Server):
         elif os.path.exists(os.path.join(dirname, service_type)):
             executable = [os.path.join(dirname, service_type)]
         else:
+            self.log.warning(f"Could not find the script/executable for service type \"{service_type}\".")
+
             raise RuntimeError(f"Service '{service_id}' is not Python or C++.")
+
+        # Get unused port for this service.
+        port = get_unused_port()
 
         # Build arguments.
         args = [
             '--id', service_id,
-            '--port', str(get_unused_port()),
+            '--port', str(port),
             '--testbed_port', str(self.port)
         ]
+
+        self.log.debug(f'Starting new service with {executable + args}.')
 
         # Start process.
         startupinfo = subprocess.STARTUPINFO()
@@ -354,6 +422,9 @@ class Testbed(Server):
 
         # Store a reference to the service.
         self.services[service_id].update_state(ServiceState.INITIALIZING)
+        self.services[service_id].port = port
+
+        self.log.info(f'Started service "{service_id}" with type "{service_type}".')
 
     def stop_service(self, service_name):
         pass  # TODO

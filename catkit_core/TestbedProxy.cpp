@@ -205,12 +205,12 @@ void TestbedProxy::GetTestbedInfo()
 	catkit_proto::testbed::GetInfoRequest request;
 
 	catkit_proto::testbed::GetInfoReply reply;
-	reply.ParseFromString(MakeRequest("get_server_info", Serialize(request)));
+	reply.ParseFromString(MakeRequest("get_info", Serialize(request)));
 
 	m_Config = json::parse(reply.config());
 	m_IsSimulated = reply.is_simulated();
 
-	m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
+	//m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
 
 	m_LoggingIngressPort = reply.logging_ingress_port();
 	m_LoggingEgressPort = reply.logging_egress_port();
