@@ -18,22 +18,27 @@ using namespace zmq;
 using json = nlohmann::json;
 using namespace std::string_literals;
 
-const double SAFETY_INTERVAL = 60;
+const double SAFETY_INTERVAL = 60;  // seconds.
 
-Service::Service(string service_id, string service_type, int service_port, int testbed_port)
-	: Server(service_port),
-	m_ServiceId(service_id), m_ServiceType(service_type),
-	m_LoggerConsole(), m_LoggerPublish(service_id, "tcp://127.0.0.1:"s + to_string(testbed_port + 1))
+Service::Service(string service_type, string service_id, int service_port, int testbed_port)
+	: m_Server(service_port), m_ServiceId(service_id), m_ServiceType(service_type),
+	m_LoggerConsole(), m_LoggerPublish(service_id, "tcp://127.0.0.1:"s + to_string(testbed_port + 1)),
+	m_ServiceHeartbeat(nullptr), m_ServerHeartbeat(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
+	m_IsRunning(false), m_ShouldShutDown(false)
 {
 	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
 	m_Config = m_Testbed->GetConfig()["services"][service_id];
 
 	m_Testbed->UpdateServiceState(service_id, ServiceState::INITIALIZING);
 
+	LOG_DEBUG("Registering request handlers.");
+
 	RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data); });
 	RegisterRequestHandler("get_property", [this](const string &data) { return this->HandleGetProperty(data); });
 	RegisterRequestHandler("set_property", [this](const string &data) { return this->HandleSetProperty(data); });
 	RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
+
+	LOG_INFO("Intialized service.");
 }
 
 Service::~Service()
@@ -42,14 +47,15 @@ Service::~Service()
 
 void Service::Run(void (*error_check)())
 {
+	// Perform safety pre-check.
 	if (!IsSafe())
 	{
 		LOG_CRITICAL("Testbed is unsafe. This service will not be started.");
 		return;
 	}
 
+	// We can start the service now.
 	LOG_INFO("Opening service.");
-
 	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::OPENING);
 
 	try
@@ -61,44 +67,31 @@ void Service::Run(void (*error_check)())
 		LOG_CRITICAL("Something went wrong when opening service: "s + e.what());
 		LOG_CRITICAL("Shutting down service.");
 
+		m_IsRunning = false;
 		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CRASHED);
 		return;
 	}
 
 	LOG_INFO("Service was succesfully opened.");
 
+	m_IsRunning = true;
 	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::RUNNING);
 
 	LOG_INFO("Starting service main function.");
 
+	bool crashed = false;
+
 	{
-		std::thread main([this]()
-		{
-			Finally stop_service([this]()
-			{
-				this->ShutDown();
-			});
-
-			try
-			{
-				this->Main();
-			}
-			catch (std::exception &e)
-			{
-				LOG_CRITICAL("Something went wrong during the main function: "s + e.what());
-				LOG_CRITICAL("Shutting down service.");
-			}
-		});
-
 		std::thread safety(&Service::MonitorSafety, this);
 		std::thread heartbeat(&Service::MonitorHeartbeats, this);
 
-		Finally end_threads([&, this]()
-		{
-			this->ShutDown();
+		m_Server.Start();
 
-			if (main.joinable())
-				main.join();
+		Finally stop_server_and_monitors([this, &safety, &heartbeat]()
+		{
+			this->m_ShouldShutDown = true;
+
+			this->m_Server.Stop();
 
 			if (safety.joinable())
 				safety.join();
@@ -107,11 +100,23 @@ void Service::Run(void (*error_check)())
 				heartbeat.join();
 		});
 
-		Start();
+		// Start the main function.
+		// The main function is called in the main thread to allow it to
+		// catch KeyboardInterrupts from Python.
+		try
+		{
+			this->Main();
+		}
+		catch (std::exception &e)
+		{
+			LOG_CRITICAL("Something went wrong during the main function: "s + e.what());
+			LOG_CRITICAL("Shutting down service.");
 
-		while (IsRunning())
-			Sleep(1000, error_check);
+			crashed = true;
+		}
 	}
+
+	m_IsRunning = false;
 
 	LOG_INFO("Service main has ended.");
 
@@ -128,9 +133,16 @@ void Service::Run(void (*error_check)())
 		LOG_CRITICAL("Something went wrong when closing the service: "s + e.what());
 	}
 
-	LOG_INFO("Service was closed.");
-
-	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CLOSED);
+	if (crashed)
+	{
+		LOG_INFO("Service was closed after crash.");
+		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CRASHED);
+	}
+	else
+	{
+		LOG_INFO("Service was closed.");
+		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CLOSED);
+	}
 }
 
 void Service::MonitorSafety()
@@ -189,6 +201,8 @@ bool Service::RequiresSafety()
 
 void Service::MonitorHeartbeats()
 {
+	return;
+
 	while (!ShouldShutDown())
 	{
 		// Update my own heartbeat.
@@ -219,6 +233,21 @@ void Service::Main()
 
 void Service::Close()
 {
+}
+
+void Service::ShutDown()
+{
+	m_ShouldShutDown = true;
+}
+
+bool Service::ShouldShutDown()
+{
+	return m_ShouldShutDown;
+}
+
+bool Service::IsRunning()
+{
+	return m_IsRunning;
 }
 
 std::shared_ptr<Property> Service::GetProperty(const std::string &property_name) const
@@ -261,24 +290,26 @@ const std::string &Service::GetId() const
 	return m_ServiceId;
 }
 
-std::shared_ptr<Property> Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter)
+void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter)
 {
+	LOG_DEBUG("Making property \"" + property_name + "\".");
+
 	auto prop = std::make_shared<Property>(property_name, getter, setter);
 	m_Properties[property_name] = prop;
-
-	return prop;
 }
 
-std::shared_ptr<Command> Service::MakeCommand(std::string command_name, Command::CommandFunction func)
+void Service::MakeCommand(std::string command_name, Command::CommandFunction func)
 {
+	LOG_DEBUG("Making command \"" + command_name + "\".");
+
 	auto cmd = std::make_shared<Command>(command_name, func);
 	m_Commands[command_name] = cmd;
-
-	return cmd;
 }
 
 std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
+	LOG_DEBUG("Making data stream \"" + stream_name + "\".");
+
 	auto stream = DataStream::Create(stream_name, GetId(), type, dimensions, num_frames_in_buffer);
 	m_DataStreams[stream_name] = stream;
 
@@ -287,6 +318,8 @@ std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, Dat
 
 std::shared_ptr<DataStream> Service::ReuseDataStream(std::string stream_name, std::string stream_id)
 {
+	LOG_DEBUG("Reusing data stream \"" + stream_name + "\".");
+
 	auto stream = DataStream::Open(stream_id);
 	m_DataStreams[stream_name] = stream;
 

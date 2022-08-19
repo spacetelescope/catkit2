@@ -20,10 +20,10 @@ const double SERVICE_LIVELINESS = 10;
 
 class TestbedProxy;
 
-class Service : public Server
+class Service
 {
 public:
-	Service(std::string service_id, std::string service_type, int service_port, int testbed_port);
+	Service(std::string service_type, std::string service_id, int service_port, int testbed_port);
 	virtual ~Service();
 
 	void Run(void (*error_check)()=nullptr);
@@ -32,6 +32,10 @@ public:
 	virtual void Main();
 	virtual void Close();
 
+	void ShutDown();
+	bool ShouldShutDown();
+	bool IsRunning();
+
 	std::shared_ptr<Property> GetProperty(const std::string &property_name) const;
 	std::shared_ptr<Command> GetCommand(const std::string &command_name) const;
 	std::shared_ptr<DataStream> GetDataStream(const std::string &stream_name) const;
@@ -39,8 +43,8 @@ public:
 	nlohmann::json GetConfig() const;
 	const std::string &GetId() const;
 
-	std::shared_ptr<Property> MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter = nullptr);
-	std::shared_ptr<Command> MakeCommand(std::string command_name, Command::CommandFunction func);
+	void MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter = nullptr);
+	void MakeCommand(std::string command_name, Command::CommandFunction func);
 	std::shared_ptr<DataStream> MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
 	std::shared_ptr<DataStream> ReuseDataStream(std::string stream_name, std::string stream_id);
 
@@ -57,6 +61,11 @@ private:
 	bool RequiresSafety();
 
 	void MonitorHeartbeats();
+
+	Server m_Server;
+
+	std::atomic_bool m_IsRunning;
+	std::atomic_bool m_ShouldShutDown;
 
 	std::shared_ptr<TestbedProxy> m_Testbed;
 
