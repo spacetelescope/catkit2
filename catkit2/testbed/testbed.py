@@ -116,7 +116,7 @@ class ServiceReference:
 
         self.state = state
         self.process = None
-        self.port = None
+        self.port = 0
 
         self.log = logging.getLogger(__name__)
 
@@ -165,7 +165,9 @@ class Testbed:
         The full configuration as read in from the configuration files.
     '''
     def __init__(self, port, is_simulated, config):
+        self.host = '127.0.0.1'
         self.port = port
+
         self.is_simulated = is_simulated
         self.config = config
 
@@ -301,7 +303,7 @@ class Testbed:
         service_ref.id = service_id
         service_ref.type = ref.service_type
         service_ref.state = ref.state.value
-        service_ref.host = '127.0.0.1'
+        service_ref.host = self.host
         service_ref.port = ref.port
 
         return reply.SerializeToString()
@@ -329,19 +331,16 @@ class Testbed:
 
         service_id = request.service_id
 
-        self.start_service(service_id)
-
         ref = self.services[service_id]
 
-        service_ref = testbed_proto.ServiceReference()
+        reply = testbed_proto.GetServiceInfoReply()
+
+        service_ref = reply.service
         service_ref.id = service_id
         service_ref.type = ref.service_type
-        service_ref.state = ref.state
+        service_ref.state = ref.state.value
         service_ref.host = self.host
         service_ref.port = ref.port
-
-        reply = testbed_proto.GetServiceInfoReply()
-        reply.service = service_ref
 
         return reply.SerializeToString()
 
