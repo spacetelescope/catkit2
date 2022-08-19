@@ -4,7 +4,7 @@ from ..catkit_bindings import Service
 
 doc = '''
 Usage:
-  service --name NAME --service_port SERVICEPORT --testbed_port TESTBEDPORT
+  service --id ID --port PORT --testbed_port TESTBEDPORT
 '''
 
 def parse_service_args(argv=None):
@@ -18,7 +18,7 @@ def parse_service_args(argv=None):
 
     Returns
     -------
-    service_name : string
+    service_id : string
         The name of the service that was launched.
     service_port : integer
         The port of the service to start on.
@@ -27,4 +27,4 @@ def parse_service_args(argv=None):
     '''
     arguments = docopt(doc, argv=argv)
 
-    return arguments['NAME'], int(arguments['SERVICEPORT']), int(arguments['TESTBEDPORT'])
+    return arguments['ID'], int(arguments['PORT']), int(arguments['TESTBEDPORT'])
