@@ -3,6 +3,7 @@
 #include "Log.h"
 #include "TimeStamp.h"
 #include "Finally.h"
+#include "Util.h"
 
 #include <zmq_addon.hpp>
 
@@ -21,8 +22,7 @@ Server::Server(int port)
 
 Server::~Server()
 {
-    if (m_RunThread.joinable())
-        m_RunThread.join();
+    Stop();
 }
 
 void Server::RegisterRequestHandler(std::string type, RequestHandler func)
@@ -151,21 +151,11 @@ int Server::GetPort()
 
 void Server::Sleep(double sleep_time_in_sec, void (*error_check)())
 {
-	Timer timer;
-
-	while (true)
+	Sleep(sleep_time_in_sec, [this, &error_check]()
 	{
-		double sleep_remaining = sleep_time_in_sec - timer.GetTime();
-
-		if (sleep_remaining < 0)
-			break;
-
-		if (m_ShouldShutDown)
-			break;
-
 		if (error_check)
 			error_check();
 
-		std::this_thread::sleep_for(std::chrono::duration<double>(std::min(double(0.001), sleep_remaining)));
-	}
+		return this->m_ShouldShutDown;
+	})
 }
