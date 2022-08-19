@@ -18,14 +18,13 @@ public:
 	void RegisterRequestHandler(std::string type, RequestHandler func);
 
 	void Start();
-	void ShutDown();
+	void Stop();
 
-	bool ShouldShutDown();
 	bool IsRunning();
 
 	int GetPort();
 
-	void Sleep(double sleep_time_in_ms, void (*error_check)()=nullptr);
+	void Sleep(double sleep_time_in_sec, void (*error_check)()=nullptr);
 
 protected:
 	int m_Port;

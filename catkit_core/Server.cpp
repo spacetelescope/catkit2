@@ -41,6 +41,14 @@ void Server::Start()
     m_RunThread = thread(&Server::RunInternal, this);
 }
 
+void Server::Stop()
+{
+	m_ShouldShutDown = true;
+
+	if (m_RunThread.joinable())
+		m_RunThread.join();
+}
+
 void Server::RunInternal()
 {
 	LOG_INFO("Starting server on port "s + to_string(m_Port) + ".");
@@ -131,17 +139,6 @@ void Server::RunInternal()
 	}
 }
 
-void Server::ShutDown()
-{
-	LOG_INFO("Shut down called.");
-	m_ShouldShutDown = true;
-}
-
-bool Server::ShouldShutDown()
-{
-	return m_ShouldShutDown;
-}
-
 bool Server::IsRunning()
 {
 	return m_IsRunning;
@@ -152,13 +149,13 @@ int Server::GetPort()
 	return m_Port;
 }
 
-void Server::Sleep(double sleep_time_in_ms, void (*error_check)())
+void Server::Sleep(double sleep_time_in_sec, void (*error_check)())
 {
 	Timer timer;
 
 	while (true)
 	{
-		double sleep_remaining = sleep_time_in_ms - timer.GetTime() * 1000;
+		double sleep_remaining = sleep_time_in_sec - timer.GetTime();
 
 		if (sleep_remaining < 0)
 			break;
@@ -169,6 +166,6 @@ void Server::Sleep(double sleep_time_in_ms, void (*error_check)())
 		if (error_check)
 			error_check();
 
-		std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(std::min(double(1.0), sleep_remaining)));
+		std::this_thread::sleep_for(std::chrono::duration<double>(std::min(double(0.001), sleep_remaining)));
 	}
 }
