@@ -32,7 +32,7 @@ int GetThreadId()
 	return thread_id;
 }
 
-void Sleep(double sleep_time_in_sec, bool (*cancellation_callback)())
+void Sleep(double sleep_time_in_sec, std::function<bool()> cancellation_callback)
 {
 	Timer timer;
 
@@ -51,6 +51,9 @@ void Sleep(double sleep_time_in_sec, bool (*cancellation_callback)())
 				break;
 		}
 
-		std::this_thread::sleep_for(std::chrono::duration<double>(std::min(double(0.001)), sleep_remaining)));
+		// Use brackets around std::min to avoid the macro from windows.h. Sigh.
+		double this_sleep_time = (std::min)(double(0.001), sleep_remaining);
+
+		std::this_thread::sleep_for(std::chrono::duration<double>(this_sleep_time));
 	}
 }

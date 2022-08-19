@@ -151,11 +151,11 @@ int Server::GetPort()
 
 void Server::Sleep(double sleep_time_in_sec, void (*error_check)())
 {
-	Sleep(sleep_time_in_sec, [this, &error_check]()
+	::Sleep(sleep_time_in_sec, [this, error_check]() -> bool
 	{
 		if (error_check)
 			error_check();
 
 		return this->m_ShouldShutDown;
-	})
+	});
 }
