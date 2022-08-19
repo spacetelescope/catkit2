@@ -7,7 +7,7 @@
 	#include <errno.h>
 #endif
 
-#include "Time.h"
+#include "Timing.h"
 
 SynchronizationLock::SynchronizationLock(Synchronization *sync)
 	: m_Sync(sync)

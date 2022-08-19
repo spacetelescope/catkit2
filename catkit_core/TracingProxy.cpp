@@ -1,6 +1,6 @@
 #include "TracingProxy.h"
 
-#include "Time.h"
+#include "Timing.h"
 #include "Util.h"
 
 using namespace std;
