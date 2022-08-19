@@ -36,6 +36,8 @@ public:
 	bool ShouldShutDown();
 	bool IsRunning();
 
+	void Sleep(double sleep_time_in_sec);
+
 	std::shared_ptr<Property> GetProperty(const std::string &property_name) const;
 	std::shared_ptr<Command> GetCommand(const std::string &command_name) const;
 	std::shared_ptr<DataStream> GetDataStream(const std::string &stream_name) const;
@@ -55,8 +57,6 @@ private:
 	std::string HandleSetProperty(const std::string &data);
 
 	std::string HandleExecuteCommand(const std::string &data);
-
-	void Sleep(double sleep_time_in_sec);
 
 	void MonitorSafety();
 	bool IsSafe();

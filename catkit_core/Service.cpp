@@ -250,6 +250,14 @@ bool Service::IsRunning()
 	return m_IsRunning;
 }
 
+void Service::Sleep(double sleep_time_in_sec)
+{
+	::Sleep(sleep_time_in_sec, [this]()
+	{
+		return this->ShouldShutDown();
+	});
+}
+
 std::shared_ptr<Property> Service::GetProperty(const std::string &property_name) const
 {
 	auto i = m_Properties.find(property_name);
@@ -423,14 +431,6 @@ string Service::HandleExecuteCommand(const string &data)
 	reply.SerializeToString(&reply_string);
 
 	return reply_string;
-}
-
-void Service::Sleep(double sleep_time_in_sec)
-{
-	::Sleep(sleep_time_in_sec, [this]()
-	{
-		return this->ShouldShutDown();
-	});
 }
 
 void print_usage()

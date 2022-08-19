@@ -6,23 +6,20 @@ import numpy as np
 import threading
 
 class DummyCamera(Service):
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'dummy_camera', testbed_port)
+    def __init__(self, *service_args):
+        Service.__init__(self, 'dummy_camera', *service_args)
 
-        config = self.configuration
+        self.exposure_time = self.config['exposure_time']
+        self.gain = self.config['gain']
+        self._width = self.config['width']
+        self._height = self.config['height']
+        self._offset_x = self.config['offset_x']
+        self._offset_y = self.config['offset_y']
 
-        self.exposure_time = config['exposure_time']
-        self.gain = config['gain']
-        self._width = config['width']
-        self._height = config['height']
-        self._offset_x = config['offset_x']
-        self._offset_y = config['offset_y']
+        self.flux = self.config['flux']
+        self.sensor_width = self.config['sensor_width']
+        self.sensor_height = self.config['sensor_height']
 
-        self.flux = config['flux']
-        self.sensor_width = config['sensor_width']
-        self.sensor_height = config['sensor_height']
-
-        self.shutdown_flag = threading.Event()
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
@@ -84,14 +81,14 @@ class DummyCamera(Service):
         return img
 
     def main(self):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
     def acquisition_loop(self):
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
-        while self.should_be_acquiring.is_set() and not self.shutdown_flag.is_set():
+        while self.should_be_acquiring.is_set() and not self.should_shut_down:
             img = self.get_image()
 
             # Make sure the data stream has the right size and datatype.
@@ -107,11 +104,11 @@ class DummyCamera(Service):
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
     def monitor_temperature(self):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
-            self.shutdown_flag.wait(1)
+            self.sleep(0.1)
 
     def start_acquisition(self):
         self.should_be_acquiring.set()
@@ -186,7 +183,7 @@ class DummyCamera(Service):
         return 'Dummy Camera'
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
+    service_args = parse_service_args()
 
-    service = DummyCamera(service_name, testbed_port)
+    service = DummyCamera(*service_args)
     service.run()

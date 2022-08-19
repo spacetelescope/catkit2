@@ -231,7 +231,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			});
 		})
 		.def("start", &Server::Start)
-		.def("stop", &Server::Stop)
+		.def("stop", &Server::Stop, py::call_guard<py::gil_scoped_release>())
 		.def_property_readonly("is_running", &Server::IsRunning)
 		.def_property_readonly("port", &Server::GetPort)
 		.def("sleep", [](Server &server, double sleep_time_in_sec)
@@ -258,6 +258,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("close", &Service::Close)
 		.def("shut_down", &Service::ShutDown)
 		.def_property_readonly("should_shut_down", &Service::ShouldShutDown)
+		.def("sleep", &Service::Sleep, py::call_guard<py::gil_scoped_release>())
 		.def("make_property", &Service::MakeProperty,
 			py::arg("name"),
 			py::arg("getter") = nullptr,
