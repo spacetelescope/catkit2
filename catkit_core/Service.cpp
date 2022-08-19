@@ -23,11 +23,13 @@ const double SAFETY_INTERVAL = 60;  // seconds.
 Service::Service(string service_type, string service_id, int service_port, int testbed_port)
 	: m_Server(service_port), m_ServiceId(service_id), m_ServiceType(service_type),
 	m_LoggerConsole(), m_LoggerPublish(service_id, "tcp://127.0.0.1:"s + to_string(testbed_port + 1)),
-	m_ServiceHeartbeat(nullptr), m_ServerHeartbeat(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
+	m_Heartbeat(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
 	m_IsRunning(false), m_ShouldShutDown(false)
 {
 	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
 	m_Config = m_Testbed->GetConfig()["services"][service_id];
+
+	m_Heartbeat = DataStream::Create("heartbeat", service_id, DataType::DT_UINT64, {1}, 20);
 
 	m_Testbed->UpdateServiceState(service_id, ServiceState::INITIALIZING);
 
@@ -201,13 +203,11 @@ bool Service::RequiresSafety()
 
 void Service::MonitorHeartbeats()
 {
-	return;
-
 	while (!ShouldShutDown())
 	{
 		// Update my own heartbeat.
 		std::uint64_t timestamp = GetTimeStamp();
-		m_ServiceHeartbeat->SubmitData(&timestamp);
+		m_Heartbeat->SubmitData(&timestamp);
 
 		// Check the testbed heartbeat.
 		if (!m_Testbed->IsAlive())
@@ -348,12 +348,12 @@ string Service::HandleGetInfo(const string &data)
 		reply.add_property_names(key);
 
 	for (auto& [key, value] : m_Commands)
-		reply.add_property_names(key);
-
-	auto map = reply.datastream_ids();
+		reply.add_command_names(key);
 
 	for (auto& [key, value] : m_DataStreams)
-		map[key] = value->GetStreamId();
+		(*reply.mutable_datastream_ids())[key] = value->GetStreamId();
+
+	reply.set_heartbeat_stream_id(m_Heartbeat->GetStreamId());
 
 	std::string reply_string;
 	reply.SerializeToString(&reply_string);

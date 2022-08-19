@@ -46,6 +46,8 @@ public:
 	bool IsSimulated();
 	bool IsAlive();
 
+	std::shared_ptr<DataStream> GetHeartbeat();
+
 	nlohmann::json GetConfig();
 
 	std::string GetHost();

@@ -25,6 +25,8 @@ public:
 
 	std::shared_ptr<DataStream> GetDataStream(const std::string &name);
 
+	std::shared_ptr<DataStream> GetHeartbeat();
+
 	ServiceState GetState();
 	bool IsRunning();
 	bool IsAlive();

@@ -163,6 +163,11 @@ bool TestbedProxy::IsAlive()
 	return (current_timestamp - alive_timestamp) < HEARTBEAT_LIVENESS * 1e9;
 }
 
+std::shared_ptr<DataStream> TestbedProxy::GetHeartbeat()
+{
+	return m_HeartbeatStream;
+}
+
 json TestbedProxy::GetConfig()
 {
 	GetTestbedInfo();

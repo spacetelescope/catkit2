@@ -76,8 +76,7 @@ private:
 
 	nlohmann::json m_Config;
 
-	std::shared_ptr<DataStream> m_ServiceHeartbeat;
-	std::shared_ptr<DataStream> m_ServerHeartbeat;
+	std::shared_ptr<DataStream> m_Heartbeat;
 	std::shared_ptr<DataStream> m_Safety;
 
 	typedef std::function<std::string(const std::string &)> MessageHandler;

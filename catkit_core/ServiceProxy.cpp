@@ -6,6 +6,8 @@
 #include "Util.h"
 #include "proto/service.pb.h"
 
+#include <iostream>
+
 using namespace std::string_literals;
 
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
@@ -16,7 +18,7 @@ ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string se
 
 	if (!testbed_config["services"].contains(service_id))
 	{
-		throw std::runtime_error("Service "s + service_id + " is a non-existant service id.");
+		throw std::runtime_error("Service "s + service_id + " is a nonexistent service id.");
 	}
 }
 
@@ -116,6 +118,11 @@ std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name)
 	return m_DataStreams[name];
 }
 
+std::shared_ptr<DataStream> ServiceProxy::GetHeartbeat()
+{
+	return m_HeartbeatStream;
+}
+
 ServiceState ServiceProxy::GetState()
 {
 	if (m_HeartbeatStream)
@@ -129,12 +136,11 @@ ServiceState ServiceProxy::GetState()
 	}
 
 	auto state = m_Testbed->GetServiceState(m_ServiceId);
+	m_LastKnownState = state;
 
 	// Connect if the service became operational.
 	if (m_LastKnownState != ServiceState::RUNNING && state == ServiceState::RUNNING)
 		Connect();
-
-	m_LastKnownState = state;
 
 	return state;
 }
@@ -207,19 +213,37 @@ void ServiceProxy::Connect()
 	// Get property, command and datastream names.
 	std::string reply_string = m_Client->MakeRequest("get_info", "");
 
+	std::cout << reply_string << std::endl;
+
 	catkit_proto::service::GetInfoReply reply;
 	reply.ParseFromString(reply_string);
 
 	m_PropertyNames.clear();
 	for (auto &i : reply.property_names())
+	{
 		m_PropertyNames.push_back(i);
+
+		std::cout << "Property " << i << std::endl;
+	}
 
 	m_CommandNames.clear();
 	for (auto &i : reply.command_names())
+	{
 		m_CommandNames.push_back(i);
 
+		std::cout << "Command " << i << std::endl;
+	}
+
 	for (auto& [key, value] : reply.datastream_ids())
+	{
 		m_DataStreamIds[key] = value;
 
+		std::cout << "DataStream " << key << ": " << value << std::endl;
+	}
+
+	std::cout << "Heartbeat " << reply.heartbeat_stream_id() << std::endl;
+
 	m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
+
+	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");
 }
