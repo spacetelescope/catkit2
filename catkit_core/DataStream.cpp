@@ -1,7 +1,7 @@
 #include "DataStream.h"
 
 //#include "Log.h"
-#include "TimeStamp.h"
+#include "Time.h"
 #include "Util.h"
 
 #include <algorithm>

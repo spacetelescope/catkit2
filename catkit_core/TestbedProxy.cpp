@@ -1,6 +1,6 @@
 #include "TestbedProxy.h"
 
-#include "TimeStamp.h"
+#include "Time.h"
 #include "proto/testbed.pb.h"
 
 #include <memory>

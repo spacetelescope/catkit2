@@ -1,7 +1,7 @@
 #include "Client.h"
 
 #include "Log.h"
-#include "TimeStamp.h"
+#include "Time.h"
 #include "Finally.h"
 
 #include <zmq_addon.hpp>

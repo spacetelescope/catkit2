@@ -1,5 +1,5 @@
-#ifndef TIMESTAMP_H
-#define TIMESTAMP_H
+#ifndef TIME_H
+#define TIME_H
 
 #include <chrono>
 #include <string>
@@ -18,4 +18,4 @@ private:
 	std::chrono::steady_clock::time_point m_StartTime;
 };
 
-#endif // TIMESTAMP_H
+#endif // TIME_H

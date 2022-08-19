@@ -1,5 +1,5 @@
 #include "Log.h"
-#include "TimeStamp.h"
+#include "Time.h"
 
 #include <algorithm>
 #include <iostream>

@@ -15,7 +15,7 @@ add_library(catkit_core STATIC
     DataStream.cpp
     SharedMemory.cpp
     Synchronization.cpp
-    TimeStamp.cpp
+    Time.cpp
     Log.cpp
     LogConsole.cpp
     LogFile.cpp

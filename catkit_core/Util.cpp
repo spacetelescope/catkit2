@@ -1,6 +1,6 @@
 #include "Util.h"
 
-#include "Timer.h"
+#include "Time.h"
 
 #ifdef _WIN32
 	#define WIN32_LEAN_AND_MEAN
@@ -32,7 +32,7 @@ int GetThreadId()
 	return thread_id;
 }
 
-void Server::Sleep(double sleep_time_in_sec, bool (*cancellation_callback)())
+void Sleep(double sleep_time_in_sec, bool (*cancellation_callback)())
 {
 	Timer timer;
 
