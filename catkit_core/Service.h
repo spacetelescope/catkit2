@@ -56,6 +56,8 @@ private:
 
 	std::string HandleExecuteCommand(const std::string &data);
 
+	void Sleep(double sleep_time_in_sec);
+
 	void MonitorSafety();
 	bool IsSafe();
 	bool RequiresSafety();

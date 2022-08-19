@@ -33,10 +33,10 @@ Service::Service(string service_type, string service_id, int service_port, int t
 
 	LOG_DEBUG("Registering request handlers.");
 
-	RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data); });
-	RegisterRequestHandler("get_property", [this](const string &data) { return this->HandleGetProperty(data); });
-	RegisterRequestHandler("set_property", [this](const string &data) { return this->HandleSetProperty(data); });
-	RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
+	m_Server.RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data); });
+	m_Server.RegisterRequestHandler("get_property", [this](const string &data) { return this->HandleGetProperty(data); });
+	m_Server.RegisterRequestHandler("set_property", [this](const string &data) { return this->HandleSetProperty(data); });
+	m_Server.RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
 
 	LOG_INFO("Intialized service.");
 }
@@ -135,7 +135,7 @@ void Service::Run(void (*error_check)())
 
 	if (crashed)
 	{
-		LOG_INFO("Service was closed after crash.");
+		LOG_INFO("Service was safely closed after crash.");
 		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CRASHED);
 	}
 	else
@@ -423,6 +423,14 @@ string Service::HandleExecuteCommand(const string &data)
 	reply.SerializeToString(&reply_string);
 
 	return reply_string;
+}
+
+void Service::Sleep(double sleep_time_in_sec)
+{
+	::Sleep(sleep_time_in_sec, [this]()
+	{
+		return this->ShouldShutDown();
+	});
 }
 
 void print_usage()

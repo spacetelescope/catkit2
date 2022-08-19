@@ -150,7 +150,7 @@ class ServiceReference:
             # Process was already shut down by itself.
             pass
 
-class Testbed(Server):
+class Testbed:
     '''Manages services.
 
     Parameters
@@ -165,8 +165,7 @@ class Testbed(Server):
         The full configuration as read in from the configuration files.
     '''
     def __init__(self, port, is_simulated, config):
-        super().__init__(port)
-
+        self.port = port
         self.is_simulated = is_simulated
         self.config = config
 
@@ -196,16 +195,25 @@ class Testbed(Server):
 
             self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED)
 
-        self.register_request_handler('start_service', self.on_start_service)
-        self.register_request_handler('stop_service', self.on_stop_service)
-        self.register_request_handler('get_info', self.on_get_info)
-        self.register_request_handler('get_service_info', self.on_get_service_info)
-        self.register_request_handler('register_service', self.on_register_service)
-        self.register_request_handler('update_service_status', self.on_update_service_status)
+        # Create server instance and register request handlers.
+        self.server = Server(port)
+
+        self.server.register_request_handler('start_service', self.on_start_service)
+        self.server.register_request_handler('stop_service', self.on_stop_service)
+        self.server.register_request_handler('get_info', self.on_get_info)
+        self.server.register_request_handler('get_service_info', self.on_get_service_info)
+        self.server.register_request_handler('register_service', self.on_register_service)
+        self.server.register_request_handler('update_service_state', self.on_update_service_state)
+
+        self.is_running = False
+        self.shutdown_flag = threading.Event()
 
     def run(self):
         '''Run the main loop of the server.
         '''
+        self.is_running = True
+        self.shutdown_flag.clear()
+
         self.context = zmq.Context()
 
         # Start the logging.
@@ -213,7 +221,7 @@ class Testbed(Server):
         self.setup_logging()
 
         # Start the server
-        self.start()
+        self.server.start()
 
         # Start the startup services.
         #for service_name in self.startup_services:
@@ -222,8 +230,8 @@ class Testbed(Server):
         try:
             # For now, wait until Ctrl+C.
             # In the future, monitor services.
-            while True:
-                self.sleep(1)
+            while not self.shutdown_flag.is_set():
+                time.sleep(0.01)
         except KeyboardInterrupt:
             self.log.info('Interrupted by the user...')
         finally:
@@ -231,11 +239,7 @@ class Testbed(Server):
             self.shut_down_all_services()
 
             # Shut down the server.
-            self.shut_down()
-
-            # Wait until we are fully shut down.
-            while self.is_running:
-                time.sleep(0.1)
+            self.server.stop()
 
             # Stop the logging.
             self.destroy_logging()
@@ -344,12 +348,12 @@ class Testbed(Server):
     def on_register_service(self, data):
         pass  # TODO
 
-    def on_update_service_status(self, data):
+    def on_update_service_state(self, data):
         request = testbed_proto.UpdateServiceStateRequest()
         request.ParseFromString(bytes(data, 'ascii'))
 
         service_id = request.service_id
-        new_state = request.new_state  # TODO: conversion
+        new_state = ServiceState(request.new_state)
 
         self.services[service_id].update_state(new_state)
 
@@ -411,7 +415,7 @@ class Testbed(Server):
 
         # Start process.
         startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        #startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         creationflags = subprocess.CREATE_NEW_CONSOLE
 
         process = psutil.Popen(

@@ -231,13 +231,12 @@ PYBIND11_MODULE(catkit_bindings, m)
 			});
 		})
 		.def("start", &Server::Start)
-		.def("shut_down", &Server::ShutDown)
-		.def_property_readonly("should_shut_down", &Server::ShouldShutDown)
+		.def("stop", &Server::Stop)
 		.def_property_readonly("is_running", &Server::IsRunning)
 		.def_property_readonly("port", &Server::GetPort)
 		.def("sleep", [](Server &server, double sleep_time_in_sec)
 		{
-			server.Sleep(1000 * sleep_time_in_sec, error_check_python);
+			server.Sleep(sleep_time_in_sec, error_check_python);
 		}, py::call_guard<py::gil_scoped_release>());
 
 	py::class_<Client>(m, "Client")
