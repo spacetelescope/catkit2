@@ -157,6 +157,8 @@ bool TestbedProxy::IsSimulated()
 
 bool TestbedProxy::IsAlive()
 {
+	GetTestbedInfo();
+
 	auto alive_timestamp = m_HeartbeatStream->GetLatestFrame().AsArray<uint64_t>()(0);
 	auto current_timestamp = GetTimeStamp();
 
@@ -165,6 +167,8 @@ bool TestbedProxy::IsAlive()
 
 std::shared_ptr<DataStream> TestbedProxy::GetHeartbeat()
 {
+	GetTestbedInfo();
+
 	return m_HeartbeatStream;
 }
 
@@ -215,7 +219,7 @@ void TestbedProxy::GetTestbedInfo()
 	m_Config = json::parse(reply.config());
 	m_IsSimulated = reply.is_simulated();
 
-	//m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
+	m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
 
 	m_LoggingIngressPort = reply.logging_ingress_port();
 	m_LoggingEgressPort = reply.logging_egress_port();

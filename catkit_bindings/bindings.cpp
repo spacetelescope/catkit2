@@ -314,6 +314,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			service.WaitUntilRunning(timeout_in_sec, error_check_python);
 		})
+		.def_property_readonly("heartbeat", &ServiceProxy::GetHeartbeat)
 		.def("start", &ServiceProxy::Start)
 		.def("stop", &ServiceProxy::Stop);
 
@@ -325,6 +326,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("stop_service", &TestbedProxy::StopService)
 		.def_property_readonly("is_simulated", &TestbedProxy::IsSimulated)
 		.def_property_readonly("is_alive", &TestbedProxy::IsAlive)
+		.def_property_readonly("heartbeat", &TestbedProxy::GetHeartbeat)
 		.def_property_readonly("config", &TestbedProxy::GetConfig)
 		.def_property_readonly("host", &TestbedProxy::GetHost)
 		.def_property_readonly("logging_egress_port", &TestbedProxy::GetLoggingEgressPort)

@@ -11,8 +11,9 @@ import threading
 import psutil
 import zmq
 import yaml
+import numpy as np
 
-from ..catkit_bindings import LogConsole, LogPublish, Server, ServiceState
+from ..catkit_bindings import LogConsole, LogPublish, Server, ServiceState, DataStream, get_timestamp
 from .log_handler import *
 
 from ..proto import testbed_pb2 as testbed_proto
@@ -210,6 +211,8 @@ class Testbed:
         self.is_running = False
         self.shutdown_flag = threading.Event()
 
+        self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
+
     def run(self):
         '''Run the main loop of the server.
         '''
@@ -231,9 +234,12 @@ class Testbed:
 
         try:
             # For now, wait until Ctrl+C.
-            # In the future, monitor services.
+            # In the future, monitor services and update heartbeat stream.
             while not self.shutdown_flag.is_set():
                 time.sleep(0.01)
+
+                heartbeat = np.array([get_timestamp()], dtype='uint64')
+                self.heartbeat_stream.submit_data(heartbeat)
         except KeyboardInterrupt:
             self.log.info('Interrupted by the user...')
         finally:
@@ -317,7 +323,7 @@ class Testbed:
         reply.port = self.port
         reply.config = json.dumps(self.config)
         reply.is_simulated = self.is_simulated
-        reply.heartbeat_stream_id = 'a'
+        reply.heartbeat_stream_id = self.heartbeat_stream.stream_id
         reply.logging_ingress_port = self.port + 1
         reply.logging_egress_port = self.port + 2
         reply.data_logging_ingress_port = 0
