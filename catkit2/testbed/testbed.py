@@ -146,7 +146,8 @@ class ServiceReference:
         This kills the process directly and should be used as a last resort.
         '''
         try:
-            self.process.terminate()
+            if self.process:
+                self.process.terminate()
         except psutil.NoSuchProcess:
             # Process was already shut down by itself.
             pass
@@ -203,7 +204,7 @@ class Testbed:
 
         self.server.register_request_handler('start_service', self.on_start_service)
         self.server.register_request_handler('stop_service', self.on_stop_service)
-        self.server.register_request_handler('kill_service', self.on_kill_service)
+        self.server.register_request_handler('interrupt_service', self.on_interrupt_service)
         self.server.register_request_handler('terminate_service', self.on_terminate_service)
         self.server.register_request_handler('get_info', self.on_get_info)
         self.server.register_request_handler('get_service_info', self.on_get_service_info)
@@ -241,6 +242,7 @@ class Testbed:
             while not self.shutdown_flag.is_set():
                 time.sleep(0.01)
 
+                # Probably should do this in a thread.
                 heartbeat = np.array([get_timestamp()], dtype='uint64')
                 self.heartbeat_stream.submit_data(heartbeat)
         except KeyboardInterrupt:
@@ -248,6 +250,9 @@ class Testbed:
         finally:
             self.log.info('Shutting down all running services.')
             self.shut_down_all_services()
+
+            # Submit zero heartbeat to signal a dead testbed.
+            self.heartbeat_stream.submit_data(np.zeros(1, dtype='uint64'))
 
             # Shut down the server.
             self.server.stop()
@@ -316,7 +321,7 @@ class Testbed:
         service_ref.port = ref.port
 
         return reply.SerializeToString()
-    
+
     def on_stop_service(self, data):
         request = testbed_proto.StopServiceRequest()
         request.ParseFromString(bytes(data, 'ascii'))
@@ -329,6 +334,7 @@ class Testbed:
         return reply.SerializeToString()
 
     def on_interrupt_service(self, data):
+        print(data)
         request = testbed_proto.InterruptServiceRequest()
         request.ParseFromString(bytes(data, 'ascii'))
 
@@ -340,6 +346,7 @@ class Testbed:
         return reply.SerializeToString()
 
     def on_terminate_service(self, data):
+        print(data)
         request = testbed_proto.TerminateServiceRequest()
         request.ParseFromString(bytes(data, 'ascii'))
 
@@ -478,10 +485,20 @@ class Testbed:
         pass  # TODO
 
     def interrupt_service(self, service_id):
-        pass  # TODO
+        self.log.debug(f'Interrupting service "{service_id}".')
+
+        if service_id not in self.services:
+            raise RuntimeError(f'Service "{service_id}" is not a known service.')
+
+        self.services[service_id].send_keyboard_interrupt()
 
     def terminate_service(self, service_id):
-        pass  # TODO
+        self.log.debug(f'Terminating service "{service_id}".')
+
+        if service_id not in self.services:
+            raise RuntimeError(f'Service "{service_id}" is not a known service.')
+
+        self.services[service_id].terminate()
 
     def resolve_service_type(self, service_type):
         '''Resolve a service type into a path.

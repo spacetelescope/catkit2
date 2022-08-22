@@ -48,6 +48,8 @@ public:
 	bool IsSimulated();
 	bool IsAlive();
 
+	void ShutDown();
+
 	std::shared_ptr<DataStream> GetHeartbeat();
 
 	nlohmann::json GetConfig();

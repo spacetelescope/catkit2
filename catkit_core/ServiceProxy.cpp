@@ -174,12 +174,28 @@ void ServiceProxy::Stop()
 
 	try
 	{
-		m_Client->MakeRequest("execute_command", Serialize(request));
+		m_Client->MakeRequest("shut_down", Serialize(request));
 	}
 	catch (...)
 	{
 		throw std::runtime_error("Unable to stop service.");
 	}
+}
+
+void ServiceProxy::Interrupt()
+{
+	if (!IsAlive())
+		return;
+
+	m_Testbed->InterruptService(m_ServiceId);
+}
+
+void ServiceProxy::Terminate()
+{
+	if (!IsAlive())
+		return;
+
+	m_Testbed->TerminateService(m_ServiceId);
 }
 
 void ServiceProxy::WaitUntilRunning(double timeout_in_sec, void (*error_check)())

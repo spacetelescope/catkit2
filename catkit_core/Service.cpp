@@ -146,6 +146,10 @@ void Service::Run(void (*error_check)())
 		LOG_INFO("Service was closed.");
 		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CLOSED);
 	}
+
+	// Set heartbeat timestamp to zero to signal a dead service.
+	std::uint64_t timestamp = 0;
+	m_Heartbeat->SubmitData(&timestamp);
 }
 
 void Service::MonitorSafety()

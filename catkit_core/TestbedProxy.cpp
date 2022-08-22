@@ -199,6 +199,21 @@ bool TestbedProxy::IsAlive()
 	return (current_timestamp - alive_timestamp) < HEARTBEAT_LIVENESS * 1e9;
 }
 
+void TestbedProxy::ShutDown()
+{
+	catkit_proto::testbed::ShutDownRequest request;
+	catkit_proto::testbed::UpdateServiceStateReply reply;
+
+	try
+	{
+		reply.ParseFromString(MakeRequest("shut_down", Serialize(request)));
+	}
+	catch (...)
+	{
+		std::runtime_error("Unable to shut down Testbed.");
+	}
+}
+
 std::shared_ptr<DataStream> TestbedProxy::GetHeartbeat()
 {
 	GetTestbedInfo();
