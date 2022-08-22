@@ -168,7 +168,18 @@ void ServiceProxy::Stop()
 	if (!IsAlive())
 		return;
 
-	m_Testbed->StopService(m_ServiceId);
+	Connect();
+
+	catkit_proto::service::ShutDownRequest request;
+
+	try
+	{
+		m_Client->MakeRequest("execute_command", Serialize(request));
+	}
+	catch (...)
+	{
+		throw std::runtime_error("Unable to stop service.");
+	}
 }
 
 void ServiceProxy::WaitUntilRunning(double timeout_in_sec, void (*error_check)())

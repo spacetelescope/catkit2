@@ -75,7 +75,24 @@ message StopServiceRequest
 
 message StopServiceReply
 {
-    ServiceReference service = 1;
+}
+
+message InterruptServiceRequest
+{
+    string service_id = 1;
+}
+
+message InterruptServiceReply
+{
+}
+
+message TerminateServiceRequest
+{
+    string service_id = 1;
+}
+
+message TerminateServiceReply
+{
 }
 
 message RegisterServiceRequest
@@ -100,4 +117,12 @@ message UpdateServiceStateRequest
 message UpdateServiceStateReply
 {
     ServiceState new_state = 1;
+}
+
+message ShutDownRequest
+{
+}
+
+message ShutDownReply
+{
 }

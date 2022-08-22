@@ -203,10 +203,13 @@ class Testbed:
 
         self.server.register_request_handler('start_service', self.on_start_service)
         self.server.register_request_handler('stop_service', self.on_stop_service)
+        self.server.register_request_handler('kill_service', self.on_kill_service)
+        self.server.register_request_handler('terminate_service', self.on_terminate_service)
         self.server.register_request_handler('get_info', self.on_get_info)
         self.server.register_request_handler('get_service_info', self.on_get_service_info)
         self.server.register_request_handler('register_service', self.on_register_service)
         self.server.register_request_handler('update_service_state', self.on_update_service_state)
+        self.server.register_request_handler('shut_down', self.on_shut_down)
 
         self.is_running = False
         self.shutdown_flag = threading.Event()
@@ -313,9 +316,39 @@ class Testbed:
         service_ref.port = ref.port
 
         return reply.SerializeToString()
-
+    
     def on_stop_service(self, data):
-        pass  # TODO
+        request = testbed_proto.StopServiceRequest()
+        request.ParseFromString(bytes(data, 'ascii'))
+
+        service_id = request.service_id
+
+        self.stop_service(service_id)
+
+        reply = testbed_proto.StopServiceReply()
+        return reply.SerializeToString()
+
+    def on_interrupt_service(self, data):
+        request = testbed_proto.InterruptServiceRequest()
+        request.ParseFromString(bytes(data, 'ascii'))
+
+        service_id = request.service_id
+
+        self.interrupt_service(service_id)
+
+        reply = testbed_proto.InterruptServiceReply()
+        return reply.SerializeToString()
+
+    def on_terminate_service(self, data):
+        request = testbed_proto.TerminateServiceRequest()
+        request.ParseFromString(bytes(data, 'ascii'))
+
+        service_id = request.service_id
+
+        self.terminate_service(service_id)
+
+        reply = testbed_proto.TerminateServiceReply()
+        return reply.SerializeToString()
 
     def on_get_info(self, data):
         reply = testbed_proto.GetInfoReply()
@@ -365,6 +398,12 @@ class Testbed:
         reply = testbed_proto.UpdateServiceStateReply()
         reply.new_state = request.new_state
 
+        return reply.SerializeToString()
+
+    def on_shut_down(self, data):
+        self.shutdown_flag.set()
+
+        reply = testbed_proto.ShutDownReply()
         return reply.SerializeToString()
 
     def start_service(self, service_id):
@@ -435,7 +474,13 @@ class Testbed:
 
         self.log.info(f'Started service "{service_id}" with type "{service_type}".')
 
-    def stop_service(self, service_name):
+    def stop_service(self, service_id):
+        pass  # TODO
+
+    def interrupt_service(self, service_id):
+        pass  # TODO
+
+    def terminate_service(self, service_id):
         pass  # TODO
 
     def resolve_service_type(self, service_type):

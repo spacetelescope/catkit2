@@ -58,6 +58,8 @@ private:
 
 	std::string HandleExecuteCommand(const std::string &data);
 
+	std::string HandleShutDown(const std::string &data);
+
 	void MonitorSafety();
 	bool IsSafe();
 	bool RequiresSafety();

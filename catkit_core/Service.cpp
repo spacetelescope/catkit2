@@ -39,6 +39,7 @@ Service::Service(string service_type, string service_id, int service_port, int t
 	m_Server.RegisterRequestHandler("get_property", [this](const string &data) { return this->HandleGetProperty(data); });
 	m_Server.RegisterRequestHandler("set_property", [this](const string &data) { return this->HandleSetProperty(data); });
 	m_Server.RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
+	m_Server.RegisterRequestHandler("shut_down", [this](const string &data) { return this->HandleShutDown(data); });
 
 	LOG_INFO("Intialized service.");
 }
@@ -426,6 +427,18 @@ string Service::HandleExecuteCommand(const string &data)
 
 	catkit_proto::service::ExecuteCommandReply reply;
 	ToProto(res, reply.mutable_result());
+
+	string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
+}
+
+string Service::HandleShutDown(const string &data)
+{
+	ShutDown();
+
+	catkit_proto::service::ShutDownReply reply;
 
 	string reply_string;
 	reply.SerializeToString(&reply_string);

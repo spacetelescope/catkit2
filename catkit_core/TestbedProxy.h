@@ -34,8 +34,10 @@ public:
 
 	void StartService(const std::string &service_id);
 	void StartServices(std::vector<std::string> service_ids);
-
 	void StopService(const std::string &service_id);
+
+	void InterruptService(const std::string &service_id);
+	void TerminateService(const std::string &service_id);
 
 	ServiceReference GetServiceInfo(const std::string &service_id);
 	ServiceState GetServiceState(const std::string &service_id);

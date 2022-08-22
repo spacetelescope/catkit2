@@ -76,6 +76,40 @@ void TestbedProxy::StopService(const std::string &service_id)
 	}
 }
 
+void TestbedProxy::InterruptService(const std::string &service_id)
+{
+	catkit_proto::testbed::InterruptServiceRequest request;
+	request.set_service_id(service_id);
+
+	catkit_proto::testbed::InterruptServiceReply reply;
+
+	try
+	{
+		reply.ParseFromString(MakeRequest("interrupt_service", Serialize(request)));
+	}
+	catch (...)
+	{
+		throw std::runtime_error("Unable to interrupt service.");
+	}
+}
+
+void TestbedProxy::TerminateService(const std::string &service_id)
+{
+	catkit_proto::testbed::TerminateServiceRequest request;
+	request.set_service_id(service_id);
+
+	catkit_proto::testbed::TerminateServiceReply reply;
+
+	try
+	{
+		reply.ParseFromString(MakeRequest("terminate_service", Serialize(request)));
+	}
+	catch (...)
+	{
+		throw std::runtime_error("Unable to terminate service.");
+	}
+}
+
 ServiceReference TestbedProxy::GetServiceInfo(const std::string &service_id)
 {
 	catkit_proto::testbed::GetServiceInfoRequest request;

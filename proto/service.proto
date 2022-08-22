@@ -52,3 +52,11 @@ message ExecuteCommandReply
 {
     Value result = 1;
 }
+
+message ShutDownRequest
+{
+}
+
+message ShutDownReply
+{
+}

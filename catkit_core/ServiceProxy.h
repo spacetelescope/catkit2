@@ -33,6 +33,8 @@ public:
 
 	void Start();
 	void Stop();
+	void Interrupt();
+	void Terminate();
 
 	void WaitUntilRunning(double timeout_in_sec, void (*error_check)() = nullptr);
 
