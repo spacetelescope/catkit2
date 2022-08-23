@@ -42,8 +42,10 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
             return self.get_property(name)
         elif name in self.command_names:
             # Execute command.
-            return self.execute_command(name, kwargs)
-        elif name in self.datastream_ids:
+            def cmd(**kwargs):
+                return self.execute_command(name, kwargs)
+            return cmd
+        elif name in self.data_stream_names:
             # Return datastream.
             return self.get_data_stream(name)
         else:
@@ -70,7 +72,7 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
             self.set_property(name, value)
         elif name in self.command_names:
             raise AttributeError('Cannot set a command.')
-        elif name in self.datastream_ids:
+        elif name in self.data_stream_names:
             raise AttributeError('Cannot set a data stream. Did you mean .submit_data()?')
         else:
             super().__setattr__(name, value)
