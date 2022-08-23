@@ -257,3 +257,29 @@ void ServiceProxy::Connect()
 	m_TimeLastConnect = frame.m_TimeStamp;
 	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");
 }
+
+std::vector<std::string> ServiceProxy::GetPropertyNames()
+{
+	Connect();
+
+	return m_PropertyNames;
+}
+
+std::vector<std::string> ServiceProxy::GetCommandNames()
+{
+	Connect();
+
+	return m_CommandNames;
+}
+
+std::vector<std::string> ServiceProxy::GetDataStreamNames()
+{
+	Connect();
+
+	std::vector<std::string> names;
+
+	for (auto const &item : m_DataStreamIds)
+		names.push_back(item.first);
+
+	return names;
+}

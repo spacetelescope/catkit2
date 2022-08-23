@@ -322,7 +322,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("start", &ServiceProxy::Start)
 		.def("stop", &ServiceProxy::Stop)
 		.def("interrupt", &ServiceProxy::Interrupt)
-		.def("terminate", &ServiceProxy::Terminate);
+		.def("terminate", &ServiceProxy::Terminate)
+		.def_property_readonly("property_names", &ServiceProxy::GetPropertyNames)
+		.def_property_readonly("command_names", &ServiceProxy::GetCommandNames)
+		.def_property_readonly("data_stream_names", &ServiceProxy::GetDataStreamNames);
 
 	py::class_<TestbedProxy, std::shared_ptr<TestbedProxy>>(m, "TestbedProxy")
 		.def(py::init<std::string, int>())

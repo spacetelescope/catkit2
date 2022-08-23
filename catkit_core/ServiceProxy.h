@@ -38,6 +38,10 @@ public:
 
 	void WaitUntilRunning(double timeout_in_sec, void (*error_check)() = nullptr);
 
+	std::vector<std::string> GetPropertyNames();
+	std::vector<std::string> GetCommandNames();
+	std::vector<std::string> GetDataStreamNames();
+
 private:
 	void Connect();
 
