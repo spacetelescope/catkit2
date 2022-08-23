@@ -25,6 +25,8 @@ ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string se
 	auto service_info = testbed->GetServiceInfo(m_ServiceId);
 
 	m_State = DataStream::Open(service_info.state_stream_id);
+
+	Connect();
 }
 
 ServiceProxy::~ServiceProxy()
@@ -221,7 +223,7 @@ void ServiceProxy::Connect()
 	if (state != ServiceState::RUNNING)
 	{
 		// Disconnect.
-		m_Client = nullptr;
+		Disconnect();
 		return;
 	}
 
@@ -241,11 +243,9 @@ void ServiceProxy::Connect()
 	catkit_proto::service::GetInfoReply reply;
 	reply.ParseFromString(reply_string);
 
-	m_PropertyNames.clear();
 	for (auto &i : reply.property_names())
 		m_PropertyNames.push_back(i);
 
-	m_CommandNames.clear();
 	for (auto &i : reply.command_names())
 		m_CommandNames.push_back(i);
 
@@ -256,6 +256,17 @@ void ServiceProxy::Connect()
 
 	m_TimeLastConnect = frame.m_TimeStamp;
 	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");
+}
+
+void ServiceProxy::Disconnect()
+{
+	m_Client = nullptr;
+	m_PropertyNames.clear();
+	m_CommandNames.clear();
+	m_DataStreamIds.clear();
+	m_DataStreams.clear();
+
+	m_Heartbeat = nullptr;
 }
 
 std::vector<std::string> ServiceProxy::GetPropertyNames()

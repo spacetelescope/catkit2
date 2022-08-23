@@ -44,6 +44,7 @@ public:
 
 private:
 	void Connect();
+	void Disconnect();
 
 	std::shared_ptr<TestbedProxy> m_Testbed;
 	std::string m_ServiceId;
