@@ -4,7 +4,6 @@ import os
 import argparse
 import threading
 
-from .protocol import *
 from ..catkit_bindings import DataStream
 from .. import catkit_bindings
 

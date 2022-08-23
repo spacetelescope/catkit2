@@ -3,7 +3,6 @@ import json
 import os
 import argparse
 
-from .protocol import *
 from ..catkit_bindings import DataStream
 from .. import catkit_bindings
 
