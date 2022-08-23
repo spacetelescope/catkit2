@@ -8,6 +8,7 @@
 #include <map>
 #include <variant>
 #include <string>
+#include <cstdint>
 
 class List;
 class Dict;
@@ -18,7 +19,7 @@ class NoneValue
 
 using Value = std::variant<
 	NoneValue,
-	int,
+	std::int64_t,
 	double,
 	std::string,
 	bool,

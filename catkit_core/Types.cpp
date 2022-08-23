@@ -6,9 +6,13 @@ void ToProto(const Value &value, catkit_proto::Value *proto_value)
 	{
 		proto_value->set_none_value(catkit_proto::NoneValue());
 	}
+	else if (std::holds_alternative<std::int64_t>(value))
+	{
+		proto_value->set_int_value(std::get<std::int64_t>(value));
+	}
 	else if (std::holds_alternative<double>(value))
 	{
-		proto_value->set_scalar_value(std::get<double>(value));
+		proto_value->set_double_value(std::get<double>(value));
 	}
 	else if (std::holds_alternative<std::string>(value))
 	{
@@ -65,9 +69,13 @@ void FromProto(const catkit_proto::Value *proto_value, Value &value)
 	{
 		value = Value(NoneValue());
 	}
-	else if (proto_value->has_scalar_value())
+	else if (proto_value->has_int_value())
 	{
-		value = Value(proto_value->scalar_value());
+		value = Value(proto_value->int_value());
+	}
+	else if (proto_value->has_double_value())
+	{
+		value = Value(proto_value->double_value());
 	}
 	else if (proto_value->has_string_value())
 	{

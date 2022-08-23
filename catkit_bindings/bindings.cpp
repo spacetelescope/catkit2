@@ -131,6 +131,10 @@ py::object ToPython(const Value &value)
 	{
 		return py::none();
 	}
+	else if (std::holds_alternative<std::int64_t>(value))
+	{
+		return py::int_(std::get<std::int64_t>(value));
+	}
 	else if (std::holds_alternative<double>(value))
 	{
 		return py::float_(std::get<double>(value));
@@ -173,7 +177,7 @@ Value ValueFromPython(const py::handle &python_value)
 	}
 	else if (py::isinstance<py::int_>(python_value))
 	{
-		return python_value.cast<int>();
+		return python_value.cast<std::int64_t>();
 	}
 	else if (py::isinstance<py::float_>(python_value))
 	{

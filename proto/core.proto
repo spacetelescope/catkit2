@@ -24,12 +24,13 @@ message Value
     oneof kind
     {
         NoneValue none_value = 1;
-        double scalar_value = 2;
-        string string_value = 3;
-        bool bool_value = 4;
-        Dict dict_value = 5;
-        List list_value = 6;
-        Tensor tensor_value = 7;
+        int64 int_value = 2;
+        double double_value = 3;
+        string string_value = 4;
+        bool bool_value = 5;
+        Dict dict_value = 6;
+        List list_value = 7;
+        Tensor tensor_value = 8;
     }
 }
 
