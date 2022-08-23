@@ -1,5 +1,8 @@
 import os
 
+import faulthandler
+faulthandler.enable()
+
 from . import testbed
 from . import simulator
 from . import config
