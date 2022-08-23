@@ -149,6 +149,10 @@ class ServiceReference:
     def send_keyboard_interrupt(self):
         '''Send a keyboard interrupt to the service.
         '''
+        if self.process is None:
+            return
+
+        # TODO: Linux/MacOS compatibility.
         ctrl_c_code = ';'.join([
             'import ctypes',
             'kernel = ctypes.windll.kernel32',
