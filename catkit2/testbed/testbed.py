@@ -347,7 +347,6 @@ class Testbed:
         return reply.SerializeToString()
 
     def on_interrupt_service(self, data):
-        print(data)
         request = testbed_proto.InterruptServiceRequest()
         request.ParseFromString(data)
 
@@ -359,7 +358,6 @@ class Testbed:
         return reply.SerializeToString()
 
     def on_terminate_service(self, data):
-        print(data)
         request = testbed_proto.TerminateServiceRequest()
         request.ParseFromString(data)
 
