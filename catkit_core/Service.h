@@ -15,6 +15,7 @@
 #include "LogConsole.h"
 #include "LogPublish.h"
 #include "Server.h"
+#include "ServiceState.h"
 
 const double SERVICE_LIVELINESS = 10;
 
@@ -66,6 +67,8 @@ private:
 
 	void MonitorHeartbeats();
 
+	void UpdateState(ServiceState state);
+
 	Server m_Server;
 
 	std::atomic_bool m_IsRunning;
@@ -80,6 +83,7 @@ private:
 
 	std::shared_ptr<DataStream> m_Heartbeat;
 	std::shared_ptr<DataStream> m_Safety;
+	std::shared_ptr<DataStream> m_State;
 
 	typedef std::function<std::string(const std::string &)> MessageHandler;
 	std::map<std::string, MessageHandler> m_RequestHandlers;

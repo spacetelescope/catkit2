@@ -11,7 +11,8 @@
 using namespace std::string_literals;
 
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
-	: m_Testbed(testbed), m_ServiceId(service_id)
+	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr), m_State(nullptr),
+	m_TimeLastConnect(0)
 {
 	// Do a check to see if the service id is correct.
 	auto testbed_config = testbed->GetConfig();
@@ -20,6 +21,11 @@ ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string se
 	{
 		throw std::runtime_error("Service "s + service_id + " is a nonexistent service id.");
 	}
+
+	auto service_info = testbed->GetServiceInfo(m_ServiceId);
+
+	m_State = DataStream::Open(service_info.state_stream_id);
+	std::cout << m_State->GetStreamId();
 }
 
 ServiceProxy::~ServiceProxy()
@@ -120,27 +126,12 @@ std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name)
 
 std::shared_ptr<DataStream> ServiceProxy::GetHeartbeat()
 {
-	return m_HeartbeatStream;
+	return m_Heartbeat;
 }
 
 ServiceState ServiceProxy::GetState()
 {
-	if (m_HeartbeatStream)
-	{
-		// Check heartbeat stream.
-		std::uint64_t heartbeat_time = m_HeartbeatStream->GetLatestFrame().AsArray<std::uint64_t>()(0);
-		std::uint64_t current_time = GetTimeStamp();
-
-		if ((current_time - heartbeat_time) / 1e9 < SERVICE_LIVELINESS)
-			return ServiceState::RUNNING;
-	}
-
-	auto state = m_Testbed->GetServiceState(m_ServiceId);
-	m_LastKnownState = state;
-
-	// Connect if the service became operational.
-	if (m_LastKnownState != ServiceState::RUNNING && state == ServiceState::RUNNING)
-		Connect();
+	ServiceState state = ServiceState(m_State->GetLatestFrame().AsArray<std::int8_t>()(0));
 
 	return state;
 }
@@ -165,7 +156,7 @@ void ServiceProxy::Start()
 
 void ServiceProxy::Stop()
 {
-	if (!IsAlive())
+	if (!IsRunning())
 		return;
 
 	Connect();
@@ -223,12 +214,20 @@ void ServiceProxy::WaitUntilRunning(double timeout_in_sec, void (*error_check)()
 
 void ServiceProxy::Connect()
 {
-	// Check if we are already connected.
-	if (m_Client)
-		return;
-
 	// Check if the service is running.
-	if (!IsRunning())
+	// Do an explicit check on the state stream to avoid infinite loop.
+	auto frame = m_State->GetLatestFrame();
+	ServiceState state = ServiceState(frame.AsArray<std::int8_t>()(0));
+
+	if (state != ServiceState::RUNNING)
+	{
+		// Disconnect.
+		m_Client = nullptr;
+		return;
+	}
+
+	// Check if we are already connected to the Service.
+	if (m_TimeLastConnect == frame.m_TimeStamp)
 		return;
 
 	// Get the host and port of the service.
@@ -270,7 +269,8 @@ void ServiceProxy::Connect()
 
 	std::cout << "Heartbeat " << reply.heartbeat_stream_id() << std::endl;
 
-	m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
+	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
 
+	m_TimeLastConnect = frame.m_TimeStamp;
 	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");
 }

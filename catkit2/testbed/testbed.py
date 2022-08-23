@@ -13,7 +13,7 @@ import zmq
 import yaml
 import numpy as np
 
-from ..catkit_bindings import LogConsole, LogPublish, Server, ServiceState, DataStream, get_timestamp
+from ..catkit_bindings import LogConsole, LogPublish, Server, ServiceState, DataStream, get_timestamp, is_alive_state
 from .log_handler import *
 
 from ..proto import testbed_pb2 as testbed_proto
@@ -115,15 +115,36 @@ class ServiceReference:
         self.service_id = service_id
         self.service_type = service_type
 
+        self.state_stream = DataStream.create('state', service_id, 'int8', [1], 20)
         self.state = state
-        self.process = None
+
+        self._process_id = 0
+
+        self.host = '127.0.0.1'
         self.port = 0
+        self.heartbeat = None
 
         self.log = logging.getLogger(__name__)
 
-    def update_state(self, new_state):
-        self.state = new_state
-        self.log.info(f'The state of service "{self.service_id}" is now {new_state}.')
+    @property
+    def state(self):
+        return ServiceState(int(self.state_stream.get()[0]))
+
+    @state.setter
+    def state(self, state):
+        new_state = np.array([state.value], dtype='int8')
+        self.state_stream.submit_data(new_state)
+
+    @property
+    def is_alive(self):
+        return is_alive_state(self.state)
+
+    @property
+    def process(self):
+        try:
+            return psutil.Process(self.process_id)
+        except psutil.NoSuchProcess:
+            return None
 
     def send_keyboard_interrupt(self):
         '''Send a keyboard interrupt to the service.
@@ -209,7 +230,6 @@ class Testbed:
         self.server.register_request_handler('get_info', self.on_get_info)
         self.server.register_request_handler('get_service_info', self.on_get_service_info)
         self.server.register_request_handler('register_service', self.on_register_service)
-        self.server.register_request_handler('update_service_state', self.on_update_service_state)
         self.server.register_request_handler('shut_down', self.on_shut_down)
 
         self.is_running = False
@@ -303,7 +323,7 @@ class Testbed:
 
     def on_start_service(self, data):
         request = testbed_proto.StartServiceRequest()
-        request.ParseFromString(bytes(data, 'ascii'))
+        request.ParseFromString(data)
 
         service_id = request.service_id
 
@@ -313,18 +333,11 @@ class Testbed:
 
         reply = testbed_proto.StartServiceReply()
 
-        service_ref = reply.service
-        service_ref.id = service_id
-        service_ref.type = ref.service_type
-        service_ref.state = ref.state.value
-        service_ref.host = self.host
-        service_ref.port = ref.port
-
         return reply.SerializeToString()
 
     def on_stop_service(self, data):
         request = testbed_proto.StopServiceRequest()
-        request.ParseFromString(bytes(data, 'ascii'))
+        request.ParseFromString(data)
 
         service_id = request.service_id
 
@@ -336,7 +349,7 @@ class Testbed:
     def on_interrupt_service(self, data):
         print(data)
         request = testbed_proto.InterruptServiceRequest()
-        request.ParseFromString(bytes(data, 'ascii'))
+        request.ParseFromString(data)
 
         service_id = request.service_id
 
@@ -348,7 +361,7 @@ class Testbed:
     def on_terminate_service(self, data):
         print(data)
         request = testbed_proto.TerminateServiceRequest()
-        request.ParseFromString(bytes(data, 'ascii'))
+        request.ParseFromString(data)
 
         service_id = request.service_id
 
@@ -373,7 +386,7 @@ class Testbed:
 
     def on_get_service_info(self, data):
         request = testbed_proto.GetServiceInfoRequest()
-        request.ParseFromString(bytes(data, 'ascii'))
+        request.ParseFromString(data)
 
         service_id = request.service_id
 
@@ -384,26 +397,31 @@ class Testbed:
         service_ref = reply.service
         service_ref.id = service_id
         service_ref.type = ref.service_type
-        service_ref.state = ref.state.value
+        service_ref.state_stream_id = ref.state_stream.stream_id
         service_ref.host = self.host
         service_ref.port = ref.port
 
         return reply.SerializeToString()
 
     def on_register_service(self, data):
-        pass  # TODO
+        request = testbed_proto.RegisterServiceRequest()
+        request.ParseFromString(data)
 
-    def on_update_service_state(self, data):
-        request = testbed_proto.UpdateServiceStateRequest()
-        request.ParseFromString(bytes(data, 'ascii'))
+        service = self.services[request.service_id]
 
-        service_id = request.service_id
-        new_state = ServiceState(request.new_state)
+        if service.service_type != request.service_type:
+            self.log.error('Service was started with the wrong service type.')
 
-        self.services[service_id].update_state(new_state)
+            raise RuntimeError('Service registration has the wrong service type.')
 
-        reply = testbed_proto.UpdateServiceStateReply()
-        reply.new_state = request.new_state
+        service.host = request.host
+        service.port = request.port
+        service.process_id = request.process_id
+        service.heartbeat = DataStream.open(request.heartbeat_stream_id)
+
+        reply = testbed_proto.RegisterServiceReply()
+
+        reply.state_stream_id = service.state_stream.stream_id
 
         return reply.SerializeToString()
 
@@ -476,7 +494,8 @@ class Testbed:
             cwd=dirname)
 
         # Store a reference to the service.
-        self.services[service_id].update_state(ServiceState.INITIALIZING)
+        self.services[service_id].state = ServiceState.INITIALIZING
+        self.services[service_id].process_id = process.pid
         self.services[service_id].port = port
 
         self.log.info(f'Started service "{service_id}" with type "{service_type}".')

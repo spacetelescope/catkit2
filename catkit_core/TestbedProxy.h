@@ -19,7 +19,7 @@ struct ServiceReference
 {
 	std::string id;
 	std::string type;
-	ServiceState state;
+	std::string state_stream_id;
 	std::string host;
 	unsigned long port;
 };
@@ -40,10 +40,8 @@ public:
 	void TerminateService(const std::string &service_id);
 
 	ServiceReference GetServiceInfo(const std::string &service_id);
-	ServiceState GetServiceState(const std::string &service_id);
 
-	void RegisterService(std::string service_id, std::string service_type, int port);
-	void UpdateServiceState(std::string service_id, ServiceState new_state);
+	std::string RegisterService(std::string service_id, std::string service_type, std::string host, int port, int process_id, std::string heartbeat_stream_id);
 
 	bool IsSimulated();
 	bool IsAlive();

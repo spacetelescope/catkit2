@@ -23,7 +23,7 @@ const double SAFETY_INTERVAL = 60;  // seconds.
 Service::Service(string service_type, string service_id, int service_port, int testbed_port)
 	: m_Server(service_port), m_ServiceId(service_id), m_ServiceType(service_type),
 	m_LoggerConsole(), m_LoggerPublish(service_id, "tcp://127.0.0.1:"s + to_string(testbed_port + 1)),
-	m_Heartbeat(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
+	m_Heartbeat(nullptr), m_State(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
 	m_IsRunning(false), m_ShouldShutDown(false)
 {
 	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
@@ -31,7 +31,17 @@ Service::Service(string service_type, string service_id, int service_port, int t
 
 	m_Heartbeat = DataStream::Create("heartbeat", service_id, DataType::DT_UINT64, {1}, 20);
 
-	m_Testbed->UpdateServiceState(service_id, ServiceState::INITIALIZING);
+	string state_stream_id = m_Testbed->RegisterService(
+		service_id,
+		service_type,
+		"127.0.0.1",
+		service_port,
+		GetProcessId(),
+		m_Heartbeat->GetStreamId()
+	);
+
+	m_State = DataStream::Open(state_stream_id);
+	UpdateState(ServiceState::INITIALIZING);
 
 	LOG_DEBUG("Registering request handlers.");
 
@@ -59,7 +69,7 @@ void Service::Run(void (*error_check)())
 
 	// We can start the service now.
 	LOG_INFO("Opening service.");
-	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::OPENING);
+	UpdateState(ServiceState::OPENING);
 
 	try
 	{
@@ -71,14 +81,14 @@ void Service::Run(void (*error_check)())
 		LOG_CRITICAL("Shutting down service.");
 
 		m_IsRunning = false;
-		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CRASHED);
+		UpdateState(ServiceState::CRASHED);
 		return;
 	}
 
 	LOG_INFO("Service was succesfully opened.");
 
 	m_IsRunning = true;
-	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::RUNNING);
+	UpdateState(ServiceState::RUNNING);
 
 	LOG_INFO("Starting service main function.");
 
@@ -123,7 +133,7 @@ void Service::Run(void (*error_check)())
 
 	LOG_INFO("Service main has ended.");
 
-	m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CLOSING);
+	UpdateState(ServiceState::CLOSING);
 
 	LOG_INFO("Closing service.");
 
@@ -139,12 +149,12 @@ void Service::Run(void (*error_check)())
 	if (crashed)
 	{
 		LOG_INFO("Service was safely closed after crash.");
-		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CRASHED);
+		UpdateState(ServiceState::CRASHED);
 	}
 	else
 	{
 		LOG_INFO("Service was closed.");
-		m_Testbed->UpdateServiceState(m_ServiceId, ServiceState::CLOSED);
+		UpdateState(ServiceState::CLOSED);
 	}
 
 	// Set heartbeat timestamp to zero to signal a dead service.
@@ -448,6 +458,12 @@ string Service::HandleShutDown(const string &data)
 	reply.SerializeToString(&reply_string);
 
 	return reply_string;
+}
+
+void Service::UpdateState(ServiceState state)
+{
+	int8_t new_state = state;
+	m_State->SubmitData(&new_state);
 }
 
 void print_usage()

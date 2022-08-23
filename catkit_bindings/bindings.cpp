@@ -217,17 +217,19 @@ void error_check_python()
 		throw py::error_already_set();
 }
 
+typedef std::function<std::string(py::bytes)> PythonRequestHandler;
+
 PYBIND11_MODULE(catkit_bindings, m)
 {
 	py::class_<Server>(m, "Server")
 		.def(py::init<int>())
-		.def("register_request_handler", [](Server &server, std::string type, Server::RequestHandler request_handler)
+		.def("register_request_handler", [](Server &server, std::string type, PythonRequestHandler request_handler)
 		{
 			server.RegisterRequestHandler(type, [request_handler](const std::string &data)
 			{
 				// Acquire the GIL before calling the request handler.
 				py::gil_scoped_acquire acquire;
-				return request_handler(data);
+				return request_handler(py::bytes(data));
 			});
 		})
 		.def("start", &Server::Start)
@@ -289,6 +291,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.value("CLOSING", ServiceState::CLOSING)
 		.value("UNRESPONSIVE", ServiceState::UNRESPONSIVE)
 		.value("CRASHED", ServiceState::CRASHED);
+
+	m.def("is_alive_state", &IsAliveState);
 
 	py::class_<ServiceProxy, std::shared_ptr<ServiceProxy>>(m, "ServiceProxy")
 		.def(py::init<std::shared_ptr<TestbedProxy>, std::string>())

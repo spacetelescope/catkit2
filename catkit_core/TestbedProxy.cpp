@@ -130,25 +130,23 @@ ServiceReference TestbedProxy::GetServiceInfo(const std::string &service_id)
 
 	res.id = reply.service().id();
 	res.type = reply.service().type();
-	res.state = (ServiceState) (int) reply.service().state();
+	res.state_stream_id = reply.service().state_stream_id();
 	res.host = reply.service().host();
 	res.port = reply.service().port();
 
 	return res;
 }
 
-ServiceState TestbedProxy::GetServiceState(const std::string &service_id)
-{
-	return GetServiceInfo(service_id).state;
-}
-
-void TestbedProxy::RegisterService(std::string service_id, std::string service_type, int port)
+std::string TestbedProxy::RegisterService(std::string service_id, std::string service_type, std::string host, int port, int process_id, std::string heartbeat_stream_id)
 {
 	catkit_proto::testbed::RegisterServiceRequest request;
+
 	request.set_service_id(service_id);
 	request.set_service_type(service_type);
-	request.set_host("127.0.0.1");
+	request.set_host(host);
 	request.set_port(port);
+	request.set_process_id(process_id);
+	request.set_heartbeat_stream_id(heartbeat_stream_id);
 
 	catkit_proto::testbed::RegisterServiceReply reply;
 
@@ -158,28 +156,10 @@ void TestbedProxy::RegisterService(std::string service_id, std::string service_t
 	}
 	catch (...)
 	{
-		std::runtime_error("Service could not be registered.");
+		throw std::runtime_error("Service could not be registered.");
 	}
 
-	m_Config = json::parse(reply.service_config());
-}
-
-void TestbedProxy::UpdateServiceState(std::string service_id, ServiceState new_state)
-{
-	catkit_proto::testbed::UpdateServiceStateRequest request;
-	request.set_service_id(service_id);
-	request.set_new_state((catkit_proto::testbed::ServiceState)(int)new_state);
-
-	catkit_proto::testbed::UpdateServiceStateReply reply;
-
-	try
-	{
-		reply.ParseFromString(MakeRequest("update_service_state", Serialize(request)));
-	}
-	catch (...)
-	{
-		std::runtime_error("Service state could not be updated.");
-	}
+	return reply.state_stream_id();
 }
 
 bool TestbedProxy::IsSimulated()
@@ -202,7 +182,7 @@ bool TestbedProxy::IsAlive()
 void TestbedProxy::ShutDown()
 {
 	catkit_proto::testbed::ShutDownRequest request;
-	catkit_proto::testbed::UpdateServiceStateReply reply;
+	catkit_proto::testbed::ShutDownReply reply;
 
 	try
 	{
