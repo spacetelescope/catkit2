@@ -3,7 +3,7 @@ import sys
 import zmq
 
 from ..testbed.service import Service
-from ..testbed.client import TestbedClient
+from ..testbed.testbed_proxy import TestbedProxy
 from .simulator_pb2 import *
 
 def numpy_to_proto(arr, out=None):
@@ -61,7 +61,7 @@ def proto_to_numpy(tensor):
 
 class SimulatorClient:
     def __init__(self, service_name, testbed_port):
-        testbed = TestbedClient(testbed_port)
+        testbed = TestbedProxy(testbed_port)
         self.simulator_port = testbed.simulator.port
 
         self.context = zmq.Context()

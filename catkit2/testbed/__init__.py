@@ -3,12 +3,12 @@ __all__ = [
     'Service',
     'parse_service_args',
     'CatkitLogHandler',
-    'TestbedClient',
+    'TestbedProxy',
     'ServiceProxy',
 ]
 
 from .testbed import *
 from .service import *
 from .log_handler import *
-from .client import *
+from .testbed_proxy import *
 from .service_proxy import *
