@@ -19,7 +19,7 @@ add_library(catkit_core STATIC
     Log.cpp
     LogConsole.cpp
     LogFile.cpp
-    LogPublish.cpp
+    LogForwarder.cpp
     HostName.cpp
     Command.cpp
     Property.cpp

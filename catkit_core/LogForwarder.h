@@ -1,5 +1,5 @@
-#ifndef LOGPUBLISH_H
-#define LOGPUBLISH_H
+#ifndef LOGFORWARDER_H
+#define LOGFORWARDER_H
 
 #include <zmq.hpp>
 
@@ -12,11 +12,11 @@
 
 #include "Log.h"
 
-class LogPublish : LogListener
+class LogForwarder : LogListener
 {
 public:
-	LogPublish(std::string service_name, std::string host);
-	~LogPublish();
+	LogForwarder(std::string service_name, std::string host);
+	~LogForwarder();
 
     void AddLogEntry(const LogEntry &entry);
 
@@ -35,4 +35,4 @@ private:
 	std::string m_Host;
 };
 
-#endif // LOGPUBLISH_H
+#endif // LOGFORWARDER_H

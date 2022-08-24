@@ -13,7 +13,7 @@
 #include "Command.h"
 #include "DataStream.h"
 #include "LogConsole.h"
-#include "LogPublish.h"
+#include "LogForwarder.h"
 #include "Server.h"
 #include "ServiceState.h"
 
@@ -93,7 +93,7 @@ private:
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
 
 	LogConsole m_LoggerConsole;
-	LogPublish m_LoggerPublish;
+	LogForwarder m_LoggerPublish;
 };
 
 std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[]);

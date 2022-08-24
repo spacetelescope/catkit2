@@ -13,7 +13,7 @@ import zmq
 import yaml
 import numpy as np
 
-from ..catkit_bindings import LogConsole, LogPublish, Server, ServiceState, DataStream, get_timestamp, is_alive_state
+from ..catkit_bindings import LogConsole, LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state
 from .log_handler import *
 
 from ..proto import testbed_pb2 as testbed_proto
@@ -203,7 +203,7 @@ class Testbed:
         self.log_handler = None
         self.logging_proxy = None
         self.log_console = None
-        self.log_publish = None
+        self.log_forwarder = None
 
         self.log = logging.getLogger(__name__)
 
@@ -295,7 +295,7 @@ class Testbed:
         logging.getLogger().setLevel(logging.DEBUG)
 
         #self.log_console = LogConsole()
-        self.log_publish = LogPublish('testbed', f'tcp://localhost:{self.port + 1}')
+        self.log_forwarder = LogForwarder('testbed', f'tcp://localhost:{self.port + 1}')
 
     def destroy_logging(self):
         '''Shut down all logging.
@@ -308,9 +308,9 @@ class Testbed:
             del self.log_console
             self.log_console = None
 
-        if self.log_publish:
-            del self.log_publish
-            self.log_publish = None
+        if self.log_forwarder:
+            del self.log_forwarder
+            self.log_forwarder = None
 
     def start_logging_proxy(self):
         '''Start the logging proxy.

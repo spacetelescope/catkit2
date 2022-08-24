@@ -11,7 +11,7 @@
 #include "Property.h"
 #include "Log.h"
 #include "LogConsole.h"
-#include "LogPublish.h"
+#include "LogForwarder.h"
 #include "Types.h"
 #include "TestbedProxy.h"
 #include "ServiceProxy.h"
@@ -488,7 +488,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			py::arg("use_color") = true,
 			py::arg("print_context") = true);
 
-	py::class_<LogPublish>(m, "LogPublish")
+	py::class_<LogForwarder>(m, "LogForwarder")
 		.def(py::init<std::string, std::string>());
 
 #ifdef VERSION_INFO

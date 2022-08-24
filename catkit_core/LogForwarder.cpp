@@ -1,4 +1,4 @@
-#include "LogPublish.h"
+#include "LogForwarder.h"
 
 #include <nlohmann/json.hpp>
 #include <iostream>
@@ -6,13 +6,13 @@
 using namespace zmq;
 using json = nlohmann::json;
 
-LogPublish::LogPublish(std::string service_name, std::string host)
+LogForwarder::LogForwarder(std::string service_name, std::string host)
 	: m_ServiceName(service_name), m_Host(host), m_ShutDown(false)
 {
-	m_MessageLoopThread = std::thread(&LogPublish::MessageLoop, this);
+	m_MessageLoopThread = std::thread(&LogForwarder::MessageLoop, this);
 }
 
-LogPublish::~LogPublish()
+LogForwarder::~LogForwarder()
 {
 	ShutDown();
 
@@ -20,7 +20,7 @@ LogPublish::~LogPublish()
 		m_MessageLoopThread.join();
 }
 
-void LogPublish::AddLogEntry(const LogEntry &entry)
+void LogForwarder::AddLogEntry(const LogEntry &entry)
 {
 	json message = {
 		{"service_name", m_ServiceName},
@@ -41,7 +41,7 @@ void LogPublish::AddLogEntry(const LogEntry &entry)
 	m_ConditionVariable.notify_all();
 }
 
-void LogPublish::MessageLoop()
+void LogForwarder::MessageLoop()
 {
 	context_t context;
 	socket_t socket(context, ZMQ_PUSH);
@@ -85,7 +85,7 @@ void LogPublish::MessageLoop()
 	socket.close();
 }
 
-void LogPublish::ShutDown()
+void LogForwarder::ShutDown()
 {
 	m_ShutDown = true;
 	m_ConditionVariable.notify_all();
