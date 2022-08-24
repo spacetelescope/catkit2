@@ -1,4 +1,7 @@
 import logging
+import threading
+import zmq
+import json
 
 from ..catkit_bindings import submit_log_entry, Severity
 

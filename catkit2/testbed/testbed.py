@@ -209,7 +209,7 @@ class Testbed:
 
             # Stop the logging.
             self.destroy_logging()
-            self.stop_log_distributor()()
+            self.stop_log_distributor()
 
             self.context = None
 
