@@ -24,79 +24,6 @@ def get_unused_port():
         sock.bind(('', 0))
         return sock.getsockname()[1]
 
-class LoggingProxy:
-    '''A proxy to collect log messages from services and clients, and re-publish them.
-
-    This proxy operates on a separate thread after it is started.
-
-    Parameters
-    ----------
-    context : zmq.Context
-        A previously-created ZMQ context. All sockets will be created on this context.
-    input_port : integer
-        The port number for the incoming log messages.
-    output_port : integer
-        The port number for the outgoing log messages.
-    '''
-    def __init__(self, context, input_port, output_port):
-        self.context = context
-        self.input_port = input_port
-        self.output_port = output_port
-
-        self.shutdown_flag = threading.Event()
-        self.thread = None
-
-    def start(self):
-        '''Start the proxy thread.
-        '''
-        self.thread = threading.Thread(target=self.forwarder)
-        self.thread.start()
-
-    def stop(self):
-        '''Stop the proxy thread.
-
-        This function waits until the thread is actually stopped.
-        '''
-        self.shutdown_flag.set()
-
-        if self.thread:
-            self.thread.join()
-
-    def forwarder(self):
-        '''Create sockets and republish all received log messages.
-
-        .. note::
-            This function should not be called directly. Use
-            :func:`~catkit2.testbed.LoggingProxy.start` to start the proxy.
-        '''
-        collector = self.context.socket(zmq.PULL)
-        collector.RCVTIMEO = 50
-        collector.bind(f'tcp://*:{self.input_port}')
-
-        publicist = self.context.socket(zmq.PUB)
-        publicist.bind(f'tcp://*:{self.output_port}')
-
-        while True:
-            try:
-                log_message = collector.recv_multipart()
-                publicist.send_multipart(log_message)
-            except zmq.ZMQError as e:
-                if e.errno == zmq.EAGAIN:
-                    # Timed out.
-                    if self.shutdown_flag.is_set():
-                        break
-                    else:
-                        continue
-                else:
-                    raise RuntimeError('Error during receive') from e
-
-            log_message = log_message[0].decode('ascii')
-            log_message = json.loads(log_message)
-
-            print(f'[{log_message["service_name"]}] {log_message["message"]}')
-
-            # TODO: Write to a file.
-
 class ServiceReference:
     '''A reference to a service running on another process.
 
@@ -200,9 +127,8 @@ class Testbed:
 
         self.services = {}
 
+        self.log_distributor = None
         self.log_handler = None
-        self.logging_proxy = None
-        self.log_console = None
         self.log_forwarder = None
 
         self.log = logging.getLogger(__name__)
@@ -250,7 +176,7 @@ class Testbed:
         self.context = zmq.Context()
 
         # Start the logging.
-        self.start_logging_proxy()
+        self.start_log_distributor()
         self.setup_logging()
 
         # Start the server
@@ -283,7 +209,7 @@ class Testbed:
 
             # Stop the logging.
             self.destroy_logging()
-            self.stop_logging_proxy()
+            self.stop_log_distributor()()
 
             self.context = None
 
@@ -294,7 +220,6 @@ class Testbed:
         logging.getLogger().addHandler(self.log_handler)
         logging.getLogger().setLevel(logging.DEBUG)
 
-        #self.log_console = LogConsole()
         self.log_forwarder = LogForwarder('testbed', f'tcp://localhost:{self.port + 1}')
 
     def destroy_logging(self):
@@ -304,26 +229,22 @@ class Testbed:
             logging.getLogger().removeHandler(self.log_handler)
             self.log_handler = None
 
-        if self.log_console:
-            del self.log_console
-            self.log_console = None
-
         if self.log_forwarder:
             del self.log_forwarder
             self.log_forwarder = None
 
-    def start_logging_proxy(self):
-        '''Start the logging proxy.
+    def start_log_distributor(self):
+        '''Start the log distributor.
         '''
-        self.logging_proxy = LoggingProxy(self.context, self.port + 1, self.port + 2)
-        self.logging_proxy.start()
+        self.log_distributor = LogDistributor(self.context, self.port + 1, self.port + 2)
+        self.log_distributor.start()
 
-    def stop_logging_proxy(self):
-        '''Stop the logging proxy.
+    def stop_log_distributor(self):
+        '''Stop the log distributor.
         '''
-        if self.logging_proxy:
-            self.logging_proxy.stop()
-            self.logging_proxy = None
+        if self.log_distributor:
+            self.log_distributor.stop()
+            self.log_distributor = None
 
     def on_start_service(self, data):
         request = testbed_proto.StartServiceRequest()
