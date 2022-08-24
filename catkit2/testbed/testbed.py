@@ -14,7 +14,7 @@ import yaml
 import numpy as np
 
 from ..catkit_bindings import LogConsole, LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state
-from .log_handler import *
+from .logging import *
 
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto

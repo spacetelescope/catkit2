@@ -1,11 +1,22 @@
+import logging
+
 from docopt import docopt
 
-from ..catkit_bindings import Service
+from .. import catkit_bindings
+from .logging import CatkitLogHandler
 
 doc = '''
 Usage:
   service --id ID --port PORT --testbed_port TESTBEDPORT
 '''
+
+class Service(catkit_bindings.Service):
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+
+        self._log_handler = CatkitLogHandler()
+        logging.getLogger(__name__).addHandler(self.log_handler)
+        logging.getLogger(__name__).setLevel(logging.DEBUG)
 
 def parse_service_args(argv=None):
     '''Parse the command line arguments for a launched service.

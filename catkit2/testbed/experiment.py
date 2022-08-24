@@ -4,7 +4,7 @@ import socket
 import time
 import datetime
 
-from catkit2.testbed.log_handler import CatkitLogHandler
+from catkit2.testbed.logging import CatkitLogHandler
 
 
 class Experiment:
@@ -36,12 +36,16 @@ class Experiment:
             if self.is_base_experiment is None:
                 self.is_base_experiment = len(Experiment._running_experiments) == 1
 
+            # Compute and make output path.
             self.output_path = self._compute_output_path()
+            os.makedirs(self.output_path, exist_ok=True)
 
             # Set up log handlers, but only once
             if len(Experiment._running_experiments) == 1:
+                # Set up handler for distributing our Python log messages.
                 log_handler = CatkitLogHandler()
                 logging.getLogger().addHandler(log_handler)
+                logging.getLogger().setLevel(logging.DEBUG)
                 set_up_log_handler = True
 
             # Run actual experiment code.
@@ -111,8 +115,6 @@ class Experiment:
         # Compute the output path.
         experiment_path = experiment_path_template.format(**format_dict)
         output_path = os.path.join(base_data_path, experiment_path)
-
-        os.makedirs(output_path, exist_ok=True)
 
         return output_path
 

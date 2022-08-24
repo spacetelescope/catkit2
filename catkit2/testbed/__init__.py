@@ -11,6 +11,6 @@ __all__ = [
 from .testbed import *
 from .experiment import *
 from .service import *
-from .log_handler import *
+from .logging import *
 from .testbed_proxy import *
 from .service_proxy import *
