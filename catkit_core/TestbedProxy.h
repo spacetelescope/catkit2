@@ -53,8 +53,15 @@ public:
 	nlohmann::json GetConfig();
 
 	std::string GetHost();
+
+	int GetLoggingIngressPort();
 	int GetLoggingEgressPort();
+
+	int GetDataLoggingIngressPort();
+	int GetDataLoggingEgressPort();
+
 	int GetTracingIngressPort();
+	int GetTracingEgressPort();
 
 	std::vector<std::string> GetActiveServices();
 	std::vector<std::string> GetInactiveServices();
@@ -68,7 +75,10 @@ private:
 	int m_LoggingEgressPort;
 
 	int m_DataLoggingIngressPort;
+	int m_DataLoggingEgressPort;
+
 	int m_TracingIngressPort;
+	int m_TracingEgressPort;
 
 	bool m_HasGottenInfo;
 

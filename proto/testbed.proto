@@ -35,7 +35,9 @@ message GetInfoReply
     uint32 logging_ingress_port = 5;
     uint32 logging_egress_port = 6;
     uint32 data_logging_ingress_port = 7;
-    uint32 tracing_ingress_port = 8;
+    uint32 data_logging_egress_port = 8;
+    uint32 tracing_ingress_port = 9;
+    uint32 tracing_egress_port = 10;
 }
 
 message GetServicesRequest

@@ -213,14 +213,34 @@ std::string TestbedProxy::GetHost()
 	return m_Host;
 }
 
+int TestbedProxy::GetLoggingIngressPort()
+{
+	return m_LoggingIngressPort;
+}
+
 int TestbedProxy::GetLoggingEgressPort()
 {
 	return m_LoggingEgressPort;
 }
 
+int TestbedProxy::GetDataLoggingIngressPort()
+{
+	return m_DataLoggingIngressPort;
+}
+
+int TestbedProxy::GetDataLoggingEgressPort()
+{
+	return m_DataLoggingEgressPort;
+}
+
 int TestbedProxy::GetTracingIngressPort()
 {
 	return m_TracingIngressPort;
+}
+
+int TestbedProxy::GetTracingEgressPort()
+{
+	return m_TracingEgressPort;
 }
 
 std::vector<std::string> TestbedProxy::GetActiveServices()
@@ -252,8 +272,12 @@ void TestbedProxy::GetTestbedInfo()
 
 	m_LoggingIngressPort = reply.logging_ingress_port();
 	m_LoggingEgressPort = reply.logging_egress_port();
+
 	m_DataLoggingIngressPort = reply.data_logging_ingress_port();
+	m_DataLoggingEgressPort = reply.data_logging_egress_port();
+
 	m_TracingIngressPort = reply.tracing_ingress_port();
+	m_TracingEgressPort = reply.tracing_egress_port();
 
 	m_HasGottenInfo = true;
 }

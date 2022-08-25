@@ -346,7 +346,13 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("host", &TestbedProxy::GetHost)
 		.def_property_readonly("logging_egress_port", &TestbedProxy::GetLoggingEgressPort)
 		.def_property_readonly("active_services", &TestbedProxy::GetActiveServices)
-		.def_property_readonly("inactive_services", &TestbedProxy::GetInactiveServices);
+		.def_property_readonly("inactive_services", &TestbedProxy::GetInactiveServices)
+		.def_property_readonly("logging_ingress_port", &TestbedProxy::GetLoggingIngressPort)
+		.def_property_readonly("logging_egress_port", &TestbedProxy::GetLoggingEgressPort)
+		.def_property_readonly("data_logging_ingress_port", &TestbedProxy::GetDataLoggingIngressPort)
+		.def_property_readonly("data_logging_egress_port", &TestbedProxy::GetDataLoggingEgressPort)
+		.def_property_readonly("tracing_ingress_port", &TestbedProxy::GetTracingIngressPort)
+		.def_property_readonly("tracing_egress_port", &TestbedProxy::GetTracingEgressPort);
 
 	py::class_<DataFrame>(m, "DataFrame")
 		.def_property_readonly("id", [](const DataFrame &f)
