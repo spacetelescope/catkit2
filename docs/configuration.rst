@@ -39,7 +39,7 @@ The full configuration, including all sections, is available from any testbed cl
 
 .. code-block:: Python
 
-    testbed = TestbedClient(8080)
+    testbed = TestbedProxy('127.0.0.1', 8080)
     print(testbed.configuration)
     # Prints {'services': ['boston_dm': ....]}
 
@@ -55,7 +55,7 @@ Whenever a service starts, it receives its own configuration from the server as 
             print(self.config)
             # Prints only the configuration for our service
 
-            testbed = TestbedClient(self.server_port)
+            testbed = TestbedProxy('127.0.0.1', self.server_port)
             print(testbed.config)
             # Prints the whole configuration.
 

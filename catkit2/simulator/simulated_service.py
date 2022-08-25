@@ -61,7 +61,7 @@ def proto_to_numpy(tensor):
 
 class SimulatorClient:
     def __init__(self, service_name, testbed_port):
-        testbed = TestbedProxy(testbed_port)
+        testbed = TestbedProxy('127.0.0.1', testbed_port)
         self.simulator_port = testbed.simulator.port
 
         self.context = zmq.Context()
