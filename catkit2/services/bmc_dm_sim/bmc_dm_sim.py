@@ -33,7 +33,7 @@ class BmcDmSim(Service):
         self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.command_length], 20)
         self.total_surface = self.make_data_stream('total_surface', 'float64', [self.command_length], 20)
 
-        self.simulator_connection = SimulatorClient(service_name, testbed_port)
+        # TODO: connect to simulator.
 
     def add_channel(self, channel_name):
         self.channels[channel_name] = self.make_data_stream(channel_name, 'float64', [self.command_length], 20)

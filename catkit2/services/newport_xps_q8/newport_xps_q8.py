@@ -26,7 +26,7 @@ class NewportXpsQ8(Service):
         self.timeout = self.config['timeout']
         self.motor_positions = self.config['motors']
         self.update_interval = self.config['update_interval']
-        self.motor_ids = list(config['motors'].keys())
+        self.motor_ids = list(self.config['motors'].keys())
         self.atol = self.config['atol']
 
         self.motor_commands = {}
