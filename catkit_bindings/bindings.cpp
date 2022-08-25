@@ -252,7 +252,11 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("make_request", &Client::MakeRequest, py::call_guard<py::gil_scoped_release>());
 
 	py::class_<Service, TrampolineService>(m, "Service")
-		.def(py::init<std::string, std::string, int, int>())
+		.def(py::init<std::string, std::string, int, int>(),
+			py::arg("service_type"),
+			py::arg("service_id"),
+			py::arg("service_port"),
+			py::arg("testbed_port"))
 		.def_property_readonly("id", &Service::GetId)
 		.def_property_readonly("config", &Service::GetConfig)
 		.def("run", [](Service &service)

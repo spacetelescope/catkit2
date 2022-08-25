@@ -10,14 +10,6 @@ Usage:
   service --id ID --port PORT --testbed_port TESTBEDPORT
 '''
 
-class Service(catkit_bindings.Service):
-    def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
-
-        self._log_handler = CatkitLogHandler()
-        logging.getLogger(__name__).addHandler(self.log_handler)
-        logging.getLogger(__name__).setLevel(logging.DEBUG)
-
 def parse_service_args(argv=None):
     '''Parse the command line arguments for a launched service.
 
@@ -38,4 +30,23 @@ def parse_service_args(argv=None):
     '''
     arguments = docopt(doc, argv=argv)
 
-    return arguments['ID'], int(arguments['PORT']), int(arguments['TESTBEDPORT'])
+    res = {
+        'service_id': arguments['ID'],
+        'service_port': int(arguments['PORT']),
+        'testbed_port': int(arguments['TESTBEDPORT'])
+    }
+
+    return res
+
+class Service(catkit_bindings.Service):
+    def __init__(self, service_type, **kwargs):
+        # Parse service arguments from argv, and update with overridden arguments.
+        service_args = parse_service_args()
+        service_args.update(kwargs)
+
+        super().__init__(service_type, **service_args)
+
+        # Set up log handler.
+        self._log_handler = CatkitLogHandler()
+        logging.getLogger(__name__).addHandler(self._log_handler)
+        logging.getLogger(__name__).setLevel(logging.DEBUG)
