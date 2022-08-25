@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 from catkit2.testbed.client import TestbedClient
 from catkit2.catkit_bindings import get_timestamp
 
@@ -7,17 +7,12 @@ import sys
 import numpy as np
 
 class SafetyMonitor(Service):
-    def __init__(self, service_name, service_port, testbed_port):
-        Service.__init__(self, service_name, 'safety_monitor', service_port, testbed_port)
+    def __init__(self):
+        super().__init__('safety_monitor')
 
-        self.testbed = TestbedClient(testbed_port)
-
-        config = self.configuration
-        self.check_interval = config['check_interval']
-        self.safeties = config['safeties']
+        self.check_interval = self.config['check_interval']
+        self.safeties = self.config['safeties']
         self.checked_safeties = list(sorted(self.safeties.keys()))
-
-        self.shutdown_flag = False
 
         self.data_streams = {}
 
@@ -78,7 +73,5 @@ class SafetyMonitor(Service):
         self.data_streams = {}
 
 if __name__ == '__main__':
-    service_name, service_port, testbed_port = parse_service_args()
-
-    service = SafetyMonitor(service_name, service_port, testbed_port)
+    service = SafetyMonitor()
     service.run()

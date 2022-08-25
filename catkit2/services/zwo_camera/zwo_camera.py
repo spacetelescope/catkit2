@@ -3,7 +3,7 @@ import time
 import os
 import numpy as np
 
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 import zwoasi
 
@@ -44,10 +44,9 @@ class StoppedAcquisition:
 class ZwoCamera(Service):
     NUM_FRAMES_IN_BUFFER = 20
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'zwo_camera', testbed_port)
+    def __init__(self):
+        super().__init__('zwo_camera')
 
-        self.shutdown_flag = threading.Event()
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
@@ -55,8 +54,6 @@ class ZwoCamera(Service):
         self.mutex = threading.Lock()
 
     def open(self):
-        config = self.configuration
-
         # Attempt to find USB camera.
         num_cameras = zwoasi.get_num_cameras()
         if num_cameras == 0:
@@ -64,7 +61,7 @@ class ZwoCamera(Service):
 
         # Get camera id and name.
         cameras_found = zwoasi.list_cameras()  # Model names of the connected cameras.
-        camera_index = cameras_found.index(config['device_name'])
+        camera_index = cameras_found.index(self.config['device_name'])
 
         # Create a camera object using the zwoasi library.
         self.camera = zwoasi.Camera(camera_index)
@@ -91,16 +88,16 @@ class ZwoCamera(Service):
         self.camera.set_image_type(zwoasi.ASI_IMG_RAW16)
 
         # Set device values from config file (set width and height before offsets)
-        offset_x = config.get('offset_x', 0)
-        offset_y = config.get('offset_y', 0)
+        offset_x = self.config.get('offset_x', 0)
+        offset_y = self.config.get('offset_y', 0)
 
-        self.width = config.get('width', self.sensor_width - offset_x)
-        self.height = config.get('height', self.sensor_height - offset_y)
+        self.width = self.config.get('width', self.sensor_width - offset_x)
+        self.height = self.config.get('height', self.sensor_height - offset_y)
         self.offset_x = offset_x
         self.offset_y = offset_y
 
-        self.gain = config.get('gain', 0)
-        self.exposure_time = config.get('exposure_time', 1000)
+        self.gain = self.config.get('gain', 0)
+        self.exposure_time = self.config.get('exposure_time', 1000)
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
@@ -146,12 +143,11 @@ class ZwoCamera(Service):
         self.temperature_thread.start()
 
     def main(self):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
     def close(self):
-        self.shutdown_flag.set()
         self.temperature_thread.join()
 
         self.camera.close()
@@ -170,7 +166,7 @@ class ZwoCamera(Service):
         timeout = 10000 # ms
 
         try:
-            while self.should_be_acquiring.is_set() and not self.shutdown_flag.is_set():
+            while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 img = self.camera.capture_video_frame(timeout=timeout)
 
                 self.images.submit_data(img.astype('float32'))
@@ -180,20 +176,17 @@ class ZwoCamera(Service):
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
     def monitor_temperature(self):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
-            self.shutdown_flag.wait(1)
+            self.sleep(1)
 
     def start_acquisition(self):
         self.should_be_acquiring.set()
 
     def end_acquisition(self):
         self.should_be_acquiring.clear()
-
-    def shut_down(self):
-        self.shutdown_flag.set()
 
     @property
     def exposure_time(self):
@@ -287,7 +280,5 @@ class ZwoCamera(Service):
         self.camera.set_roi_start_position(self.offset_x, offset_y)
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = ZwoCamera(service_name, testbed_port)
+    service = ZwoCamera()
     service.run()

@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 import threading
 import numpy as np
@@ -33,20 +33,16 @@ class NewportPicomotor(Service):
         'get_error_message': 'TB?'
     }
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'newport_picomotor', testbed_port)
+    def __init__(self):
+        super().__init__('newport_picomotor')
 
-        config = self.configuration
-
-        self.ip = config['ip_address']
-        self.max_step = config['max_step']
-        self.timeout = config['timeout']
-        self.sleep_per_step = config['sleep_per_step']
-        self.sleep_base = config['sleep_base']
-        self.daisy = f"{config['daisy']}>" if config['daisy'] > 1 else ''
-        self.axes = config['axes']
-
-        self.shutdown_flag = threading.Event()
+        self.ip = self.config['ip_address']
+        self.max_step = self.config['max_step']
+        self.timeout = self.config['timeout']
+        self.sleep_per_step = self.config['sleep_per_step']
+        self.sleep_base = self.config['sleep_base']
+        self.daisy = f"{self.config['daisy']}>" if self.config['daisy'] > 1 else ''
+        self.axes = self.config['axes']
 
         self.axis_commands = {}
         self.axis_current_positions = {}
@@ -88,7 +84,7 @@ class NewportPicomotor(Service):
     def monitor_axis(self, axis_name):
         command_stream = self.axis_commands[axis_name]
 
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
@@ -99,8 +95,6 @@ class NewportPicomotor(Service):
             self.set_current_position(axis_name, frame.data[0])
 
     def open(self):
-        self.shutdown_flag.clear()
-
         # Ping the connection to make sure it works
         try:
             urllib.request.urlopen(f'http://{self.ip}', timeout=self.timeout)
@@ -123,18 +117,14 @@ class NewportPicomotor(Service):
             self.axis_threads[axis_name] = thread
 
     def main(self):
-        self.shutdown_flag.wait()
+        while not self.should_shut_down:
+            self.sleep(1)
 
     def close(self):
-        self.shut_down()
-
         for thread in self.axis_threads.values():
             thread.join()
 
         self.reset_all_axes()
-
-    def shut_down(self):
-        self.shutdown_flag.set()
 
     def reset_all_axes(self):
         for axis in self.axes.values():
@@ -185,7 +175,5 @@ class NewportPicomotor(Service):
 
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = NewportPicomotor(service_name, testbed_port)
+    service = NewportPicomotor()
     service.run()

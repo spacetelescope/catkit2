@@ -33,18 +33,13 @@ class Simulator(Service):
 
         self.running_cameras = {}
 
-        self.shutdown_flag = False
-
     def main(self):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             self.handle_messages()
-
-    def shut_down(self):
-        self.shutdown_flag = True
 
     def handle_messages(self):
         # Get message from queue.
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             try:
                 msgs = self.socket.recv_multipart()
                 break
@@ -56,7 +51,7 @@ class Simulator(Service):
                     print('error', e)
                     raise
 
-        if self.shutdown_flag:
+        if self.should_shut_down:
             return
 
         identity, cmd, proto = msgs

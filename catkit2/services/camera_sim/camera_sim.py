@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 from catkit2.simulator.simulated_service import SimulatorClient
 
 import time
@@ -7,10 +7,8 @@ import threading
 import numpy as np
 
 class CameraSim(Service):
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'camera_sim', testbed_port)
-
-        config = self.configuration
+    def __init__(self):
+        super().__init__('camera_sim')
 
         self.simulator_connection = SimulatorClient(service_name, testbed_port)
 

@@ -8,7 +8,7 @@ class BmcDmProxy(ServiceProxy):
     @property
     def dm_mask(self):
         if not hasattr(self, '_dm_mask'):
-            fname = self.configuration['dm_mask_fname']
+            fname = self.config['dm_mask_fname']
 
             self._dm_mask = fits.getdata(fname).astype('bool')
 
@@ -16,7 +16,7 @@ class BmcDmProxy(ServiceProxy):
 
     @property
     def num_actuators(self):
-        return self.configuration['num_actuators']
+        return self.config['num_actuators']
 
     def dm_shapes_to_command(self, dm1_shape, dm2_shape=None):
         command = np.zeros(2048)

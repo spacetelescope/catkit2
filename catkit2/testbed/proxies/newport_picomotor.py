@@ -47,4 +47,4 @@ class NewportPicomotorProxy(ServiceProxy):
 
     @property
     def atol(self):
-        return self.configuration['atol']
+        return self.config['atol']

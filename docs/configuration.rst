@@ -52,11 +52,11 @@ Whenever a service starts, it receives its own configuration from the server as 
             ...
 
         def func(self):
-            print(self.configuration)
+            print(self.config)
             # Prints only the configuration for our service
 
             testbed = TestbedClient(self.server_port)
-            print(testbed.configuration)
+            print(testbed.config)
             # Prints the whole configuration.
 
 As the configuration files are distributed over a number of directories, it is strongly recommended that no process obtains the testbed configuration directly from those files, rather than from the testbed server.

@@ -1,25 +1,21 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 import time
 from pysnmp import hlapi
 import numpy as np
 
 class SnmpUps(Service):
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'snmp_ups', testbed_port)
+    def __init__(self):
+        super().__init__('snmp_ups')
 
-        config = self.configuration
-
-        self.ip_address = config['ip_address']
-        self.port = config['port']
-        self.snmp_oid = config['snmp_oid']
-        self.community = config['community']
-        self.pass_status = config['pass_status']
-        self.check_interval = config.get('check_interval', 30)
+        self.ip_address = self.config['ip_address']
+        self.port = self.config['port']
+        self.snmp_oid = self.config['snmp_oid']
+        self.community = self.config['community']
+        self.pass_status = self.config['pass_status']
+        self.check_interval = self.config.get('check_interval', 30)
 
         self.power_ok = self.make_data_stream('power_ok', 'int8', [1], 20)
-
-        self.shutdown_flag = False
 
     def get_status(self):
         res = hlapi.getCmd(hlapi.SnmpEngine(),
@@ -47,20 +43,15 @@ class SnmpUps(Service):
             return False
 
     def main(self):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             start = time.time()
 
             power_ok = self.get_power_ok()
             frame = self.power_ok.submit_data(np.array([power_ok], dtype='int8'))
 
-            while not self.shutdown_flag and time.time() < (start + self.check_interval):
-                time.sleep(0.05)
-
-    def shut_down(self):
-        self.shutdown_flag = True
+            time_remaining = self.time_interval - (time.time() - start)
+            self.sleep(time_remaining)
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = SnmpUps(service_name, testbed_port)
+    service = SnmpUps()
     service.run()

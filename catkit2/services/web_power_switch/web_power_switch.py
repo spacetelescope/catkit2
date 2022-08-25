@@ -5,23 +5,20 @@ import threading
 import requests
 import numpy as np
 
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 class WebPowerSwitch(Service):
     _OK_STATES = (7, 11, 12, 42)
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'web_power_switch', testbed_port)
+    def __init__(self):
+        super().__init__('web_power_switch')
 
-        config = self.configuration
-        self.user = config['user']
-        self.password = config['password']
-        self.ip_address = config['ip_address']
-        self.dns = config['dns']
+        self.user = self.config['user']
+        self.password = self.config['password']
+        self.ip_address = self.config['ip_address']
+        self.dns = self.config['dns']
 
-        self.outlet_ids = config['outlets']
-
-        self.shutdown_flag = threading.Event()
+        self.outlet_ids = self.config['outlets']
 
         self.outlets = {}
         for outlet_name in self.outlet_ids.keys():
@@ -31,7 +28,7 @@ class WebPowerSwitch(Service):
         self.outlets[outlet_name] = self.make_data_stream(outlet_name.lower(), 'int8', [1], 20)
 
     def monitor_outlet(self, outlet_name):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             try:
                 frame = self.outlets[outlet_name].get_next_frame(10)
             except Exception:
@@ -65,22 +62,16 @@ class WebPowerSwitch(Service):
             self.outlet_threads[outlet_name] = thread
 
     def main(self):
-        self.shutdown_flag.wait()
+        while not self.should_shut_down:
+            self.sleep(1)
 
     def close(self):
-        # Stop the outlet threads
-        self.shutdown_flag.set()
-
+        # Stop the outlet threads.
         for thread in self.outlet_threads.values():
             thread.join()
 
         self.outlet_threads = {}
 
-    def shut_down(self):
-        self.shutdown_flag.set()
-
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = WebPowerSwitch(service_name, testbed_port)
+    service = WebPowerSwitch()
     service.run()

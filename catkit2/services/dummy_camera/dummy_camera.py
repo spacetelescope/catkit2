@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 import time
 from hcipy import *
@@ -6,8 +6,8 @@ import numpy as np
 import threading
 
 class DummyCamera(Service):
-    def __init__(self, *service_args):
-        Service.__init__(self, 'dummy_camera', *service_args)
+    def __init__(self):
+        super().__init__('dummy_camera')
 
         self.exposure_time = self.config['exposure_time']
         self.gain = self.config['gain']
@@ -116,9 +116,6 @@ class DummyCamera(Service):
     def end_acquisition(self):
         self.should_be_acquiring.clear()
 
-    def shut_down(self):
-        self.shutdown_flag.set()
-
     @property
     def width(self):
         return self._width
@@ -183,7 +180,12 @@ class DummyCamera(Service):
         return 'Dummy Camera'
 
 if __name__ == '__main__':
-    service_args = parse_service_args()
+    try:
+        service = DummyCamera()
+        service.run()
+    except Exception as e:
+        import traceback
 
-    service = DummyCamera(*service_args)
-    service.run()
+        print(traceback.format_exc())
+        input()
+

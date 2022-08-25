@@ -54,12 +54,12 @@ class NewportXpsQ8Proxy(ServiceProxy):
 
     @property
     def positions(self):
-        return {key.lower(): value for key, value in self.configuration['motors'].items()}
+        return {key.lower(): value for key, value in self.config['motors'].items()}
 
     @property
     def atol(self):
-        return self.configuration['atol']
+        return self.config['atol']
 
     @property
     def motors(self):
-        return self.configuration['motors']
+        return self.config['motors']
