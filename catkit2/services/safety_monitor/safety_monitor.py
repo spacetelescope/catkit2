@@ -1,5 +1,4 @@
-from catkit2.testbed.service import Service
-from catkit2.testbed.client import TestbedClient
+from catkit2.testbed import Service, TestbedProxy
 from catkit2.catkit_bindings import get_timestamp
 
 import time
@@ -58,7 +57,7 @@ class SafetyMonitor(Service):
         for safety_name in self.checked_safeties:
             safety = self.safeties[safety_name]
 
-            service = getattr(self.testbed, safety['service_name'])
+            service = self.testbed.get_service(safety['service_name'])
             self.data_streams[safety_name] = getattr(service, safety['stream_name'])
 
     def main(self):
