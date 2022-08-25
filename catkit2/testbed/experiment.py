@@ -4,8 +4,8 @@ import socket
 import time
 import datetime
 
-from catkit2.testbed.logging import CatkitLogHandler
-
+from .logging import CatkitLogHandler, LogWriter
+from ..catkit_bindings import LogForwarder
 
 class Experiment:
     name = 'default_experiment_name'
@@ -25,7 +25,10 @@ class Experiment:
 
     def run(self):
         started_experiment = False
-        set_up_log_handler = False
+
+        log_handler = None
+        log_forwarder = None
+        self._log_writer = None
 
         try:
             # Add myself to the list of running experiments.
@@ -46,15 +49,59 @@ class Experiment:
                 log_handler = CatkitLogHandler()
                 logging.getLogger().addHandler(log_handler)
                 logging.getLogger().setLevel(logging.DEBUG)
-                set_up_log_handler = True
 
-            # Run actual experiment code.
-            self.pre_experiment()
-            self.experiment()
-            self.post_experiment()
+                # Set up log forwarder.
+                log_forwarder = LogForwarder('experiment', f'tcp://{self.testbed.host}:{self.testbed.logging_ingress_port}')
+
+                # Set up log writer.
+                self._log_writer = LogWriter(self.testbed.host, self.testbed.logging_egress_port)
+                self._log_writer.start()
+
+                set_up_log = True
+
+            log_writer = Experiment._running_experiments[0]._log_writer
+
+            # Log the start of this new experiment.
+            self.log.info(f'Starting new experiment {self.name}.')
+            self.log.info(f'All output of this experiment is stored in {self.output_path}.')
+
+            # Compute log filename.
+            log_filename = os.path.join(self.output_path, 'experiment.log')
+
+            with log_writer.output_to(log_filename):
+                # Run actual experiment code.
+                try:
+                    self.pre_experiment()
+                except Exception as e:
+                    self.log.critical('An exception occurred during the pre-experiment.')
+                    self.log.critical(str(e))
+
+                    raise
+
+                try:
+                    self.experiment()
+                except Exception as e:
+                    self.log.critical('An exception occurred during the experiment.')
+                    self.log.critical(str(e))
+
+                    raise
+
+                try:
+                    self.post_experiment()
+                except Exception as e:
+                    self.log.critical('An exception occurred during the post-experiment.')
+                    self.log.critical(str(e))
+
+                    raise
         finally:
             # Tear down log handler.
-            if set_up_log_handler:
+            if self._log_writer is not None:
+                self._log_writer.stop()
+
+            if log_forwarder is not None:
+                log_forwarder = None
+
+            if log_handler is not None:
                 logging.getLogger().removeHandler(log_handler)
 
             # Remove myself from the list of running experiments.
@@ -125,7 +172,4 @@ class Experiment:
         pass
 
     def post_experiment(self):
-        pass
-
-    def reset_testbed(self):
         pass

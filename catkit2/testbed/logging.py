@@ -2,6 +2,7 @@ import logging
 import threading
 import zmq
 import json
+import contextlib
 
 from ..catkit_bindings import submit_log_entry, Severity
 
@@ -76,17 +77,14 @@ class LogDistributor:
         publicist = self.context.socket(zmq.PUB)
         publicist.bind(f'tcp://*:{self.output_port}')
 
-        while True:
+        while not self.shutdown_flag.is_set():
             try:
                 log_message = collector.recv_multipart()
                 publicist.send_multipart(log_message)
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
                     # Timed out.
-                    if self.shutdown_flag.is_set():
-                        break
-                    else:
-                        continue
+                    continue
                 else:
                     raise RuntimeError('Error during receive') from e
 
@@ -95,4 +93,103 @@ class LogDistributor:
 
             print(f'[{log_message["service_name"]}] {log_message["message"]}')
 
-            # TODO: Write to a file.
+class LogWriter:
+    def __init__(self, host, port, log_format=None):
+        self.context = zmq.Context()
+        self.host = host
+        self.port = port
+
+        if log_format is None:
+            log_format = '{time} - {service_name} - {severity} - {message}'
+        self.log_format = log_format
+
+        self._output_file = None
+        self._output_filename = None
+        self.level = Severity.DEBUG
+
+        self.shutdown_flag = threading.Event()
+        self.thread = None
+
+        self.lock = threading.Lock()
+
+    def start(self):
+        '''Start the proxy thread.
+        '''
+        self.thread = threading.Thread(target=self.loop)
+        self.thread.start()
+
+    def stop(self):
+        '''Stop the proxy thread.
+
+        This function waits until the thread is actually stopped.
+        '''
+        self.shutdown_flag.set()
+
+        if self.thread:
+            self.thread.join()
+
+    @contextlib.contextmanager
+    def output_to(self, output_filename):
+        old_output_filename = self.output_filename
+
+        self.output_filename = output_filename
+
+        try:
+            yield self
+        finally:
+            self.output_filename = old_output_filename
+
+    @property
+    def output_filename(self):
+        return self._output_filename
+
+    @output_filename.setter
+    def output_filename(self, output_filename):
+        with self.lock:
+            # Close the output file, if there is one.
+            if self._output_file is not None:
+                self._output_file.close()
+                self._output_file = None
+
+            # Open output file with new filename.
+            if output_filename is not None:
+                self._output_file = open(output_filename, 'a')
+
+        self._output_filename = output_filename
+
+    def loop(self):
+        # Set up sockets.
+        socket = self.context.socket(zmq.SUB)
+        socket.connect(f'tcp://{self.host}:{self.port}')
+        socket.subscribe('')
+        socket.RCVTIMEO = 50
+
+        # Main loop.
+        while not self.shutdown_flag.is_set():
+            # Receive new log message.
+            try:
+                log_message = socket.recv_multipart()
+            except zmq.ZMQError as e:
+                if e.errno == zmq.EAGAIN:
+                    # Timed out.
+                    continue
+                else:
+                    raise RuntimeError('Error during receive.') from e
+
+            # Decode log message.
+            log_message = log_message[0].decode('ascii')
+            log_message = json.loads(log_message)
+
+            # Filter log message based on severity.
+            severity = getattr(Severity, log_message['severity'].upper())
+            if severity.value < self.level.value:
+                continue
+
+            # Format output message.
+            message = self.log_format.format(**log_message)
+
+            # Write log message to file.
+            with self.lock:
+                if self._output_file:
+                    self._output_file.write(message + '\n')
+                    self._output_file.flush()
