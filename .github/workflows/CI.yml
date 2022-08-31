@@ -87,3 +87,6 @@ jobs:
         conda activate ci-env
         python setup.py develop
       shell: bash -l {0}
+    - name: Run tests
+      run: pytest ./tests
+      shell: bash
