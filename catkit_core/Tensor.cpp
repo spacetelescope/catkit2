@@ -48,7 +48,7 @@ DataType GetDataTypeFromString(string type)
 		return DataType::DT_UINT8;
 	if (type == "H" || type == "uint16")
 		return DataType::DT_UINT16;
-	if (type == "L" || type == "uin32")
+	if (type == "L" || type == "uint32")
 		return DataType::DT_UINT32;
 	if (type == "Q" || type == "uint64")
 		return DataType::DT_UINT64;
