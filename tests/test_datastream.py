@@ -8,7 +8,8 @@ shapes = [[10], [10, 10], [10, 10, 10], [10, 10, 10, 10]]
 @pytest.mark.parametrize("shape", shapes)
 @pytest.mark.parametrize("dtype", dtypes)
 def test_data_stream(shape, dtype):
-    created_stream = DataStream.create('stream_name', 'service', dtype, shape, 20)
+    # Use a unique name for each created stream.
+    created_stream = DataStream.create(f'{dtype}_{len(shape)}_stream', 'service', dtype, shape, 20)
 
     assert created_stream.dtype == dtype
     assert np.allclose(created_stream.shape, shape)
