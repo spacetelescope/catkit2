@@ -179,6 +179,9 @@ class Testbed:
         self.start_log_distributor()
         self.setup_logging()
 
+        heartbeat_thread = threading.Thread(target=self.do_heartbeats)
+        heartbeat_thread.start()
+
         # Start the server
         self.server.start()
 
@@ -192,14 +195,15 @@ class Testbed:
             while not self.shutdown_flag.is_set():
                 time.sleep(0.01)
 
-                # Probably should do this in a thread.
-                heartbeat = np.array([get_timestamp()], dtype='uint64')
-                self.heartbeat_stream.submit_data(heartbeat)
         except KeyboardInterrupt:
             self.log.info('Interrupted by the user...')
         finally:
+            self.shutdown_flag.set()
+
             self.log.info('Shutting down all running services.')
             self.shut_down_all_services()
+
+            heartbeat_thread.join()
 
             # Submit zero heartbeat to signal a dead testbed.
             self.heartbeat_stream.submit_data(np.zeros(1, dtype='uint64'))
@@ -212,6 +216,38 @@ class Testbed:
             self.stop_log_distributor()
 
             self.context = None
+
+    def do_heartbeats(self):
+        while not self.shutdown_flag.is_set():
+            time.sleep(0.1)
+
+            heartbeat = np.array([get_timestamp()], dtype='uint64')
+            self.heartbeat_stream.submit_data(heartbeat)
+
+    def monitor_services(self):
+        while not self.shutdown_flag.is_set():
+            time.sleep(0.1)
+
+            for service_id, service in self.services.items():
+                if service.is_alive:
+                    heartbeat_time = service.heartbeat.get()[0]
+                    time_stamp = get_timestamp()
+
+                    if time_stamp - heartbeat_time > LIVELINESS_INTERVAL * 1e9:
+                        # Service didn't submit a heartbeat in a while.
+                        if service.process is None:
+                            # The service crashed.
+                            service.state = ServiceState.CRASHED
+                        else:
+                            # The service is unresponsive.
+                            service.state = ServiceState.UNRESPONSIVE
+                elif service.state == ServiceState.UNRESPONSIVE:
+                    heartbeat_time = service.heartbeat.get()[0]
+                    time_stamp = get_timestamp()
+
+                    if time_stamp - heartbeat_time < LIVELINESS_INTERVAL * 1e9:
+                        # Service submitted a new heartbeat after being unresponsive.
+                        service.state = ServiceState.RUNNING
 
     def setup_logging(self):
         '''Set up all logging.
