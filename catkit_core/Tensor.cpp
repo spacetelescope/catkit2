@@ -29,9 +29,9 @@ const char *GetDataTypeAsString(DataType type)
 		case DataType::DT_FLOAT64:
 			return "d";
 		case DataType::DT_COMPLEX64:
-			return "Zf";
+			return "F";  // Use Numpy format standard. PEP3118 would be "Zf".
 		case DataType::DT_COMPLEX128:
-			return "Zd";
+			return "D";  // Use Numpy format standard. PEP3118 would be "Zd".
 		default:
 			return "unknown";
 	}
@@ -64,9 +64,9 @@ DataType GetDataTypeFromString(string type)
 		return DataType::DT_FLOAT32;
 	if (type == "d" || type == "float64")
 		return DataType::DT_FLOAT64;
-	if (type == "Zf" || type == "complex64")
+	if (type == "F" || type == "complex64" || type == "Zf")  // Support both PEP3118 and Numpy formats.
 		return DataType::DT_COMPLEX64;
-	if (type == "Zd" || type == "complex128")
+	if (type == "D" || type == "complex128" || type == "Zd")  // Support both PEP3118 and Numpy formats.
 		return DataType::DT_COMPLEX128;
 	return DataType::DT_UNKNOWN;
 }

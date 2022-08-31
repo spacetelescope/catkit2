@@ -394,8 +394,9 @@ PYBIND11_MODULE(catkit_bindings, m)
 			auto buffer_info = data.request();
 
 			// Check if data has the right dtype.
-			if (GetDataTypeAsString(s.GetDataType()) != buffer_info.format)
-				throw std::runtime_error(std::string("Incompatible array dtype. Stream: ") + GetDataTypeAsString(s.GetDataType()) + ". Input: " + buffer_info.format);
+			auto input_dtype = GetDataTypeFromString(buffer_info.format);
+			if (s.GetDataType() != input_dtype)
+				throw std::runtime_error(std::string("Incompatible array dtype. Stream: ") + GetDataTypeAsString(s.GetDataType()) + ". Input: " + GetDataTypeAsString(input_dtype));
 
 			// Check if data has the right shape.
 			size_t ndim = s.GetNumDimensions();
