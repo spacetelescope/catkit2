@@ -88,5 +88,5 @@ jobs:
         python setup.py develop
       shell: bash -l {0}
     - name: Run tests
-      run: pytest ./tests
+      run: pytest
       shell: bash
