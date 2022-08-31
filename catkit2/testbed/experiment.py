@@ -3,6 +3,8 @@ import os
 import socket
 import time
 import datetime
+import asdf
+import yaml
 
 from .logging import CatkitLogHandler, LogWriter
 from ..catkit_bindings import LogForwarder
@@ -14,6 +16,9 @@ class Experiment:
     _running_experiments = []
 
     def __init__(self, testbed, metadata=None, is_base_experiment=None):
+        if metadata is None:
+            metadata = {}
+
         self.testbed = testbed
         self.metadata = metadata
         self.is_base_experiment = is_base_experiment
@@ -42,6 +47,14 @@ class Experiment:
             # Compute and make output path.
             self.output_path = self._compute_output_path()
             os.makedirs(self.output_path, exist_ok=True)
+
+            # Write out metadata to this output path.
+            af = asdf.AsdfFile(self.metadata)
+            af.write_to(os.path.join(self.output_path, 'metadata.asdf'))
+
+            # Write out full testbed config to this output path.
+            with open(os.path.join(self.output_path, 'config.yml'), 'w') as f:
+                yaml.dump(self.testbed.config, f)
 
             # Set up log handlers, but only once
             if len(Experiment._running_experiments) == 1:

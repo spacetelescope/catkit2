@@ -18,7 +18,8 @@ dependencies:
   - pysnmp
   - requests
   - ftd2xx
-  - asdf
+  - conda-forge::asdf
+  - pyyaml
   - psutil
   - protobuf
   - libprotobuf
