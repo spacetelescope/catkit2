@@ -11,7 +11,7 @@ class SafetyManualCheck(Service):
 
         self.make_property('value', self.get_value, self.set_value)
 
-        self.check_stream = self.make_data_stream('check', item_type, [1], 20)
+        self.check_stream = self.make_data_stream('check', self.dtype, [1], 20)
 
     def main(self):
         while not self.should_shut_down:
