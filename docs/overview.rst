@@ -4,11 +4,9 @@ Overview
 Architecture
 ------------
 
-Catkit2 operations in a client-server architecture, with all testbed operations being performed on separate processes to promote concurrent high-speed operations. A testbed server should be started before testbed operations can start. Catkit2 distinguishes between a "Service" and a "TestbedClient" (or "Client" for short). Both these processes connect to the testbed server, but in different ways.
+Catkit2 uses a service-oriented architecture to operate the testbed. A Service can operate a hardware device, or perform more complex operations with other services such as control loops or safety mechanisms. Each service runs on a separate process to promote concurrent high-speed operations, and exposes an API to the outside world using either a slow server-client protocol, used for setting and getting parameters or execute methods, or a high-speed low-latency data stream, for example used for sharing camera images or deformable mirror commands. Services are managed by the Testbed. The Testbed can start and stop services, manages configuration files and provides service discovery to allow scripts and other services to find services.
 
-A Service exposes an API (Application Programming Interface) for the server to call. A Service by itself cannot see other services or execute commands on them. They exclusively interact with the outside world through the server and their exposed API.
-
-A Client on the other hand does not expose an API, but is able to access and execute the API of any Service (via the testbed server). Clients are able to see all running services on the server they are connected to, and communicate wit them via the server. All this communication is abstracted away from the user.
+Communication with the Testbed and Services are handled using proxy objects, available from both C++ and Python. These seamlessly proxy any setting and getting of properties, executing methods or accessing data streams to the required process. All explicit communication is hidden from the user.
 
 Service API specification
 -------------------------
@@ -18,12 +16,12 @@ The API of a Service consists of three different types of objects, accessed via 
 Property
 ~~~~~~~~
 
-This object provides (optionally) a setter and a getter. The data type can be anything that can be converted to JSON, so any simple values (integers, floats, strings), key-value pairs (dictionary) or list. This object mimics a Python property. An example of a property is the exposure time of a camera.
+This object provides (optionally) a setter and a getter. The data type can be either a None, an integer, a floating point number, a string, a boolean or an N-dimensional array, or any nested list or dictionary combination of these. An example of a property is the exposure time or the region of interest of a camera. In C++ accessing properties is done via `service->GetProperty("exposure_time")` and `service->SetProperty("exposure_time", 100)`. In Python, properties are converted into Python properties and can be accessed as an attribute as `service.exposure_time = 100`.
 
 Command
 ~~~~~~~
 
-This object can be called with named arguments (keywords in Python). Again, these arguments can be anything that can be converted to JSON. An example of a command is to start acquisition of a certain camera, or to blink the LED of a device on the testbed.
+Commands can be called with named arguments (keyword arguments in Python). Again, these arguments can be either None, an integer, a floating point number, a string, a boolean or an N-dimensional array, or any nested list or dictionary combination of these. An example of a command is to start acquisition of a certain camera, or to blink the LED of a device on the testbed.
 
 DataStream
 ~~~~~~~~~~
