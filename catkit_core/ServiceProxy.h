@@ -18,12 +18,12 @@ public:
 	ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id);
 	virtual ~ServiceProxy();
 
-	Value GetProperty(const std::string &name);
-	Value SetProperty(const std::string &name, const Value &value);
+	Value GetProperty(const std::string &name, void (*error_check)() = nullptr);
+	Value SetProperty(const std::string &name, const Value &value, void (*error_check)() = nullptr);
 
-	Value ExecuteCommand(const std::string &name, const Dict &arguments);
+	Value ExecuteCommand(const std::string &name, const Dict &arguments, void (*error_check)() = nullptr);
 
-	std::shared_ptr<DataStream> GetDataStream(const std::string &name);
+	std::shared_ptr<DataStream> GetDataStream(const std::string &name, void (*error_check)() = nullptr);
 
 	std::shared_ptr<DataStream> GetHeartbeat();
 
@@ -31,16 +31,14 @@ public:
 	bool IsRunning();
 	bool IsAlive();
 
-	void Start();
+	void Start(double timeout_in_sec = -1, void (*error_check)() = nullptr);
 	void Stop();
 	void Interrupt();
 	void Terminate();
 
-	void WaitUntilRunning(double timeout_in_sec, void (*error_check)() = nullptr);
-
-	std::vector<std::string> GetPropertyNames();
-	std::vector<std::string> GetCommandNames();
-	std::vector<std::string> GetDataStreamNames();
+	std::vector<std::string> GetPropertyNames(void (*error_check)() = nullptr);
+	std::vector<std::string> GetCommandNames(void (*error_check)() = nullptr);
+	std::vector<std::string> GetDataStreamNames(void (*error_check)() = nullptr);
 
 private:
 	void Connect();

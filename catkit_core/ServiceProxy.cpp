@@ -10,6 +10,8 @@
 
 using namespace std::string_literals;
 
+const double TIMEOUT_TO_START = 30;  // seconds
+
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
 	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr), m_State(nullptr),
 	m_TimeLastConnect(0)
@@ -33,10 +35,10 @@ ServiceProxy::~ServiceProxy()
 {
 }
 
-Value ServiceProxy::GetProperty(const std::string &name)
+Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 {
-	// Connect if we're not already connected.
-	Connect();
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
 
 	// Check if the name is a valid property.
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
@@ -56,10 +58,10 @@ Value ServiceProxy::GetProperty(const std::string &name)
 	return res;
 }
 
-Value ServiceProxy::SetProperty(const std::string &name, const Value &value)
+Value ServiceProxy::SetProperty(const std::string &name, const Value &value, void (*error_check)())
 {
-	// Connect if we're not already connected.
-	Connect();
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
 
 	// Check if the name is a valid property.
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
@@ -80,10 +82,10 @@ Value ServiceProxy::SetProperty(const std::string &name, const Value &value)
 	return res;
 }
 
-Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &arguments)
+Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &arguments, void (*error_check)())
 {
-	// Connect if we're not already connected.
-	Connect();
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
 
 	// Check if the name is a valid command.
 	if (std::find(m_CommandNames.begin(), m_CommandNames.end(), name) == m_CommandNames.end())
@@ -104,10 +106,10 @@ Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &argument
 	return res;
 }
 
-std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name)
+std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name, void (*error_check)())
 {
-	// Connect if we're not already connected.
-	Connect();
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
 
 	// Check if the name is a valid data stream name.
 	if (m_DataStreamIds.find(name) == m_DataStreamIds.end())
@@ -147,12 +149,45 @@ bool ServiceProxy::IsAlive()
 	return IsAliveState(GetState());
 }
 
-void ServiceProxy::Start()
+void ServiceProxy::Start(double timeout_in_sec, void (*error_check)())
 {
-	if (IsAlive())
-		return;
+	auto current_state = GetState();
 
-	m_Testbed->StartService(m_ServiceId);
+	// Start the service if it's not already alive.
+	if (current_state == ServiceState::CLOSED)
+	{
+		m_Testbed->StartService(m_ServiceId);
+	}
+
+	if (current_state == ServiceState::CRASHED)
+		throw std::runtime_error("Refusing to start a crashed service. Use the TestbedProxy to start it.");
+
+	// TODO: what should we do when the service is closing?
+
+	// Wait for the service to actually start.
+	if (timeout_in_sec > 0)
+	{
+		Timer timer;
+
+		while (!IsRunning())
+		{
+			double timeout_remaining = timeout_in_sec - timer.GetTime();
+
+			if (timeout_remaining <= 0)
+				throw std::runtime_error("The service has not started within the timeout time.");
+
+			std::this_thread::sleep_for(std::chrono::duration<double>(std::min(double(0.001), timeout_remaining)));
+
+			if (error_check)
+				error_check();
+
+			if (GetState() == ServiceState::CRASHED)
+				throw std::runtime_error("The service crashed during startup.");
+		}
+	}
+
+	// Connect to the service.
+	Connect();
 }
 
 void ServiceProxy::Stop()
@@ -188,29 +223,6 @@ void ServiceProxy::Terminate()
 		return;
 
 	m_Testbed->TerminateService(m_ServiceId);
-}
-
-void ServiceProxy::WaitUntilRunning(double timeout_in_sec, void (*error_check)())
-{
-	if (IsRunning())
-		return;
-
-	Start();
-
-	Timer timer;
-
-	while (!IsRunning())
-	{
-		double timeout_remaining = timeout_in_sec - timer.GetTime();
-
-		if (timeout_remaining <= 0)
-			throw std::runtime_error("Timeout has expired.");
-
-		std::this_thread::sleep_for(std::chrono::duration<double>(std::min(double(0.05), timeout_remaining)));
-
-		if (error_check)
-			error_check();
-	}
 }
 
 void ServiceProxy::Connect()
@@ -269,23 +281,26 @@ void ServiceProxy::Disconnect()
 	m_Heartbeat = nullptr;
 }
 
-std::vector<std::string> ServiceProxy::GetPropertyNames()
+std::vector<std::string> ServiceProxy::GetPropertyNames(void (*error_check)())
 {
-	Connect();
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
 
 	return m_PropertyNames;
 }
 
-std::vector<std::string> ServiceProxy::GetCommandNames()
+std::vector<std::string> ServiceProxy::GetCommandNames(void (*error_check)())
 {
-	Connect();
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
 
 	return m_CommandNames;
 }
 
-std::vector<std::string> ServiceProxy::GetDataStreamNames()
+std::vector<std::string> ServiceProxy::GetDataStreamNames(void (*error_check)())
 {
-	Connect();
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
 
 	std::vector<std::string> names;
 

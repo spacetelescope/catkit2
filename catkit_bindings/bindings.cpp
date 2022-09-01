@@ -310,34 +310,45 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def(py::init<std::shared_ptr<TestbedProxy>, std::string>())
 		.def("get_property", [](ServiceProxy &service, std::string name)
 		{
-			return ToPython(service.GetProperty(name));
+			return ToPython(service.GetProperty(name, error_check_python));
 		})
 		.def("set_property", [](ServiceProxy &service, std::string name, py::handle obj)
 		{
-			auto val = service.SetProperty(name, ValueFromPython(obj));
+			auto val = service.SetProperty(name, ValueFromPython(obj), error_check_python);
 			return ToPython(val);
 		})
 		.def("execute_command", [](ServiceProxy &service, std::string name, py::dict args)
 		{
-			auto res = service.ExecuteCommand(name, std::get<Dict>(ValueFromPython(args)));
+			auto res = service.ExecuteCommand(name, std::get<Dict>(ValueFromPython(args)), error_check_python);
 			return ToPython(res);
 		})
-		.def("get_data_stream", &ServiceProxy::GetDataStream)
+		.def("get_data_stream", [](ServiceProxy &service, std::string name)
+		{
+			return service.GetDataStream(name, error_check_python);
+		})
 		.def_property_readonly("state", &ServiceProxy::GetState)
 		.def_property_readonly("is_alive", &ServiceProxy::IsAlive)
 		.def_property_readonly("is_running", &ServiceProxy::IsRunning)
-		.def("wait_until_running", [](ServiceProxy &service, double timeout_in_sec)
-		{
-			service.WaitUntilRunning(timeout_in_sec, error_check_python);
-		})
 		.def_property_readonly("heartbeat", &ServiceProxy::GetHeartbeat)
-		.def("start", &ServiceProxy::Start)
+		.def("start", [](ServiceProxy &service, double timeout_in_sec)
+		{
+			service.Start(timeout_in_sec, error_check_python);
+		}, py::arg("timeout_in_sec") = -1.0)
 		.def("stop", &ServiceProxy::Stop)
 		.def("interrupt", &ServiceProxy::Interrupt)
 		.def("terminate", &ServiceProxy::Terminate)
-		.def_property_readonly("property_names", &ServiceProxy::GetPropertyNames)
-		.def_property_readonly("command_names", &ServiceProxy::GetCommandNames)
-		.def_property_readonly("data_stream_names", &ServiceProxy::GetDataStreamNames);
+		.def_property_readonly("property_names", [](ServiceProxy &service)
+		{
+			return service.GetPropertyNames(error_check_python);
+		})
+		.def_property_readonly("command_names", [](ServiceProxy &service)
+		{
+			return service.GetCommandNames(error_check_python);
+		})
+		.def_property_readonly("data_stream_names", [](ServiceProxy &service)
+		{
+			return service.GetDataStreamNames(error_check_python);
+		});
 
 	py::class_<TestbedProxy, std::shared_ptr<TestbedProxy>>(m, "TestbedProxy")
 		.def(py::init<std::string, int>())
