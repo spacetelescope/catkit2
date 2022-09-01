@@ -17,7 +17,7 @@
 #include "Server.h"
 #include "ServiceState.h"
 
-const double SERVICE_LIVELINESS = 10;
+const double SERVICE_LIVELINESS = 5;
 
 class TestbedProxy;
 
