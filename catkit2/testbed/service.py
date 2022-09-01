@@ -39,6 +39,8 @@ def parse_service_args(argv=None):
     return res
 
 class Service(catkit_bindings.Service):
+    log = logging.getLogger(__name__)
+
     def __init__(self, service_type, **kwargs):
         # Parse service arguments from argv, and update with overridden arguments.
         service_args = parse_service_args()
