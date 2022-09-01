@@ -425,7 +425,7 @@ class Testbed:
         if service_id not in self.services:
             raise RuntimeError(f'Service "{service_id}" is not a known service.')
 
-        if self.services[service_id].is_alive:
+        if self.services[service_id].state not in [ServiceState.CLOSED, ServiceState.CRASHED]:
             self.log.debug(f'Service "{service_id}" was already started.')
             return
 
