@@ -269,7 +269,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("shut_down", &Service::ShutDown)
 		.def_property_readonly("should_shut_down", &Service::ShouldShutDown)
 		.def_property_readonly("testbed", &Service::GetTestbed)
-		.def("sleep", &Service::Sleep, py::call_guard<py::gil_scoped_release>())
+		.def("sleep", [](Service &service, double sleep_time_in_sec)
+		{
+			service.Sleep(sleep_time_in_sec, error_check_python);
+		}, py::call_guard<py::gil_scoped_release>())
 		.def("make_property", &Service::MakeProperty,
 			py::arg("name"),
 			py::arg("getter") = nullptr,

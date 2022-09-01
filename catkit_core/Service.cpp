@@ -265,10 +265,13 @@ bool Service::IsRunning()
 	return m_IsRunning;
 }
 
-void Service::Sleep(double sleep_time_in_sec)
+void Service::Sleep(double sleep_time_in_sec, void (*error_check)())
 {
-	::Sleep(sleep_time_in_sec, [this]()
+	::Sleep(sleep_time_in_sec, [this, error_check]()
 	{
+		if (error_check)
+			error_check();
+
 		return this->ShouldShutDown();
 	});
 }

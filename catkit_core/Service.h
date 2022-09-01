@@ -37,7 +37,7 @@ public:
 	bool ShouldShutDown();
 	bool IsRunning();
 
-	void Sleep(double sleep_time_in_sec);
+	void Sleep(double sleep_time_in_sec, void (*error_check)()=nullptr);
 
 	std::shared_ptr<Property> GetProperty(const std::string &property_name) const;
 	std::shared_ptr<Command> GetCommand(const std::string &command_name) const;
