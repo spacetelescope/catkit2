@@ -51,6 +51,8 @@ public:
 	std::shared_ptr<DataStream> MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
 	std::shared_ptr<DataStream> ReuseDataStream(std::string stream_name, std::string stream_id);
 
+	std::shared_ptr<TestbedProxy> GetTestbed();
+
 private:
 	std::string HandleGetInfo(const std::string &data);
 

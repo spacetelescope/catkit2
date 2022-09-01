@@ -349,6 +349,11 @@ std::shared_ptr<DataStream> Service::ReuseDataStream(std::string stream_name, st
 	return stream;
 }
 
+std::shared_ptr<TestbedProxy> Service::GetTestbed()
+{
+	return m_Testbed;
+}
+
 string Service::HandleGetInfo(const string &data)
 {
 	// There's no data in the request, so don't even parse it.
