@@ -36,16 +36,19 @@ class SafetyMonitor(Service):
                 # Check if frame is too old.
                 timestamp_lower_bound = current_time - safety_info['safe_interval'] * 1e9
                 if last_frame.timestamp < timestamp_lower_bound:
+                    self.log.warning(f'Safety "{safety_name}" was too old.')
                     is_safe = False
 
                 # Check value lower bound.
                 if safety_info['minimum_value'] is not None:
                     if last_frame.data[0] < safety_info['minimum_value']:
+                        self.log.warning(f'Safety "{safety_name}" was too low.')
                         is_safe = False
 
                 # Check value upper bound.
                 if safety_info['maximum_value'] is not None:
                     if last_frame.data[0] > safety_info['maximum_value']:
+                        self.log.warning(f'Safety "{safety_name}" was too high.')
                         is_safe = False
             except Exception as e:
                 self.log.error(f'Something happened during checking of safety "{safety_name}":')

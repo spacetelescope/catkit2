@@ -38,7 +38,8 @@ class SnmpUps(Service):
             power_ok = status == self.pass_status
 
             return power_ok
-        except RuntimeError:
+        except RuntimeError as e:
+            self.log.error(f'Some failure occurred: {e}')
             # Failed to connect to UPS, so assume power is bad.
             return False
 
