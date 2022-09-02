@@ -243,6 +243,9 @@ void ServiceProxy::Connect()
 	if (m_TimeLastConnect == frame.m_TimeStamp)
 		return;
 
+	// We need to reconnect, so let's disconnect first.
+	Disconnect();
+
 	// Get the host and port of the service.
 	auto service_info = m_Testbed->GetServiceInfo(m_ServiceId);
 
