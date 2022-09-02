@@ -309,3 +309,8 @@ std::vector<std::string> ServiceProxy::GetDataStreamNames(void (*error_check)())
 
 	return names;
 }
+
+nlohmann::json ServiceProxy::GetConfig()
+{
+	return m_Testbed->GetConfig()["services"][m_ServiceId];
+}

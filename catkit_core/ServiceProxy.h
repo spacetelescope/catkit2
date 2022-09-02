@@ -7,6 +7,7 @@
 #include "Client.h"
 
 #include <zmq.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 
@@ -39,6 +40,8 @@ public:
 	std::vector<std::string> GetPropertyNames(void (*error_check)() = nullptr);
 	std::vector<std::string> GetCommandNames(void (*error_check)() = nullptr);
 	std::vector<std::string> GetDataStreamNames(void (*error_check)() = nullptr);
+
+	nlohmann::json GetConfig();
 
 private:
 	void Connect();
