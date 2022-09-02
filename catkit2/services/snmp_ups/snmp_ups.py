@@ -47,9 +47,9 @@ class SnmpUps(Service):
             start = time.time()
 
             power_ok = self.get_power_ok()
-            frame = self.power_ok.submit_data(np.array([power_ok], dtype='int8'))
+            self.power_ok.submit_data(np.array([power_ok], dtype='int8'))
 
-            time_remaining = self.time_interval - (time.time() - start)
+            time_remaining = self.check_interval - (time.time() - start)
             self.sleep(time_remaining)
 
 if __name__ == '__main__':

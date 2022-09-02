@@ -173,7 +173,7 @@ class FlirCamera(Service):
         self.system = None
 
     def main(self):
-        while not self.should_:
+        while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
