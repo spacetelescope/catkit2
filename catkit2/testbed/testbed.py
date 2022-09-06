@@ -70,7 +70,7 @@ class ServiceReference:
 
     @property
     def process(self):
-        if self.process_id == None:
+        if self.process_id is None:
             return None
 
         try:
