@@ -183,6 +183,10 @@ Value ValueFromPython(const py::handle &python_value)
 	{
 		return python_value.cast<double>();
 	}
+	else if (py::isinstance<py::str>(python_value))
+	{
+		return python_value.cast<std::string>();
+	}
 	else if (py::isinstance<py::bool_>(python_value))
 	{
 		return python_value.cast<bool>();
@@ -208,6 +212,7 @@ Value ValueFromPython(const py::handle &python_value)
 
 		return dict;
 	}
+
 	return NoneValue();
 }
 
