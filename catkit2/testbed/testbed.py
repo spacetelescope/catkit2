@@ -13,7 +13,7 @@ import zmq
 import yaml
 import numpy as np
 
-from ..catkit_bindings import LogConsole, LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state
+from ..catkit_bindings import LogConsole, LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state, Client
 from .logging import *
 
 from ..proto import testbed_pb2 as testbed_proto
@@ -47,7 +47,7 @@ class ServiceReference:
         self.state_stream = DataStream.create('state', service_id, 'int8', [1], 20)
         self.state = state
 
-        self._process_id = 0
+        self.process_id = None
 
         self.host = '127.0.0.1'
         self.port = 0
@@ -70,12 +70,28 @@ class ServiceReference:
 
     @property
     def process(self):
+        if self.process_id == None:
+            return None
+
         try:
             return psutil.Process(self.process_id)
         except psutil.NoSuchProcess:
+            self.process_id = None
             return None
 
-    def send_keyboard_interrupt(self):
+    def stop(self):
+        if self.state != ServiceState.RUNNING:
+            return
+
+        try:
+            client = Client(self.host, self.port)
+
+            request = service_proto.ShutDownRequest()
+            client.make_request('shut_down', request.SerializeToString())
+        except Exception as e:
+            raise RuntimeError("Something went wrong while stopping service.") from e
+
+    def interrupt(self):
         '''Send a keyboard interrupt to the service.
         '''
         if self.process is None:
@@ -477,7 +493,12 @@ class Testbed:
         self.log.info(f'Started service "{service_id}" with type "{service_type}".')
 
     def stop_service(self, service_id):
-        pass  # TODO
+        self.log.debug(f'Trying to start service "{service_id}".')
+
+        if service_id not in self.services:
+            raise RuntimeError(f'Service "{service_id}" is not a known service.')
+
+        self.services[service_id].stop()
 
     def interrupt_service(self, service_id):
         self.log.debug(f'Interrupting service "{service_id}".')
@@ -525,4 +546,52 @@ class Testbed:
         service to shut down. If a KeyboardInterrupt occurs during this shutdown process,
         all services that have not shut down already will be killed.
         '''
-        pass  # TODO
+        # Send shutdown to all services.
+        for service in self.services.values():
+            service.stop()
+
+        # Wait for processes to die.
+        start_time = time.time()
+
+        try:
+            while time.time() - start_time < 60:
+                time.sleep(0.1)
+
+                for service in self.services.values():
+                    if service.process is not None:
+                        break
+                else:
+                    return
+        except KeyboardInterrupt:
+            print('Ctrl+C detected. Interrupting any leftover processes...')
+
+        all_died = True
+
+        for service_name, service in self.services.items():
+            if service.process is not None:
+                print(f'Service "{service_name}" is still alive. Interrupting...')
+                service.interrupt()
+                all_died = False
+
+        if all_died:
+            return
+
+        # Wait for processes to die.
+        start_time = time.time()
+
+        try:
+            while time.time() - start_time < 60:
+                time.sleep(0.1)
+
+                for service in self.services.values():
+                    if service.process is not None:
+                        break
+                else:
+                    return
+        except KeyboardInterrupt:
+            print('Ctrl+C detected. Terminating any leftover processes...')
+
+        for service_name, service in self.services.items():
+            if service.process is not None:
+                print(f'Service "{service_name}" is still alive, even after interruption. Terminating...')
+                service.terminate()
