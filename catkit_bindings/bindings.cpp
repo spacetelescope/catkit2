@@ -222,6 +222,7 @@ Value ValueFromPython(const py::handle &python_value)
 void error_check_python()
 {
 	py::gil_scoped_acquire acquire;
+
 	if (PyErr_CheckSignals() != 0)
 		throw py::error_already_set();
 }
@@ -283,10 +284,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 			service.MakeProperty(name,
 			[getter]()
 			{
+				py::gil_scoped_acquire acquire;
+
 				return ValueFromPython(getter());
 			},
 			[setter](const Value &value)
 			{
+				py::gil_scoped_acquire acquire;
+
 				setter(ToPython(value));
 			});
 		}, py::arg("name"), py::arg("getter") = nullptr, py::arg("setter") = nullptr)
