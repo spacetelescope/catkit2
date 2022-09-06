@@ -273,10 +273,18 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			service.Sleep(sleep_time_in_sec, error_check_python);
 		}, py::call_guard<py::gil_scoped_release>())
-		.def("make_property", &Service::MakeProperty,
-			py::arg("name"),
-			py::arg("getter") = nullptr,
-			py::arg("setter") = nullptr)
+		.def("make_property", [](Service &service, std::string name, py::object getter, py::object setter)
+		{
+			service.MakeProperty(name,
+			[getter]()
+			{
+				return ValueFromPython(getter());
+			},
+			[setter](const Value &value)
+			{
+				setter(ToPython(value));
+			});
+		}, py::arg("name"), py::arg("getter") = nullptr, py::arg("setter") = nullptr)
 		.def("make_command", [](Service &service, std::string name, py::object command)
 		{
 			service.MakeCommand(name, [command](const Dict &arguments)
