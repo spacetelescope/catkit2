@@ -26,9 +26,7 @@ class SnmpUps(Service):
 
         for error_indication, error_status, error_index, var_binds in res:
             if error_indication or error_status:
-                raise RuntimeError(f"Error communicating with the UPS: '{self.name}'.\n" +
-                                   f"Error Indication: {str(error_indication)}\n" +
-                                   f"Error Status: {str(error_status)}")
+                raise RuntimeError(f"Error communicating with the UPS: {error_indication}; status {error_status}.")
             else:
                 return var_binds[0][1]
 
