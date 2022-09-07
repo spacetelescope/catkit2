@@ -215,31 +215,43 @@ std::string TestbedProxy::GetHost()
 
 int TestbedProxy::GetLoggingIngressPort()
 {
+	GetTestbedInfo();
+
 	return m_LoggingIngressPort;
 }
 
 int TestbedProxy::GetLoggingEgressPort()
 {
+	GetTestbedInfo();
+
 	return m_LoggingEgressPort;
 }
 
 int TestbedProxy::GetDataLoggingIngressPort()
 {
+	GetTestbedInfo();
+
 	return m_DataLoggingIngressPort;
 }
 
 int TestbedProxy::GetDataLoggingEgressPort()
 {
+	GetTestbedInfo();
+
 	return m_DataLoggingEgressPort;
 }
 
 int TestbedProxy::GetTracingIngressPort()
 {
+	GetTestbedInfo();
+
 	return m_TracingIngressPort;
 }
 
 int TestbedProxy::GetTracingEgressPort()
 {
+	GetTestbedInfo();
+
 	return m_TracingEgressPort;
 }
 
