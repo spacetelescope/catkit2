@@ -51,6 +51,15 @@ Service::Service(string service_type, string service_id, int service_port, int t
 	m_Server.RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
 	m_Server.RegisterRequestHandler("shut_down", [this](const string &data) { return this->HandleShutDown(data); });
 
+	if (RequiresSafety())
+	{
+		LOG_INFO("This service requires a safe testbed to operate.");
+	}
+	else
+	{
+		LOG_INFO("This service can operate in unsafe conditions.");
+	}
+
 	LOG_INFO("Intialized service.");
 }
 
