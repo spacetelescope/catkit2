@@ -252,31 +252,32 @@ class Testbed:
             time.sleep(0.1)
 
             for service_id, service in self.services.items():
+                if service.state not in [ServiceState.CLOSED, ServiceState.CRASHED]:
+                    if service.process is None:
+                        # The process is not running anymore, but its state indicates it's alive:
+                        # it has crashed.
+                        self.log.error(f'Service "{service.service_id}" appears to have crashed.')
+                        service.state = ServiceState.CRASHED
+
                 if service.state == ServiceState.RUNNING:
                     heartbeat_time = service.heartbeat.get()[0]
                     time_stamp = get_timestamp()
 
                     if time_stamp - heartbeat_time > SERVICE_LIVELINESS * 1e9:
-                        # Service didn't submit a heartbeat in a while.
-                        if service.process is None:
-                            # The service crashed.
-                            service.state = ServiceState.CRASHED
-                        else:
-                            # The service is unresponsive.
-                            service.state = ServiceState.UNRESPONSIVE
+                        # Service didn't submit a heartbeat in a while but its process is still alive:
+                        # it is unresponsive.
+                        self.log.warning(f'Service "{service.service_id}" appears to be unresponsive.')
+                        service.state = ServiceState.UNRESPONSIVE
 
                 if service.state == ServiceState.UNRESPONSIVE:
                     heartbeat_time = service.heartbeat.get()[0]
                     time_stamp = get_timestamp()
 
                     if time_stamp - heartbeat_time < SERVICE_LIVELINESS * 1e9:
-                        # Service submitted a new heartbeat after being unresponsive.
+                        # The service state indicates it's unresponsive, but it just submitted a
+                        # heartbeat again: the service recovered.
+                        self.log.info(f'Service "{service.service_id}" appears to have recovered from being unresponsive.')
                         service.state = ServiceState.RUNNING
-
-                if service.state not in [ServiceState.CLOSED, ServiceState.CRASHED]:
-                    if service.process is None:
-                        # Service process has crashed.
-                        service.state = ServiceState.CRASHED
 
     def setup_logging(self):
         '''Set up all logging.
