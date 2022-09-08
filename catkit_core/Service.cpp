@@ -51,15 +51,6 @@ Service::Service(string service_type, string service_id, int service_port, int t
 	m_Server.RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
 	m_Server.RegisterRequestHandler("shut_down", [this](const string &data) { return this->HandleShutDown(data); });
 
-	if (RequiresSafety())
-	{
-		LOG_INFO("This service requires a safe testbed to operate.");
-	}
-	else
-	{
-		LOG_INFO("This service can operate in unsafe conditions.");
-	}
-
 	LOG_INFO("Intialized service.");
 }
 
@@ -69,6 +60,25 @@ Service::~Service()
 
 void Service::Run(void (*error_check)())
 {
+	// Perform check on requires safety property in config.
+	if (!m_Config.contains("requires_safety"))
+	{
+		LOG_CRITICAL("Attribute \"requires_safety\" not found in config. This is mandatory for all services.");
+		UpdateState(ServiceState::CRASHED);
+
+		return;
+	}
+
+	// Log whether this services requires safety or not.
+	if (RequiresSafety())
+	{
+		LOG_INFO("This service requires a safe testbed to operate.");
+	}
+	else
+	{
+		LOG_INFO("This service can operate in unsafe conditions.");
+	}
+
 	// Perform safety pre-check.
 	if (!IsSafe())
 	{
@@ -225,10 +235,7 @@ bool Service::IsSafe()
 
 bool Service::RequiresSafety()
 {
-	if (m_Config.contains("requires_safety"))
-		return m_Config["requires_safety"];
-
-	return false;
+	return m_Config["requires_safety"];
 }
 
 void Service::MonitorHeartbeats()
