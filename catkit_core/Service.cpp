@@ -73,6 +73,8 @@ void Service::Run(void (*error_check)())
 	if (!IsSafe())
 	{
 		LOG_CRITICAL("Testbed is unsafe. This service will not be started.");
+		UpdateState(ServiceState::CRASHED);
+
 		return;
 	}
 
@@ -202,15 +204,19 @@ bool Service::IsSafe()
 	{
 		// The safety check is too old.
 		// This is deemed unsafe.
+		LOG_WARNING("The safety check is too old.");
+
 		return false;
 	}
 
 	auto data = frame.AsArray<std::uint8_t>();
 
-	if (data.sum() != data.cols())
+	if (data.sum() != data.size())
 	{
 		// At least one safety has failed.
 		// This is deemed unsafe.
+		LOG_WARNING("At least one safety check has failed.");
+
 		return false;
 	}
 
