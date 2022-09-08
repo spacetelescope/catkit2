@@ -317,3 +317,13 @@ nlohmann::json ServiceProxy::GetConfig()
 {
 	return m_Testbed->GetConfig()["services"][m_ServiceId];
 }
+
+std::string ServiceProxy::GetId()
+{
+	return m_ServiceId;
+}
+
+std::shared_ptr<TestbedProxy> ServiceProxy::GetTestbed()
+{
+	return m_Testbed;
+}

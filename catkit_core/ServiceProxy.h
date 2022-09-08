@@ -42,6 +42,8 @@ public:
 	std::vector<std::string> GetDataStreamNames(void (*error_check)() = nullptr);
 
 	nlohmann::json GetConfig();
+	std::string GetId();
+	std::shared_ptr<TestbedProxy> GetTestbed();
 
 private:
 	void Connect();

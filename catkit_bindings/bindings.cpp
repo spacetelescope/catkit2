@@ -367,7 +367,9 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			return service.GetDataStreamNames(error_check_python);
 		})
-		.def_property_readonly("config", &ServiceProxy::GetConfig);
+		.def_property_readonly("config", &ServiceProxy::GetConfig)
+		.def_property_readonly("id", &ServiceProxy::GetId)
+		.def_property_readonly("testbed", &ServiceProxy::GetTestbed);
 
 	py::class_<TestbedProxy, std::shared_ptr<TestbedProxy>>(m, "TestbedProxy")
 		.def(py::init<std::string, int>())
