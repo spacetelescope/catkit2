@@ -437,6 +437,9 @@ class Testbed:
         ValueError
             If the service type could not be found in the known services paths.
         '''
+        if self.shutdown_flag.is_set():
+            raise RuntimeError("The testbed is shutting down. Starting new services is not allowed anymore.")
+
         self.log.debug(f'Trying to start service "{service_id}".')
 
         if service_id not in self.services:
