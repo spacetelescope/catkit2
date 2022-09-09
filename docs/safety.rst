@@ -68,7 +68,7 @@ Heartbeat failure on a testbed
 
 **Check 2:** Services should mark themselves as CRASHED afterwards. Services should not be restarted automatically afterwards.
 
-**CHECK FAILURE** Services were marked as CLOSED and were able to be restarted automatically. In fact, some of them did, since I had the GUI running at the same time.
+2022-09-09 (Emiel Por). **CHECK FAILURE** Services were marked as CLOSED and were able to be restarted automatically. In fact, some of them did, since I had the GUI running at the same time.
 
 Crashed testbed
 ~~~~~~~~~~~~~~~
