@@ -108,19 +108,22 @@ void Service::Run(void (*error_check)())
 
 	LOG_INFO("Service was succesfully opened.");
 
-	m_IsRunning = true;
-	UpdateState(ServiceState::RUNNING);
-
-	LOG_INFO("Starting service main function.");
-
 	bool crashed = false;
 
 	{
+		// Put out an initial heartbeat.
+		// This ensures that there is always a heartbeat on this channel.
+		std::uint64_t timestamp = GetTimeStamp();
+		m_Heartbeat->SubmitData(&timestamp);
+
+		// Start the safety and heartbeat threads.
 		std::thread safety(&Service::MonitorSafety, this);
 		std::thread heartbeat(&Service::MonitorHeartbeats, this);
 
+		// Start the server.
 		m_Server.Start();
 
+		// Ensure the server and started threads are stopped when out of this scope.
 		Finally stop_server_and_monitors([this, &safety, &heartbeat]()
 		{
 			this->m_ShouldShutDown = true;
@@ -134,12 +137,18 @@ void Service::Run(void (*error_check)())
 				heartbeat.join();
 		});
 
+		// Update service state.
+		m_IsRunning = true;
+		UpdateState(ServiceState::RUNNING);
+
+		LOG_INFO("Starting service main function.");
+
 		// Start the main function.
 		// The main function is called in the main thread to allow it to
 		// catch KeyboardInterrupts from Python.
 		try
 		{
-			this->Main();
+			Main();
 		}
 		catch (std::exception &e)
 		{
