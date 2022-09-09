@@ -480,7 +480,7 @@ class Testbed:
 
         # Start process.
         startupinfo = subprocess.STARTUPINFO()
-        #startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         creationflags = subprocess.CREATE_NEW_CONSOLE
 
         process = psutil.Popen(
