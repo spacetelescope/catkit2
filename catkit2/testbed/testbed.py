@@ -208,8 +208,8 @@ class Testbed:
         monitor_services_thread.start()
 
         # Start the startup services.
-        #for service_name in self.startup_services:
-        #    self.start_service(service_name)
+        for service_name in self.startup_services:
+            self.start_service(service_name)
 
         try:
             # For now, wait until Ctrl+C.
