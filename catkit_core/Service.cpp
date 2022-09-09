@@ -212,29 +212,40 @@ bool Service::IsSafe()
 	if (!RequiresSafety())
 		return true;
 
-	static std::shared_ptr<ServiceProxy> safety_service(m_Testbed->GetService("safety"));
-
-	auto stream = safety_service->GetDataStream("is_safe");
-	auto frame = stream->GetLatestFrame();
-
-	std::uint64_t current_time = GetTimeStamp();
-
-	if ((current_time - frame.m_TimeStamp) / 1.0e9 > 3 * SAFETY_INTERVAL)
+	try
 	{
-		// The safety check is too old.
-		// This is deemed unsafe.
-		LOG_WARNING("The safety check is too old.");
+		static std::shared_ptr<ServiceProxy> safety_service(m_Testbed->GetService("safety"));
 
-		return false;
+		auto stream = safety_service->GetDataStream("is_safe");
+		auto frame = stream->GetLatestFrame();
+
+		std::uint64_t current_time = GetTimeStamp();
+
+		if ((current_time - frame.m_TimeStamp) / 1.0e9 > 3 * SAFETY_INTERVAL)
+		{
+			// The safety check is too old.
+			// This is deemed unsafe.
+			LOG_WARNING("The safety check is too old.");
+
+			return false;
+		}
+
+		auto data = frame.AsArray<std::uint8_t>();
+
+		if (data.sum() != data.size())
+		{
+			// At least one safety has failed.
+			// This is deemed unsafe.
+			LOG_WARNING("At least one safety check has failed.");
+
+			return false;
+		}
 	}
-
-	auto data = frame.AsArray<std::uint8_t>();
-
-	if (data.sum() != data.size())
+	catch (std::exception &e)
 	{
-		// At least one safety has failed.
+		// Something went wrong when trying to check safety.
 		// This is deemed unsafe.
-		LOG_WARNING("At least one safety check has failed.");
+		LOG_ERROR("Something went wrong when checking safety: "s + e.what());
 
 		return false;
 	}
