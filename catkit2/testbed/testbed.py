@@ -507,7 +507,7 @@ class Testbed:
         if service_id not in self.services:
             raise RuntimeError(f'Service "{service_id}" is not a known service.')
 
-        self.services[service_id].send_keyboard_interrupt()
+        self.services[service_id].interrupt()
 
     def terminate_service(self, service_id):
         self.log.debug(f'Terminating service "{service_id}".')
