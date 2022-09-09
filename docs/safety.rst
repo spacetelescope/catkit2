@@ -57,6 +57,32 @@ Heartbeat failure on a service
 
 2022-09-09 (Emiel Por). Checked.
 
+Heartbeat failure on safety monitor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Test:** Simulate an interruption in service heartbeats (manually) for the service monitor.
+
+**Check 1:** Safety monitor should be marked as unresponsive.
+
+2022-09-09 (Emiel Por). Checked.
+
+**Check 2:** All services requiring safety should shut themselves down safely.
+
+2022-09-09 (Emiel Por). Checked with boston_dm.
+
+Crash of the safety monitor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Test:** Simulate an crash (manually) of the service monitor.
+
+**Check 1:** Safety monitor should be marked as crashed.
+
+2022-09-09 (Emiel Por). Checked.
+
+**Check 2:** All services requiring safety should shut themselves down safely.
+
+2022-09-09 (Emiel Por). Checked with boston_dm.
+
 Heartbeat failure on a testbed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
