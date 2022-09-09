@@ -17,11 +17,11 @@ Crashing individual services
 
 **Check 1:** Service should be marked as CRASHED by the testbed, and should not be automatically restarted.
 
-**Checked on:** ...
+2022-09-09 (Emiel Por). Tested with the science_camera.
 
 **Check 2:** If the killed service is critical for safety, the services that require safety should safely shut down themselves.
 
-**Checked on:** ...
+2022-09-09 (Emiel Por). Tested with omega_dm1. Both irisao_dm and boston_dm closed down safely automatically.
 
 Interrupting individual services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,11 +30,11 @@ Interrupting individual services
 
 **Check 1:** Service should safely shut down and be marked as CRASHED by the service itself, and should not be automatically restarted.
 
-**Checked on:** ...
+2022-09-09 (Emiel Por). Tested with science_camera.
 
 **Check 2:** If the service is critical for safety, the services that require safety should safely shut down themselves.
 
-**Checked on:** ...
+2022-09-09 (Emiel Por). Tested with lab_ups. Both irisao_dm and boston_dm closed down safely automatically.
 
 Heartbeat failure on a service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,11 +43,19 @@ Heartbeat failure on a service
 
 **Check 1:** Service should be marked as unresponsive by the testbed.
 
-**Checked on:** ...
+2022-09-09 (Emiel Por). Tested with lab_ups by suspending the process with Process Explorer.
 
 **Check 2:** ServiceProxies to that service should disconnect.
 
-**Checked on:** ...
+2022-09-09 (Emiel Por). Checked.
+
+**Check 3:** If the service is critical for safety, the services that require safety should safely shut down themselves.
+
+2022-09-09 (Emiel Por). Checked.
+
+**Check 4:** When heartbeats resume, service proxies should reconnect.
+
+2022-09-09 (Emiel Por). Checked.
 
 Heartbeat failure on a testbed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -56,11 +64,20 @@ Heartbeat failure on a testbed
 
 **Check 1:** All services should safely shut down after a leniency period.
 
-**Checked on:** ...
+2022-09-09 (Emiel Por). Checked by suspending the testbed process with Process Explorer.
 
 **Check 2:** Services should mark themselves as CRASHED afterwards. Services should not be restarted automatically afterwards.
 
-**Checked on:** ...
+**CHECK FAILURE** Services were marked as CLOSED and were able to be restarted automatically. In fact, some of them did, since I had the GUI running at the same time.
+
+Crashed testbed
+~~~~~~~~~~~~~~~
+
+**Test:** Intentionally kill the testbed process (from the task manager).
+
+**Check 1:** All services should safely shut down after a leniency period.
+
+2022-09-09 (Emiel Por). Checked.
 
 Real safety event on hardware (humidity)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -69,11 +86,11 @@ Real safety event on hardware (humidity)
 
 **Check 1:** All services requiring safety should shut down safely.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 Real safety event on hardware (UPS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -82,11 +99,11 @@ Real safety event on hardware (UPS)
 
 **Check 1:** All services requiring safety should shut down safely.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 Simulated safety sensor failure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,11 +112,11 @@ Simulated safety sensor failure
 
 **Check 1:** All services requiring safety should shut down safely.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 Simulated network failure on a safety sensor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -108,11 +125,11 @@ Simulated network failure on a safety sensor
 
 **Check 1:** All services requiring safety should shut down safely.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 Simulated non-safety-related hardware event (USB).
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -121,11 +138,11 @@ Simulated non-safety-related hardware event (USB).
 
 **Check 1:** The service should crash, but should try to shut down safely.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 **Check 2:** The service should not be able to be restarted automatically.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 Simulated non-safety-related hardware event (power).
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -134,11 +151,11 @@ Simulated non-safety-related hardware event (power).
 
 **Check 1:** The service should crash, but should try to shut down safely.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 **Check 2:** The service should not be able to be restarted automatically.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 Simulated network failure on the main computer.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -147,8 +164,8 @@ Simulated network failure on the main computer.
 
 **Check 1:** The safety temperature sensors should crash as they don't have connection to the sensor anymore. This should cascade to a safety warning.
 
-**Checked on:** ...
+**NOT CHECKED YET**
 
 **Check 2:** The temperature sensor should not be able to be restarted automatically.
 
-**Checked on:** ...
+**NOT CHECKED YET**
