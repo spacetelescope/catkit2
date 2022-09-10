@@ -98,7 +98,7 @@ Client::socket_ptr Client::GetSocket()
 
 		socket = new zmq::socket_t(m_Context, ZMQ_REQ);
 
-		socket->set(zmq::sockopt::rcvtimeo, 2000);
+		socket->set(zmq::sockopt::rcvtimeo, 10000);
 		socket->set(zmq::sockopt::linger, 0);
 		socket->set(zmq::sockopt::req_relaxed, 1);
 		socket->set(zmq::sockopt::req_correlate, 1);
