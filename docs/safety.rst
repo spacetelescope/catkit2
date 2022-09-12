@@ -112,24 +112,34 @@ Real safety event on hardware (humidity)
 
 **Check 1:** All services requiring safety should shut down safely.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked.  Both hummidity sensors detected the unsafe conditions,
+DMs were visibly turned off and server shut down.
 
-**Check 2:** All services requiring safety should not be able to be restarted automatically.
+**Check 2:** All services requiring safety should not be able to be restarted automatically
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. Getting the messages "refusing to start a crashed service".
+Nothing restarting automatically
 
 Real safety event on hardware (UPS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Test:** Unplug the lab UPS in HiCAT. The UPS will go on battery.
+**Test:** In that test the last and only safety is provided by the lab UPS battery if the DMs are connected.
+If something is wrong with the lab UPS this test can destroy the DM.
+This test can be done preferably with the Boston DM controller turned off (double check state of DMs before), since
+the software does not know whether the control electronics is powered or not.
+
+Unplug the lab UPS so that it will go on battery.
 
 **Check 1:** All services requiring safety should shut down safely.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked.
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  ** CHECK FAILLURE (maybe) ** Testbed immediately attempting to restart the DMs,
+but denied because power was still unsafe at that time "Testbed is unsafe, This service will not be started".
+On the GUI console it does say "runtimeError: refusing to start a crashed service."
+
 
 Simulated safety sensor failure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -138,24 +148,26 @@ Simulated safety sensor failure
 
 **Check 1:** All services requiring safety should shut down safely.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. Sensor error detected and DMs shutting down.
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. Getting the messages "refusing to start a crashed service".
+Nothing restarting automatically
 
 Simulated network failure on a safety sensor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Test:** Unplug the power on the safety temperature/humidity sensor for one of the two DMs on HiCAT.
+**Test:** Unplug the network cable on the safety temperature/humidity sensor for one of the two DMs on HiCAT.
 
 **Check 1:** All services requiring safety should shut down safely.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. Message that something went wrong with the sensor, then testbed unsafe and shutting down.
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. Getting the messages "refusing to start a crashed service".
+Nothing restarting automatically even after network replugged.
 
 Simulated non-safety-related hardware event (USB).
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -164,11 +176,11 @@ Simulated non-safety-related hardware event (USB).
 
 **Check 1:** The service should crash, but should try to shut down safely.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked with science camera.  "Service was safely closed after crash"
 
 **Check 2:** The service should not be able to be restarted automatically.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically
 
 Simulated non-safety-related hardware event (power).
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -177,11 +189,11 @@ Simulated non-safety-related hardware event (power).
 
 **Check 1:** The service should crash, but should try to shut down safely.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked with one flip mount. "Service was safely closed after crash"
 
 **Check 2:** The service should not be able to be restarted automatically.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically
 
 Simulated network failure on the main computer.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -190,8 +202,9 @@ Simulated network failure on the main computer.
 
 **Check 1:** The safety temperature sensors should crash as they don't have connection to the sensor anymore. This should cascade to a safety warning.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. noted failures of both UPS and both humidity sensors.
 
-**Check 2:** The temperature sensor should not be able to be restarted automatically.
+**Check 2:** The services should not be able to be restarted automatically.
 
-**NOT CHECKED YET**
+2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically.
+Getting the messages "refusing to start a crashed service" for both humidity sensors.
