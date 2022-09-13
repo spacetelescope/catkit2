@@ -24,7 +24,7 @@ Service::Service(string service_type, string service_id, int service_port, int t
 	: m_Server(service_port), m_ServiceId(service_id), m_ServiceType(service_type),
 	m_LoggerConsole(), m_LoggerPublish(service_id, "tcp://127.0.0.1:"s + to_string(testbed_port + 1)),
 	m_Heartbeat(nullptr), m_State(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
-	m_IsRunning(false), m_ShouldShutDown(false)
+	m_IsRunning(false), m_ShouldShutDown(false), m_FailSafe(false)
 {
 	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
 	m_Config = m_Testbed->GetConfig()["services"][service_id];
@@ -109,6 +109,7 @@ void Service::Run(void (*error_check)())
 	LOG_INFO("Service was succesfully opened.");
 
 	bool crashed = false;
+	m_FailSafe = false;
 
 	{
 		// Put out an initial heartbeat.
@@ -181,6 +182,11 @@ void Service::Run(void (*error_check)())
 		LOG_INFO("Service was safely closed after crash.");
 		UpdateState(ServiceState::CRASHED);
 	}
+	else if (m_FailSafe)
+	{
+		LOG_INFO("Service was safely closed after safety violation.");
+		UpdateState(ServiceState::CRASHED);
+	}
 	else
 	{
 		LOG_INFO("Service was closed.");
@@ -199,6 +205,8 @@ void Service::MonitorSafety()
 		if (!IsSafe())
 		{
 			LOG_CRITICAL("The testbed is deemed unsafe. Shutting down.");
+			m_FailSafe = true;
+
 			ShutDown();
 			return;
 		}
