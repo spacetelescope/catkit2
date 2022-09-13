@@ -14,13 +14,15 @@ class SnmpUps(Service):
         self.community = self.config['community']
         self.pass_status = self.config['pass_status']
         self.check_interval = self.config.get('check_interval', 30)
+        self.timeout = self.config.get('timeout', 5)
+        self.max_retries = self.config.get('max_retries', 5)
 
         self.power_ok = self.make_data_stream('power_ok', 'int8', [1], 20)
 
     def get_status(self):
         res = hlapi.getCmd(hlapi.SnmpEngine(),
                            hlapi.CommunityData(self.community, mpModel=0),
-                           hlapi.UdpTransportTarget((self.ip_address, self.port)),
+                           hlapi.UdpTransportTarget((self.ip_address, self.port), timeout=self.timeout, retries=self.max_retries),
                            hlapi.ContextData(),
                            hlapi.ObjectType(hlapi.ObjectIdentity(self.snmp_oid)))
 
