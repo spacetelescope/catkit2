@@ -1,6 +1,6 @@
 from catkit2.testbed.service import Service
 
-import functools
+import threading
 
 from NKTP_DLL import *
 
@@ -28,10 +28,10 @@ REG_GATEWAY = 0xB1
 REG_SUBNET_MASK = 0xB2
 REG_MAC_ADDRESS = 0xB3
 
-# TODO: check thread safety of NKT API.
 def read_register(read_func, register, *, ratio=1, index=-1):
     def getter(self):
-        result, value = read_func(self.port, DEVICE_ID, register, index)
+        with self.lock:
+            result, value = read_func(self.port, DEVICE_ID, register, index)
 
         self.check_result(result)
 
@@ -39,12 +39,13 @@ def read_register(read_func, register, *, ratio=1, index=-1):
 
     return getter
 
-# TODO: check thread safety of NKT API.
 def write_register(write_func, register, *, ratio=1, index=-1):
     def setter(self, value):
         # Convert the value to the register value. This assumes integer types.
         register_value = int(value / ratio)
-        result = write_func(self.port, DEVICE_ID, register, register_value, index)
+
+        with self.lock:
+            result = write_func(self.port, DEVICE_ID, register, register_value, index)
 
         self.check_result(result)
 
@@ -53,6 +54,8 @@ def write_register(write_func, register, *, ratio=1, index=-1):
 class NktSuperkEvo(Service):
     def __init__(self):
         super().__init__('nkt_superk_evo')
+
+        self.lock = threading.Lock()
 
     def open(self):
         # Open port.
@@ -109,7 +112,7 @@ class NktSuperkEvo(Service):
     get_interlock_msb = read_register(registerReadU8, REG_INTERLOCK, index=0)
     get_interlock_lsb = read_register(registerReadU8, REG_INTERLOCK, index=1)
 
-    get_status_bits = read_register(registerReadS16, REG_STATUS_BITS)
+    get_status_bits = read_register(registerReadU16, REG_STATUS_BITS)
 
     get_watchdog_timer = read_register(registerReadU8, REG_WATCHDOG_TIMER)
     set_watchdog_timer = write_register(registerWriteU8, REG_WATCHDOG_TIMER)
