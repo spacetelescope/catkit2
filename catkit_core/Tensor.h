@@ -43,7 +43,12 @@ class Tensor
 {
 public:
 	Tensor();
+	Tensor(const Tensor &other);
+	Tensor(Tensor &&tensor);
 	~Tensor();
+
+	Tensor &operator=(const Tensor &other);
+	Tensor &operator=(Tensor &&other);
 
 	// Convenience functions.
 	size_t GetNumElements() const;

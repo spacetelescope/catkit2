@@ -102,10 +102,41 @@ Tensor::Tensor()
 {
 }
 
+Tensor::Tensor(const Tensor &other)
+	: Tensor()
+{
+	Set(other.m_DataType, other.m_NumDimensions, (size_t *) other.m_Dimensions, (const char *) other.m_Data);
+}
+
+Tensor::Tensor(Tensor &&tensor)
+{
+	*this = std::move(tensor);
+}
+
 Tensor::~Tensor()
 {
 	if (IsOwner())
 		delete[] m_Data;
+}
+
+Tensor &Tensor::operator=(const Tensor &other)
+{
+	Set(other.m_DataType, other.m_NumDimensions, (size_t *) other.m_Dimensions, (const char *) other.m_Data);
+
+	return *this;
+}
+
+Tensor &Tensor::operator=(Tensor &&other)
+{
+	m_DataType = std::move(other.m_DataType);
+	m_NumDimensions = std::move(other.m_NumDimensions);
+	std::copy(other.m_Dimensions, other.m_Dimensions + 4, m_Dimensions);
+	m_Data = std::move(other.m_Data);
+	m_IsOwner = std::move(other.m_IsOwner);
+
+	other.m_IsOwner = false;
+
+	return *this;
 }
 
 DataType Tensor::GetDataType() const
@@ -149,7 +180,7 @@ void Tensor::SetCommon(DataType data_type, size_t num_dimensions, size_t *dimens
 void Tensor::Set(DataType data_type, size_t num_dimensions, size_t *dimensions, char *data, bool copy)
 {
 	if (copy)
-		return Set(data_type, num_dimensions, dimensions, data);
+		return Set(data_type, num_dimensions, dimensions, (const char *) data);
 
 	SetCommon(data_type, num_dimensions, dimensions);
 
