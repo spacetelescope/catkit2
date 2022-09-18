@@ -57,6 +57,7 @@ class DummyCamera(Service):
         make_property_helper('sensor_height', read_only=True)
 
         make_property_helper('device_name', read_only=True)
+        self.make_command('repeater', self.repeater)
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
@@ -178,6 +179,9 @@ class DummyCamera(Service):
     @property
     def device_name(self):
         return 'Dummy Camera'
+
+    def repeater(self, value):
+        return value
 
 if __name__ == '__main__':
     try:
