@@ -104,25 +104,44 @@ py::object ToPython(const Dict &dict)
 	return py_dict;
 }
 
-py::array ToPython(const Tensor &tensor)
+py::array ToPython(const Tensor &tensor, bool transfer_ownership = true)
 {
-	size_t item_size = GetSizeOfDataType(tensor.m_DataType);
+	const Tensor *res;
+
+	// TODO: This actually still makes a copy. Likely every ToPython() function
+	// should be rewritten to use rvalues.
+	if (transfer_ownership)
+		res = new Tensor(std::move(tensor));
+	else
+		res = &tensor;
+
+	size_t item_size = GetSizeOfDataType(res->m_DataType);
 
 	std::vector<py::ssize_t> shape;
-	for (size_t i = 0; i < tensor.m_NumDimensions; ++i)
+	for (size_t i = 0; i < res->m_NumDimensions; ++i)
 	{
-		shape.push_back(tensor.m_Dimensions[i]);
+		shape.push_back(res->m_Dimensions[i]);
 	}
 
 	auto strides = py::detail::c_strides(shape, item_size);
 
+	py::object capsule = py::none();
+
+	if (transfer_ownership)
+	{
+		// Make sure the Tensor gets deleted after Python is done with it.
+		capsule = py::capsule(res, [](void *ptr) {
+			delete reinterpret_cast<Tensor *>(ptr);
+		});
+	}
+
 	return py::array(
-		GetNumpyDataType(tensor.m_DataType),
+		GetNumpyDataType(res->m_DataType),
 		shape,
 		strides,
-		tensor.m_Data,
-		py::none()
-		);
+		res->m_Data,
+		capsule
+	);
 }
 
 py::object ToPython(const Value &value)
@@ -171,9 +190,44 @@ Value ValueFromPython(const py::handle &python_value)
 	{
 		return NoneValue();
 	}
-	else if (py::isinstance<py::array>(python_value))
+	else if (py::isinstance<py::buffer>(python_value))
 	{
-		return Value();
+		auto buffer = python_value.cast<py::buffer>();
+		auto buffer_info = buffer.request();
+
+		auto dtype = GetDataTypeFromString(buffer_info.format);
+		size_t ndim = buffer_info.ndim;
+		void *data = buffer_info.ptr;
+
+		if (ndim > 4)
+			throw std::runtime_error("Input array must have at most four dimensions.");
+
+		size_t shape[4];
+		for (size_t i = 0; i < 4; ++i)
+		{
+			if (i < ndim)
+			{
+				shape[i] = buffer_info.shape[i];
+			}
+			else
+			{
+				shape[i] = 1;
+			}
+		}
+
+		// Check if data is C continguous.
+		auto strides = py::detail::c_strides(buffer_info.shape, GetSizeOfDataType(dtype));
+
+		for (size_t i = 0; i < ndim; i++)
+		{
+			if (strides[i] != buffer_info.strides[i])
+				throw std::runtime_error("Input array must be C continguous.");
+		}
+
+		Tensor tensor;
+		tensor.Set(dtype, ndim, shape, (const char *) data);
+
+		return tensor;
 	}
 	else if (py::isinstance<py::int_>(python_value))
 	{
@@ -406,7 +460,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("data", [](DataFrame &frame)
 		{
 			Tensor &tensor = frame;
-			return ToPython(tensor);
+			return ToPython(tensor, false);
 		});
 
 	py::class_<DataStream, std::shared_ptr<DataStream>>(m, "DataStream")
@@ -489,7 +543,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get", [](DataStream &s)
 		{
 			DataFrame frame = s.GetLatestFrame();
-			return ToPython(frame);
+			return ToPython(frame, false);
 		})
 		.def_property("shape", &DataStream::GetDimensions, &DataStream::SetDimensions)
 		.def_property("num_frames_in_buffer", &DataStream::GetNumFramesInBuffer, &DataStream::SetNumFramesInBuffer)
