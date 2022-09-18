@@ -89,19 +89,19 @@ void FromProto(const catkit_proto::Value *proto_value, Value &value)
 	{
 		Dict dict;
 		FromProto(&proto_value->dict_value(), dict);
-		value = Value(dict);
+		value = Value(std::move(dict));
 	}
 	else if (proto_value->has_list_value())
 	{
 		List list;
 		FromProto(&proto_value->list_value(), list);
-		value = Value(list);
+		value = Value(std::move(list));
 	}
 	else if (proto_value->has_tensor_value())
 	{
 		Tensor tensor;
 		FromProto(&proto_value->tensor_value(), tensor);
-		value = Value(tensor);
+		value = Value(std::move(tensor));
 	}
 	else
 	{
