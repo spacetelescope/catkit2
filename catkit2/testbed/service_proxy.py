@@ -18,6 +18,18 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
     '''
     _service_interfaces = {}
 
+    def __init__(self, testbed, service_id):
+        super().__init__(testbed, service_id)
+
+        # Override the testbed attribute with the extended Python version.
+        # The import is here instead of at the top of the file to avoid circular imports.
+        from .testbed_proxy import TestbedProxy  # noqa: E402
+        object.__setattr__(self, '_testbed', TestbedProxy(getattr(super(), 'testbed').host, getattr(super(), 'testbed').port))
+
+    @property
+    def testbed(self):
+        return self._testbed
+
     def __getattr__(self, name):
         '''Get a property, command or data stream.
 
