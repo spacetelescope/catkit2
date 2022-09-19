@@ -39,23 +39,27 @@ Interrupting individual services
 Heartbeat failure on a service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Test:** Simulate an interruption in service heartbeats (manually).
+**Test:** Simulate an interruption in service heartbeats (manually, by right-clicking on the process in Process Explorer and clicking "Suspend").
 
 **Check 1:** Service should be marked as unresponsive by the testbed.
 
-2022-09-09 (Emiel Por). Tested with lab_ups by suspending the process with Process Explorer.
+2022-09-09 (Emiel Por). Tested with lab_ups.
+2022-09-19 (Emiel Por & Remi Soummer). Testbed with omega_dm1.
 
-**Check 2:** ServiceProxies to that service should disconnect.
+**Check 2:** ServiceProxies to that service should time out.
 
 2022-09-09 (Emiel Por). Checked.
+2022-09-19 (Emiel Por & Remi Soummer). Testbed with omega_dm1.
 
 **Check 3:** If the service is critical for safety, the services that require safety should safely shut down themselves.
 
 2022-09-09 (Emiel Por). Checked.
+2022-09-19 (Emiel Por & Remi Soummer). Testbed with omega_dm1.
 
 **Check 4:** When heartbeats resume, service proxies should reconnect.
 
 2022-09-09 (Emiel Por). Checked.
+2022-09-19 (Emiel Por & Remi Soummer). Testbed with omega_dm1. This needed a manual restart of the service, since it crashes after being suspended for more than 60secs, due to an internal timeout.
 
 Heartbeat failure on safety monitor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
