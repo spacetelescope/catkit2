@@ -40,9 +40,15 @@ class ServiceReference:
     state : ServiceState
         The current state of the service.
     '''
-    def __init__(self, service_id, service_type, state):
+    def __init__(self, service_id, service_type, state, dependencies):
         self.service_id = service_id
         self.service_type = service_type
+
+        if dependencies is None:
+            dependencies = []
+
+        self.dependencies = dependencies
+        self.depended_on_by = []
 
         self.state_stream = DataStream.create('state', service_id, 'int8', [1], 20)
         self.state = state
@@ -166,7 +172,38 @@ class Testbed:
             if self.is_simulated and 'simulated_service_type' in service_info:
                 service_type = service_info['simulated_service_type']
 
-            self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED)
+            dependencies = service_info.get('depends_on', [])
+
+            self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED, dependencies)
+
+        # Set up dependency management.
+        for service_id, service in self.services.items():
+            for dependency in service.dependencies:
+                self.services[dependency].depended_on_by.append(service_id)
+
+            if self.config['services'][service_id]['requires_safety']:
+                self.services[self.config['testbed']['safety']['service_name']].depended_on_by.append(service_id)
+
+        # Check for circular dependencies.
+        services_to_shut_down = list(self.services.keys())
+        while services_to_shut_down:
+            shut_down_list = []
+
+            for service_id in services_to_shut_down:
+                for dependent in self.services[service_id].depended_on_by:
+                    if dependent in services_to_shut_down:
+                        # Dependent is still alive, so do not shut down this service.
+                        break
+                else:
+                    # All services that depended on us are dead. We can shut down now too.
+                    shut_down_list.append(service_id)
+
+            if not shut_down_list:
+                # No services were shut down this iteration.
+                raise RuntimeError("Circular dependencies detected. Please fix the dependencies in your services.yml config.")
+
+            for service_id in shut_down_list:
+                services_to_shut_down.remove(service_id)
 
         # Create server instance and register request handlers.
         self.server = Server(port)
@@ -550,52 +587,53 @@ class Testbed:
         service to shut down. If a KeyboardInterrupt occurs during this shutdown process,
         all services that have not shut down already will be killed.
         '''
-        # Send shutdown to all services.
-        for service in self.services.values():
-            service.stop()
+        # Keep track of current shutdown state of services.
+        shutdown_state = {service_id: ('alive', 0) for service_id in self.services}
 
-        # Wait for processes to die.
-        start_time = time.time()
+        while shutdown_state:
+            shut_down_services = []
 
-        try:
-            while time.time() - start_time < 60:
-                time.sleep(0.1)
+            for service_id, (state, t) in shutdown_state.items():
+                if self.services[service_id].process is None:
+                    # Service has shut down. Remove it by appending to a remove list.
+                    # This needs to be done as removing elements from a dict directly
+                    # during iteration is not possible in Python.
+                    shut_down_services.append(service_id)
+                    continue
 
-                for service in self.services.values():
-                    if service.process is not None:
+                # Service is still alive. Check if all its dependents have shut down.
+                for dependent in self.services[service_id].depended_on_by:
+                    if dependent in shutdown_state:
+                        # At least one dependent is still alive, so we cannot shut this service down yet.
                         break
                 else:
-                    return
-        except KeyboardInterrupt:
-            print('Ctrl+C detected. Interrupting any leftover processes...')
+                    # All dependents have been shut down. Try to shut this service down now.
+                    if state == 'alive':
+                        # Send shutdown.
+                        self.services[service_id].stop()
 
-        all_died = True
+                        # Update shutdown state.
+                        shutdown_state[service_id] = ('stopped', time.time())
+                    elif state == 'stopped':
+                        # Send interrupt if we have been waiting for long enough.
+                        if time.time() - t > 60:
+                            print(f'Service "{service_id}" is still alive. Interrupting...')
+                            self.services[service_id].interrupt()
 
-        for service_name, service in self.services.items():
-            if service.process is not None:
-                print(f'Service "{service_name}" is still alive. Interrupting...')
-                service.interrupt()
-                all_died = False
+                            # Update shutdown state.
+                            shutdown_state[service_id] = ('interrupted', time.time())
+                    elif state == 'interrupted':
+                        # Terminate if we have been waiting for long enough.
+                        if time.time() - t > 60:
+                            print(f'Service "{service_id}" is still alive, even after interruption. Terminating...')
+                            self.services[service_id].terminate()
 
-        if all_died:
-            return
+                            # Update shutdown state.
+                            shutdown_state[service_id] = ('terminated', time.time())
 
-        # Wait for processes to die.
-        start_time = time.time()
+            # Remove stopped services from shutdown state.
+            for service_id in shut_down_services:
+                del shutdown_state[service_id]
 
-        try:
-            while time.time() - start_time < 60:
-                time.sleep(0.1)
-
-                for service in self.services.values():
-                    if service.process is not None:
-                        break
-                else:
-                    return
-        except KeyboardInterrupt:
-            print('Ctrl+C detected. Terminating any leftover processes...')
-
-        for service_name, service in self.services.items():
-            if service.process is not None:
-                print(f'Service "{service_name}" is still alive, even after interruption. Terminating...')
-                service.terminate()
+            # Wait a little bit.
+            time.sleep(0.1)
