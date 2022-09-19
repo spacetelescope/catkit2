@@ -259,23 +259,24 @@ class Testbed:
         finally:
             self.shutdown_flag.set()
 
-            self.log.info('Shutting down all running services.')
-            self.shut_down_all_services()
+            try:
+                self.log.info('Shutting down all running services.')
+                self.shut_down_all_services()
+            finally:
+                heartbeat_thread.join()
+                monitor_services_thread.join()
 
-            heartbeat_thread.join()
-            monitor_services_thread.join()
+                # Submit zero heartbeat to signal a dead testbed.
+                self.heartbeat_stream.submit_data(np.zeros(1, dtype='uint64'))
 
-            # Submit zero heartbeat to signal a dead testbed.
-            self.heartbeat_stream.submit_data(np.zeros(1, dtype='uint64'))
+                # Shut down the server.
+                self.server.stop()
 
-            # Shut down the server.
-            self.server.stop()
+                # Stop the logging.
+                self.destroy_logging()
+                self.stop_log_distributor()
 
-            # Stop the logging.
-            self.destroy_logging()
-            self.stop_log_distributor()
-
-            self.context = None
+                self.context = None
 
     def do_heartbeats(self):
         while not self.shutdown_flag.is_set():
@@ -436,7 +437,7 @@ class Testbed:
         service = self.services[request.service_id]
 
         if service.service_type != request.service_type:
-            self.log.error('Service was started with the wrong service type.')
+            self.log.error(f'Service was started with the wrong service type: {service.service_type} was expected.')
 
             raise RuntimeError('Service registration has the wrong service type.')
 
@@ -592,52 +593,82 @@ class Testbed:
         all services that have not shut down already will be killed.
         '''
         # Keep track of current shutdown state of services.
-        shutdown_state = {service_id: ('alive', 0) for service_id in self.services}
+        shutdown_state = {service_id: ('alive', 0) for service_id in self.services.keys()}
 
         while shutdown_state:
-            shut_down_services = []
+            try:
+                shut_down_services = []
 
-            for service_id, (state, t) in shutdown_state.items():
-                if self.services[service_id].process is None:
-                    # Service has shut down. Remove it by appending to a remove list.
-                    # This needs to be done as removing elements from a dict directly
-                    # during iteration is not possible in Python.
-                    shut_down_services.append(service_id)
-                    continue
+                for service_id, (state, t) in shutdown_state.items():
+                    if self.services[service_id].process is None:
+                        # Service has shut down. Remove it by appending to a remove list.
+                        # This needs to be done as removing elements from a dict directly
+                        # during iteration is not possible in Python.
+                        shut_down_services.append(service_id)
+                        continue
 
-                # Service is still alive. Check if all its dependents have shut down.
-                for dependent in self.services[service_id].depended_on_by:
-                    if dependent in shutdown_state:
-                        # At least one dependent is still alive, so we cannot shut this service down yet.
-                        break
-                else:
-                    # All dependents have been shut down. Try to shut this service down now.
-                    if state == 'alive':
-                        # Send shutdown.
-                        self.services[service_id].stop()
+                    # Service is still alive. Check if all its dependents have shut down.
+                    for dependent in self.services[service_id].depended_on_by:
+                        if dependent in shutdown_state:
+                            # At least one dependent is still alive, so we cannot shut this service down yet.
+                            break
+                    else:
+                        # All dependents have been shut down. Try to shut this service down now.
+                        shutdown_state[service_id] = self._shut_down_service_with_leniency(service_id, 60, state, t)
 
-                        # Update shutdown state.
-                        shutdown_state[service_id] = ('stopped', time.time())
-                    elif state == 'stopped':
-                        # Send interrupt if we have been waiting for long enough.
-                        if time.time() - t > 60:
-                            print(f'Service "{service_id}" is still alive. Interrupting...')
-                            self.services[service_id].interrupt()
+                # Remove stopped services from shutdown state.
+                for service_id in shut_down_services:
+                    del shutdown_state[service_id]
 
-                            # Update shutdown state.
-                            shutdown_state[service_id] = ('interrupted', time.time())
-                    elif state == 'interrupted':
-                        # Terminate if we have been waiting for long enough.
-                        if time.time() - t > 60:
-                            print(f'Service "{service_id}" is still alive, even after interruption. Terminating...')
-                            self.services[service_id].terminate()
+                # Wait a little bit.
+                time.sleep(0.1)
+            except KeyboardInterrupt:
+                # Gather services that we are waiting for.
+                waiting_for = []
 
-                            # Update shutdown state.
-                            shutdown_state[service_id] = ('terminated', time.time())
+                for service_id in shutdown_state.keys():
+                    if self.services[service_id].process is None:
+                        continue
 
-            # Remove stopped services from shutdown state.
-            for service_id in shut_down_services:
-                del shutdown_state[service_id]
+                    for dependent in self.services[service_id].depended_on_by:
+                        if dependent in shutdown_state:
+                            # At least one dependent is still alive, so we cannot shut this service down yet.
+                            break
+                    else:
+                        waiting_for.append(service_id)
 
-            # Wait a little bit.
-            time.sleep(0.1)
+                print('Press Ctrl+C again in the next five seconds to force shutdown of:')
+                print(waiting_for)
+
+                try:
+                    time.sleep(5)
+                except KeyboardInterrupt:
+                    for service_id in waiting_for:
+                        shutdown_state[service_id] = self._shut_down_service_with_leniency(service_id, 0, *shutdown_state[service_id])
+
+    def _shut_down_service_with_leniency(self, service_id, leniency_period, state, t):
+        if state == 'alive':
+            # Send shutdown.
+            self.services[service_id].stop()
+
+            # Update shutdown state.
+            return ('stopped', time.time())
+        elif state == 'stopped':
+            # Send interrupt if we have been waiting for long enough.
+            if time.time() - t > leniency_period:
+                self.log.warning(f'Service "{service_id}" is still alive. Interrupting...')
+                self.services[service_id].interrupt()
+
+                # Update shutdown state.
+                return ('interrupted', time.time())
+        elif state == 'interrupted':
+            # Terminate if we have been waiting for long enough.
+            if time.time() - t > leniency_period:
+                self.log.error(f'Service "{service_id}" is still alive, even after interruption. Terminating...')
+                self.services[service_id].terminate()
+
+                # Update shutdown state.
+                return ('terminated', time.time())
+
+        # No changes have been made to the state.
+        return (state, t)
