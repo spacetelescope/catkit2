@@ -4,6 +4,7 @@ from docopt import docopt
 
 from .. import catkit_bindings
 from .logging import CatkitLogHandler
+from .testbed_proxy import TestbedProxy
 
 doc = '''
 Usage:
@@ -48,7 +49,14 @@ class Service(catkit_bindings.Service):
 
         super().__init__(service_type, **service_args)
 
+        # Override the testbed attribute with the extended Python version.
+        self._testbed = TestbedProxy(getattr(super(), 'testbed').host, getattr(super(), 'testbed').port)
+
         # Set up log handler.
         self._log_handler = CatkitLogHandler()
         logging.getLogger(__name__).addHandler(self._log_handler)
         logging.getLogger(__name__).setLevel(logging.DEBUG)
+
+    @property
+    def testbed(self):
+        return self._testbed
