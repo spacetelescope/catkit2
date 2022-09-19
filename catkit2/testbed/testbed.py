@@ -533,6 +533,10 @@ class Testbed:
 
         self.log.info(f'Started service "{service_id}" with type "{service_type}".')
 
+        # Start the dependencies. This is not required but will speed things up.
+        for dependency in self.services[service_id].dependencies:
+            self.start_service(dependency)
+
     def stop_service(self, service_id):
         self.log.debug(f'Trying to stop service "{service_id}".')
 
