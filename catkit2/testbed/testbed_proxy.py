@@ -33,6 +33,7 @@ class TestbedProxy(catkit_bindings.TestbedProxy):
         ServiceProxy or derived class object.
             A ServiceProxy for the named service.
         '''
+        # If we already created a proxy, return it.
         if service_id in self._services:
             return self._services[service_id]
 
@@ -40,7 +41,11 @@ class TestbedProxy(catkit_bindings.TestbedProxy):
         interface_name = self.config['services'][service_id].get('interface')
         service_proxy_class = ServiceProxy.get_service_interface(interface_name)
 
-        return service_proxy_class(self, service_id)
+        # Create proxy and store it in the cache.
+        proxy = service_proxy_class(self, service_id)
+        self._services[service_id] = proxy
+
+        return proxy
 
     def __getattr__(self, item):
         '''Get the ServiceProxy named after the attribute.
