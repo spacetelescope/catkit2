@@ -153,18 +153,31 @@ void ServiceProxy::Start(double timeout_in_sec, void (*error_check)())
 {
 	auto current_state = GetState();
 
-	// Start the service if it's not already alive.
-	if (current_state == ServiceState::CLOSED)
+	switch (current_state)
 	{
+		case ServiceState::CLOSED:
 		m_Testbed->StartService(m_ServiceId);
+		break;
+
+		case ServiceState::INITIALIZING:
+		case ServiceState::OPENING:
+		case ServiceState::RUNNING:
+		break;
+
+		case ServiceState::CLOSING:
+		throw std::runtime_error("The service is closing. Try restarting it later.");
+
+		case ServiceState::UNRESPONSIVE:
+		throw std::runtime_error("The service is unresponsive. Try reconnecting later.");
+
+		case ServiceState::CRASHED:
+		throw std::runtime_error("Refusing to start a crashed service. Ask the TestbedProxy to start it.");
+
+		default:
+		throw std::runtime_error("Unknown service state.");
 	}
 
-	if (current_state == ServiceState::CRASHED)
-		throw std::runtime_error("Refusing to start a crashed service. Use the TestbedProxy to start it.");
-
-	// TODO: what should we do when the service is closing?
-
-	// Wait for the service to actually start.
+	// Wait for the service to actually start running.
 	if (timeout_in_sec > 0)
 	{
 		Timer timer;
