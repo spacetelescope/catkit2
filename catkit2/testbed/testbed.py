@@ -497,7 +497,7 @@ class Testbed:
         self.log.info(f'Started service "{service_id}" with type "{service_type}".')
 
     def stop_service(self, service_id):
-        self.log.debug(f'Trying to start service "{service_id}".')
+        self.log.debug(f'Trying to stop service "{service_id}".')
 
         if service_id not in self.services:
             raise RuntimeError(f'Service "{service_id}" is not a known service.')
