@@ -53,6 +53,7 @@ public:
 	nlohmann::json GetConfig();
 
 	std::string GetHost();
+	int GetPort();
 
 	int GetLoggingIngressPort();
 	int GetLoggingEgressPort();
@@ -70,6 +71,7 @@ private:
 	void GetTestbedInfo();
 
 	std::string m_Host;
+	int m_Port;
 
 	int m_LoggingIngressPort;
 	int m_LoggingEgressPort;

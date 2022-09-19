@@ -13,7 +13,7 @@ using namespace std::string_literals;
 const double HEARTBEAT_LIVENESS = 30;
 
 TestbedProxy::TestbedProxy(std::string host, int port)
-	: Client(host, port), m_Host(host), m_HasGottenInfo(false)
+	: Client(host, port), m_Host(host), m_Port(port), m_HasGottenInfo(false)
 {
 	// TODO: Maybe to a check early on to see if something is listening on this port.
 }
@@ -211,6 +211,11 @@ json TestbedProxy::GetConfig()
 std::string TestbedProxy::GetHost()
 {
 	return m_Host;
+}
+
+int TestbedProxy::GetPort()
+{
+	return m_Port;
 }
 
 int TestbedProxy::GetLoggingIngressPort()
