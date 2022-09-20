@@ -228,31 +228,37 @@ class Testbed:
         self.is_running = True
         self.shutdown_flag.clear()
 
-        self.context = zmq.Context()
-
-        # Start the logging.
-        self.start_log_distributor()
-        self.setup_logging()
-
-        heartbeat_thread = threading.Thread(target=self.do_heartbeats)
-        heartbeat_thread.start()
-
-        # Start the server
-        self.server.start()
-
-        # Start monitoring services.
-        monitor_services_thread = threading.Thread(target=self.monitor_services)
-        monitor_services_thread.start()
-
-        # Start the startup services.
-        for service_name in self.startup_services:
-            self.start_service(service_name)
+        heartbeat_thread = None
+        monitor_services_thread = None
 
         try:
+            self.context = zmq.Context()
+
+            # Start the logging.
+            self.start_log_distributor()
+            self.setup_logging()
+
+            heartbeat_thread = threading.Thread(target=self.do_heartbeats)
+            heartbeat_thread.start()
+
+            # Start the server
+            self.server.start()
+
+            # Start monitoring services.
+            monitor_services_thread = threading.Thread(target=self.monitor_services)
+            monitor_services_thread.start()
+
+            # Start the startup services.
+            for service_name in self.startup_services:
+                try:
+                    self.start_service(service_name)
+                except Exception as e:
+                    self.log.error(str(e))
+
             # For now, wait until Ctrl+C.
             # In the future, monitor services and update heartbeat stream.
             while not self.shutdown_flag.is_set():
-                time.sleep(0.01)
+                time.sleep(0.1)
 
         except KeyboardInterrupt:
             self.log.info('Interrupted by the user...')
@@ -263,8 +269,11 @@ class Testbed:
                 self.log.info('Shutting down all running services.')
                 self.shut_down_all_services()
             finally:
-                heartbeat_thread.join()
-                monitor_services_thread.join()
+                if heartbeat_thread:
+                    heartbeat_thread.join()
+
+                if monitor_services_thread:
+                    monitor_services_thread.join()
 
                 # Submit zero heartbeat to signal a dead testbed.
                 self.heartbeat_stream.submit_data(np.zeros(1, dtype='uint64'))
