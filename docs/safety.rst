@@ -44,22 +44,26 @@ Heartbeat failure on a service
 **Check 1:** Service should be marked as unresponsive by the testbed.
 
 2022-09-09 (Emiel Por). Tested with lab_ups.
-2022-09-19 (Emiel Por & Remi Soummer). Testbed with omega_dm1.
+2022-09-19 (Emiel Por & Remi Soummer). Tested with omega_dm1.
+2022-09-20 (Emiel Por & Remi Soummer). Tested with lab_ups.
 
 **Check 2:** ServiceProxies to that service should time out.
 
 2022-09-09 (Emiel Por). Checked.
-2022-09-19 (Emiel Por & Remi Soummer). Testbed with omega_dm1.
+2022-09-19 (Emiel Por & Remi Soummer). Tested with omega_dm1.
+2022-09-20 (Emiel Por & Remi Soummer). Tested with lab_ups.
 
 **Check 3:** If the service is critical for safety, the services that require safety should safely shut down themselves.
 
 2022-09-09 (Emiel Por). Checked.
-2022-09-19 (Emiel Por & Remi Soummer). Testbed with omega_dm1.
+2022-09-19 (Emiel Por & Remi Soummer). Tested with omega_dm1.
+2022-09-20 (Emiel Por & Remi Soummer). Tested with lab_ups.
 
 **Check 4:** When heartbeats resume, service proxies should reconnect.
 
 2022-09-09 (Emiel Por). Checked.
-2022-09-19 (Emiel Por & Remi Soummer). Testbed with omega_dm1. This needed a manual restart of the service, since it crashes after being suspended for more than 60secs, due to an internal timeout.
+2022-09-19 (Emiel Por & Remi Soummer). Tested with omega_dm1. This needed a manual restart of the service, since it crashes after being suspended for more than 60secs, due to an internal timeout.
+2022-09-20 (Emiel Por & Remi Soummer). Tested with lab_ups.
 
 Heartbeat failure on safety monitor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -69,10 +73,12 @@ Heartbeat failure on safety monitor
 **Check 1:** Safety monitor should be marked as unresponsive.
 
 2022-09-09 (Emiel Por). Checked.
+2022-09-20 (Emiel Por & Remi Soummer). Checked.
 
 **Check 2:** All services requiring safety should shut themselves down safely.
 
 2022-09-09 (Emiel Por). Checked with boston_dm.
+2022-09-20 (Emiel Por & Remi Soummer). Checked with both IrisAO and Boston.
 
 Crash of the safety monitor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -82,10 +88,12 @@ Crash of the safety monitor
 **Check 1:** Safety monitor should be marked as crashed.
 
 2022-09-09 (Emiel Por). Checked.
+2022-09-20 (Emiel Por & Remi Soummer). Checked.
 
 **Check 2:** All services requiring safety should shut themselves down safely.
 
 2022-09-09 (Emiel Por). Checked with boston_dm.
+2022-09-20 (Emiel Por & Remi Soummer). Checked with both DMs.
 
 Heartbeat failure on a testbed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,10 +103,11 @@ Heartbeat failure on a testbed
 **Check 1:** All services should safely shut down after a leniency period.
 
 2022-09-09 (Emiel Por). Checked by suspending the testbed process with Process Explorer.
+2022-09-20 (Emiel Por & Remi Soummer). Checked by suspending the testbed process with Process Explorer.
 
-**Check 2:** Services should mark themselves as CRASHED afterwards. Services should not be restarted automatically afterwards.
+**Check 2:** Services should mark themselves as CLOSED afterwards (There is no indication of safety incident, so devices just close). After the testbed comes back online, services can be restarted automatically (e.g. upon getting a data stream) using their service proxy.
 
-2022-09-09 (Emiel Por). **CHECK FAILURE** Services were marked as CLOSED and were able to be restarted automatically. In fact, some of them did, since I had the GUI running at the same time.
+2022-09-20 (Emiel Por & Remi Soummer). Checked.
 
 Crashed testbed
 ~~~~~~~~~~~~~~~
@@ -108,6 +117,7 @@ Crashed testbed
 **Check 1:** All services should safely shut down after a leniency period.
 
 2022-09-09 (Emiel Por). Checked.
+2022-09-20 (Emiel Por & Remi Soummer). Checked with almost everything on. No indication of safety failure. All services closed normally, including DMs.
 
 Real safety event on hardware (humidity)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -116,7 +126,7 @@ Real safety event on hardware (humidity)
 
 **Check 1:** All services requiring safety should shut down safely.
 
-2022-09-12 (Remi Soummer).  Checked.  Both hummidity sensors detected the unsafe conditions,
+2022-09-12 (Remi Soummer).  Checked.  Both humidity sensors detected the unsafe conditions,
 DMs were visibly turned off and server shut down.
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically
@@ -140,9 +150,7 @@ Unplug the lab UPS so that it will go on battery.
 
 **Check 2:** All services requiring safety should not be able to be restarted automatically.
 
-2022-09-12 (Remi Soummer).  ** CHECK FAILLURE (maybe) ** Testbed immediately attempting to restart the DMs,
-but denied because power was still unsafe at that time "Testbed is unsafe, This service will not be started".
-On the GUI console it does say "runtimeError: refusing to start a crashed service."
+2022-09-20 (Emiel Por & Remi Soummer). Checked with a simulated lab_ups failure (by returning False after a certain time has expired). Services requiring safety safely closed down and showed CRASHED as their state afterwards. They could not be restarted automatically via the ServiceProxy afterwards. While the testbed was still unsafe, services requiring safety immediately shut down before even opening.
 
 
 Simulated safety sensor failure
@@ -184,7 +192,7 @@ Simulated non-safety-related hardware event (USB).
 
 **Check 2:** The service should not be able to be restarted automatically.
 
-2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically
+2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically.
 
 Simulated non-safety-related hardware event (power).
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -197,7 +205,7 @@ Simulated non-safety-related hardware event (power).
 
 **Check 2:** The service should not be able to be restarted automatically.
 
-2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically
+2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically.
 
 Simulated network failure on the main computer.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
