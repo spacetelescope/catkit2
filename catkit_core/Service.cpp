@@ -526,7 +526,7 @@ void Service::UpdateState(ServiceState state)
 
 void print_usage()
 {
-	std::cout << "Usage:\n  service --name NAME --port PORT";
+	std::cout << "Usage:\n  service --id ID --port PORT --testbed_port TESTBEDPORT";
 }
 
 std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
@@ -537,11 +537,11 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 		throw std::runtime_error("Too few or too many arguments.");
 	}
 
-	std::string service_name;
+	std::string service_id;
 	int service_port;
 	int testbed_port;
 
-	bool name_found = false;
+	bool id_found = false;
 	bool service_port_found = false;
 	bool testbed_port_found = false;
 
@@ -550,17 +550,17 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 		std::string arg = argv[i];
 		std::string param = argv[i + 1];
 
-		if (arg == "--name" || arg == "-n")
+		if (arg == "--id" || arg == "-n")
 		{
-			service_name = param;
-			name_found = true;
+			service_id = param;
+			id_found = true;
 		}
 		else if (arg == "--port" || arg == "-p")
 		{
 			service_port = std::stoi(param);
 			service_port_found = true;
 		}
-		else if (arg == "--testbed" || arg == "-t")
+		else if (arg == "--testbed_port" || arg == "-t")
 		{
 			testbed_port = std::stoi(param);
 			testbed_port_found = true;
@@ -572,11 +572,11 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 		}
 	}
 
-	if (!(name_found && service_port_found && testbed_port_found))
+	if (!(id_found && service_port_found && testbed_port_found))
 	{
 		print_usage();
 		throw std::runtime_error("Did not supply all arguments.");
 	}
 
-	return std::make_tuple(service_name, service_port, testbed_port);
+	return std::make_tuple(service_id, service_port, testbed_port);
 }

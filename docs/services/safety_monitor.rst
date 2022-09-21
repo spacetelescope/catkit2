@@ -17,19 +17,19 @@ Example configuration:
 
       safeties:
         humidity_dm:
-          service_name: omega_dm
+          service_id: omega_dm
           stream_name: humidity
           minimum_value: 1
           maximum_value: 28
           safe_interval: 60  # seconds
         temperature_dm:
-          service_name: omega_dm
+          service_id: omega_dm
           stream_name: temperature
           minimum_value: 0
           maximum_value: 29
           safe_interval: 60  # seconds
         lab_ups:
-          service_name: lab_ups
+          service_id: lab_ups
           stream_name: power_ok
           minimum_value: 0.5
           maximum_value: 1.5

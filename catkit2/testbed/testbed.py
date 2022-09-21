@@ -161,7 +161,7 @@ class Testbed:
         if 'service_paths' in self.config['testbed']:
             self.service_paths.extend(self.config['testbed']['service_paths'])
 
-        self.startup_services = [self.config['testbed']['safety']['service_name']]
+        self.startup_services = [self.config['testbed']['safety']['service_id']]
         if 'startup_services' in self.config['testbed']:
             self.startup_services.extend(self.config['testbed']['startup_services'])
 
@@ -182,7 +182,7 @@ class Testbed:
                 self.services[dependency].depended_on_by.append(service_id)
 
             if self.config['services'][service_id]['requires_safety']:
-                self.services[self.config['testbed']['safety']['service_name']].depended_on_by.append(service_id)
+                self.services[self.config['testbed']['safety']['service_id']].depended_on_by.append(service_id)
 
         # Check for circular dependencies.
         services_to_shut_down = list(self.services.keys())
@@ -249,9 +249,9 @@ class Testbed:
             monitor_services_thread.start()
 
             # Start the startup services.
-            for service_name in self.startup_services:
+            for service_id in self.startup_services:
                 try:
-                    self.start_service(service_name)
+                    self.start_service(service_id)
                 except Exception as e:
                     self.log.error(str(e))
 

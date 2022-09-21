@@ -6,8 +6,8 @@
 using namespace zmq;
 using json = nlohmann::json;
 
-LogForwarder::LogForwarder(std::string service_name, std::string host)
-	: m_ServiceName(service_name), m_Host(host), m_ShutDown(false)
+LogForwarder::LogForwarder(std::string service_id, std::string host)
+	: m_ServiceId(service_id), m_Host(host), m_ShutDown(false)
 {
 	m_MessageLoopThread = std::thread(&LogForwarder::MessageLoop, this);
 }
@@ -23,7 +23,7 @@ LogForwarder::~LogForwarder()
 void LogForwarder::AddLogEntry(const LogEntry &entry)
 {
 	json message = {
-		{"service_name", m_ServiceName},
+		{"service_id", m_ServiceId},
 		{"filename", entry.filename},
 		{"line", entry.line},
 		{"function", entry.function},

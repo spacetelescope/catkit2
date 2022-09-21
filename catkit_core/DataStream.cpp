@@ -17,14 +17,14 @@
 
 using namespace std;
 
-std::string MakeStreamId(const std::string &stream_name, const std::string &service_name, int pid)
+std::string MakeStreamId(const std::string &stream_name, const std::string &service_id, int pid)
 {
 #ifdef _WIN32
-	return std::to_string(pid) + "." + service_name + "." + stream_name;
+	return std::to_string(pid) + "." + service_id + "." + stream_name;
 #elif __APPLE__
 	// MacOS shared memory names have a strongly reduced length. So we only use
 	// the pid and a hash based on stream name and service name.
-	size_t hash =  std::hash<std::string>{}(service_name + "." + stream_name);
+	size_t hash =  std::hash<std::string>{}(service_id + "." + stream_name);
 
 	std::stringstream stream;
 	stream << "/" << pid << "."
@@ -34,7 +34,7 @@ std::string MakeStreamId(const std::string &stream_name, const std::string &serv
 	return stream.str();
 #elif __linux__
 	// Linux shared memory names should preferably start with a '/'.
-	return "/"s + std::to_string(pid) + "." + service_name + "." + stream_name;
+	return "/"s + std::to_string(pid) + "." + service_id + "." + stream_name;
 #endif
 }
 
@@ -79,14 +79,14 @@ DataStream::~DataStream()
 {
 }
 
-std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	size_t num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer;
 
 	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
 		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
 
-	auto stream_id = MakeStreamId(stream_name, service_name, GetProcessId());
+	auto stream_id = MakeStreamId(stream_name, service_id, GetProcessId());
 
 	auto shared_memory = SharedMemory::Create(stream_id, num_bytes_in_buffer);
 	auto data_stream = std::shared_ptr<DataStream>(new DataStream(stream_id, shared_memory, true));
@@ -116,9 +116,9 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 	return data_stream;
 }
 
-std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_id, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
 {
-	return Create(stream_name, service_name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
+	return Create(stream_name, service_id, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
 }
 
 std::shared_ptr<DataStream> DataStream::Open(const std::string &stream_id)

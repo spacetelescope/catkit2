@@ -91,7 +91,7 @@ class LogDistributor:
             log_message = log_message[0].decode('ascii')
             log_message = json.loads(log_message)
 
-            print(f'[{log_message["service_name"]}] {log_message["message"]}')
+            print(f'[{log_message["service_id"]}] {log_message["message"]}')
 
 class LogWriter:
     def __init__(self, host, port, log_format=None):
@@ -100,7 +100,7 @@ class LogWriter:
         self.port = port
 
         if log_format is None:
-            log_format = '{time} - {service_name} - {severity} - {message}'
+            log_format = '{time} - {service_id} - {severity} - {message}'
         self.log_format = log_format
 
         self._output_file = None

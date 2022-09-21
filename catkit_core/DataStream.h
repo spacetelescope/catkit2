@@ -68,8 +68,8 @@ private:
 public:
 	~DataStream();
 
-	static std::shared_ptr<DataStream> Create(const std::string &stream_name, const std::string &service_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::shared_ptr<DataStream> Create(const std::string &stream_name, const std::string &service_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Create(const std::string &stream_name, const std::string &service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Create(const std::string &stream_name, const std::string &service_id, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
 	static std::shared_ptr<DataStream> Open(const std::string &stream_id);
 
 	DataFrame RequestNewFrame();

@@ -15,7 +15,7 @@
 class LogForwarder : LogListener
 {
 public:
-	LogForwarder(std::string service_name, std::string host);
+	LogForwarder(std::string service_id, std::string host);
 	~LogForwarder();
 
     void AddLogEntry(const LogEntry &entry);
@@ -31,7 +31,7 @@ private:
 	std::mutex m_Mutex;
 	std::condition_variable m_ConditionVariable;
 
-	std::string m_ServiceName;
+	std::string m_ServiceId;
 	std::string m_Host;
 };
 

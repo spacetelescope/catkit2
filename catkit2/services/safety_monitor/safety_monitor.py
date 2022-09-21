@@ -28,7 +28,7 @@ class SafetyMonitor(Service):
             try:
                 safety_info = self.safeties[safety_name]
 
-                service = self.testbed.get_service(safety_info['service_name'])
+                service = self.testbed.get_service(safety_info['service_id'])
                 stream = service.get_data_stream(safety_info['stream_name'])
 
                 last_frame = stream.get_latest_frame()

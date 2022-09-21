@@ -466,10 +466,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 		});
 
 	py::class_<DataStream, std::shared_ptr<DataStream>>(m, "DataStream")
-		.def_static("create", [](std::string &stream_name, std::string &service_name, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+		.def_static("create", [](std::string &stream_name, std::string &service_id, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 		{
 			DataType dtype = GetDataTypeFromString(type);
-			return DataStream::Create(stream_name, service_name, dtype, dimensions, num_frames_in_buffer);
+			return DataStream::Create(stream_name, service_id, dtype, dimensions, num_frames_in_buffer);
 		})
 		.def_static("open", [](std::string &stream_id)
 		{
