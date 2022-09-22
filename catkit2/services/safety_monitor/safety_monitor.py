@@ -1,5 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
-from catkit2.testbed.client import TestbedClient
+from catkit2.testbed import Service
 from catkit2.catkit_bindings import get_timestamp
 
 import time
@@ -7,19 +6,12 @@ import sys
 import numpy as np
 
 class SafetyMonitor(Service):
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'safety_monitor', testbed_port)
+    def __init__(self):
+        super().__init__('safety_monitor')
 
-        self.testbed = TestbedClient(testbed_port)
-
-        config = self.configuration
-        self.check_interval = config['check_interval']
-        self.safeties = config['safeties']
+        self.check_interval = self.config['check_interval']
+        self.safeties = self.config['safeties']
         self.checked_safeties = list(sorted(self.safeties.keys()))
-
-        self.shutdown_flag = False
-
-        self.data_streams = {}
 
         self.is_safe = self.make_data_stream('is_safe', 'int8', [len(self.safeties)], 20)
 
@@ -31,26 +23,37 @@ class SafetyMonitor(Service):
         is_safes = np.zeros(len(self.safeties), dtype='int8')
 
         for i, safety_name in enumerate(self.checked_safeties):
-            safety_info = self.safeties[safety_name]
-
-            try:
-                last_frame = self.data_streams[safety_name].get_latest_frame()
-            except Exception:
-                last_frame = self.data_streams[safety_name].get_next_frame()
-
             is_safe = True
 
-            # Check if frame is too old.
-            timestamp_lower_bound = current_time - safety_info['safe_interval'] * 1e9
-            if last_frame.timestamp < timestamp_lower_bound:
-                is_safe = False
+            try:
+                safety_info = self.safeties[safety_name]
 
-            # Check value lower bound.
-            if last_frame.data[0] < safety_info['minimum_value']:
-                is_safe = False
+                service = self.testbed.get_service(safety_info['service_id'])
+                stream = service.get_data_stream(safety_info['stream_name'])
 
-            # Check value upper bound.
-            if last_frame.data[0] > safety_info['maximum_value']:
+                last_frame = stream.get_latest_frame()
+
+                # Check if frame is too old.
+                timestamp_lower_bound = current_time - safety_info['safe_interval'] * 1e9
+                if last_frame.timestamp < timestamp_lower_bound:
+                    self.log.warning(f'Safety violation on "{safety_name}": the value was too old.')
+                    is_safe = False
+
+                # Check value lower bound.
+                if safety_info['minimum_value'] is not None:
+                    if last_frame.data[0] < safety_info['minimum_value']:
+                        self.log.warning(f'Safety violation on "{safety_name}": the value was too low.')
+                        is_safe = False
+
+                # Check value upper bound.
+                if safety_info['maximum_value'] is not None:
+                    if last_frame.data[0] > safety_info['maximum_value']:
+                        self.log.warning(f'Safety violation on "{safety_name}": the value was too high.')
+                        is_safe = False
+            except Exception as e:
+                self.log.error(f'Something happened during checking of safety "{safety_name}":')
+                self.log.error(str(e))
+
                 is_safe = False
 
             # Report if conditions are safe.
@@ -59,30 +62,14 @@ class SafetyMonitor(Service):
         # Submit safety.
         self.is_safe.submit_data(is_safes)
 
-    def open(self):
-        for safety_name in self.checked_safeties:
-            safety = self.safeties[safety_name]
-
-            service = getattr(self.testbed, safety['service_name'])
-            self.data_streams[safety_name] = getattr(service, safety['stream_name'])
-
     def main(self):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             start = time.time()
 
             self.check_safety()
 
-            while not self.shutdown_flag and time.time() < (start + self.check_interval):
-                time.sleep(0.05)
-
-    def close(self):
-        self.data_streams = {}
-
-    def shut_down(self):
-        self.shutdown_flag = True
+            self.sleep(self.check_interval)
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = SafetyMonitor(service_name, testbed_port)
+    service = SafetyMonitor()
     service.run()

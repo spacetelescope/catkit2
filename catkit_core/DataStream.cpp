@@ -1,7 +1,8 @@
 #include "DataStream.h"
 
 //#include "Log.h"
-#include "TimeStamp.h"
+#include "Timing.h"
+#include "Util.h"
 
 #include <algorithm>
 #include <iostream>
@@ -16,14 +17,14 @@
 
 using namespace std;
 
-std::string MakeStreamId(const std::string &stream_name, const std::string &service_name, ProcessId pid)
+std::string MakeStreamId(const std::string &stream_name, const std::string &service_id, int pid)
 {
 #ifdef _WIN32
-	return std::to_string(pid) + "." + service_name + "." + stream_name;
+	return std::to_string(pid) + "." + service_id + "." + stream_name;
 #elif __APPLE__
 	// MacOS shared memory names have a strongly reduced length. So we only use
 	// the pid and a hash based on stream name and service name.
-	size_t hash =  std::hash<std::string>{}(service_name + "." + stream_name);
+	size_t hash =  std::hash<std::string>{}(service_id + "." + stream_name);
 
 	std::stringstream stream;
 	stream << "/" << pid << "."
@@ -33,7 +34,7 @@ std::string MakeStreamId(const std::string &stream_name, const std::string &serv
 	return stream.str();
 #elif __linux__
 	// Linux shared memory names should preferably start with a '/'.
-	return "/"s + std::to_string(pid) + "." + service_name + "." + stream_name;
+	return "/"s + std::to_string(pid) + "." + service_id + "." + stream_name;
 #endif
 }
 
@@ -56,116 +57,9 @@ void CalculateBufferSize(DataType type, std::vector<size_t> dimensions, size_t n
 	num_bytes_in_buffer = sizeof(DataStreamHeader) + num_bytes_per_frame * num_frames_in_buffer;
 }
 
-const char *GetDataTypeAsString(DataType type)
+void CopyString(char *dest, const char *src, size_t n)
 {
-	switch (type)
-	{
-		case DataType::DT_UINT8:
-			return "B";
-		case DataType::DT_UINT16:
-			return "H";
-		case DataType::DT_UINT32:
-			return "L";
-		case DataType::DT_UINT64:
-			return "Q";
-		case DataType::DT_INT8:
-			return "b";
-		case DataType::DT_INT16:
-			return "h";
-		case DataType::DT_INT32:
-			return "l";
-		case DataType::DT_INT64:
-			return "q";
-		case DataType::DT_FLOAT32:
-			return "f";
-		case DataType::DT_FLOAT64:
-			return "d";
-		case DataType::DT_COMPLEX64:
-			return "Zf";
-		case DataType::DT_COMPLEX128:
-			return "Zd";
-		default:
-			return "unknown";
-	}
-}
-
-DataType GetDataTypeFromString(const char *type)
-{
-	return GetDataTypeFromString(string(type));
-}
-
-DataType GetDataTypeFromString(string type)
-{
-	if (type == "B" || type == "uint8")
-		return DataType::DT_UINT8;
-	if (type == "H" || type == "uint16")
-		return DataType::DT_UINT16;
-	if (type == "L" || type == "uin32")
-		return DataType::DT_UINT32;
-	if (type == "Q" || type == "uint64")
-		return DataType::DT_UINT64;
-	if (type == "b" || type == "int8")
-		return DataType::DT_INT8;
-	if (type == "h" || type == "int16")
-		return DataType::DT_INT16;
-	if (type == "l" || type == "int32")
-		return DataType::DT_INT32;
-	if (type == "q" || type == "int64")
-		return DataType::DT_INT64;
-	if (type == "f" || type == "float32")
-		return DataType::DT_FLOAT32;
-	if (type == "d" || type == "float64")
-		return DataType::DT_FLOAT64;
-	if (type == "Zf" || type == "complex64")
-		return DataType::DT_COMPLEX64;
-	if (type == "Zd" || type == "complex128")
-		return DataType::DT_COMPLEX128;
-	return DataType::DT_UNKNOWN;
-}
-
-size_t GetSizeOfDataType(DataType type)
-{
-	switch (type)
-	{
-		case DataType::DT_UINT8:
-		case DataType::DT_INT8:
-			return 1;
-		case DataType::DT_UINT16:
-		case DataType::DT_INT16:
-			return 2;
-		case DataType::DT_UINT32:
-		case DataType::DT_INT32:
-		case DataType::DT_FLOAT32:
-			return 4;
-		case DataType::DT_UINT64:
-		case DataType::DT_INT64:
-		case DataType::DT_FLOAT64:
-		case DataType::DT_COMPLEX64:
-			return 8;
-		case DataType::DT_COMPLEX128:
-			return 16;
-		default:
-			return 0;
-	}
-}
-
-ProcessId GetPID()
-{
-#ifdef _WIN32
-	return GetCurrentProcessId();
-#else
-	return getpid();
-#endif // _WIN32
-}
-
-size_t DataFrame::GetNumElements()
-{
-	return m_Dimensions[0] * m_Dimensions[1] * m_Dimensions[2] * m_Dimensions[3];
-}
-
-size_t DataFrame::GetSizeInBytes()
-{
-	return GetNumElements() * GetSizeOfDataType(m_DataType);
+	snprintf(dest, n, "%s", src);
 }
 
 DataStream::DataStream(const std::string &stream_id, std::shared_ptr<SharedMemory> shared_memory, bool create)
@@ -185,26 +79,31 @@ DataStream::~DataStream()
 {
 }
 
-std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
 	size_t num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer;
 
 	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
 		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
 
-	auto stream_id = MakeStreamId(stream_name, service_name, GetPID());
+	auto stream_id = MakeStreamId(stream_name, service_id, GetProcessId());
 
 	auto shared_memory = SharedMemory::Create(stream_id, num_bytes_in_buffer);
 	auto data_stream = std::shared_ptr<DataStream>(new DataStream(stream_id, shared_memory, true));
 
 	auto header = data_stream->m_Header;
 
-	strcpy(header->m_Version, CURRENT_DATASTREAM_VERSION);
+	size_t n = sizeof(header->m_Version) / sizeof(header->m_Version[0]);
+	CopyString(header->m_Version, CURRENT_DATASTREAM_VERSION, n);
 
-	strcpy(header->m_StreamName, stream_name.c_str());
-	strcpy(header->m_StreamId, stream_id.c_str());
+	n = sizeof(header->m_StreamName) / sizeof(header->m_StreamName[0]);
+	CopyString(header->m_StreamName, stream_name.c_str(), n);
+
+	n = sizeof(header->m_StreamId) / sizeof(header->m_StreamId[0]);
+	CopyString(header->m_StreamId, stream_id.c_str(), n);
+
 	header->m_TimeCreated = GetTimeStamp();
-	header->m_OwnerPID = GetPID();
+	header->m_OwnerPID = GetProcessId();
 
 	header->m_FirstId = 0;
 	header->m_LastId = 0;
@@ -217,9 +116,9 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 	return data_stream;
 }
 
-std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_name, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
+std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_id, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer)
 {
-	return Create(stream_name, service_name, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
+	return Create(stream_name, service_id, type, std::vector<size_t>{dimensions}, num_frames_in_buffer);
 }
 
 std::shared_ptr<DataStream> DataStream::Open(const std::string &stream_id)
@@ -253,10 +152,8 @@ DataFrame DataStream::RequestNewFrame()
 	DataFrame frame;
 	frame.m_Id = new_frame_id;
 	frame.m_TimeStamp = 0;
-	frame.m_DataType = m_Header->m_DataType;
-	frame.m_NumDimensions = m_Header->m_NumDimensions;
-	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
-	frame.m_Data = m_Buffer + offset;
+
+	frame.Set(m_Header->m_DataType, m_Header->m_NumDimensions, m_Header->m_Dimensions, m_Buffer + offset, false);
 
 	return frame;
 }
@@ -380,7 +277,7 @@ std::uint64_t DataStream::GetTimeCreated()
 	return m_Header->m_TimeCreated;
 }
 
-ProcessId DataStream::GetOwnerPID()
+int DataStream::GetOwnerPID()
 {
 	return m_Header->m_OwnerPID;
 }
@@ -388,7 +285,6 @@ ProcessId DataStream::GetOwnerPID()
 DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_check)())
 {
 	DataFrame frame;
-	frame.m_Id = 0;
 
 	bool wait = wait_time_in_ms > 0;
 
@@ -411,10 +307,8 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 	// Build a DataFrame and return it.
 	frame.m_Id = id;
 	frame.m_TimeStamp = m_Header->m_FrameMetadata[id % m_Header->m_NumFramesInBuffer].m_TimeStamp;
-	frame.m_DataType = m_Header->m_DataType;
-	frame.m_NumDimensions = m_Header->m_NumDimensions;
-	copy(m_Header->m_Dimensions, m_Header->m_Dimensions + 4, frame.m_Dimensions);
-	frame.m_Data = m_Buffer + offset;
+
+	frame.Set(m_Header->m_DataType, m_Header->m_NumDimensions, m_Header->m_Dimensions, m_Buffer + offset, false);
 
 	return frame;
 }

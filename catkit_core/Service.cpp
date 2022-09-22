@@ -1,355 +1,290 @@
 #include "Service.h"
 
-#include "TimeStamp.h"
+#include "Finally.h"
+#include "Timing.h"
+#include "TestbedProxy.h"
+#include "proto/service.pb.h"
 
 #include <chrono>
 #include <csignal>
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <zmq_addon.hpp>
 
+using namespace std;
 using namespace zmq;
 using json = nlohmann::json;
 using namespace std::string_literals;
 
-const std::string SERVICE_ID = "SERVICE";
+const double SAFETY_INTERVAL = 60;  // seconds.
 
-const std::string REGISTER_ID = "REGISTER";
-const std::string OPENED_ID = "OPENED";
-const std::string HEARTBEAT_ID = "HEARTBEAT";
-const std::string CONFIGURATION_ID = "CONFIGURATION";
-const std::string REQUEST_ID = "REQUEST";
-const std::string REPLY_ID = "REPLY";
-
-const int HEARTBEAT_LIVENESS = 5;
-const float HEARTBEAT_INTERVAL = 1; // sec
-
-static sig_atomic_t interrupt_signal = 0;
-static void SignalHandler(int signal_value)
+Service::Service(string service_type, string service_id, int service_port, int testbed_port)
+	: m_Server(service_port), m_ServiceId(service_id), m_ServiceType(service_type),
+	m_LoggerConsole(), m_LoggerPublish(service_id, "tcp://127.0.0.1:"s + to_string(testbed_port + 1)),
+	m_Heartbeat(nullptr), m_State(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
+	m_IsRunning(false), m_ShouldShutDown(false), m_FailSafe(false)
 {
-	interrupt_signal = 1;
-}
+	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
+	m_Config = m_Testbed->GetConfig()["services"][service_id];
 
-Service::Service(std::string service_name, std::string service_type, int testbed_port)
-	: m_ShellSocket(nullptr),
-	m_ServiceName(service_name), m_ServiceType(service_type),
-	m_Port(testbed_port), m_IsRunning(false),
-	m_HasGottenConfiguration(false), m_IsOpened(false),
-	m_LoggerConsole(), m_LoggerPublish(service_name, "tcp://localhost:"s + std::to_string(testbed_port + 1))
-{
-	LOG_INFO("Initializing service '"s + service_name + "'.");
+	m_Heartbeat = DataStream::Create("heartbeat", service_id, DataType::DT_UINT64, {1}, 20);
 
-	// Catching Ctrl+C and similar process killers and shut down gracefully.
-	signal(SIGINT, SignalHandler);
-	signal(SIGTERM, SignalHandler);
+	string state_stream_id = m_Testbed->RegisterService(
+		service_id,
+		service_type,
+		"127.0.0.1",
+		service_port,
+		GetProcessId(),
+		m_Heartbeat->GetStreamId()
+	);
 
-	// Set up request handlers.
-	m_RequestHandlers["get_property"] = [this](const json &data){return this->OnGetPropertyRequest(data);};
-	m_RequestHandlers["set_property"] = [this](const json &data){return this->OnSetPropertyRequest(data);};
+	m_State = DataStream::Open(state_stream_id);
+	UpdateState(ServiceState::INITIALIZING);
 
-	m_RequestHandlers["execute_command"] = [this](const json &data){return this->OnExecuteCommandRequest(data);};
+	LOG_DEBUG("Registering request handlers.");
 
-	m_RequestHandlers["all_properties"] = [this](const json &data){return this->OnAllPropertiesRequest(data);};
-	m_RequestHandlers["all_commands"] = [this](const json &data){return this->OnAllCommandsRequest(data);};
-	m_RequestHandlers["all_datastreams"] = [this](const json &data){return this->OnAllDataStreamsRequest(data);};
+	m_Server.RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data); });
+	m_Server.RegisterRequestHandler("get_property", [this](const string &data) { return this->HandleGetProperty(data); });
+	m_Server.RegisterRequestHandler("set_property", [this](const string &data) { return this->HandleSetProperty(data); });
+	m_Server.RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
+	m_Server.RegisterRequestHandler("shut_down", [this](const string &data) { return this->HandleShutDown(data); });
 
-	m_RequestHandlers["shut_down_request"] = [this](const json &data){return this->OnShutdownRequest(data);};
-
-	MakeProperty("configuration", [this](){return this->GetConfiguration();});
-	m_HeartbeatStream = MakeDataStream("heartbeat", DataType::DT_UINT64, {1}, 10);
-
-	uint64_t start_time = GetTimeStamp();
-	m_HeartbeatStream->SubmitData(&start_time);
-
-	LOG_INFO("Service '"s + service_name + "' has been initialized.");
-
-	m_InterfaceThread = std::thread(&Service::MonitorInterface, this);
+	LOG_INFO("Intialized service.");
 }
 
 Service::~Service()
 {
-	LOG_INFO("Service '"s + m_ServiceName + "' is being destroyed.");
-
-	m_IsRunning = false;
-
-	if (m_InterfaceThread.joinable())
-		m_InterfaceThread.join();
-
-	LOG_INFO("Service '"s + m_ServiceName + "' has been destroyed.");
 }
 
-void Service::MonitorInterface()
+void Service::Run(void (*error_check)())
 {
-	LOG_INFO("Connecting to testbed server on port "s + std::to_string(m_Port) + ".");
-
-	m_ShellSocket = new socket_t(m_Context, ZMQ_DEALER);
-
-	m_ShellSocket->set(zmq::sockopt::rcvtimeo, 100);
-	m_ShellSocket->set(zmq::sockopt::linger, 0);
-
-	m_ShellSocket->connect("tcp://localhost:"s + std::to_string(m_Port));
-
-	m_IsRunning = true;
-	m_LastReceivedHeartbeatTime = GetTimeStamp();
-	m_LastSentHeartbeatTime = GetTimeStamp();
-
-	SendRegisterMessage();
-
-	bool sent_opened_message = false;
-
-	while (m_IsRunning && !interrupt_signal)
+	// Perform check on requires safety property in config.
+	if (!m_Config.contains("requires_safety"))
 	{
-		// Send message that we are open for business, but only once.
-		if (m_IsOpened && !sent_opened_message)
-		{
-			SendOpenedMessage();
-			sent_opened_message = true;
-		}
+		LOG_CRITICAL("Attribute \"requires_safety\" not found in config. This is mandatory for all services.");
+		UpdateState(ServiceState::CRASHED);
 
-		// Send heartbeat if enough time has passed.
-		if ((m_LastSentHeartbeatTime + HEARTBEAT_INTERVAL * 1e9) < GetTimeStamp())
-			SendHeartbeatMessage();
-
-		// Check received heartbeats to see if the server crashed.
-		if ((m_LastReceivedHeartbeatTime + HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS * 1e9) < GetTimeStamp())
-		{
-			LOG_CRITICAL("No heartbeats received from the server in a while. Quiting for safety reasons.");
-
-			m_IsRunning = false;
-			break;
-		}
-
-		message_t frame0, frame1, frame2, frame3;
-
-		try
-		{
-			multipart_t parts;
-			auto res = recv_multipart(*m_ShellSocket, std::back_inserter(parts));
-
-			if (!res.has_value())
-			{
-				// Socket timed out, so continue and try again.
-				// This is done to facilitate periodic error/shutdown/interrupt checking.
-				continue;
-			}
-
-			if (parts.size() < 2)
-			{
-				LOG_ERROR("Incoming message had only "s + std::to_string(parts.size()) + "< 2 parts.");
-
-				// Ignore message.
-				continue;
-			}
-
-			// Extract the first two parts (first is empty, second is message type).
-			parts.pop();
-			std::string message_type = parts.popstr();
-
-			if (message_type == HEARTBEAT_ID)
-			{
-				m_LastReceivedHeartbeatTime = GetTimeStamp();
-			}
-			else if (message_type == CONFIGURATION_ID)
-			{
-				LOG_DEBUG("Received configuration.");
-
-				if (parts.size() < 1)
-				{
-					LOG_ERROR("Message had too little parts.");
-
-					// Ignore message.
-					continue;
-				}
-
-				std::string json_string = parts.popstr();
-
-				json body;
-				try
-				{
-					body = json::parse(json_string);
-				}
-				catch (...)
-				{
-					LOG_ERROR("Received malformed JSON body from server.");
-
-					// Ignore message.
-					continue;
-				}
-
-				m_Configuration = body;
-				m_HasGottenConfiguration = true;
-			}
-			else if (message_type == REQUEST_ID)
-			{
-				LOG_DEBUG("Received request.");
-
-				if (parts.size() < 2)
-				{
-					LOG_ERROR("Message had too little parts.");
-
-					// Ignore message.
-					continue;
-				}
-
-				std::string client_identity = parts.popstr();
-				std::string json_string = parts.popstr();
-
-				json request;
-				try
-				{
-					request = json::parse(json_string);
-				}
-				catch (...)
-				{
-					LOG_ERROR("Received malformed JSON from the server.");
-
-					// Ignore message.
-					continue;
-				}
-
-				// Check if request contains a type and data.
-				if (!request.count("request_type") || !request.count("data"))
-				{
-					LOG_ERROR("Requests are required to contain a request_type and data. Discarding message.");
-
-					// Ignore message.
-					continue;
-				}
-
-				std::string request_type = request["request_type"].get<std::string>();
-				json data = request["data"];
-
-				// Handle message according to request_type.
-				if (m_RequestHandlers.find(request_type) != m_RequestHandlers.end())
-				{
-					json reply_data;
-
-					try
-					{
-						reply_data = m_RequestHandlers[request_type](data);
-
-						SendReplyOk(client_identity, request_type, reply_data);
-					}
-					catch (std::exception &e)
-					{
-						LOG_ERROR("Encountered error during handling of request: "s + e.what());
-						SendReplyError(client_identity, request_type, e.what());
-					}
-				}
-				else
-				{
-					std::string error = "Type of message \""s + request_type + "\" not recognized. Discarding message.";
-					LOG_ERROR(error);
-
-					SendReplyError(client_identity, request_type, error);
-					continue;
-				}
-			}
-		}
-		catch (zmq::error_t)
-		{
-			if (!interrupt_signal)
-				LOG_ERROR("Error while receiving message.");
-		}
+		return;
 	}
 
-	m_IsRunning = false;
-	try
+	// Log whether this services requires safety or not.
+	if (RequiresSafety())
 	{
-		this->ShutDown();
+		LOG_INFO("This service requires a safe testbed to operate.");
 	}
-	catch (...)
-	{
-		LOG_ERROR("Caught error during call to shut down. Ignoring...");
-	}
-
-	m_ShellSocket->close();
-	delete m_ShellSocket;
-	m_ShellSocket = nullptr;
-
-	if (interrupt_signal)
-		LOG_INFO("Service '" + m_ServiceName + "' interrupted by terminate signal. Shutting down.");
 	else
-		LOG_INFO("Service '" + m_ServiceName + "' shut down with keyboard interrupt.");
-}
-
-class Finally
-{
-public:
-	Finally(std::function<void()> func)
-		: m_Func(func)
 	{
+		LOG_INFO("This service can operate in unsafe conditions.");
 	}
 
-	~Finally()
+	// Perform safety pre-check.
+	if (!IsSafe())
 	{
-		m_Func();
+		LOG_CRITICAL("Testbed is unsafe. This service will not be started.");
+		UpdateState(ServiceState::CRASHED);
+
+		return;
 	}
 
-private:
-	std::function<void()> m_Func;
-};
-
-void Service::Run()
-{
-	LOG_INFO("Opening service...");
+	// We can start the service now.
+	LOG_INFO("Opening service.");
+	UpdateState(ServiceState::OPENING);
 
 	try
 	{
-		this->Open();
-		m_IsOpened = true;
+		Open();
 	}
-	catch (...)
+	catch (std::exception &e)
 	{
-		LOG_ERROR("Caught exception during opening of Service. Exiting...");
-		throw;
-	}
+		LOG_CRITICAL("Something went wrong when opening service: "s + e.what());
+		LOG_CRITICAL("Shutting down service.");
 
-	LOG_INFO("Service succesfully opened. Starting main loop.");
-
-	// Shut down monitoring thread at the end of this function no matter what.
-	Finally cleanup_interface_thread([this]()
-	{
 		m_IsRunning = false;
+		UpdateState(ServiceState::CRASHED);
+		return;
+	}
 
+	LOG_INFO("Service was succesfully opened.");
+
+	bool crashed = false;
+	m_FailSafe = false;
+
+	{
+		// Put out an initial heartbeat.
+		// This ensures that there is always a heartbeat on this channel.
+		std::uint64_t timestamp = GetTimeStamp();
+		m_Heartbeat->SubmitData(&timestamp);
+
+		// Start the safety and heartbeat threads.
+		std::thread safety(&Service::MonitorSafety, this);
+		std::thread heartbeat(&Service::MonitorHeartbeats, this);
+
+		// Start the server.
+		m_Server.Start();
+
+		// Ensure the server and started threads are stopped when out of this scope.
+		Finally stop_server_and_monitors([this, &safety, &heartbeat]()
+		{
+			this->m_ShouldShutDown = true;
+
+			this->m_Server.Stop();
+
+			if (safety.joinable())
+				safety.join();
+
+			if (heartbeat.joinable())
+				heartbeat.join();
+		});
+
+		// Update service state.
+		m_IsRunning = true;
+		UpdateState(ServiceState::RUNNING);
+
+		LOG_INFO("Starting service main function.");
+
+		// Start the main function.
+		// The main function is called in the main thread to allow it to
+		// catch KeyboardInterrupts from Python.
 		try
 		{
-			m_InterfaceThread.join();
+			Main();
 		}
-		catch (...)
+		catch (std::exception &e)
 		{
-			// Thread was already stopped. Ignore errors.
+			LOG_CRITICAL("Something went wrong during the main function: "s + e.what());
+			LOG_CRITICAL("Shutting down service.");
+
+			crashed = true;
 		}
-	});
+	}
+
+	m_IsRunning = false;
+
+	LOG_INFO("Service main has ended.");
+
+	UpdateState(ServiceState::CLOSING);
+
+	LOG_INFO("Closing service.");
 
 	try
 	{
-		this->Main();
+		Close();
 	}
-	catch (...)
+	catch (std::exception e)
 	{
-		LOG_ERROR("Caught exception in main function of Service. Closing Service and exiting...");
-
-		this->Close();
-		m_IsOpened = false;
-		throw;
+		LOG_CRITICAL("Something went wrong when closing the service: "s + e.what());
 	}
 
-	LOG_INFO("Main loop has ended. Closing service...");
+	if (crashed)
+	{
+		LOG_INFO("Service was safely closed after crash.");
+		UpdateState(ServiceState::CRASHED);
+	}
+	else if (m_FailSafe)
+	{
+		LOG_INFO("Service was safely closed after safety violation.");
+		UpdateState(ServiceState::CRASHED);
+	}
+	else
+	{
+		LOG_INFO("Service was closed.");
+		UpdateState(ServiceState::CLOSED);
+	}
+
+	// Set heartbeat timestamp to zero to signal a dead service.
+	std::uint64_t timestamp = 0;
+	m_Heartbeat->SubmitData(&timestamp);
+}
+
+void Service::MonitorSafety()
+{
+	while (!ShouldShutDown())
+	{
+		if (!IsSafe())
+		{
+			LOG_CRITICAL("The testbed is deemed unsafe. Shutting down.");
+			m_FailSafe = true;
+
+			ShutDown();
+			return;
+		}
+
+		Sleep(SAFETY_INTERVAL);
+	}
+}
+
+bool Service::IsSafe()
+{
+	if (!RequiresSafety())
+		return true;
 
 	try
 	{
-		this->Close();
-		m_IsOpened = false;
+		static std::shared_ptr<ServiceProxy> safety_service(m_Testbed->GetService("safety"));
+
+		auto stream = safety_service->GetDataStream("is_safe");
+		auto frame = stream->GetLatestFrame();
+
+		std::uint64_t current_time = GetTimeStamp();
+
+		if ((current_time - frame.m_TimeStamp) / 1.0e9 > 3 * SAFETY_INTERVAL)
+		{
+			// The safety check is too old.
+			// This is deemed unsafe.
+			LOG_WARNING("The safety check is too old.");
+
+			return false;
+		}
+
+		auto data = frame.AsArray<std::uint8_t>();
+
+		if (data.sum() != data.size())
+		{
+			// At least one safety has failed.
+			// This is deemed unsafe.
+			LOG_WARNING("At least one safety check has failed.");
+
+			return false;
+		}
 	}
-	catch (...)
+	catch (std::exception &e)
 	{
-		LOG_ERROR("Caught exception during closing of Service. Exiting...");
-		throw;
+		// Something went wrong when trying to check safety.
+		// This is deemed unsafe.
+		LOG_ERROR("Something went wrong when checking safety: "s + e.what());
+
+		return false;
 	}
 
-	LOG_INFO("Service has successfully been closed.");
+	return true;
+}
+
+bool Service::RequiresSafety()
+{
+	return m_Config["requires_safety"];
+}
+
+void Service::MonitorHeartbeats()
+{
+	while (!ShouldShutDown())
+	{
+		// Update my own heartbeat.
+		std::uint64_t timestamp = GetTimeStamp();
+		m_Heartbeat->SubmitData(&timestamp);
+
+		// Check the testbed heartbeat.
+		if (!m_Testbed->IsAlive())
+		{
+			LOG_CRITICAL("Testbed has likely crashed. Shutting down.");
+			ShutDown();
+			return;
+		}
+
+		// Sleep until next check.
+		Sleep(SERVICE_LIVELINESS / 5);
+	}
 }
 
 void Service::Open()
@@ -367,7 +302,28 @@ void Service::Close()
 
 void Service::ShutDown()
 {
-	LOG_CRITICAL("You MUST override the shut_down() function for correct shutdown behaviour.");
+	m_ShouldShutDown = true;
+}
+
+bool Service::ShouldShutDown()
+{
+	return m_ShouldShutDown;
+}
+
+bool Service::IsRunning()
+{
+	return m_IsRunning;
+}
+
+void Service::Sleep(double sleep_time_in_sec, void (*error_check)())
+{
+	::Sleep(sleep_time_in_sec, [this, error_check]()
+	{
+		if (error_check)
+			error_check();
+
+		return this->ShouldShutDown();
+	});
 }
 
 std::shared_ptr<Property> Service::GetProperty(const std::string &property_name) const
@@ -400,41 +356,37 @@ std::shared_ptr<DataStream> Service::GetDataStream(const std::string &stream_nam
 		return nullptr;
 }
 
-json Service::GetConfiguration() const
+json Service::GetConfig() const
 {
-	// Wait for configuration to arrive.
-	while (!m_HasGottenConfiguration)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
-
-	return m_Configuration;
+	return m_Config;
 }
 
-const std::string &Service::GetServiceName() const
+const std::string &Service::GetId() const
 {
-	return m_ServiceName;
+	return m_ServiceId;
 }
 
-std::shared_ptr<Property> Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter)
+void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter)
 {
+	LOG_DEBUG("Making property \"" + property_name + "\".");
+
 	auto prop = std::make_shared<Property>(property_name, getter, setter);
 	m_Properties[property_name] = prop;
-
-	return prop;
 }
 
-std::shared_ptr<Command> Service::MakeCommand(std::string command_name, Command::CommandFunction func)
+void Service::MakeCommand(std::string command_name, Command::CommandFunction func)
 {
+	LOG_DEBUG("Making command \"" + command_name + "\".");
+
 	auto cmd = std::make_shared<Command>(command_name, func);
 	m_Commands[command_name] = cmd;
-
-	return cmd;
 }
 
 std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
-	auto stream = DataStream::Create(stream_name, GetServiceName(), type, dimensions, num_frames_in_buffer);
+	LOG_DEBUG("Making data stream \"" + stream_name + "\".");
+
+	auto stream = DataStream::Create(stream_name, GetId(), type, dimensions, num_frames_in_buffer);
 	m_DataStreams[stream_name] = stream;
 
 	return stream;
@@ -442,237 +394,176 @@ std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, Dat
 
 std::shared_ptr<DataStream> Service::ReuseDataStream(std::string stream_name, std::string stream_id)
 {
+	LOG_DEBUG("Reusing data stream \"" + stream_name + "\".");
+
 	auto stream = DataStream::Open(stream_id);
 	m_DataStreams[stream_name] = stream;
 
 	return stream;
 }
 
-json Service::OnGetPropertyRequest(const nlohmann::json &data)
+std::shared_ptr<TestbedProxy> Service::GetTestbed()
 {
-	if (!data.count("property_name"))
-		throw std::runtime_error("Request must contain a property name.");
+	return m_Testbed;
+}
 
-	std::string property_name = data["property_name"];
+string Service::HandleGetInfo(const string &data)
+{
+	// There's no data in the request, so don't even parse it.
+	// Create the reply protobuffer object.
+	catkit_proto::service::GetInfoReply reply;
+
+	reply.set_service_id(m_ServiceId);
+	reply.set_service_type(m_ServiceType);
+	reply.set_config(m_Config.dump());
+
+	for (auto& [key, value] : m_Properties)
+		reply.add_property_names(key);
+
+	for (auto& [key, value] : m_Commands)
+		reply.add_command_names(key);
+
+	for (auto& [key, value] : m_DataStreams)
+		(*reply.mutable_datastream_ids())[key] = value->GetStreamId();
+
+	reply.set_heartbeat_stream_id(m_Heartbeat->GetStreamId());
+
+	std::string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
+}
+
+string Service::HandleGetProperty(const string &data)
+{
+	catkit_proto::service::GetPropertyRequest request;
+	request.ParseFromString(data);
+
+	std::string property_name = request.property_name();
 	auto property = GetProperty(property_name);
 
 	if (!property)
 		throw std::runtime_error("Property \""s + property_name + "\" does not exist.");
 
-	return property->Get();
+	auto value = property->Get();
+
+	catkit_proto::service::GetPropertyReply reply;
+	ToProto(value, reply.mutable_property_value());
+
+	string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
 }
 
-json Service::OnSetPropertyRequest(const nlohmann::json &data)
+string Service::HandleSetProperty(const string &data)
 {
-	if (!data.count("property_name"))
-		throw std::runtime_error("Request must contain a property name.");
+	catkit_proto::service::SetPropertyRequest request;
+	request.ParseFromString(data);
 
-	std::string property_name = data["property_name"];
+	std::string property_name = request.property_name();
 	auto property = GetProperty(property_name);
 
 	if (!property)
 		throw std::runtime_error("Property \""s + property_name + "\" does not exist.");
 
-	if (!data.count("value"))
-		throw std::runtime_error("Request must contain a value.");
+	Value set_value;
+	FromProto(&request.property_value(), set_value);
+	property->Set(set_value);
 
-	property->Set(data["value"]);
+	auto value = property->Get();
 
-	return json();
+	catkit_proto::service::SetPropertyReply reply;
+	ToProto(value, reply.mutable_property_value());
+
+	string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
 }
 
-json Service::OnExecuteCommandRequest(const nlohmann::json &data)
+string Service::HandleExecuteCommand(const string &data)
 {
-	if (!data.count("command_name"))
-		throw std::runtime_error("Request must contain a command name.");
+	catkit_proto::service::ExecuteCommandRequest request;
+	request.ParseFromString(data);
 
-	std::string command_name = data["command_name"];
+	std::string command_name = request.command_name();
 	auto command = GetCommand(command_name);
 
 	if (!command)
 		throw std::runtime_error("Command \""s + command_name + "\" does not exist.");
 
-	if (!data.count("arguments"))
-		throw std::runtime_error("Request must contain arguments.");
+	Dict args;
+	FromProto(&request.arguments(), args);
+	auto res = command->Execute(args);
 
-	return command->Execute(data["arguments"]);
+	catkit_proto::service::ExecuteCommandReply reply;
+	ToProto(res, reply.mutable_result());
+
+	string reply_string;
+	reply.SerializeToString(&reply_string);
+
+	return reply_string;
 }
 
-json Service::OnGetDataStreamInfoRequest(const nlohmann::json &data)
+string Service::HandleShutDown(const string &data)
 {
-	if (!data.count("stream_name"))
-		throw std::runtime_error("Request must contain a stream name.");
+	ShutDown();
 
-	std::string stream_name = data["stream_name"];
-	auto stream = GetDataStream(stream_name);
+	catkit_proto::service::ShutDownReply reply;
 
-	if (!stream)
-		throw std::runtime_error("DataStream \""s + stream_name + "\" does not exist.");
+	string reply_string;
+	reply.SerializeToString(&reply_string);
 
-	json info = {
-		{"stream_id", stream->GetStreamId()}
-	};
-
-	return info;
+	return reply_string;
 }
 
-json Service::OnAllPropertiesRequest(const nlohmann::json &data)
+void Service::UpdateState(ServiceState state)
 {
-	std::vector<std::string> properties;
-	for (auto const &i : m_Properties)
-		properties.push_back(i.first);
-
-	return json(properties);
-}
-
-json Service::OnAllCommandsRequest(const nlohmann::json &data)
-{
-	std::vector<std::string> commands;
-	for (auto const &i : m_Commands)
-		commands.push_back(i.first);
-
-	return json(commands);
-}
-
-json Service::OnAllDataStreamsRequest(const nlohmann::json &data)
-{
-	std::map<std::string, std::string> streams;
-	for (auto const &i : m_DataStreams)
-		streams[i.first] = i.second->GetStreamId();
-
-	return json(streams);
-}
-
-json Service::OnShutdownRequest(const nlohmann::json &data)
-{
-	m_IsRunning = false;
-
-	return json();
-}
-
-void Service::SendReplyMessage(const std::string &client_identity, const nlohmann::json &reply)
-{
-	LOG_DEBUG("Sending reply message.");
-
-	multipart_t msg;
-
-	msg.addstr("");
-	msg.addstr(SERVICE_ID);
-	msg.addstr(m_ServiceName);
-	msg.addstr(REPLY_ID);
-	msg.addstr(client_identity);
-	msg.addstr(reply.dump());
-
-	msg.send(*m_ShellSocket);
-}
-
-void Service::SendReplyOk(const std::string &client_identity, const std::string &reply_type, const nlohmann::json &data)
-{
-	json reply = {
-		{"status", "ok"},
-		{"description", "success"},
-		{"reply_type", reply_type},
-		{"data", data}
-	};
-
-	SendReplyMessage(client_identity, reply);
-}
-
-void Service::SendReplyError(const std::string &client_identity, const std::string &reply_type, const std::string &error_description)
-{
-	json reply = {
-		{"status", "error"},
-		{"description", error_description},
-		{"reply_type", reply_type},
-		{"data", json()}
-	};
-
-	SendReplyMessage(client_identity, reply);
-}
-
-void Service::SendOpenedMessage()
-{
-	LOG_DEBUG("Sending opened message.");
-
-	multipart_t msg;
-
-	msg.addstr("");
-	msg.addstr(SERVICE_ID);
-	msg.addstr(m_ServiceName);
-	msg.addstr(OPENED_ID);
-
-	msg.send(*m_ShellSocket);
-}
-
-void Service::SendRegisterMessage()
-{
-	LOG_DEBUG("Sending register message.");
-
-	json data = {
-		{"pid", GetPID()},
-		{"service_type", m_ServiceType}
-	};
-
-	multipart_t msg;
-
-	msg.addstr("");
-	msg.addstr(SERVICE_ID);
-	msg.addstr(m_ServiceName);
-	msg.addstr(REGISTER_ID);
-	msg.addstr(data.dump());
-
-	msg.send(*m_ShellSocket);
-}
-
-void Service::SendHeartbeatMessage()
-{
-	multipart_t msg;
-
-	msg.addstr("");
-	msg.addstr(SERVICE_ID);
-	msg.addstr(m_ServiceName);
-	msg.addstr(HEARTBEAT_ID);
-
-	msg.send(*m_ShellSocket);
-
-	m_LastSentHeartbeatTime = GetTimeStamp();
-
-	m_HeartbeatStream->SubmitData(&m_LastSentHeartbeatTime);
+	int8_t new_state = state;
+	m_State->SubmitData(&new_state);
 }
 
 void print_usage()
 {
-	std::cout << "Usage:\n  service --name NAME --port PORT";
+	std::cout << "Usage:\n  service --id ID --port PORT --testbed_port TESTBEDPORT";
 }
 
-std::tuple<std::string, int> ParseServiceArgs(int argc, char *argv[])
+std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 {
-	if (argc != 5)
+	if (argc != 7)
 	{
 		print_usage();
 		throw std::runtime_error("Too few or too many arguments.");
 	}
 
-	std::string service_name;
+	std::string service_id;
+	int service_port;
 	int testbed_port;
 
-	bool name_found = false;
-	bool port_found = false;
+	bool id_found = false;
+	bool service_port_found = false;
+	bool testbed_port_found = false;
 
 	for (size_t i = 1; i < argc; i += 2)
 	{
 		std::string arg = argv[i];
 		std::string param = argv[i + 1];
 
-		if (arg == "--name" || arg == "-n")
+		if (arg == "--id" || arg == "-n")
 		{
-			service_name = param;
-			name_found = true;
+			service_id = param;
+			id_found = true;
 		}
 		else if (arg == "--port" || arg == "-p")
 		{
+			service_port = std::stoi(param);
+			service_port_found = true;
+		}
+		else if (arg == "--testbed_port" || arg == "-t")
+		{
 			testbed_port = std::stoi(param);
-			port_found = true;
+			testbed_port_found = true;
 		}
 		else
 		{
@@ -681,11 +572,11 @@ std::tuple<std::string, int> ParseServiceArgs(int argc, char *argv[])
 		}
 	}
 
-	if (!(name_found && port_found))
+	if (!(id_found && service_port_found && testbed_port_found))
 	{
 		print_usage();
 		throw std::runtime_error("Did not supply all arguments.");
 	}
 
-	return std::make_tuple(service_name, testbed_port);
+	return std::make_tuple(service_id, service_port, testbed_port);
 }

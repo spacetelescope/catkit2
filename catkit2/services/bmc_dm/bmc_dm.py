@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 import time
 import sys
@@ -18,26 +18,23 @@ except ImportError:
     raise
 
 class BmcDm(Service):
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'bmc_dm', testbed_port)
+    def __init__(self):
+        super().__init__('bmc_dm')
 
-        config = self.configuration
-
-        self.serial_number = config['serial_number']
-        self.command_length = config['command_length']
-        self.flat_map_fname = config['flat_map_fname']
-        self.gain_map_fname = config['gain_map_fname']
-        self.max_volts = config['max_volts']
+        self.serial_number = self.config['serial_number']
+        self.command_length = self.config['command_length']
+        self.flat_map_fname = self.config['flat_map_fname']
+        self.gain_map_fname = self.config['gain_map_fname']
+        self.max_volts = self.config['max_volts']
 
         self.lock = threading.Lock()
-        self.shutdown_flag = False
 
         self.channels = {}
         self.channel_threads = {}
-        for channel in config['channels']:
+        for channel in self.config['channels']:
             self.add_channel(channel)
 
-        channel_names = list(channel.lower() for channel in config['channels'])
+        channel_names = list(channel.lower() for channel in self.config['channels'])
         self.make_property('channels', lambda: channel_names)
 
         self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.command_length], 20)
@@ -59,18 +56,15 @@ class BmcDm(Service):
 
             self.channel_threads[channel_name] = thread
 
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             time.sleep(0.01)
 
         for thread in self.channel_threads.values():
             thread.join()
         self.channel_threads = {}
 
-    def shut_down(self):
-        self.shutdown_flag = True
-
     def monitor_channel(self, channel_name):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             try:
                 frame = self.channels[channel_name].get_next_frame(10)
             except Exception:
@@ -135,7 +129,5 @@ class BmcDm(Service):
             self.device = None
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = BmcDm(service_name, testbed_port)
+    service = BmcDm()
     service.run()

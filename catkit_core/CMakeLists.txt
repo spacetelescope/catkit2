@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 project(catkit_core)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -15,17 +15,37 @@ add_library(catkit_core STATIC
     DataStream.cpp
     SharedMemory.cpp
     Synchronization.cpp
-    TimeStamp.cpp
+    Timing.cpp
     Log.cpp
     LogConsole.cpp
     LogFile.cpp
-    LogPublish.cpp
+    LogForwarder.cpp
     HostName.cpp
     Command.cpp
     Property.cpp
-    Service.cpp)
+    Service.cpp
+    Server.cpp
+    Client.cpp
+    TestbedProxy.cpp
+    ServiceProxy.cpp
+    ServiceState.cpp
+    Tensor.cpp
+    TracingProxy.cpp
+    Types.cpp
+    Util.cpp
+    proto/core.pb.cc
+    proto/logging.pb.cc
+    proto/testbed.pb.cc
+    proto/service.pb.cc
+    proto/tracing.pb.cc)
 
 set_property(TARGET catkit_core PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(catkit_core PUBLIC PROTOBUF_USE_DLLS)
+
+if (MSVC)
+  # disable warning: 'identifier': class 'type' needs to have dll-interface to be used by clients of class 'type2'
+  target_compile_options(catkit_core PUBLIC /wd4251)
+endif()
 
 # Link ZeroMQ
 find_package(ZeroMQ REQUIRED)
@@ -49,6 +69,12 @@ target_include_directories(catkit_core PUBLIC ${EIGEN_INCLUDE_DIR})
 set (JSON_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/json-3.9.1/include)
 target_include_directories(catkit_core PUBLIC ${JSON_INCLUDE_DIR})
 
+# Link protobuf
+INCLUDE(FindProtobuf)
+find_package(Protobuf REQUIRED)
+target_include_directories(catkit_core PUBLIC ${PROTOBUF_INCLUDE_DIR})
+target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARY})
+
 # Add install files
 install(TARGETS catkit_core DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
@@ -56,4 +82,9 @@ install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.inl"
+)
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../proto/gen/cpp/
+        DESTINATION include/catkit_core
+        FILES_MATCHING
+        PATTERN "*.h"
 )

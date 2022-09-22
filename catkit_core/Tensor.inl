@@ -1,5 +1,7 @@
 #include "Log.h"
 
+#include <type_traits>
+
 template<typename T>
 constexpr DataType GetDataType()
 {
@@ -123,7 +125,7 @@ constexpr const char *GetDataTypeAsString<std::complex<double>>()
 }
 
 template<typename EigenType>
-void DataFrame::CopyInto(EigenType &out)
+void Tensor::CopyInto(EigenType &out)
 {
 	using T = typename EigenType::Scalar;
 
@@ -171,13 +173,13 @@ void DataFrame::CopyInto(EigenType &out)
 }
 
 template<typename T>
-Eigen::Map<Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>> DataFrame::AsArray()
+Eigen::Map<Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>> Tensor::AsArray()
 {
 	return AsArray<T,T>();
 }
 
 template<typename T_src, typename T_dest, typename std::enable_if<std::is_same<T_src, T_dest>::value, void>::type *dummy>
-auto DataFrame::AsArray()
+auto Tensor::AsArray()
 {
 	size_t d1 = m_Dimensions[0];
 	size_t d2 = m_Dimensions[1];
@@ -186,7 +188,7 @@ auto DataFrame::AsArray()
 }
 
 template<typename T_src, typename T_dest, typename std::enable_if<!std::is_same<T_src, T_dest>::value && is_complex<T_src>::value && !is_complex<T_dest>::value, void>::type *dummy>
-auto DataFrame::AsArray()
+auto Tensor::AsArray()
 {
 	size_t d1 = m_Dimensions[0];
 	size_t d2 = m_Dimensions[1];
@@ -196,7 +198,7 @@ auto DataFrame::AsArray()
 }
 
 template<typename T_src, typename T_dest, typename std::enable_if<!std::is_same<T_src, T_dest>::value && (!is_complex<T_src>::value || is_complex<T_dest>::value), void>::type *dummy>
-auto DataFrame::AsArray()
+auto Tensor::AsArray()
 {
 	size_t d1 = m_Dimensions[0];
 	size_t d2 = m_Dimensions[1];

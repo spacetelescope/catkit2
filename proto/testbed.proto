@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package catkit_proto.testbed;
+
+enum ServiceState
+{
+    CLOSED = 0;
+    INITIALIZING = 1;
+    OPENING = 2;
+    RUNNING = 3;
+    CLOSING = 4;
+    UNRESPONSIVE = 5;
+    CRASHED = 6;
+}
+
+message ServiceReference
+{
+    string id = 1;
+    string type = 2;
+    string state_stream_id = 3;
+    string host = 4;
+    uint32 port = 5;
+}
+
+message GetInfoRequest
+{
+}
+
+message GetInfoReply
+{
+    uint32 port = 1;
+    string config = 2;
+    bool is_simulated = 3;
+    string heartbeat_stream_id = 4;
+    uint32 logging_ingress_port = 5;
+    uint32 logging_egress_port = 6;
+    uint32 data_logging_ingress_port = 7;
+    uint32 data_logging_egress_port = 8;
+    uint32 tracing_ingress_port = 9;
+    uint32 tracing_egress_port = 10;
+}
+
+message GetServicesRequest
+{
+}
+
+message GetServicesReply
+{
+    repeated ServiceReference running_services = 1;
+    repeated ServiceReference inactive_services = 2;
+}
+
+message GetServiceInfoRequest
+{
+    string service_id = 1;
+}
+
+message GetServiceInfoReply
+{
+    ServiceReference service = 1;
+}
+
+message StartServiceRequest
+{
+    string service_id = 1;
+}
+
+message StartServiceReply
+{
+}
+
+message StopServiceRequest
+{
+    string service_id = 1;
+}
+
+message StopServiceReply
+{
+}
+
+message InterruptServiceRequest
+{
+    string service_id = 1;
+}
+
+message InterruptServiceReply
+{
+}
+
+message TerminateServiceRequest
+{
+    string service_id = 1;
+}
+
+message TerminateServiceReply
+{
+}
+
+message RegisterServiceRequest
+{
+    string service_id = 1;
+    string service_type = 2;
+    string host = 3;
+    int32 port = 4;
+    int32 process_id = 5;
+    string heartbeat_stream_id = 6;
+}
+
+message RegisterServiceReply
+{
+    string state_stream_id = 1;
+}
+
+message ShutDownRequest
+{
+}
+
+message ShutDownReply
+{
+}

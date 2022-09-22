@@ -18,7 +18,8 @@ dependencies:
   - pysnmp
   - requests
   - ftd2xx
-  - asdf
+  - conda-forge::asdf
+  - pyyaml
   - psutil
   - protobuf
   - libprotobuf
@@ -31,5 +32,8 @@ dependencies:
   - conda-forge::sphinx-automodapi
   - conda-forge::breathe==4.32.0
   - conda-forge::sphinx_rtd_theme
+  - networkx
+  - pytest
+  - flake8
   - pip:
     - zwoasi>=0.0.21 # Requires additional manual install of driver(s) from https://astronomy-imaging-camera.com/software-drivers

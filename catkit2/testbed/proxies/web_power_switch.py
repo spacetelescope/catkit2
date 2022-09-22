@@ -20,4 +20,4 @@ class WebPowerSwitchProxy(ServiceProxy):
 
     @property
     def outlets(self):
-        return [key.lower() for key in self.configuration['outlets'].keys()]
+        return [key.lower() for key in self.config['outlets'].keys()]

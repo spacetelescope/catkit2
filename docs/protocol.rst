@@ -1,114 +1,16 @@
 Communication protocol
 ======================
 
-This page provides details about the underlying communication protocol used to communcate between the server, clients and services. All this communication is abstracted away from the user, so unless you are interested in the internals, or need to work on it, there is no need to read this.
+This page provides details about the slow communication protocol used to communicate between the testbed, the services and experiments.
 
-Server
-------
+Catkit2 uses a standard request-reply server-client model for communication. The Testbed and each Service runs a server that can respond to requests about its API. To connect to a Service, the ServiceProxy first contact the Testbed to get a port Communication is done over TCP using ZeroMQ sockets using the REQ-REP pattern. A typical exchange goes like this:
 
-Sockets
-~~~~~~~
+* The client sends a request message to the server. This message contains two parts. The first parts is a string indicating the type of request, for example `set_property_request`. The second part contains data for this request, in this case the property name and the new property value. This data is serialized using protobuffers which yields the binary data for the second part of the message.
+* The server receives this message and looks into its dictionary of request handlers for a handler for that type of message.
+* The server executes the request handler, which returns data, serialized by protobuffers, if the request was successful. In this case, the data would contain the new property value. If there was an error, the request handler can raise/throw an exception.
+* The server sends a reply to the client. This reply contains two parts. The first part indicates whether the request was successful, either containing `OK` or `ERROR`. The second part contains either the data returned by the request handler, or the exception message.
+* The client receives the reply, and raises/throws an error with the error message if the request failed on the server. Otherwise, the data is returned.
 
-Communication is performed using ZeroMQ sockets. Any communication that uses the server is not deemed time-critical, so no effort was made to minimize latency. Despite this, communication is reasonably fast, being around a millisecond for a request to go through the chain of  client->server->service->server->client, just not useful for real-time processing of camera images or other tasks requiring sub-millisecond end-to-end response time.
+There are some implementation details that are worth mentioning here. Currently, the server performs all request handling on a single thread. This means that if there is a long-running request handler, the server itself doesn't respond to new requests. Therefore, long-running requests should be avoided. Ie. there should be no command `run_wavefront_control(num_iterations)` that runs a few iterations of wavefront control, but rather a command `start_wavefront_control(num_iterations)` that starts the wavefront control loop on the main thread of the service. This way of thinking might require some getting used to for people not familiar with this way of thinking.
 
-The main communcation pattern is based on the `Majordomo protocol <https://rfc.zeromq.org/spec/7/>`_, but simplifies in a few areas. The server only has a single ROUTER socket, which binds to a port on localhost, specified by the configuration. Both Services and Clients connect to this socket. Services use a DEALER socket to handle asynchronous messages (ie. heartbeating). Clients use a REQ socket, to ensure that we get a reply for every request that we send to the server.
-
-Additionally, the server has a PULL and a PUB socket, both of which bind to separate ports on local host. The PULL socket collects log messages from all services, and rebroadcasts them on the PUB socket. Anyone can listen with a SUB socket to the PUB socket to receive all log messages related to this testbed server.
-
-Services send periodic heartbeats to the server and vice versa. This is part of the safety system of catkit2. Services that have not received a heartbeat from the server in a specified time, will assume that the server crashed and will automatically and safely shut down themselves at that point.
-
-Wire protocol
-~~~~~~~~~~~~~
-
-Incoming messages:
-
-.. code-block:: text
-
-    Frame -1: <source identity (automatically added when receiving with the ROUTER socket of the server)
-    Frame 0: empty (automatically added when sending from the REQ socket of a client)
-    Frame 1: <message_source> (SERVICE or CLIENT)
-    Frame 2: <service_name>
-    Frame 3: <message_type>
-    Frame 4&5: <data specific to message type> (may be omitted for some types)
-
-Outgoing messages:
-
-.. code-block:: text
-
-    Frame -1: <source identity> (for the ROUTER socket to know where to send the message)
-    Frame 0: empty (required for correct receiving by the REQ socket).
-    Frame 1: REQUEST or REPLY or CONFIGURATION or HEARTBEAT
-    Frame 2+: <data specific to message type> (may be omitted for some types)
-
-Client
-------
-
-The protocol for the client is pretty clean. It only supports sending requests to a server, and only receives replies from that server, corresponding to the request that was sent.
-
-Wire protocol
-~~~~~~~~~~~~~
-
-Outgoing messages:
-
-.. code-block:: text
-
-    Frame 0: empty (automatically added by REQ socket)
-    Frame 1: <message source> (CLIENT)
-    Frame 2: <service name>
-    Frame 3: REQUEST
-    Frame 4: <json request>
-
-Incoming messages:
-
-.. code-block:: text
-
-    Frame 0: empty (required for REQ socket)
-    Frame 1: REPLY
-    Frame 2: <json reply>
-
-Service
--------
-
-Services receive requests, a configuration file and heartbeats from the server. It responds to requests by sending replies. It also sends an opened message as part of the initial handshake. Finally it periodically sends heartbeats to the server, to let it know the service is still alive.
-
-Wire protocol
-~~~~~~~~~~~~~
-
-Outgoing messages:
-
-.. code-block:: text
-
-    Frame 0: empty
-    Frame 1: <message source> (SERVICE)
-    Frame 2: <service name>
-    Frame 3: REGISTER or OPENED or HEARTBEAT or REPLY
-
-    HEARTBEAT:
-    No other frames.
-
-    OPENED:
-    No other frames.
-
-    REGISTER:
-    Frame 4: <json registration>
-
-    REPLY:
-    Frame 4: <client identity>
-    Frame 5: <json reply>
-
-Incoming messages:
-
-.. code-block:: text
-
-    Frame 0: empty
-    Frame 1: REQUEST or HEARTBEAT or CONFIGURATION
-
-    HEARTBEAT:
-    No other frames.
-
-    CONFIGURATION:
-    Frame 2: <json configuration>
-
-    REQUEST:
-    Frame 2: <client identity>
-    Frame 3: <json request>
+Secondly, the client reuses sockets as much as possible. It maintains a pool of unused sockets and when `client->MakeRequest()` is called, a socket from that pool is used to send to message to the server. If the pool is empty, a new socket will be created, which might take a tiny bit of time to connect. After the request is finished, the used socket is automatically returned to the socket pool. Therefore, during a request, the socket is exclusively used for that request, which avoids mixing of requests. If the server doesn't respond to the request in a certain amount of time, then the request is considered lost. If, after this time, the server still sends the reply, it will be ignored. This is done internally by ZeroMQ using the `ZMQ_CORRELATE` option, which uses request identifiers to link received replies back to their corresponding requests.

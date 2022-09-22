@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 import time
 import threading
@@ -11,15 +11,11 @@ class ThorlabsMFF101(Service):
     _MOVE_TO_POSITION_2 = b"\x6A\x04\x00\x02\x21\x01"
     _BLINK_LED = b"\x23\x02\x00\x00\x21\x01"
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'thorlabs_mff101', testbed_port)
+    def __init__(self):
+        super().__init__('thorlabs_mff101')
 
-        config = self.configuration
-
-        self.serial_number = config['serial_number']
-        self.out_of_beam_position = config['positions']['out_of_beam']
-
-        self.shutdown_flag = threading.Event()
+        self.serial_number = self.config['serial_number']
+        self.out_of_beam_position = self.config['positions']['out_of_beam']
 
         self.commanded_position = self.make_data_stream('commanded_position', 'int8', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'int8', [1], 20)
@@ -29,7 +25,7 @@ class ThorlabsMFF101(Service):
         self.make_command('blink_led', self.blink_led)
 
     def main(self):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             try:
                 frame = self.commanded_position.get_next_frame(10)
             except Exception:
@@ -39,9 +35,6 @@ class ThorlabsMFF101(Service):
             position = frame.data[0]
 
             self.set_position(position)
-
-    def shut_down(self):
-        self.shutdown_flag.set()
 
     def open(self):
         num_retries = 5
@@ -84,7 +77,7 @@ class ThorlabsMFF101(Service):
             return
 
         self.connection.write(command)
-        self.shutdown_flag.wait(1)
+        self.sleep(1)
 
         self.current_position.submit_data(np.array([position], dtype='int8'))
 
@@ -96,7 +89,5 @@ class ThorlabsMFF101(Service):
         self.connection.write(self._BLINK_LED)
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = ThorlabsMFF101(service_name, testbed_port)
+    service = ThorlabsMFF101()
     service.run()

@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 from catkit2.simulator.simulated_service import SimulatorClient
 
 import threading
@@ -6,18 +6,14 @@ import numpy as np
 import time
 
 class NewportPicomotorSim(Service):
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'newport_picomotor_sim', testbed_port)
+    def __init__(self):
+        super().__init__('newport_picomotor_sim')
 
-        config = self.configuration
-
-        self.max_step = config['max_step']
-        self.timeout = config['timeout']
-        self.sleep_per_step = config['sleep_per_step']
-        self.sleep_base = config['sleep_base']
-        self.axes = config['axes']
-
-        self.shutdown_flag = threading.Event()
+        self.max_step = self.config['max_step']
+        self.timeout = self.config['timeout']
+        self.sleep_per_step = self.config['sleep_per_step']
+        self.sleep_base = self.config['sleep_base']
+        self.axes = self.config['axes']
 
         self.axis_commands = {}
         self.axis_current_positions = {}
@@ -50,7 +46,7 @@ class NewportPicomotorSim(Service):
     def monitor_axis(self, axis_name):
         command_stream = self.axis_commands[axis_name]
 
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
@@ -61,8 +57,6 @@ class NewportPicomotorSim(Service):
             self.set_current_position(axis_name, frame.data[0])
 
     def open(self):
-        self.shutdown_flag.clear()
-
         # Start the motor threads
         for axis_name in self.axes.keys():
             thread = threading.Thread(target=self.monitor_axis, args=(axis_name,))
@@ -71,7 +65,8 @@ class NewportPicomotorSim(Service):
             self.axis_threads[axis_name] = thread
 
     def main(self):
-        self.shutdown_flag.wait()
+        while not self.should_shut_down:
+            self.sleep(1)
 
     def close(self):
         self.shut_down()
@@ -79,11 +74,6 @@ class NewportPicomotorSim(Service):
         for thread in self.axis_threads.values():
             thread.join()
 
-    def shut_down(self):
-        self.shutdown_flag.set()
-
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = NewportPicomotorSim(service_name, testbed_port)
+    service = NewportPicomotorSim()
     service.run()

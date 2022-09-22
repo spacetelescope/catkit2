@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 import time
 import pyvisa
@@ -9,14 +9,10 @@ class ThorlabsFW102C(Service):
     _SET_POSITION = "pos="
     _MAX_NUM_RETRIES = 3
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'thorlabs_fw102c', testbed_port)
+    def __init__(self):
+        super().__init__('thorlabs_fw102c')
 
-        config = self.configuration
-
-        self.visa_id = config['visa_id']
-
-        self.shutdown_flag = False
+        self.visa_id = self.config['visa_id']
 
         self.position = self.make_data_stream('position', 'int8', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'int8', [1], 20)
@@ -31,7 +27,7 @@ class ThorlabsFW102C(Service):
                                                 read_termination='\r')
 
     def main(self):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             num_retries = self._MAX_NUM_RETRIES
 
             try:
@@ -43,7 +39,7 @@ class ThorlabsFW102C(Service):
             position = frame.data[0]
 
             # Try setting the position a few times before giving up.
-            while True:
+            while not self.should_shut_down:
                 try:
                     self.set_position(position)
                     break
@@ -59,9 +55,6 @@ class ThorlabsFW102C(Service):
     def close(self):
         self.connection.close()
         self.connection = None
-
-    def shut_down(self):
-        self.shutdown_flag = True
 
     def send_command(self, command):
         try:
@@ -89,7 +82,5 @@ class ThorlabsFW102C(Service):
         self.current_position.submit_data(np.array([position]))
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = ThorlabsFW102C(service_name, testbed_port)
+    service = ThorlabsFW102C()
     service.run()

@@ -1,10 +1,14 @@
+import logging
+
 from docopt import docopt
 
-from ..catkit_bindings import Service
+from .. import catkit_bindings
+from .logging import CatkitLogHandler
+from .testbed_proxy import TestbedProxy
 
 doc = '''
 Usage:
-  service --name NAME --port PORT
+  service --id ID --port PORT --testbed_port TESTBEDPORT
 '''
 
 def parse_service_args(argv=None):
@@ -18,11 +22,41 @@ def parse_service_args(argv=None):
 
     Returns
     -------
-    service_name : string
+    service_id : string
         The name of the service that was launched.
-    port : integer
-        The port of the server to connect to.
+    service_port : integer
+        The port of the service to start on.
+    testbed_port : integer
+        The port of the testbed server to connect to.
     '''
     arguments = docopt(doc, argv=argv)
 
-    return arguments['NAME'], int(arguments['PORT'])
+    res = {
+        'service_id': arguments['ID'],
+        'service_port': int(arguments['PORT']),
+        'testbed_port': int(arguments['TESTBEDPORT'])
+    }
+
+    return res
+
+class Service(catkit_bindings.Service):
+    log = logging.getLogger(__name__)
+
+    def __init__(self, service_type, **kwargs):
+        # Parse service arguments from argv, and update with overridden arguments.
+        service_args = parse_service_args()
+        service_args.update(kwargs)
+
+        super().__init__(service_type, **service_args)
+
+        # Override the testbed attribute with the extended Python version.
+        self._testbed = TestbedProxy(getattr(super(), 'testbed').host, getattr(super(), 'testbed').port)
+
+        # Set up log handler.
+        self._log_handler = CatkitLogHandler()
+        logging.getLogger(__name__).addHandler(self._log_handler)
+        logging.getLogger(__name__).setLevel(logging.DEBUG)
+
+    @property
+    def testbed(self):
+        return self._testbed

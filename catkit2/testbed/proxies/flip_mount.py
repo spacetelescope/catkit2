@@ -32,7 +32,7 @@ class FlipMountProxy(ServiceProxy):
 
     @property
     def positions(self):
-        return self.configuration['positions']
+        return self.config['positions']
 
     def is_at(self, position):
         return self.current_position.get()[0] == self.resolve_position(position)

@@ -5,31 +5,25 @@ import os
 import time
 import numpy as np
 
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 class ThorlabsPM(Service):
     _BUFFER_SIZE = 256
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'thorlabs_pm', testbed_port)
+    def __init__(self):
+        super().__init__('thorlabs_pm')
 
-        config = self.configuration
-        self.serial_number = str(config['serial_number'])
-        self.interval = config.get('interval', 10)
-
-        self.shutdown_flag = False
+        self.serial_number = str(self.config['serial_number'])
+        self.interval = self.config.get('interval', 10)
 
         self.power = self.make_data_stream('power', 'float64', [1], 20)
 
     def main(self):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             power = self.get_power()
             self.power.submit_data(np.array([power]))
 
-            time.sleep(self.interval)
-
-    def shut_down(self):
-        self.shutdown_flag = True
+            self.sleep(self.interval)
 
     def load_library(self):
         library_name = "TLPM_64.dll"  # Yep, this is Windows specific.
@@ -132,7 +126,5 @@ class ThorlabsPM(Service):
             self.instrument = ctypes.c_void_p(None)
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = ThorlabsPM(service_name, testbed_port)
+    service = ThorlabsPM()
     service.run()

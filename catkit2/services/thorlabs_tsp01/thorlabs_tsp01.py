@@ -5,20 +5,17 @@ import os
 import time
 import numpy as np
 
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 class ThorlabsTSP01(Service):
     _BUFFER_SIZE = 256
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'thorlabs_tsp01', testbed_port)
+    def __init__(self):
+        super().__init__('thorlabs_tsp01')
 
-        config = self.configuration
-        self.serial_number = config['serial_number']
-        self.num_averaging = config.get('averaging', 1)
-        self.interval = config.get('interval', 10)
-
-        self.shutdown_flag = False
+        self.serial_number = self.config['serial_number']
+        self.num_averaging = self.config.get('averaging', 1)
+        self.interval = self.config.get('interval', 10)
 
         self.temperature_internal = self.make_data_stream('temperature_internal', 'float64', [1], 20)
         self.temperature_header_1 = self.make_data_stream('temperature_header_1', 'float64', [1], 20)
@@ -26,7 +23,7 @@ class ThorlabsTSP01(Service):
         self.humidity_internal = self.make_data_stream('humidity_internal', 'float64', [1], 20)
 
     def main(self):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             temperature = self.get_temperature(1)
             self.temperature_internal.submit_data(np.array([temperature]))
 
@@ -39,10 +36,7 @@ class ThorlabsTSP01(Service):
             humidity = self.get_humidity()
             self.humidity_internal.submit_data(np.array([humidity]))
 
-            time.sleep(self.interval)
-
-    def shut_down(self):
-        self.shutdown_flag = True
+            self.sleep(self.interval)
 
     def load_library(self):
         tsp_lib_name = "TLTSPB_64.dll"  # Yep, this is Windows specific.
@@ -164,7 +158,5 @@ class ThorlabsTSP01(Service):
             self.instrument = ctypes.c_void_p(None)
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = ThorlabsTSP01(service_name, testbed_port)
+    service = ThorlabsTSP01()
     service.run()

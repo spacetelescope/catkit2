@@ -1,4 +1,4 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 import time
 import socket
@@ -16,22 +16,18 @@ class OmegaIthxW3(Service):
     _GET_HUMIDITY = b"*SRH\r"
     _GET_TEMPERATURE_AND_HUMIDITY = b"*SRB\r"
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'omega_ithx_w3', testbed_port)
+    def __init__(self):
+        super().__init__('omega_ithx_w3')
 
-        config = self.configuration
-
-        self.ip_address = config['ip_address']
+        self.ip_address = self.config['ip_address']
         self.port = 2000
-        self.time_interval = config['time_interval']
-
-        self.shutdown_flag = False
+        self.time_interval = self.config['time_interval']
 
         self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
         self.humidity = self.make_data_stream('humidity', 'float64', [1], 20)
 
     def main(self):
-        while not self.shutdown_flag:
+        while not self.should_shut_down:
             start = time.time()
 
             temp, hum = self.get_temperature_and_humidity()
@@ -39,11 +35,8 @@ class OmegaIthxW3(Service):
             self.temperature.submit_data(np.array([temp]))
             self.humidity.submit_data(np.array([hum]))
 
-            while (time.time() < (start + self.time_interval)) and not self.shutdown_flag:
-                time.sleep(0.01)
-
-    def shut_down(self):
-        self.shutdown_flag = True
+            time_remaining = self.time_interval - (time.time() - start)
+            self.sleep(time_remaining)
 
     def open(self):
         self.connection = socket.socket(self._ADDRESS_FAMILY, self._SOCKET_KIND)
@@ -86,7 +79,5 @@ class OmegaIthxW3(Service):
         self.connection = None
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = OmegaIthxW3(service_name, testbed_port)
+    service = OmegaIthxW3()
     service.run()

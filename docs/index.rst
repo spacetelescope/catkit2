@@ -7,6 +7,7 @@ Catkit2
 
    installation
    overview
+   safety
    services
    configuration
    benchmarks

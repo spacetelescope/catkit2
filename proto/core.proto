@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package catkit_proto;
+
+message List
+{
+    repeated Value items = 1;
+}
+
+message Dict
+{
+    map<string, Value> items = 5;
+}
+
+message Tensor
+{
+    string dtype = 1;
+    repeated int64 dimensions = 2;
+    bytes data = 3;
+}
+
+message Value
+{
+    oneof kind
+    {
+        NoneValue none_value = 1;
+        int64 int_value = 2;
+        double double_value = 3;
+        string string_value = 4;
+        bool bool_value = 5;
+        Dict dict_value = 6;
+        List list_value = 7;
+        Tensor tensor_value = 8;
+    }
+}
+
+enum NoneValue
+{
+    NONE = 0;
+}

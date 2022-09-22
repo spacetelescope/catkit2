@@ -4,7 +4,7 @@ import time
 from PySpin import PySpin
 import numpy as np
 
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 
 def _create_property(flir_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
@@ -78,13 +78,11 @@ class FlirCamera(Service):
         '14bit': PySpin.AdcBitDepth_Bit14
     }
 
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'flir_camera', testbed_port)
+    def __init__(self):
+        super().__init__('flir_camera')
 
-        config = self.configuration
-        self.serial_number = config['serial_number']
+        self.serial_number = self.config['serial_number']
 
-        self.shutdown_flag = threading.Event()
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
@@ -92,8 +90,6 @@ class FlirCamera(Service):
         self.mutex = threading.Lock()
 
     def open(self):
-        config = self.configuration
-
         self.system = PySpin.System.GetInstance()
         self.cam_list = self.system.GetCameras()
         self.cam = self.cam_list.GetBySerial(str(self.serial_number))
@@ -133,13 +129,13 @@ class FlirCamera(Service):
                 self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
 
         # Set properties from config.
-        self.width = config['width']
-        self.height = config['height']
-        self.offset_x = config['offset_x']
-        self.offset_y = config['offset_y']
+        self.width = self.config['width']
+        self.height = self.config['height']
+        self.offset_x = self.config['offset_x']
+        self.offset_y = self.config['offset_y']
 
-        self.pixel_format = config['pixel_format']
-        self.adc_bit_depth = config['adc_bit_depth']
+        self.pixel_format = self.config['pixel_format']
+        self.adc_bit_depth = self.config['adc_bit_depth']
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
@@ -167,7 +163,6 @@ class FlirCamera(Service):
         self.temperature_thread.start()
 
     def close(self):
-        self.shutdown_flag.set()
         self.temperature_thread.join()
 
         self.cam.DeInit()
@@ -178,7 +173,7 @@ class FlirCamera(Service):
         self.system = None
 
     def main(self):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
@@ -201,7 +196,7 @@ class FlirCamera(Service):
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
         try:
-            while self.should_be_acquiring.is_set() and not self.shutdown_flag.is_set():
+            while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 try:
                     with self.mutex:
                         image_result = self.cam.GetNextImage(10)
@@ -230,20 +225,17 @@ class FlirCamera(Service):
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
     def monitor_temperature(self):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
-            self.shutdown_flag.wait(1)
+            self.sleep(1)
 
     def start_acquisition(self):
         self.should_be_acquiring.set()
 
     def end_acquisition(self):
         self.should_be_acquiring.clear()
-
-    def shut_down(self):
-        self.shutdown_flag.set()
 
     exposure_time = _create_property('ExposureTime', stopped_acquisition=False)
     gain = _create_property('Gain', stopped_acquisition=False)
@@ -272,7 +264,5 @@ class FlirCamera(Service):
             return self.cam.DeviceTemperature.GetValue()
 
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = FlirCamera(service_name, testbed_port)
+    service = FlirCamera()
     service.run()

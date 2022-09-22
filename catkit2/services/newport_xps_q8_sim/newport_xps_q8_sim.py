@@ -1,20 +1,16 @@
-from catkit2.testbed.service import Service, parse_service_args
+from catkit2.testbed.service import Service
 from catkit2.simulator.simulated_service import SimulatorClient
 
 import threading
 import numpy as np
 
 class NewportXpsQ8Sim(Service):
-    def __init__(self, service_name, testbed_port):
-        Service.__init__(self, service_name, 'newport_xps_q8_sim', testbed_port)
+    def __init__(self):
+        super().__init__('newport_xps_q8_sim')
 
-        config = self.configuration
-
-        self.motor_positions = config['motors']
-        self.update_interval = config['update_interval']
-        self.motor_ids = list(config['motors'].keys())
-
-        self.shutdown_flag = threading.Event()
+        self.motor_positions = self.config['motors']
+        self.update_interval = self.config['update_interval']
+        self.motor_ids = list(self.config['motors'].keys())
 
         self.motor_commands = {}
         self.motor_current_positions = {}
@@ -45,7 +41,7 @@ class NewportXpsQ8Sim(Service):
     def monitor_motor(self, motor_id):
         command_stream = self.motor_commands[motor_id]
 
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             # Set the current position if a new command has arrived.
             try:
                 frame = command_stream.get_next_frame(10)
@@ -56,8 +52,6 @@ class NewportXpsQ8Sim(Service):
             self.set_current_position(motor_id, frame.data[0])
 
     def open(self):
-        self.shutdown_flag.clear()
-
         # Start the motor threads
         for motor_id in self.motor_ids:
             thread = threading.Thread(target=self.monitor_motor, args=(motor_id,))
@@ -66,11 +60,11 @@ class NewportXpsQ8Sim(Service):
             self.motor_threads[motor_id] = thread
 
     def main(self):
-        while not self.shutdown_flag.is_set():
+        while not self.should_shut_down:
             for motor_id in self.motor_ids:
                 self.get_current_position(motor_id)
 
-            self.shutdown_flag.wait(self.update_interval)
+            self.sleep(self.update_interval)
 
     def close(self):
         # Stop the motor threads
@@ -81,11 +75,6 @@ class NewportXpsQ8Sim(Service):
 
         self.motor_threads = {}
 
-    def shut_down(self):
-        self.shutdown_flag.set()
-
 if __name__ == '__main__':
-    service_name, testbed_port = parse_service_args()
-
-    service = NewportXpsQ8Sim(service_name, testbed_port)
+    service = NewportXpsQ8Sim()
     service.run()
