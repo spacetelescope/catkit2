@@ -1,5 +1,6 @@
 import heapq
 import time
+import threading
 
 from ..testbed.service import Service
 
@@ -27,6 +28,8 @@ class Simulator(Service):
         self.integrating_cameras = {}
         self.camera_integrated_power = {}
 
+        self.lock = threading.Lock()
+
     def main(self):
         last_update_time = time.time()
 
@@ -43,12 +46,14 @@ class Simulator(Service):
                 time.sleep(0.01)
                 continue
 
-            callback = heapq.heappop(self.callbacks)
-            callback_time, _, callback_func = callback
+            with self.lock:
+                callback = heapq.heappop(self.callbacks)
+                callback_time, _, callback_func = callback
 
             # Make sure we are not progressing time faster than some constant times real time.
             if callback_time - self.time.get()[0] > self.alpha * (time.time() - last_update_time):
-                heapq.heappush(self.callbacks, callback)
+                with self.lock:
+                    heapq.heappush(self.callbacks, callback)
 
                 time.sleep(0.01)
                 continue
@@ -64,11 +69,15 @@ class Simulator(Service):
             last_update_time = time.time()
 
             # Call the callback.
-            callback_func()
+            callback_func(callback_time)
 
-    def add_callback(self, t, callback_func):
-        heapq.heappush(self.callbacks, (t, self.callback_counter, callback_func))
-        self.callback_counter += 1
+    def add_callback(self, callback_func,  t=None):
+        with self.lock:
+            if t is None:
+                t = self.time.get()[0]
+
+            heapq.heappush(self.callbacks, (t, self.callback_counter, callback_func))
+            self.callback_counter += 1
 
     def set_breakpoint(self, at_time):
         raise NotImplementedError
@@ -76,8 +85,8 @@ class Simulator(Service):
     def release_breakpoint(self, breakpoint_token):
         raise NotImplementedError
 
-    def start_camera_acquisition(self, at_time, camera_name, integration_time, frame_interval):
-        def callback():
+    def start_camera_acquisition(self, camera_name, integration_time, frame_interval):
+        def callback(t):
             self.log.info(f'Start camera acquisition on {camera_name} with {integration_time} and {frame_interval}.')
 
             was_already_integrating = camera_name in self.integrating_cameras
@@ -86,12 +95,12 @@ class Simulator(Service):
 
             # Start integration right away, if the camera was not already integrating.
             if not was_already_integrating:
-                self.make_camera_reset_callback(camera_name)()
+                self.add_callback(self.make_camera_reset_callback(camera_name))
 
-        self.add_callback(at_time, callback)
+        self.add_callback(callback)
 
     def make_camera_reset_callback(self, camera_name):
-        def callback():
+        def callback(t):
             if camera_name not in self.integrating_cameras:
                 # Camera has stopped.
                 return
@@ -104,15 +113,15 @@ class Simulator(Service):
             self.camera_integrated_power[camera_name] = 0
 
             # Schedule callback for readout.
-            next_readout_time = self.time.get()[0] + integration_time
+            next_readout_time = t + integration_time
             next_readout_callback = self.make_camera_readout_callback(camera_name, integration_time, frame_interval)
 
-            self.add_callback(next_readout_time, next_readout_callback)
+            self.add_callback(next_readout_callback, next_readout_time)
 
         return callback
 
     def make_camera_readout_callback(self, camera_name, integration_time, frame_interval):
-        def callback():
+        def callback(t):
             self.log.info(f'Read out camera image on {camera_name}.')
 
             # Read out camera image and yield image.
@@ -126,29 +135,29 @@ class Simulator(Service):
                 next_reset_time = self.time.get()[0] - integration_time + frame_interval
                 next_reset_callback = self.make_camera_reset_callback(camera_name)
 
-                self.add_callback(next_reset_time, next_reset_callback)
+                self.add_callback(next_reset_callback, next_reset_time)
 
         return callback
 
-    def end_camera_acquisition(self, at_time, camera_name):
-        def callback():
+    def end_camera_acquisition(self, camera_name):
+        def callback(t):
             self.log.info(f'End camera acquisition on {camera_name}.')
             if camera_name in self.integrating_cameras:
                 del self.integrating_cameras[camera_name]
 
-        self.add_callback(at_time, callback)
+        self.add_callback(callback)
 
     def camera_readout(self, camera_name, power):
         pass
 
-    def actuate_dm(self, at_time, dm_name, new_actuators):
+    def actuate_dm(self, dm_name, new_actuators):
         pass
 
-    def move_stage(self, at_time, stage_name, old_stage_position, new_stage_position):
+    def move_stage(self, stage_name, old_stage_position, new_stage_position):
         pass
 
-    def move_filter(self, at_time, filter_wheel_name, new_filter_position):
+    def move_filter(self, filter_wheel_name, new_filter_position):
         pass
 
-    def move_flip_mount(self, at_time, flip_mount_name, new_flip_mount_position):
+    def move_flip_mount(self, flip_mount_name, new_flip_mount_position):
         pass
