@@ -81,7 +81,7 @@ class BmcDmSim(Service):
         voltages /= self.max_volts
 
         with self.lock:
-            self.testbed.simulator.actuate_dm(at_time=0, dm_name=self.id, new_actuators=voltages)
+            self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=total_surface)
 
         # Submit these voltages to the total voltage data stream.
         self.total_voltage.submit_data(voltages)
