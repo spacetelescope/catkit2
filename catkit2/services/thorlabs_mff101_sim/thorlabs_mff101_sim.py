@@ -39,7 +39,7 @@ class ThorlabsMFF101Sim(Service):
 
         # Send the command to the simulator. The simulator will in turn set the current position on
         # our data stream once the flip mount has been moved.
-        self.testbed.simulator.move_flip_mount(self.id, position)
+        self.testbed.simulator.move_flip_mount(flip_mount_name=self.id, new_flip_mount_position=position)
 
     def blink_led(self, args=None):
         self.log.info('Blinking LED.')
