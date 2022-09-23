@@ -120,7 +120,7 @@ class CameraSim(Service):
 
     @property
     def offset_y(self):
-        return self.offset_y
+        return self._offset_y
 
     @offset_y.setter
     def offset_y(self, offset_y):
