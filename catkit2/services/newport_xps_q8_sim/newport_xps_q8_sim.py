@@ -26,17 +26,12 @@ class NewportXpsQ8Sim(Service):
         self.motor_sim_positions[motor_id] = 0.0
 
     def set_current_position(self, motor_id, position):
-        self.motor_sim_positions[motor_id] = position
-
-    def get_current_position(self, motor_id):
-        current_position = self.motor_sim_positions[motor_id]
-
-        # Update current position data stream.
-        stream = self.motor_current_positions[motor_id]
-        stream.submit_data(np.array([current_position]))
-
-        return current_position
-
+        # Send the position command to the simulator. The simulator
+        # will in turn set the motor position at the appropriate time.
+        self.testbed.simulator.move_stage(
+            stage_id=motor_id.lower(),
+            old_position=self.motor_sim_positions[motor_id],
+            new_position=position)
     def monitor_motor(self, motor_id):
         command_stream = self.motor_commands[motor_id]
 
@@ -60,9 +55,6 @@ class NewportXpsQ8Sim(Service):
 
     def main(self):
         while not self.should_shut_down:
-            for motor_id in self.motor_ids:
-                self.get_current_position(motor_id)
-
             self.sleep(self.update_interval)
 
     def close(self):
