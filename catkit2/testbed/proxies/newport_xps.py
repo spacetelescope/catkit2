@@ -65,4 +65,4 @@ class NewportXpsQ8Proxy(ServiceProxy):
 
     @property
     def motors(self):
-        return self.config['motors']
+        return [motor.lower() for motor in self.config['motors'].keys()]
