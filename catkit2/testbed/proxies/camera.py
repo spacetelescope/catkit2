@@ -5,7 +5,7 @@ import warnings
 @ServiceProxy.register_service_interface('camera')
 class CameraProxy(ServiceProxy):
     def take_raw_exposures(self, num_exposures):
-        was_acquiring = self.is_acquiring
+        was_acquiring = self.is_acquiring.get()[0]
 
         if not was_acquiring:
             self.start_acquisition()
@@ -35,7 +35,7 @@ class CameraProxy(ServiceProxy):
                 num_exposures_remaining -= 1
         finally:
             if not was_acquiring:
-                self.stop_acquisition()
+                self.end_acquisition()
 
     def take_exposures(self, *args, **kwargs):
         warnings.warn('Please use camera.take_raw_exposures() instead.', DeprecationWarning)
