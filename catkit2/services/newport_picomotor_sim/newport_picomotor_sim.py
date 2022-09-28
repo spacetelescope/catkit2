@@ -1,8 +1,6 @@
 from catkit2.testbed.service import Service
-from catkit2.simulator.simulated_service import SimulatorClient
 
 import threading
-import numpy as np
 import time
 
 class NewportPicomotorSim(Service):
@@ -29,16 +27,12 @@ class NewportPicomotorSim(Service):
         self.axis_positions[axis_name] = 0
 
     def set_current_position(self, axis_name, position):
-        axis = self.axes[axis_name]
-
         position_before = self.get_current_position(axis_name)
 
         self.axis_positions[axis_name] = position
 
         sleep_time = self.sleep_per_step * abs(position_before - position) + self.sleep_base
         time.sleep(sleep_time)
-
-        position_after = self.get_current_position(axis_name)
 
     def get_current_position(self, axis_name):
         return self.axis_positions[axis_name]

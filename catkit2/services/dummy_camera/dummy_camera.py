@@ -33,7 +33,7 @@ class DummyCamera(Service):
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], 20)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
-        #self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+        # self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
@@ -65,7 +65,7 @@ class DummyCamera(Service):
     def get_image(self):
         try:
             focal_grid = make_focal_grid(8, np.array([self.sensor_width, self.sensor_height]) / 16)
-            #focal_grid = focal_grid.shifted([-self._offset_x / 8, -self._offset_y / 8])
+            # focal_grid = focal_grid.shifted([-self._offset_x / 8, -self._offset_y / 8])
 
             prop = FraunhoferPropagator(self.pupil_grid, focal_grid)
             img = prop(self.wf).power.shaped
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     try:
         service = DummyCamera()
         service.run()
-    except Exception as e:
+    except Exception:
         import traceback
 
         print(traceback.format_exc())

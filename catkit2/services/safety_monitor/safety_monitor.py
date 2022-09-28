@@ -1,8 +1,6 @@
 from catkit2.testbed import Service
 from catkit2.catkit_bindings import get_timestamp
 
-import time
-import sys
 import numpy as np
 
 class SafetyMonitor(Service):
@@ -64,8 +62,6 @@ class SafetyMonitor(Service):
 
     def main(self):
         while not self.should_shut_down:
-            start = time.time()
-
             self.check_safety()
 
             self.sleep(self.check_interval)

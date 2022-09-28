@@ -6,10 +6,9 @@ import glob
 import shutil
 import platform
 import subprocess
-from pathlib import Path
 
 from distutils.version import LooseVersion
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.spawn import find_executable
 

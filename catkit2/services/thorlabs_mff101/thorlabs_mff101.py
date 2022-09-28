@@ -1,7 +1,6 @@
 from catkit2.testbed.service import Service
 
 import time
-import threading
 import ftd2xx
 import numpy as np
 import random

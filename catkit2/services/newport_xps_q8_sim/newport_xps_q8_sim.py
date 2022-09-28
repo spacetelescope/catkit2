@@ -1,5 +1,4 @@
 from catkit2.testbed.service import Service
-from catkit2.simulator.simulated_service import SimulatorClient
 
 import threading
 import numpy as np

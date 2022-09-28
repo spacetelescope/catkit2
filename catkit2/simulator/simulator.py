@@ -1,7 +1,5 @@
 import heapq
 
-import zmq
-
 from ..testbed.service import Service
 
 class Simulator(Service):

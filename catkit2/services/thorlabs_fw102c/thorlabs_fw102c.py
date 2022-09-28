@@ -1,6 +1,5 @@
 from catkit2.testbed.service import Service
 
-import time
 import pyvisa
 import numpy as np
 
@@ -58,7 +57,7 @@ class ThorlabsFW102C(Service):
 
     def send_command(self, command):
         try:
-            bytes_written = self.connection.write(command)
+            self.connection.write(command)
 
             if self.connection.last_status is pyvisa.constants.StatusCode.success:
                 # Read the echo.

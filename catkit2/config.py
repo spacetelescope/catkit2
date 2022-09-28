@@ -1,5 +1,4 @@
 import yaml
-import re
 import os
 import collections.abc
 

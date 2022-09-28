@@ -1,7 +1,6 @@
 from ..service_proxy import ServiceProxy
 
 import numpy as np
-import time
 
 @ServiceProxy.register_service_interface('flip_mount')
 class FlipMountProxy(ServiceProxy):

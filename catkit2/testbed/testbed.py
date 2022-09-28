@@ -2,18 +2,15 @@ import sys
 import json
 import os
 import time
-import datetime
 import subprocess
-import traceback
 import socket
 import threading
 
 import psutil
 import zmq
-import yaml
 import numpy as np
 
-from ..catkit_bindings import LogConsole, LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state, Client
+from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state, Client
 from .logging import *
 
 from ..proto import testbed_pb2 as testbed_proto
@@ -366,8 +363,6 @@ class Testbed:
         service_id = request.service_id
 
         self.start_service(service_id)
-
-        ref = self.services[service_id]
 
         reply = testbed_proto.StartServiceReply()
 

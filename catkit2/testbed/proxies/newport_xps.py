@@ -1,5 +1,3 @@
-import time
-
 from ..service_proxy import ServiceProxy
 
 @ServiceProxy.register_service_interface('newport_xps_q8')
@@ -16,12 +14,10 @@ class NewportXpsQ8Proxy(ServiceProxy):
         command_stream.submit_frame(frame.id)
 
         # Wait until actuator reaches new position.
-        waiting_start = time.time()
-
         if timeout is None or timeout > 0:
             while True:
                 try:
-                    wait_time_ms = 1#None if timeout is None else int((timeout - (time.time() - waiting_start)) * 1000)
+                    wait_time_ms = 1  # TODO: implement better waiting scheme.
                     if wait_time_ms is not None and wait_time_ms <= 0:
                         break
 
