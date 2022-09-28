@@ -39,9 +39,9 @@ jobs:
         make html
       shell: bash -l {0}
     - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
-        with:
-          path: ./docs/_build/html
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: ./docs/_build/html
 
   deploy:
     if: ${{ github.event_name == 'push' }}
