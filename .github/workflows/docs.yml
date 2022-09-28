@@ -1,4 +1,4 @@
-name: catkit2 docs build and deployment
+name: Documentation
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   build_docs:
-    name: Build the documentation
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -44,6 +44,7 @@ jobs:
         path: ./docs/_build/html
 
   deploy:
+    name: Deploy
     if: ${{ github.event_name == 'push' }}
 
     permissions:
