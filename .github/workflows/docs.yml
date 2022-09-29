@@ -1,0 +1,63 @@
+name: Documentation
+
+on:
+  workflow_dispatch:
+    branches:
+      - develop
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    branches:
+      - develop
+  push:
+    branches:
+      - develop
+
+jobs:
+  build_docs:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+          auto-update-conda: true
+          auto-activate-base: false
+    - name: Install dependencies
+      run: |
+        cd extern/
+        bash ./download.sh
+        cd ../
+        conda env create --name build-env --file environment.yml
+        conda activate build-env
+        python setup.py develop
+      shell: bash -l {0}
+    - name: Build documentation
+      run: |
+        conda activate build-env
+        cd docs
+        make html
+      shell: bash -l {0}
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: ./docs/_build/html
+
+  deploy:
+    name: Deploy
+    if: ${{ github.event_name == 'push' }}
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    needs: build_docs
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
