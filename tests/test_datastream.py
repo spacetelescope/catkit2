@@ -6,8 +6,7 @@ import sys
 dtypes = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64', 'complex64', 'complex128']
 shapes = [[10], [10, 10], [10, 10, 10], [10, 10, 10, 10]]
 
-@pytest.mark.xfail(sys.platform != 'win32', reason="Failing on *nix due to mixing of (u)int32 and (u)int64.")
-@pytest.mark.parametrize("shape", shapes)
+pytest.mark.parametrize("shape", shapes)
 @pytest.mark.parametrize("dtype", dtypes)
 def test_data_stream(shape, dtype):
     # Use a unique name for each created stream.
