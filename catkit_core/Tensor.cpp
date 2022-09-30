@@ -13,7 +13,7 @@ const char *GetDataTypeAsString(DataType type)
 		case DataType::DT_UINT16:
 			return "H";
 		case DataType::DT_UINT32:
-			return "L";
+			return "I";
 		case DataType::DT_UINT64:
 			return "Q";
 		case DataType::DT_INT8:
@@ -21,7 +21,7 @@ const char *GetDataTypeAsString(DataType type)
 		case DataType::DT_INT16:
 			return "h";
 		case DataType::DT_INT32:
-			return "l";
+			return "i";
 		case DataType::DT_INT64:
 			return "q";
 		case DataType::DT_FLOAT32:
@@ -48,7 +48,7 @@ DataType GetDataTypeFromString(string type)
 		return DataType::DT_UINT8;
 	if (type == "H" || type == "uint16")
 		return DataType::DT_UINT16;
-	if (type == "L" || type == "uint32")
+	if (type == "I" || type == "uint32")
 		return DataType::DT_UINT32;
 	if (type == "Q" || type == "uint64")
 		return DataType::DT_UINT64;
@@ -56,7 +56,7 @@ DataType GetDataTypeFromString(string type)
 		return DataType::DT_INT8;
 	if (type == "h" || type == "int16")
 		return DataType::DT_INT16;
-	if (type == "l" || type == "int32")
+	if (type == "i" || type == "int32")
 		return DataType::DT_INT32;
 	if (type == "q" || type == "int64")
 		return DataType::DT_INT64;
