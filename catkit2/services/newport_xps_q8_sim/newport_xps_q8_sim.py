@@ -1,7 +1,6 @@
 from catkit2.testbed.service import Service
 
 import threading
-import numpy as np
 
 class NewportXpsQ8Sim(Service):
     def __init__(self):

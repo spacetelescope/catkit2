@@ -1,6 +1,5 @@
 from catkit2.testbed.service import Service
 
-import time
 import numpy as np
 
 class ThorlabsMFF101Sim(Service):

@@ -1,6 +1,5 @@
 from catkit2.testbed.service import Service
 
-import time
 import numpy as np
 
 class SnmpUpsSim(Service):
@@ -22,8 +21,6 @@ class SnmpUpsSim(Service):
 
     def main(self):
         while not self.should_shut_down:
-            start = time.time()
-
             power_ok = self.get_power_ok()
             self.power_ok.submit_data(np.array([power_ok], dtype='int8'))
 

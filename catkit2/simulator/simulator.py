@@ -2,6 +2,8 @@ import heapq
 import time
 import threading
 
+import numpy as np
+
 from ..testbed.service import Service
 
 class Simulator(Service):
@@ -71,7 +73,7 @@ class Simulator(Service):
             # Call the callback.
             callback_func(callback_time)
 
-    def add_callback(self, callback_func,  t=None):
+    def add_callback(self, callback_func, t=None):
         with self.lock:
             if t is None:
                 t = self.time.get()[0]

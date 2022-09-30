@@ -1,7 +1,7 @@
 from catkit2.testbed.service import Service
 
 import threading
-import time
+import numpy as np
 
 class NewportPicomotorSim(Service):
     def __init__(self):
