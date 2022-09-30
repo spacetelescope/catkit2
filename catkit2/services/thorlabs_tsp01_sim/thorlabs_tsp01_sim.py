@@ -1,6 +1,5 @@
 import numpy as np
 import time
-import threading
 
 from catkit2.testbed.service import Service
 
@@ -15,7 +14,7 @@ class ThorlabsTSP01Sim(Service):
         self.temperature_header_2 = self.make_data_stream('temperature_header_2', 'float64', [1], 20)
         self.humidity_internal = self.make_data_stream('humidity_internal', 'float64', [1], 20)
 
-        self.shifts = np.random.uniform(0, 2*np.pi, size=3)
+        self.shifts = np.random.uniform(0, 2 * np.pi, size=3)
         self.periods = np.random.uniform(300, 1800, size=3)
         self.amplitudes = np.random.uniform(0.1, 1, size=3)
         self.offsets = np.random.uniform(20, 21, size=3)

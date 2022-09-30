@@ -70,8 +70,6 @@ class Experiment:
                 self._log_writer = LogWriter(self.testbed.host, self.testbed.logging_egress_port)
                 self._log_writer.start()
 
-                set_up_log = True
-
             log_writer = Experiment._running_experiments[0]._log_writer
 
             # Log the start of this new experiment.

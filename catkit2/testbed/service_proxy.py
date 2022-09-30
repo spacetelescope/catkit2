@@ -1,9 +1,3 @@
-import zmq
-import json
-import os
-import argparse
-
-from ..catkit_bindings import DataStream
 from .. import catkit_bindings
 
 class ServiceProxy(catkit_bindings.ServiceProxy):

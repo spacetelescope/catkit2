@@ -1,6 +1,5 @@
 from catkit2.testbed.service import Service
 
-import time
 import sys
 import os
 import threading
@@ -120,7 +119,7 @@ class NewportXpsQ8(Service):
 
     def monitor_motor(self, motor_id):
         # Initialize motor if not already initialized.
-        #self._ensure_initialized(motor_id)
+        # self._ensure_initialized(motor_id)
 
         command_stream = self.motor_commands[motor_id]
 

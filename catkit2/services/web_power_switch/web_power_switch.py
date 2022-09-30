@@ -1,9 +1,6 @@
-import time
-import sys
 import threading
 
 import requests
-import numpy as np
 
 from catkit2.testbed.service import Service
 

@@ -1,14 +1,7 @@
-import zmq
-import json
-import os
-import argparse
-import threading
-
-from ..catkit_bindings import DataStream
 from .. import catkit_bindings
 
 from .service_proxy import ServiceProxy
-from .proxies import *
+from .proxies import *  # noqa
 
 class TestbedProxy(catkit_bindings.TestbedProxy):
     '''A client for connecting to a testbed server.

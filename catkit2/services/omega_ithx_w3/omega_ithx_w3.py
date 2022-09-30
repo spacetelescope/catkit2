@@ -52,7 +52,7 @@ class OmegaIthxW3(Service):
             raise OSError(f"{self.config_id}: Unexpected error - no data received.")
 
         # Parse response. Example b"03.36\r" or b"03.36\r,45.2\r".
-        data = re.findall("[\+\-0-9.]+", data.decode())
+        data = re.findall(r"[\+\-0-9.]+", data.decode())
 
         # Convert to float.
         data = [float(item) for item in data]

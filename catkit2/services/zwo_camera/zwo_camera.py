@@ -163,7 +163,7 @@ class ZwoCamera(Service):
         self.camera.start_video_capture()
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
-        timeout = 10000 # ms
+        timeout = 10000  # ms
 
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:

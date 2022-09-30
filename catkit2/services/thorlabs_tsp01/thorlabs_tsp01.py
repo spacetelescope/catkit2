@@ -2,7 +2,6 @@ import ctypes
 import sys
 import glob
 import os
-import time
 import numpy as np
 
 from catkit2.testbed.service import Service

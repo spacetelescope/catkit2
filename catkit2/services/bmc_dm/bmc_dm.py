@@ -44,7 +44,7 @@ class BmcDm(Service):
         self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.command_length], 20)
 
         # Zero-out the channel.
-        frame = self.channels[channel_name].submit_data(np.zeros(self.command_length))
+        self.channels[channel_name].submit_data(np.zeros(self.command_length))
 
     def main(self):
         self.channel_threads = {}
@@ -66,7 +66,7 @@ class BmcDm(Service):
     def monitor_channel(self, channel_name):
         while not self.should_shut_down:
             try:
-                frame = self.channels[channel_name].get_next_frame(10)
+                self.channels[channel_name].get_next_frame(10)
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
