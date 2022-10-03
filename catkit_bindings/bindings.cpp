@@ -486,7 +486,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			auto buffer_info = data.request();
 
 			// Check if data has the right dtype.
-			auto input_dtype = GetDataTypeFromString(buffer_info.format);
+			auto input_dtype = GetDataTypeFromString(py::str(py::dtype(buffer_info)));
 			if (s.GetDataType() != input_dtype)
 				throw std::runtime_error(std::string("Incompatible array dtype. Stream: ") + GetDataTypeAsString(s.GetDataType()) + ". Input: " + GetDataTypeAsString(input_dtype));
 
@@ -531,7 +531,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get_latest_frame", &DataStream::GetLatestFrame, py::call_guard<py::gil_scoped_release>())
 		.def_property("dtype", [](DataStream &s)
 		{
-			return py::dtype(GetDataTypeAsString(s.GetDataType()));
+			return GetNumpyDataType(s.GetDataType());
 		},
 		[](DataStream &s, py::object dtype)
 		{

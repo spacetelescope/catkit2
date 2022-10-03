@@ -2,6 +2,12 @@ from catkit2.catkit_bindings import Server, Client
 import threading
 import time
 import pytest
+import socket
+
+def _get_unused_port():
+    with socket.socket() as sock:
+        sock.bind(('', 0))
+        return sock.getsockname()[1]
 
 class OurServer(Server):
     def __init__(self, port):
@@ -30,8 +36,10 @@ class OurClient(Client):
         return self.make_request('baz', 'even_other_data')
 
 def test_server_client_communication():
-    server = OurServer(8080)
-    client = OurClient(8080)
+    port = _get_unused_port()
+
+    server = OurServer(port)
+    client = OurClient(port)
 
     server.start()
 
