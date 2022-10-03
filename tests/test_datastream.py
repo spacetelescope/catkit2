@@ -12,11 +12,13 @@ def test_data_stream(shape, dtype):
     # Use a unique name for each created stream.
     created_stream = DataStream.create(f'{dtype}_{len(shape)}_stream', 'service', dtype, shape, 20)
 
+    # Created stream should have the right dtype and shape.
     assert created_stream.dtype == dtype
     assert np.allclose(created_stream.shape, shape)
 
     opened_stream = DataStream.open(created_stream.stream_id)
 
+    # The opened stream should have the right dtype and shape.
     assert opened_stream.dtype == dtype
     assert np.allclose(opened_stream.shape, shape)
 
@@ -25,7 +27,19 @@ def test_data_stream(shape, dtype):
 
     frame = opened_stream.get_latest_frame()
 
+    # This should be the first frame on this datastream.
     assert frame.id == 0
 
+    # The data should match with what we put in.
     assert np.allclose(frame.data, data)
     assert np.allclose(opened_stream.get(), data)
+
+    # We should get an error if we submit the wrong dtype on a data stream.
+    for send_dtype in dtypes:
+        if send_dtype == dtype:
+            continue
+
+        data = np.random.randn(*shape).astype(send_dtype)
+
+        with pytest.raises(RuntimeError):
+            created_stream.submit_data(data)
