@@ -43,3 +43,20 @@ def test_data_stream(shape, dtype):
 
         with pytest.raises(RuntimeError):
             created_stream.submit_data(data)
+
+    # We should get an error if we submit data with the wrong shape.
+    wrong_shape = np.copy(shape)
+    wrong_shape[-1] += 1
+
+    data = np.random.randn(*wrong_shape).astype(dtype)
+
+    with pytest.raises(RuntimeError):
+        created_stream.submit_data(data)
+
+    # We should get an error if we submit a non-contiguous array.
+    if len(shape) >= 2:
+        data = np.random.randn(*wrong_shape).astype(dtype)
+        data = data[..., :-1]
+
+        with pytest.raises(RuntimeError):
+            created_stream.submit_data(data)
