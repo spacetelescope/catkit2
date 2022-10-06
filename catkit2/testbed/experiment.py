@@ -10,7 +10,7 @@ from .logging import CatkitLogHandler, LogWriter
 from ..catkit_bindings import LogForwarder
 
 class Experiment:
-    name = 'default_experiment_name'
+    name = None
 
     log = logging.getLogger(__name__)
     _running_experiments = []
@@ -18,6 +18,9 @@ class Experiment:
     def __init__(self, testbed, metadata=None, is_base_experiment=None):
         if metadata is None:
             metadata = {}
+
+        if self.name is None:
+            raise RuntimeError('Your experiment should have a name.')
 
         self.testbed = testbed
         self.metadata = metadata
