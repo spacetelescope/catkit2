@@ -533,15 +533,24 @@ class Testbed:
         self.log.debug(f'Starting new service with {executable + args}.')
 
         # Start process.
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        creationflags = subprocess.CREATE_NEW_CONSOLE
+        if sys.platform == 'Win32':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            creationflags = subprocess.CREATE_NEW_CONSOLE
 
-        process = psutil.Popen(
-            executable + args,
-            startupinfo=startupinfo,
-            creationflags=creationflags,
-            cwd=dirname)
+            process = subprocess.Popen(
+                executable + args,
+                startupinfo=startupinfo,
+                creationflags=creationflags,
+                cwd=dirname)
+        else:
+            process = subprocess.Popen(
+                executable + args,
+                stdin=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                start_new_session=True,
+                cwd=dirname)
 
         # Store a reference to the service.
         self.services[service_id].state = ServiceState.INITIALIZING
