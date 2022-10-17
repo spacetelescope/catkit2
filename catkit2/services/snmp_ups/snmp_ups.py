@@ -44,10 +44,8 @@ class SnmpUps(Service):
             return False
 
     def open(self):
-        # Do one check on power safety during opening.
-        # This is to make sure that we always have at least one power check in the datastream.
-        power_ok = self.get_power_ok()
-        self.power_ok.submit_data(np.array([power_ok], dtype='int8'))
+        # Have at least one frame on the datastream.
+        self.power_ok.submit_data(np.array([False], dtype='int8'))
 
     def main(self):
         while not self.should_shut_down:
