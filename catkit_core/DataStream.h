@@ -44,6 +44,8 @@ struct DataStreamHeader
 	std::atomic_size_t m_LastId;
 	std::atomic_size_t m_NextRequestId;
 
+	double m_FrameRateCounter;
+
 	SynchronizationSharedData m_SynchronizationSharedData;
 };
 
@@ -107,6 +109,8 @@ public:
 
 	size_t GetNewestAvailableFrameId();
 	size_t GetOldestAvailableFrameId();
+
+	double GetFrameRate();
 
 private:
 	std::shared_ptr<SharedMemory> m_SharedMemory;

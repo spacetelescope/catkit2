@@ -17,6 +17,9 @@
 
 using namespace std;
 
+// Decay rate for the frame rate estimate in 1/sec.
+const double FRAMERATE_DECAY = 1;
+
 std::string MakeStreamId(const std::string &stream_name, const std::string &service_id, int pid)
 {
 #ifdef _WIN32
@@ -109,6 +112,8 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 	header->m_LastId = 0;
 	header->m_NextRequestId = 0;
 
+	header->m_FrameRateCounter = 0;
+
 	header->m_NumBytesInBuffer = num_bytes_in_buffer;
 
 	data_stream->UpdateParameters(type, dimensions, num_frames_in_buffer);
@@ -180,6 +185,18 @@ void DataStream::SubmitFrame(size_t id)
 	} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
 
 	m_Synchronization.Signal();
+
+	// Update the framerate counter.
+	std::uint64_t last_timestamp = (m_Header->m_FrameMetadata + (last_id % m_Header->m_NumFramesInBuffer))->m_TimeStamp;
+	double time_delta = double(std::int64_t(meta->m_TimeStamp) - std::int64_t(last_timestamp));
+
+	if (time_delta < 0)
+		time_delta = 0;
+
+	// Do not worry about race conditions; this is not a critical parameter.
+	m_Header->m_FrameRateCounter =
+		m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta / 1e9)
+		+ FRAMERATE_DECAY * 1e9 / time_delta;
 }
 
 void DataStream::SubmitData(void *data)
@@ -386,4 +403,20 @@ size_t DataStream::GetNewestAvailableFrameId()
 		return 0;
 
 	return m_Header->m_LastId - 1;
+}
+
+double DataStream::GetFrameRate()
+{
+	if (m_Header->m_LastId == 0)
+		return 0;
+
+	std::uint64_t last_timestamp = (m_Header->m_FrameMetadata + (m_Header->m_LastId % m_Header->m_NumFramesInBuffer))->m_TimeStamp;
+	std::uint64_t current_timestamp = GetTimeStamp();
+
+	double time_delta = double(std::int64_t(current_timestamp) - std::int64_t(last_timestamp));
+
+	if (time_delta < 0)
+		time_delta = 0;
+
+	return m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta / 1e9);
 }
