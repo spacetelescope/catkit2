@@ -10,7 +10,7 @@
 #include "Synchronization.h"
 #include "Tensor.h"
 
-const char * const CURRENT_DATASTREAM_VERSION = "0.1";
+const char * const CURRENT_DATASTREAM_VERSION = "0.2";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
 const long INFINITE_WAIT_TIME = LONG_MAX;
 
