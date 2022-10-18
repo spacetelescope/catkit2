@@ -567,6 +567,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("will_frame_be_available", &DataStream::WillFrameBeAvailable)
 		.def_property_readonly("newest_available_frame_id", &DataStream::GetNewestAvailableFrameId)
 		.def_property_readonly("oldest_available_frame_id", &DataStream::GetOldestAvailableFrameId)
+		.def_property_readonly("frame_rate", &DataStream::GetFrameRate)
 		.def_property("buffer_handling_mode", &DataStream::GetBufferHandlingMode, &DataStream::SetBufferHandlingMode);
 
 	py::enum_<BufferHandlingMode>(m, "BufferHandlingMode")
