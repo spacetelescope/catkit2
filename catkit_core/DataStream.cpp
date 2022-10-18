@@ -18,7 +18,7 @@
 using namespace std;
 
 // Decay rate for the frame rate estimate in 1/sec.
-const double FRAMERATE_DECAY = 1;
+const double FRAMERATE_DECAY = 2.5;
 
 std::string MakeStreamId(const std::string &stream_name, const std::string &service_id, int pid)
 {
@@ -186,17 +186,23 @@ void DataStream::SubmitFrame(size_t id)
 
 	m_Synchronization.Signal();
 
+	// Don't update the framerate counter for the first frame.
+	if (id == 0)
+		return;
+
 	// Update the framerate counter.
-	std::uint64_t last_timestamp = (m_Header->m_FrameMetadata + (last_id % m_Header->m_NumFramesInBuffer))->m_TimeStamp;
+	std::uint64_t last_timestamp = (m_Header->m_FrameMetadata + ((id - 1) % m_Header->m_NumFramesInBuffer))->m_TimeStamp;
 	double time_delta = double(std::int64_t(meta->m_TimeStamp) - std::int64_t(last_timestamp));
 
 	if (time_delta < 0)
 		time_delta = 0;
 
+	time_delta /= 1e9;
+
 	// Do not worry about race conditions; this is not a critical parameter.
 	m_Header->m_FrameRateCounter =
-		m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta / 1e9)
-		+ FRAMERATE_DECAY * 1e9 / time_delta;
+		m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta)
+		+ FRAMERATE_DECAY;
 }
 
 void DataStream::SubmitData(void *data)
@@ -410,7 +416,7 @@ double DataStream::GetFrameRate()
 	if (m_Header->m_LastId == 0)
 		return 0;
 
-	std::uint64_t last_timestamp = (m_Header->m_FrameMetadata + (m_Header->m_LastId % m_Header->m_NumFramesInBuffer))->m_TimeStamp;
+	std::uint64_t last_timestamp = (m_Header->m_FrameMetadata + ((m_Header->m_LastId - 1) % m_Header->m_NumFramesInBuffer))->m_TimeStamp;
 	std::uint64_t current_timestamp = GetTimeStamp();
 
 	double time_delta = double(std::int64_t(current_timestamp) - std::int64_t(last_timestamp));
@@ -418,5 +424,7 @@ double DataStream::GetFrameRate()
 	if (time_delta < 0)
 		time_delta = 0;
 
-	return m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta / 1e9);
+	time_delta /= 1e9;
+
+	return m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta);
 }
