@@ -151,6 +151,7 @@ class Testbed:
         self.log_distributor = None
         self.log_handler = None
         self.log_forwarder = None
+        self.launched_processes = []
 
         self.log = logging.getLogger(__name__)
 
@@ -215,6 +216,7 @@ class Testbed:
         self.server.register_request_handler('shut_down', self.on_shut_down)
 
         self.is_running = False
+        self.shutdown_requested = threading.Event()
         self.shutdown_flag = threading.Event()
 
         self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
@@ -223,6 +225,7 @@ class Testbed:
         '''Run the main loop of the server.
         '''
         self.is_running = True
+        self.shutdown_requested.clear()
         self.shutdown_flag.clear()
 
         heartbeat_thread = None
@@ -254,18 +257,20 @@ class Testbed:
 
             # For now, wait until Ctrl+C.
             # In the future, monitor services and update heartbeat stream.
-            while not self.shutdown_flag.is_set():
+            while not self.shutdown_requested.is_set():
                 time.sleep(0.1)
 
         except KeyboardInterrupt:
             self.log.info('Interrupted by the user...')
         finally:
-            self.shutdown_flag.set()
+            self.shutdown_requested.set()
 
             try:
                 self.log.info('Shutting down all running services.')
                 self.shut_down_all_services()
             finally:
+                self.shutdown_flag.set()
+
                 if heartbeat_thread:
                     heartbeat_thread.join()
 
@@ -294,6 +299,13 @@ class Testbed:
     def monitor_services(self):
         while not self.shutdown_flag.is_set():
             time.sleep(0.1)
+
+            # Avoid zombie processes. Communicate with processes after they exit.
+            for process in self.launched_processes:
+                if process.poll() is not None:
+                    process.communicate()
+
+                    self.launched_processes.remove(process)
 
             for service_id, service in self.services.items():
                 if service.state not in [ServiceState.CLOSED, ServiceState.CRASHED]:
@@ -457,7 +469,7 @@ class Testbed:
         return reply.SerializeToString()
 
     def on_shut_down(self, data):
-        self.shutdown_flag.set()
+        self.shutdown_requested.set()
 
         reply = testbed_proto.ShutDownReply()
         return reply.SerializeToString()
@@ -479,7 +491,7 @@ class Testbed:
         ValueError
             If the service type could not be found in the known services paths.
         '''
-        if self.shutdown_flag.is_set():
+        if self.shutdown_requested.is_set():
             raise RuntimeError("The testbed is shutting down. Starting new services is not allowed anymore.")
 
         self.log.debug(f'Trying to start service "{service_id}".')
@@ -521,20 +533,31 @@ class Testbed:
         self.log.debug(f'Starting new service with {executable + args}.')
 
         # Start process.
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        creationflags = subprocess.CREATE_NEW_CONSOLE
+        if sys.platform == 'Win32':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            creationflags = subprocess.CREATE_NEW_CONSOLE
 
-        process = psutil.Popen(
-            executable + args,
-            startupinfo=startupinfo,
-            creationflags=creationflags,
-            cwd=dirname)
+            process = subprocess.Popen(
+                executable + args,
+                startupinfo=startupinfo,
+                creationflags=creationflags,
+                cwd=dirname)
+        else:
+            process = subprocess.Popen(
+                executable + args,
+                stdin=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                start_new_session=True,
+                cwd=dirname)
 
         # Store a reference to the service.
         self.services[service_id].state = ServiceState.INITIALIZING
-        self.services[service_id].process_id = process.pid
+        self.services[service_id].process_id = int(process.pid)
         self.services[service_id].port = port
+
+        self.launched_processes.append(process)
 
         self.log.info(f'Started service "{service_id}" with type "{service_type}".')
 
