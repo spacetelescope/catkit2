@@ -11,7 +11,8 @@ enum ServiceState
     RUNNING = 3,
     CLOSING = 4,
     UNRESPONSIVE = 5,
-    CRASHED = 6
+    CRASHED = 6,
+    FAIL_SAFE = 7
 };
 
 bool IsAliveState(const ServiceState &state);

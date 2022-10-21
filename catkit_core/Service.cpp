@@ -83,7 +83,7 @@ void Service::Run(void (*error_check)())
 	if (!IsSafe())
 	{
 		LOG_CRITICAL("Testbed is unsafe. This service will not be started.");
-		UpdateState(ServiceState::CRASHED);
+		UpdateState(ServiceState::FAIL_SAFE);
 
 		return;
 	}
@@ -185,7 +185,7 @@ void Service::Run(void (*error_check)())
 	else if (m_FailSafe)
 	{
 		LOG_INFO("Service was safely closed after safety violation.");
-		UpdateState(ServiceState::CRASHED);
+		UpdateState(ServiceState::FAIL_SAFE);
 	}
 	else
 	{

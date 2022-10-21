@@ -389,7 +389,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.value("RUNNING", ServiceState::RUNNING)
 		.value("CLOSING", ServiceState::CLOSING)
 		.value("UNRESPONSIVE", ServiceState::UNRESPONSIVE)
-		.value("CRASHED", ServiceState::CRASHED);
+		.value("CRASHED", ServiceState::CRASHED)
+		.value("FAIL_SAFE", ServiceState::FAIL_SAFE);
 
 	m.def("is_alive_state", &IsAliveState);
 
