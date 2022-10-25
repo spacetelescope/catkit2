@@ -532,6 +532,14 @@ class Testbed:
 
         self.log.debug(f'Starting new service with {executable + args}.')
 
+        env = os.environ.copy()
+
+        if 'env' in self.config['services'][service_id]:
+            for key, value in self.config['services'][service_id]['env'].items():
+                env[key] = str(value)
+
+                self.log.debug(f'with environment variable {key} = {str(value)}.')
+
         # Start process.
         if sys.platform == 'Win32':
             startupinfo = subprocess.STARTUPINFO()
@@ -542,7 +550,8 @@ class Testbed:
                 executable + args,
                 startupinfo=startupinfo,
                 creationflags=creationflags,
-                cwd=dirname)
+                cwd=dirname,
+                env=env)
         else:
             process = subprocess.Popen(
                 executable + args,
@@ -550,7 +559,8 @@ class Testbed:
                 stderr=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 start_new_session=True,
-                cwd=dirname)
+                cwd=dirname,
+                env=env)
 
         # Store a reference to the service.
         self.services[service_id].state = ServiceState.INITIALIZING
