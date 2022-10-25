@@ -10,7 +10,7 @@
 #include "Synchronization.h"
 #include "Tensor.h"
 
-const char * const CURRENT_DATASTREAM_VERSION = "0.1";
+const char * const CURRENT_DATASTREAM_VERSION = "0.2";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
 const long INFINITE_WAIT_TIME = LONG_MAX;
 
@@ -43,6 +43,8 @@ struct DataStreamHeader
 	std::atomic_size_t m_FirstId;
 	std::atomic_size_t m_LastId;
 	std::atomic_size_t m_NextRequestId;
+
+	double m_FrameRateCounter;
 
 	SynchronizationSharedData m_SynchronizationSharedData;
 };
@@ -107,6 +109,8 @@ public:
 
 	size_t GetNewestAvailableFrameId();
 	size_t GetOldestAvailableFrameId();
+
+	double GetFrameRate();
 
 private:
 	std::shared_ptr<SharedMemory> m_SharedMemory;
