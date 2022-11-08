@@ -541,7 +541,7 @@ class Testbed:
                 self.log.debug(f'with environment variable {key} = {str(value)}.')
 
         # Start process.
-        if sys.platform == 'Win32':
+        if sys.platform == 'win32':
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             creationflags = subprocess.CREATE_NEW_CONSOLE
