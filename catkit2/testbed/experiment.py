@@ -66,6 +66,10 @@ class Experiment:
                 logging.getLogger().addHandler(log_handler)
                 logging.getLogger().setLevel(logging.DEBUG)
 
+                # Set log level of matplotlib to warning.
+                # (Matplotlib spews out a lot of unnecessary log messages.)
+                logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
                 # Set up log forwarder.
                 log_forwarder = LogForwarder('experiment', f'tcp://{self.testbed.host}:{self.testbed.logging_ingress_port}')
 
