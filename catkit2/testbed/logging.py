@@ -3,6 +3,7 @@ import threading
 import zmq
 import json
 import contextlib
+import traceback
 
 from ..catkit_bindings import submit_log_entry, Severity
 
@@ -79,19 +80,24 @@ class LogDistributor:
 
         while not self.shutdown_flag.is_set():
             try:
-                log_message = collector.recv_multipart()
-                publicist.send_multipart(log_message)
-            except zmq.ZMQError as e:
-                if e.errno == zmq.EAGAIN:
-                    # Timed out.
-                    continue
-                else:
-                    raise RuntimeError('Error during receive') from e
+                try:
+                    log_message = collector.recv_multipart()
+                    publicist.send_multipart(log_message)
+                except zmq.ZMQError as e:
+                    if e.errno == zmq.EAGAIN:
+                        # Timed out.
+                        continue
+                    else:
+                        raise RuntimeError('Error during receive') from e
 
-            log_message = log_message[0].decode('ascii')
-            log_message = json.loads(log_message)
+                log_message = log_message[0].decode('utf-8')
+                log_message = json.loads(log_message)
 
-            print(f'[{log_message["service_id"]}] {log_message["message"]}')
+                print(f'[{log_message["service_id"]}] {log_message["message"]}')
+            except Exception:
+                # Something went wrong during handling of the log message.
+                # Let's ignore this error, but still print the exception.
+                print(traceback.format_exc())
 
 class LogWriter:
     def __init__(self, host, port, log_format=None):
