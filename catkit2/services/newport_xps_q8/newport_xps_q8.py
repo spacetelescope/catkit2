@@ -4,6 +4,7 @@ import sys
 import os
 import threading
 import numpy as np
+import traceback
 
 try:
     library_path = os.environ.get('CATKIT_NEWPORT_LIB_PATH')
@@ -118,20 +119,30 @@ class NewportXpsQ8(Service):
                 raise RuntimeError(f"{api_name}: '{error_string}'")
 
     def monitor_motor(self, motor_id):
-        # Initialize motor if not already initialized.
-        # self._ensure_initialized(motor_id)
+        try:
+            # Initialize motor if not already initialized.
+            pass
+            # self._ensure_initialized(motor_id)
+        except Exception:
+            # Log the error, then reraise.
+            self.log.critical(traceback.format_exc())
+            raise
 
         command_stream = self.motor_commands[motor_id]
 
         while not self.should_shut_down:
-            # Set the current position if a new command has arrived.
             try:
-                frame = command_stream.get_next_frame(10)
-            except Exception:
-                # Timed out. This is used to periodically check the shutdown flag.
-                continue
+                # Set the current position if a new command has arrived.
+                try:
+                    frame = command_stream.get_next_frame(10)
+                except Exception:
+                    # Timed out. This is used to periodically check the shutdown flag.
+                    continue
 
-            self.set_current_position(motor_id, frame.data[0])
+                self.set_current_position(motor_id, frame.data[0])
+            except Exception:
+                # Do not raise an error, but instead log it.
+                self.log.error(traceback.format_exc())
 
     def open(self):
         # Start the device
