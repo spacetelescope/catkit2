@@ -1,5 +1,7 @@
 from ..service_proxy import ServiceProxy
 
+import numpy as np
+
 @ServiceProxy.register_service_interface('newport_xps_q8')
 class NewportXpsQ8Proxy(ServiceProxy):
     def move_absolute(self, motor_id, position, timeout=None):
