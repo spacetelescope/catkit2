@@ -144,6 +144,9 @@ class NewportXpsQ8(Service):
                 # Do not raise an error, but instead log it.
                 self.log.error(traceback.format_exc())
 
+                # Set the command stream back to its current location.
+                command_stream.submit_data(np.array([self.get_current_position(motor_id)], dtype='float64'))
+
     def open(self):
         # Start the device
         self.device = XPS_Q8_drivers.XPS()
