@@ -29,7 +29,7 @@ class NewportXpsQ8Proxy(ServiceProxy):
                     # Timed out. First check if the command is still the same as what we commanded.
                     current_command = command_stream.get()
 
-                    if np.allclose(current_command, position, atol=self.atol):
+                    if not np.allclose(current_command, position, atol=self.atol):
                         # Someone else interrupted our move. Raise an exception.
                         raise RuntimeError(f'Absolute move interrupted or something went wrong when moving {motor_id} to {position} mm.')
 
