@@ -2,6 +2,7 @@ from ..service_proxy import ServiceProxy
 
 import numpy as np
 from astropy.io import fits
+import hcipy
 
 @ServiceProxy.register_service_interface('bmc_dm')
 class BmcDmProxy(ServiceProxy):
@@ -17,6 +18,12 @@ class BmcDmProxy(ServiceProxy):
     @property
     def num_actuators(self):
         return self.config['num_actuators']
+
+    @property
+    def actuator_grid(self):
+        dims = self.dm_mask.shape[::-1]
+
+        return hcipy.make_uniform_grid(dims, dims)
 
     def dm_shapes_to_command(self, dm1_shape, dm2_shape=None):
         command = np.zeros(2048)
