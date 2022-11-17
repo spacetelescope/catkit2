@@ -39,7 +39,7 @@ class NewportXpsQ8Proxy(ServiceProxy):
     def move_relative(self, motor_id, distance, timeout=None):
         # Get current position.
         stream = getattr(self, motor_id.lower() + '_current_position')
-        current_position = stream.get()
+        current_position = stream.get()[0]
 
         new_position = current_position + distance
 
