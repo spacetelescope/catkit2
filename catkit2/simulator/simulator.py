@@ -45,7 +45,7 @@ class Simulator(Service):
 
             # Get the next callback. If there isn't one, continue.
             if not self.callbacks:
-                time.sleep(0.01)
+                self.sleep(0.01)
                 continue
 
             with self.lock:
@@ -57,7 +57,7 @@ class Simulator(Service):
                 with self.lock:
                     heapq.heappush(self.callbacks, callback)
 
-                time.sleep(0.01)
+                self.sleep(0.01)
                 continue
 
             # We can now progress the simulator time. First integrate on the cameras.
