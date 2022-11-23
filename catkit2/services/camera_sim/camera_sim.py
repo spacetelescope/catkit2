@@ -68,13 +68,17 @@ class CameraSim(Service):
                 self.acquisition_loop()
 
     def acquisition_loop(self):
+        # Communicate with simulator to start camera acquisition.
+        # The division by 1e6 is to convert time from microseconds to seconds.
         self.testbed.simulator.start_camera_acquisition(camera_name=self.id, integration_time=self.exposure_time / 1e6, frame_interval=self.exposure_time / 1e6)
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
         try:
+            # Wait until we are commanded to stop acquisition.
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 self.should_be_acquiring.wait(0.01)
         finally:
+            # Communicate with the simulator to stop camera acquisition.
             self.testbed.simulator.end_camera_acquisition(camera_name=self.id)
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
