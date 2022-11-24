@@ -30,8 +30,6 @@ class BmcDmSim(Service):
         self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.command_length], 20)
         self.total_surface = self.make_data_stream('total_surface', 'float64', [self.command_length], 20)
 
-        # TODO: connect to simulator.
-
     def add_channel(self, channel_name):
         self.channels[channel_name] = self.make_data_stream(channel_name, 'float64', [self.command_length], 20)
 
@@ -49,7 +47,7 @@ class BmcDmSim(Service):
             self.channel_threads[channel_name] = thread
 
         while not self.should_shut_down:
-            self.sleep(1)
+            self.sleep(0.1)
 
         for thread in self.channel_threads.values():
             thread.join()
@@ -83,7 +81,7 @@ class BmcDmSim(Service):
         voltages /= self.max_volts
 
         with self.lock:
-            pass
+            self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=total_surface)
 
         # Submit these voltages to the total voltage data stream.
         self.total_voltage.submit_data(voltages)

@@ -1,7 +1,6 @@
 from catkit2.testbed.service import Service
 
 import threading
-import numpy as np
 
 class NewportXpsQ8Sim(Service):
     def __init__(self):
@@ -15,27 +14,23 @@ class NewportXpsQ8Sim(Service):
         self.motor_current_positions = {}
         self.motor_threads = {}
 
-        self.motor_sim_positions = {}
-
         for motor_id in self.motor_ids:
             self.add_motor(motor_id)
 
     def add_motor(self, motor_id):
         self.motor_commands[motor_id] = self.make_data_stream(motor_id.lower() + '_command', 'float64', [1], 20)
         self.motor_current_positions[motor_id] = self.make_data_stream(motor_id.lower() + '_current_position', 'float64', [1], 20)
-        self.motor_sim_positions[motor_id] = 0.0
 
     def set_current_position(self, motor_id, position):
-        self.motor_sim_positions[motor_id] = position
+        # Send the position command to the simulator. The simulator
+        # will in turn set the motor position at the appropriate time.
+        self.testbed.simulator.move_stage(
+            stage_id=motor_id.lower(),
+            old_position=self.get_current_position(motor_id),
+            new_position=position)
 
     def get_current_position(self, motor_id):
-        current_position = self.motor_sim_positions[motor_id]
-
-        # Update current position data stream.
-        stream = self.motor_current_positions[motor_id]
-        stream.submit_data(np.array([current_position]))
-
-        return current_position
+        return self.motor_current_positions[motor_id].get()[0]
 
     def monitor_motor(self, motor_id):
         command_stream = self.motor_commands[motor_id]
@@ -60,9 +55,6 @@ class NewportXpsQ8Sim(Service):
 
     def main(self):
         while not self.should_shut_down:
-            for motor_id in self.motor_ids:
-                self.get_current_position(motor_id)
-
             self.sleep(self.update_interval)
 
     def close(self):

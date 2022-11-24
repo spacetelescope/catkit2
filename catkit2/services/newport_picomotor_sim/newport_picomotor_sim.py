@@ -1,7 +1,7 @@
 from catkit2.testbed.service import Service
 
 import threading
-import time
+import numpy as np
 
 class NewportPicomotorSim(Service):
     def __init__(self):
@@ -22,20 +22,22 @@ class NewportPicomotorSim(Service):
             self.add_axis(axis_name)
 
     def add_axis(self, axis_name):
-        self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower() + '_command', 'int64', [1], 20)
-        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int64', [1], 20)
+        self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower() + '_command', 'int32', [1], 20)
+        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int32', [1], 20)
         self.axis_positions[axis_name] = 0
+
+        self.axis_commands[axis_name].submit_data(np.zeros(1, dtype='int32'))
+        self.axis_current_positions[axis_name].submit_data(np.zeros(1, dtype='int32'))
 
     def set_current_position(self, axis_name, position):
         position_before = self.get_current_position(axis_name)
 
-        self.axis_positions[axis_name] = position
-
-        sleep_time = self.sleep_per_step * abs(position_before - position) + self.sleep_base
-        time.sleep(sleep_time)
+        # Notify the simulator of the changed state. The simulator will update the current
+        # position stream when the move actually happened in simulated time.
+        self.testbed.simulator.move_stage(stage_id=self.id + '_' + axis_name, old_position=position_before, new_position=position)
 
     def get_current_position(self, axis_name):
-        return self.axis_positions[axis_name]
+        return self.axis_current_positions[axis_name].get()[0]
 
     def monitor_axis(self, axis_name):
         command_stream = self.axis_commands[axis_name]
