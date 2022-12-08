@@ -67,6 +67,10 @@ public:
 	std::vector<std::string> GetActiveServices();
 	std::vector<std::string> GetInactiveServices();
 
+	std::string GetBaseDataPath();
+	std::string GetSupportDataPath();
+	std::string GetLongTermMonitoringPath();
+
 private:
 	void GetTestbedInfo();
 
