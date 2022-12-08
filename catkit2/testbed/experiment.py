@@ -136,19 +136,7 @@ class Experiment:
 
         # Compute the base data path.
         if experiment_depth == 1:
-            # Get the base data path from scratch.
-            if 'CATKIT_DATA_PATH' in os.environ:
-                base_data_path = os.environ['CATKIT_DATA_PATH']
-            elif 'base_data_path' in self.config['testbed']:
-                conf = self.config['testbed']['base_data_path']
-                base_data_path = conf['default']
-
-                if 'by_hostname' in conf:
-                    hostname = socket.gethostname()
-                    if hostname in conf['by_hostname']:
-                        self.base_data_path = conf['by_hostname'][hostname]
-            else:
-                raise RuntimeError('No data path could be found in the config files nor as an environment variable.')
+            base_data_path = self.testbed.base_data_path
         else:
             base_data_path = parent_experiment.output_path
 
