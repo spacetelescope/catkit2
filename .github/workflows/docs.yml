@@ -15,7 +15,7 @@ on:
 jobs:
   build_docs:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - uses: actions/checkout@v2
@@ -55,7 +55,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: build_docs
     steps:
       - name: Deploy to GitHub Pages
