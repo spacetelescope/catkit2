@@ -274,6 +274,8 @@ std::vector<std::string> TestbedProxy::GetInactiveServices()
 
 std::string TestbedProxy::GetBaseDataPath()
 {
+	GetTestbedInfo();
+
 	// First check the environment variable.
 	const char *env_path = std::getenv("CATKIT_DATA_PATH");
 
@@ -301,6 +303,8 @@ std::string TestbedProxy::GetBaseDataPath()
 
 std::string TestbedProxy::GetSupportDataPath()
 {
+	GetTestbedInfo();
+
 	// First check the environment variable.
 	const char *env_path = std::getenv("CATKIT_SUPPORT_DATA_PATH");
 
@@ -328,6 +332,8 @@ std::string TestbedProxy::GetSupportDataPath()
 
 std::string TestbedProxy::GetLongTermMonitoringPath()
 {
+	GetTestbedInfo();
+
 	std::string long_term_monitoring_path = m_Config["testbed"]["long_term_monitoring_path"];
 	std::string simulator_or_hardware = m_IsSimulated ? "simulator" : "hardware";
 
