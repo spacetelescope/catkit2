@@ -449,7 +449,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("data_logging_ingress_port", &TestbedProxy::GetDataLoggingIngressPort)
 		.def_property_readonly("data_logging_egress_port", &TestbedProxy::GetDataLoggingEgressPort)
 		.def_property_readonly("tracing_ingress_port", &TestbedProxy::GetTracingIngressPort)
-		.def_property_readonly("tracing_egress_port", &TestbedProxy::GetTracingEgressPort);
+		.def_property_readonly("tracing_egress_port", &TestbedProxy::GetTracingEgressPort)
+		.def_property_readonly("base_data_path", &TestbedProxy::GetBaseDataPath)
+		.def_property_readonly("support_data_path", &TestbedProxy::GetSupportDataPath)
+		.def_property_readonly("long_term_monitoring_path", &TestbedProxy::GetLongTermMonitoringPath);
 
 	py::class_<DataFrame>(m, "DataFrame")
 		.def_property_readonly("id", [](const DataFrame &f)
