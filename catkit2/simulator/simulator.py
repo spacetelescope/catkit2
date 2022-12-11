@@ -88,6 +88,19 @@ class Simulator(Service):
 
             self.callback_counter += 1
 
+        return callback
+
+    def remove_callback(self, callback):
+        with self.lock:
+            if callback not in self.callbacks:
+                return
+
+            index = self.callbacks.index(callback)
+            self.callbacks[index] = self.callbacks[-1]
+            self.callbacks.pop()
+
+            heapq.heapify(self.callbacks)
+
     def set_breakpoint(self, at_time):
         raise NotImplementedError
 
