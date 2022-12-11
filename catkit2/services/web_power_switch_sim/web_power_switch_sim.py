@@ -28,8 +28,6 @@ class WebPowerSwitchSim(Service):
             self.switch_outlet(outlet_name, on)
 
     def switch_outlet(self, outlet_name, on):
-        outlet_id = self.outlet_ids[outlet_name]
-
         # Contact simulator.
         self.testbed.simulator.switch_power(outlet_name=outlet_name, powered=1 if on else 0)
 
