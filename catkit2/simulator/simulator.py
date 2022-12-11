@@ -35,6 +35,7 @@ class Simulator(Service):
 
         self.integrating_cameras = {}
         self.camera_integrated_power = {}
+        self.camera_callbacks = {}
 
         self.lock = threading.Lock()
 
@@ -111,13 +112,20 @@ class Simulator(Service):
         def callback(t):
             self.log.info(f'Start camera acquisition on {camera_name} with {integration_time} and {frame_interval}.')
 
+            if camera_name in self.camera_callbacks:
+                self.remove_callback(self.camera_callbacks[camera_name])
+
+                del self.camera_callbacks[camera_name]
+
             was_already_integrating = camera_name in self.integrating_cameras
 
             self.integrating_cameras[camera_name] = (integration_time, frame_interval)
 
             # Start integration right away, if the camera was not already integrating.
             if not was_already_integrating:
-                self.add_callback(self.make_camera_reset_callback(camera_name))
+                callback = self.add_callback(self.make_camera_reset_callback(camera_name))
+
+                self.camera_callbacks[camera_name] = callback
 
         self.add_callback(callback)
 
@@ -138,12 +146,17 @@ class Simulator(Service):
             next_readout_time = t + integration_time
             next_readout_callback = self.make_camera_readout_callback(camera_name, integration_time, frame_interval)
 
-            self.add_callback(next_readout_callback, next_readout_time)
+            callback = self.add_callback(next_readout_callback, next_readout_time)
+
+            self.camera_callbacks[camera_name] = callback
 
         return callback
 
     def make_camera_readout_callback(self, camera_name, integration_time, frame_interval):
         def callback(t):
+            if camera_name not in self.camera_integrated_power:
+                return
+
             self.log.info(f'Read out camera image on {camera_name}.')
 
             # Read out camera image and yield image.
@@ -157,7 +170,9 @@ class Simulator(Service):
                 next_reset_time = self.time.get()[0] - integration_time + frame_interval
                 next_reset_callback = self.make_camera_reset_callback(camera_name)
 
-                self.add_callback(next_reset_callback, next_reset_time)
+                callback = self.add_callback(next_reset_callback, next_reset_time)
+
+                self.camera_callbacks[camera_name] = callback
 
         return callback
 
