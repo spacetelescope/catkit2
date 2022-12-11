@@ -10,6 +10,7 @@ class CameraSim(Service):
         super().__init__('camera_sim')
 
         self.should_be_acquiring = threading.Event()
+        self.should_be_acquiring.set()
 
         # Create lock for camera access
         self.mutex = threading.Lock()
