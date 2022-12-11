@@ -105,6 +105,8 @@ class CameraSim(Service):
     def width(self, width):
         self._width = width
 
+        self.restart_acquisition_if_acquiring()
+
     @property
     def height(self):
         return self._height
@@ -112,6 +114,8 @@ class CameraSim(Service):
     @height.setter
     def height(self, height):
         self._height = height
+
+        self.restart_acquisition_if_acquiring()
 
     @property
     def offset_x(self):
@@ -121,6 +125,8 @@ class CameraSim(Service):
     def offset_x(self, offset_x):
         self._offset_x = offset_x
 
+        self.restart_acquisition_if_acquiring()
+
     @property
     def offset_y(self):
         return self._offset_y
@@ -128,6 +134,8 @@ class CameraSim(Service):
     @offset_y.setter
     def offset_y(self, offset_y):
         self._offset_y = offset_y
+
+        self.restart_acquisition_if_acquiring()
 
     @property
     def exposure_time(self):
@@ -137,6 +145,8 @@ class CameraSim(Service):
     def exposure_time(self, exposure_time):
         self._exposure_time = exposure_time
 
+        self.restart_acquisition_if_acquiring()
+
     @property
     def gain(self):
         return self._gain
@@ -144,6 +154,26 @@ class CameraSim(Service):
     @gain.setter
     def gain(self, gain):
         self._gain = gain
+
+        self.restart_acquisition_if_acquiring()
+
+    def restart_acquisition_if_acquiring(self):
+        if not self.is_acquiring.get()[0]:
+            return
+
+        self.end_acquisition()
+        while self.is_acquiring.get()[0]:
+            try:
+                self.is_acquiring.get_next_frame(1)
+            except Exception:
+                pass
+
+        self.start_acquisition()
+        while not self.is_acquiring.get()[0]:
+            try:
+                self.is_acquiring.get_next_frame(1)
+            except Exception:
+                pass
 
 if __name__ == '__main__':
     service = CameraSim()
