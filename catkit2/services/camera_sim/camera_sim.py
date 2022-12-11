@@ -16,6 +16,15 @@ class CameraSim(Service):
         self.mutex = threading.Lock()
 
     def open(self):
+        # Create datastreams
+        # Use the full sensor size here to always allocate enough shared memory.
+        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
+        self.temperature.submit_data(np.array([30.0]))
+
+        self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
+        self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+
         offset_x = self.config.get('offset_x', 0)
         offset_y = self.config.get('offset_y', 0)
 
@@ -26,15 +35,6 @@ class CameraSim(Service):
 
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
-
-        # Create datastreams
-        # Use the full sensor size here to always allocate enough shared memory.
-        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
-        self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
-        self.temperature.submit_data(np.array([30.0]))
-
-        self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
-        self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         def make_property_helper(property_name, read_only=False):
             def getter():
