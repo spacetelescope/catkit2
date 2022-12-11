@@ -1,10 +1,15 @@
 import heapq
 import time
 import threading
+from collections import namedtuple
 
 import numpy as np
 
 from ..testbed.service import Service
+
+class Callback(namedtuple('Callback', ['time', 'id', 'func'])):
+    def __eq__(self, b):
+        return self.time == b.time and self.id == b.id
 
 class Simulator(Service):
     def __init__(self, service_type):
@@ -51,10 +56,9 @@ class Simulator(Service):
 
             with self.lock:
                 callback = heapq.heappop(self.callbacks)
-                callback_time, _, callback_func = callback
 
             # Make sure we are not progressing time faster than some constant times real time.
-            if callback_time - self.time.get()[0] > self.alpha * (time.time() - last_update_time):
+            if callback.time - self.time.get()[0] > self.alpha * (time.time() - last_update_time):
                 with self.lock:
                     heapq.heappush(self.callbacks, callback)
 
@@ -62,24 +66,26 @@ class Simulator(Service):
                 continue
 
             # We can now progress the simulator time. First integrate on the cameras.
-            integration_time = callback_time - self.time.get()[0]
+            integration_time = callback.time - self.time.get()[0]
 
             for camera_name in self.camera_integrated_power.keys():
                 self.camera_integrated_power[camera_name] += camera_images[camera_name] * integration_time
 
             # Progress time on the simulator.
-            self.time.submit_data(np.array([callback_time], dtype='float'))
+            self.time.submit_data(np.array([callback.time], dtype='float'))
             last_update_time = time.time()
 
             # Call the callback.
-            callback_func(callback_time)
+            callback.func(callback.time)
 
     def add_callback(self, callback_func, t=None):
         with self.lock:
             if t is None:
                 t = self.time.get()[0]
 
-            heapq.heappush(self.callbacks, (t, self.callback_counter, callback_func))
+            callback = Callback(time=t, id=self.callback_counter, func=callback_func)
+            heapq.heappush(self.callbacks, callback)
+
             self.callback_counter += 1
 
     def set_breakpoint(self, at_time):
