@@ -26,6 +26,7 @@ class Simulator(Service):
         self.make_command('move_stage', self.move_stage)
         self.make_command('move_filter', self.move_filter)
         self.make_command('move_flip_mount', self.move_flip_mount)
+        self.make_command('switch_power', self.switch_power)
 
         self.integrating_cameras = {}
         self.camera_integrated_power = {}
@@ -162,4 +163,7 @@ class Simulator(Service):
         pass
 
     def move_flip_mount(self, flip_mount_name, new_flip_mount_position):
+        pass
+
+    def switch_power(self, outlet_name, powered):
         pass
