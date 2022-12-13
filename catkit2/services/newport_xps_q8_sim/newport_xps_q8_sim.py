@@ -1,6 +1,7 @@
 from catkit2.testbed.service import Service
 
 import threading
+import numpy as np
 
 class NewportXpsQ8Sim(Service):
     def __init__(self):
@@ -21,6 +22,9 @@ class NewportXpsQ8Sim(Service):
         self.motor_commands[motor_id] = self.make_data_stream(motor_id.lower() + '_command', 'float64', [1], 20)
         self.motor_current_positions[motor_id] = self.make_data_stream(motor_id.lower() + '_current_position', 'float64', [1], 20)
 
+        nominal_position = self.resolve_position(motor_id, 'nominal')
+        self.motor_current_positions[motor_id].submit_data(np.array([nominal_position], dtype='float64'))
+
     def set_current_position(self, motor_id, position):
         # Send the position command to the simulator. The simulator
         # will in turn set the motor position at the appropriate time.
@@ -31,6 +35,12 @@ class NewportXpsQ8Sim(Service):
 
     def get_current_position(self, motor_id):
         return self.motor_current_positions[motor_id].get()[0]
+
+    def resolve_position(self, motor_id, position):
+        if not isinstance(position, str):
+            return position
+
+        return self.resolve_position(motor_id, self.motor_positions[motor_id][position])
 
     def monitor_motor(self, motor_id):
         command_stream = self.motor_commands[motor_id]
