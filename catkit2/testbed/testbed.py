@@ -163,6 +163,10 @@ class Testbed:
         if 'startup_services' in self.config['testbed']:
             self.startup_services.extend(self.config['testbed']['startup_services'])
 
+        # Add simulator to startup services, if we are in simulated mode.
+        if self.is_simulated:
+            self.startup_services.append('simulator')
+
         # Fill in services dictionary.
         for service_id, service_info in self.config['services'].items():
             service_type = service_info['service_type']

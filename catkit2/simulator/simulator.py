@@ -1,10 +1,15 @@
 import heapq
 import time
 import threading
+from collections import namedtuple
 
 import numpy as np
 
 from ..testbed.service import Service
+
+class Callback(namedtuple('Callback', ['time', 'id', 'func'])):
+    def __eq__(self, b):
+        return self.time == b.time and self.id == b.id
 
 class Simulator(Service):
     def __init__(self, service_type):
@@ -30,6 +35,7 @@ class Simulator(Service):
 
         self.integrating_cameras = {}
         self.camera_integrated_power = {}
+        self.camera_callbacks = {}
 
         self.lock = threading.Lock()
 
@@ -51,10 +57,9 @@ class Simulator(Service):
 
             with self.lock:
                 callback = heapq.heappop(self.callbacks)
-                callback_time, _, callback_func = callback
 
             # Make sure we are not progressing time faster than some constant times real time.
-            if callback_time - self.time.get()[0] > self.alpha * (time.time() - last_update_time):
+            if callback.time - self.time.get()[0] > self.alpha * (time.time() - last_update_time):
                 with self.lock:
                     heapq.heappush(self.callbacks, callback)
 
@@ -62,25 +67,40 @@ class Simulator(Service):
                 continue
 
             # We can now progress the simulator time. First integrate on the cameras.
-            integration_time = callback_time - self.time.get()[0]
+            integration_time = callback.time - self.time.get()[0]
 
             for camera_name in self.camera_integrated_power.keys():
                 self.camera_integrated_power[camera_name] += camera_images[camera_name] * integration_time
 
             # Progress time on the simulator.
-            self.time.submit_data(np.array([callback_time], dtype='float'))
+            self.time.submit_data(np.array([callback.time], dtype='float'))
             last_update_time = time.time()
 
             # Call the callback.
-            callback_func(callback_time)
+            callback.func(callback.time)
 
     def add_callback(self, callback_func, t=None):
         with self.lock:
             if t is None:
                 t = self.time.get()[0]
 
-            heapq.heappush(self.callbacks, (t, self.callback_counter, callback_func))
+            callback = Callback(time=t, id=self.callback_counter, func=callback_func)
+            heapq.heappush(self.callbacks, callback)
+
             self.callback_counter += 1
+
+        return callback
+
+    def remove_callback(self, callback):
+        with self.lock:
+            if callback not in self.callbacks:
+                return
+
+            index = self.callbacks.index(callback)
+            self.callbacks[index] = self.callbacks[-1]
+            self.callbacks.pop()
+
+            heapq.heapify(self.callbacks)
 
     def set_breakpoint(self, at_time):
         raise NotImplementedError
@@ -92,13 +112,20 @@ class Simulator(Service):
         def callback(t):
             self.log.info(f'Start camera acquisition on {camera_name} with {integration_time} and {frame_interval}.')
 
+            if camera_name in self.camera_callbacks:
+                self.remove_callback(self.camera_callbacks[camera_name])
+
+                del self.camera_callbacks[camera_name]
+
             was_already_integrating = camera_name in self.integrating_cameras
 
             self.integrating_cameras[camera_name] = (integration_time, frame_interval)
 
             # Start integration right away, if the camera was not already integrating.
             if not was_already_integrating:
-                self.add_callback(self.make_camera_reset_callback(camera_name))
+                callback = self.add_callback(self.make_camera_reset_callback(camera_name))
+
+                self.camera_callbacks[camera_name] = callback
 
         self.add_callback(callback)
 
@@ -119,12 +146,17 @@ class Simulator(Service):
             next_readout_time = t + integration_time
             next_readout_callback = self.make_camera_readout_callback(camera_name, integration_time, frame_interval)
 
-            self.add_callback(next_readout_callback, next_readout_time)
+            callback = self.add_callback(next_readout_callback, next_readout_time)
+
+            self.camera_callbacks[camera_name] = callback
 
         return callback
 
     def make_camera_readout_callback(self, camera_name, integration_time, frame_interval):
         def callback(t):
+            if camera_name not in self.camera_integrated_power:
+                return
+
             self.log.info(f'Read out camera image on {camera_name}.')
 
             # Read out camera image and yield image.
@@ -138,7 +170,9 @@ class Simulator(Service):
                 next_reset_time = self.time.get()[0] - integration_time + frame_interval
                 next_reset_callback = self.make_camera_reset_callback(camera_name)
 
-                self.add_callback(next_reset_callback, next_reset_time)
+                callback = self.add_callback(next_reset_callback, next_reset_time)
+
+                self.camera_callbacks[camera_name] = callback
 
         return callback
 
