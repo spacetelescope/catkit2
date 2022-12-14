@@ -12,8 +12,10 @@ class Callback(namedtuple('Callback', ['time', 'id', 'func'])):
         return self.time == b.time and self.id == b.id
 
 class Simulator(Service):
-    def __init__(self, service_type):
+    def __init__(self, service_type, max_time_factor=1):
         super().__init__(service_type)
+
+        self.max_time_factor = max_time_factor
 
         self.callbacks = []
         self.callback_counter = 0
@@ -59,7 +61,7 @@ class Simulator(Service):
                 callback = heapq.heappop(self.callbacks)
 
             # Make sure we are not progressing time faster than some constant times real time.
-            if callback.time - self.time.get()[0] > self.alpha * (time.time() - last_update_time):
+            if callback.time - self.time.get()[0] > self.max_time_factor * (time.time() - last_update_time):
                 with self.lock:
                     heapq.heappush(self.callbacks, callback)
 
