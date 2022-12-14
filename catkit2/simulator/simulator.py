@@ -33,7 +33,7 @@ class Callback(namedtuple('Callback', ['time', 'id', 'func'])):
 
 class Simulator(Service):
     def __init__(self, service_type, model, max_time_factor=1):
-        '''Base class for simultator services.
+        '''Base class for simulators.
 
         This simulator uses a callback system to schedule events on a simulated
         timeline. Methods to be implemented by the derived class integrate with
