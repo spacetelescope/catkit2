@@ -8,6 +8,26 @@ import numpy as np
 from ..testbed.service import Service
 
 class Callback(namedtuple('Callback', ['time', 'id', 'func'])):
+    '''A scheduled callback for the simulator.
+
+    This consists of a function `func` scheduled at time `time`. Each
+    callback also has a unique ID `id`. Callbacks with lower IDs will
+    be executed earlier than other callbacks, even if their times are
+    the same.
+
+    Repeated callbacks are not allowed, but you can simply add a new callback
+    at the end of your function if this is desired.
+
+    Attributes
+    ----------
+    time : scalar
+        The scheduled time for this callback.
+    id : integer
+        A unique identifier for this callback.
+    func : function
+        This function will be called with the current time when it is
+        time to be executed.
+    '''
     def __eq__(self, b):
         return self.time == b.time and self.id == b.id
 
