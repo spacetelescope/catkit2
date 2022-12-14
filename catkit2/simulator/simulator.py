@@ -12,7 +12,7 @@ class Callback(namedtuple('Callback', ['time', 'id', 'func'])):
         return self.time == b.time and self.id == b.id
 
 class Simulator(Service):
-    def __init__(self, service_type, max_time_factor=1):
+    def __init__(self, service_type, model, max_time_factor=1):
         '''Base class for simultator services.
 
         This simulator uses a callback system to schedule events on a simulated
@@ -28,6 +28,8 @@ class Simulator(Service):
         service_type : string
             The service type of the simulator. This will be passed onto the Service
             init().
+        model : OpticalModel
+            The optical model that the simulator will base its camera images on.
         max_time_factor : scalar
             The maximum speed of the simulated time relative to wall clock time. If
             images are generated too fast, the simulator will slow down to this fraction
@@ -44,6 +46,7 @@ class Simulator(Service):
         '''
         super().__init__(service_type)
 
+        self.model = model
         self.max_time_factor = max_time_factor
 
         self.callbacks = []
