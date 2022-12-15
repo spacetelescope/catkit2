@@ -1,6 +1,8 @@
 #ifndef HOSTNAME_H
 #define HOSTNAME_H
 
-void GetHostName(char* hostname);
+#include <string>
+
+std::string GetHostName();
 
 #endif // HOSTNAME_H

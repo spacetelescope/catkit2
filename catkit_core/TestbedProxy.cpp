@@ -1,9 +1,11 @@
 #include "TestbedProxy.h"
 
 #include "Timing.h"
+#include "HostName.h"
 #include "proto/testbed.pb.h"
 
 #include <memory>
+#include <regex>
 
 using namespace std;
 using namespace zmq;
@@ -268,6 +270,83 @@ std::vector<std::string> TestbedProxy::GetActiveServices()
 std::vector<std::string> TestbedProxy::GetInactiveServices()
 {
 	return std::vector<std::string>();
+}
+
+std::string TestbedProxy::GetBaseDataPath()
+{
+	GetTestbedInfo();
+
+	// First check the environment variable.
+	const char *env_path = std::getenv("CATKIT_DATA_PATH");
+
+	if (env_path)
+		return env_path;
+
+	// No environment variable was defined.
+	// Let's use the config file instead.
+	auto conf = m_Config["testbed"]["base_data_path"];
+
+	if (conf.contains("by_hostname"))
+	{
+		std::string host_name = GetHostName();
+
+		if (conf["by_hostname"].contains(host_name))
+		{
+			return conf["by_hostname"][host_name];
+		}
+	}
+
+	// No host name specific directory specified. We're
+	// gonna use the default one.
+	return conf["default"];
+}
+
+std::string TestbedProxy::GetSupportDataPath()
+{
+	GetTestbedInfo();
+
+	// First check the environment variable.
+	const char *env_path = std::getenv("CATKIT_SUPPORT_DATA_PATH");
+
+	if (env_path)
+		return env_path;
+
+	// No environment variable was defined.
+	// Let's use the config file instead.
+	auto conf = m_Config["testbed"]["support_data_path"];
+
+	if (conf.contains("by_hostname"))
+	{
+		std::string host_name = GetHostName();
+
+		if (conf["by_hostname"].contains(host_name))
+		{
+			return conf["by_hostname"][host_name];
+		}
+	}
+
+	// No host name specific directory specified. We're
+	// gonna use the default one.
+	return conf["default"];
+}
+
+std::string TestbedProxy::GetLongTermMonitoringPath()
+{
+	GetTestbedInfo();
+
+	std::string long_term_monitoring_path = m_Config["testbed"]["long_term_monitoring_path"];
+	std::string simulator_or_hardware = m_IsSimulated ? "simulator" : "hardware";
+
+	// Replace template variables.
+	long_term_monitoring_path = std::regex_replace(long_term_monitoring_path, std::regex("\\{\\s*simulator_or_hardware\\s*\\}"), simulator_or_hardware);
+
+	// Join the base and long term monitoring paths together.
+	std::string base_data_path = GetBaseDataPath();
+
+	if (base_data_path.back() != '/' && base_data_path.back() != '\\')
+		base_data_path += '/';
+
+	return base_data_path + long_term_monitoring_path;
 }
 
 void TestbedProxy::GetTestbedInfo()
