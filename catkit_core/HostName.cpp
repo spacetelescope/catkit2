@@ -33,8 +33,10 @@ std::string GetHostName()
 		{
 			throw std::runtime_error("Host name cannot be converted to ASCII.");
 		}
+
+		return std::string(buffer[0]);
 #else
-		return std::string(info_buf, info_buf + buf_char_count);
+		return std::string(info_buf);
 #endif
 	}
 	else
