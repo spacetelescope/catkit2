@@ -48,7 +48,7 @@ std::string GetHostName()
 	memset(name, 0, 150);
 
 	// Get a hostname, but ensure that it's zero terminated at all costs.
-	if (!gethostname(name, 150 - 1))
+	if (gethostname(name, 150 - 1))
 		throw std::runtime_error("Host name could not be retrieved.");
 
 	return name;
