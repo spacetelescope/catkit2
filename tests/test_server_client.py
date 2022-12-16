@@ -30,10 +30,10 @@ class OurClient(Client):
         return self.make_request('foo', data)
 
     def bar(self):
-        return self.make_request('bar', 'other_data')
+        return self.make_request('bar', b'other_data')
 
     def baz(self):
-        return self.make_request('baz', 'even_other_data')
+        return self.make_request('baz', b'even_other_data')
 
 def test_server_client_communication():
     port = _get_unused_port()
@@ -43,7 +43,7 @@ def test_server_client_communication():
 
     server.start()
 
-    assert client.foo('abcd') == 'foo:abcd'
+    assert client.foo(b'abcd') == b'foo:abcd'
 
     with pytest.raises(RuntimeError, match='Data is incorrect'):
         client.bar()

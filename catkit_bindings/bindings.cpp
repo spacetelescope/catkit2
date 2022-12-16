@@ -310,7 +310,19 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def(py::init<std::string, int>())
 		.def_property_readonly("host", &Client::GetHost)
 		.def_property_readonly("port", &Client::GetPort)
-		.def("make_request", &Client::MakeRequest, py::call_guard<py::gil_scoped_release>());
+		.def("make_request", [](Client &client, const std::string &what, py::bytes request)
+		{
+			// Make sure that we are only accepting and converting bytes, not string.
+			std::string request_string = request;
+			std::string res;
+
+			{
+				py::gil_scoped_release release;
+				res = client.MakeRequest(what, request_string);
+			}
+
+			return py::bytes(res);
+		});
 
 	py::class_<Service, TrampolineService>(m, "Service")
 		.def(py::init<std::string, std::string, int, int>(),
