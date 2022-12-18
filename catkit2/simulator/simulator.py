@@ -57,10 +57,6 @@ class Simulator(Service):
 
         Attributes
         ----------
-        model : OpticalModel
-            The optical model that the simulator is basing its images on. Note, this
-            attribute needs to be set by the child class before `main()` is called on
-            the service.
         time : DataStream
             The current simulator time.
         '''
@@ -93,8 +89,6 @@ class Simulator(Service):
         self.lock = threading.Lock()
 
     def main(self):
-        if not hasattr(self, 'model'):
-            raise RuntimeError('No optical model was found. Please set self.model before main() is called.')
         last_update_time = time.time()
 
         while not self.should_shut_down:
@@ -102,8 +96,7 @@ class Simulator(Service):
             camera_images = {}
 
             for camera_name in self.camera_integrated_power.keys():
-                wavefronts = self.model.get_wavefronts(camera_name)
-                camera_images[camera_name] = sum(wf.power for wf in wavefronts)
+                camera_images[camera_name] = self.get_camera_power(camera_name)
 
             # Get the next callback. If there isn't one, continue.
             if not self.callbacks:
@@ -336,6 +329,21 @@ class Simulator(Service):
                 del self.integrating_cameras[camera_name]
 
         self.add_callback(callback)
+
+    def get_camera_power(self, camera_name):
+        '''Get the current incident power on a camera.
+
+        Parameters
+        ----------
+        camera_name : string
+            The name of the camera.
+
+        Returns
+        -------
+        hcipy.Field
+            The incident power on that camera.
+        '''
+        raise NotImplementedError()
 
     def camera_readout(self, camera_name, integrated_power):
         '''Read out a camera.
