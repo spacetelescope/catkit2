@@ -41,6 +41,10 @@ class StoppedAcquisition:
         if self.was_running:
             self.camera.start_acquisition()
 
+            # Wait for the acquisition to actually start.
+            while not self.camera.is_acquiring.get()[0]:
+                time.sleep(0.001)
+
 class ZwoCamera(Service):
     NUM_FRAMES_IN_BUFFER = 20
 
@@ -108,7 +112,7 @@ class ZwoCamera(Service):
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         # Create properties
-        def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
+        def make_property_helper(name, read_only=False, requires_stopped_acquisition=True):
             if read_only:
                 self.make_property(name, lambda: getattr(self, name))
             else:
@@ -126,10 +130,10 @@ class ZwoCamera(Service):
         make_property_helper('gain')
         make_property_helper('brightness')
 
-        make_property_helper('width', requires_stopped_acquisition=True)
-        make_property_helper('height', requires_stopped_acquisition=True)
-        make_property_helper('offset_x')
-        make_property_helper('offset_y')
+        make_property_helper('width')
+        make_property_helper('height')
+        make_property_helper('offset_x', requires_stopped_acquisition=False)
+        make_property_helper('offset_y', requires_stopped_acquisition=False)
 
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
