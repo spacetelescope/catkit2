@@ -163,7 +163,7 @@ class OpticalModel:
         return decorator
 
     def propagate(self, input_plane, output_plane, wavefronts):
-        with self._temperary_cache():
+        with self._temporary_cache():
             self.set_wavefronts(input_plane, wavefronts)
 
             res = self.get_wavefronts(output_plane)
