@@ -1,4 +1,4 @@
-import time
+import numpy as np
 
 from ..service_proxy import ServiceProxy
 
@@ -29,7 +29,7 @@ class NktSuperkVariaProxy(ServiceProxy):
         center_wavelength : scalar, optional
             The new center wavelength of the tunable filter. If this is not given, the
             center wavelength will not be changed.
-        bandwidth : _type_, optional
+        bandwidth : scalar, optional
             The new bandwidth of the tunable filter. If this is not given, the bandwidth
             will not be changed.
         '''
