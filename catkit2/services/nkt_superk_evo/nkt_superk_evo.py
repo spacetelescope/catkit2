@@ -1,6 +1,7 @@
 from catkit2.testbed.service import Service
 
-import threading
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 
 from NKTP_DLL import *
 
@@ -30,8 +31,8 @@ REG_MAC_ADDRESS = 0xB3
 
 def read_register(read_func, register, *, ratio=1, index=-1):
     def getter(self):
-        with self.lock:
-            result, value = read_func(self.port, DEVICE_ID, register, index)
+        res = self.pool.submit(read_func, self.port, DEVICE_ID, register, index)
+        result, value = res.result()
 
         self.check_result(result)
 
@@ -44,8 +45,8 @@ def write_register(write_func, register, *, ratio=1, index=-1):
         # Convert the value to the register value. This assumes integer types.
         register_value = int(value / ratio)
 
-        with self.lock:
-            result = write_func(self.port, DEVICE_ID, register, register_value, index)
+        res = self.pool.submit(write_func, self.port, DEVICE_ID, register, register_value, index)
+        result = res.result()
 
         self.check_result(result)
 
@@ -54,8 +55,6 @@ def write_register(write_func, register, *, ratio=1, index=-1):
 class NktSuperkEvo(Service):
     def __init__(self):
         super().__init__('nkt_superk_evo')
-
-        self.lock = threading.Lock()
 
     def open(self):
         # Open port.
@@ -71,6 +70,9 @@ class NktSuperkEvo(Service):
         self.make_property('current_setpoint', self.get_current_setpoint, self.set_current_setpoint)
         self.make_property('emission', self.get_emission, self.set_emission)
 
+        # Create a pool with a single worker to perform communication with the device.
+        self.pool = ThreadPoolExecutor(max_workers=1)
+
     def main(self):
         while not self.should_shut_down:
             temperature = self.get_base_temperature()
@@ -85,8 +87,8 @@ class NktSuperkEvo(Service):
             self.sleep(1)
 
     def close(self):
-        # Close port.
-        pass
+        # Close pool.
+        self.pool.shutdown()
 
     def check_result(self, result):
         if result != 0:

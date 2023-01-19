@@ -1,5 +1,9 @@
 from catkit2.testbed.service import Service
 
+import threading
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+
 from NKTP_DLL import *
 
 DEVICE_ID = 16
@@ -14,8 +18,8 @@ REG_STATUS_BITS = 0x66
 
 def read_register(read_func, register, *, ratio=1, index=-1):
     def getter(self):
-        with self.lock:
-            result, value = read_func(self.port, DEVICE_ID, register, index)
+        res = self.pool.submit(read_func, self.port, DEVICE_ID, register, index)
+        result, value = res.result()
 
         self.check_result(result)
 
@@ -28,8 +32,8 @@ def write_register(write_func, register, *, ratio=1, index=-1):
         # Convert the value to the register value. This assumes integer types.
         register_value = int(value / ratio)
 
-        with self.lock:
-            result = write_func(self.port, DEVICE_ID, register, register_value, index)
+        res = self.pool.submit(write_func, self.port, DEVICE_ID, register, register_value, index)
+        result = res.result()
 
         self.check_result(result)
 
@@ -42,7 +46,6 @@ class NktSuperkVaria(Service):
     def __init__(self):
         super().__init__('nkt_superk_varia')
 
-        self.lock = threading.Lock()
         self.threads = {}
 
     def open(self):
@@ -76,10 +79,13 @@ class NktSuperkVaria(Service):
         }
 
         for key, func in funcs:
-            thread = threading.thread(target=func)
+            thread = threading.Thread(target=func)
             thread.start()
 
             self.threads[key] = thread
+
+        # Create a pool with a single worker to perform communication with the device.
+        self.pool = ThreadPoolExecutor(max_workers=1)
 
     def main(self):
         # Update status.
@@ -89,11 +95,12 @@ class NktSuperkVaria(Service):
             self.update_status()
 
     def close(self):
-        # Close connection.
-
         # Join all threads.
         for thread in self.threads:
             thread.join()
+
+        # Close pool.
+        self.pool.shutdown()
 
     def update_status(self):
         status = self.get_status_bits()
