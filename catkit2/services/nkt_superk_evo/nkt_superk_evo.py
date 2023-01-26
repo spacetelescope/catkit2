@@ -64,10 +64,9 @@ class NktSuperkEvo(Service):
 
         self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
         self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
-        self.get_external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
+        self.external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
 
         self.make_property('power_setpoint', self.get_power_setpoint, self.set_power_setpoint)
-        self.make_property('current_setpoint', self.get_current_setpoint, self.set_current_setpoint)
         self.make_property('emission', self.get_emission, self.set_emission)
 
         # Create a pool with a single worker to perform communication with the device.
@@ -82,7 +81,7 @@ class NktSuperkEvo(Service):
             self.supply_voltage.submit_data(np.array([voltage], dtype='float32'))
 
             control_input = self.get_external_control_input()
-            self.get_external_control_input.submit_data(np.array([control_input], dtype='float32'))
+            self.external_control_input.submit_data(np.array([control_input], dtype='float32'))
 
             self.sleep(1)
 
