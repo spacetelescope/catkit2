@@ -39,6 +39,10 @@ class NktSuperkVariaProxy(ServiceProxy):
         if bandwidth is None:
             bandwidth = self.bandwidth
 
+        # Ensure the bandwidth is positive for safety reasons.
+        if bandwidth < 0:
+            bandwidth = 0
+
         swp = center_wavelength - bandwidth / 2
         lwp = center_wavelength + bandwidth / 2
 
