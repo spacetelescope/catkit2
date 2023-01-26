@@ -45,7 +45,7 @@ class NktSuperkEvoSim(Service):
     def update_power(self):
         power = self._power_setpoint * self._emission * 100
 
-        self.testbed.simulator.set_source(power=power)
+        self.testbed.simulator.set_source_power(source_name=self.id, power=power)
 
 if __name__ == '__main__':
     service = NktSuperkEvoSim()
