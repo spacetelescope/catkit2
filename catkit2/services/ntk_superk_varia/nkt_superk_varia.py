@@ -61,14 +61,14 @@ class NktSuperkVaria(Service):
         self.lwp_setpoint = self.make_data_stream('lwp_setpoint', [1], 'float32', 20)
 
         self.nd_filter_moving = self.make_data_stream('nd_filter_moving', [1], 'uint8', 20)
-        self.swp_filter_moving = self.make_data_stream('nd_filter_moving', [1], 'uint8', 20)
-        self.lwp_filter_moving = self.make_data_stream('nd_filter_moving', [1], 'uint8', 20)
+        self.swp_filter_moving = self.make_data_stream('swp_filter_moving', [1], 'uint8', 20)
+        self.lwp_filter_moving = self.make_data_stream('lwp_filter_moving', [1], 'uint8', 20)
 
         # Set current setpoints. These will be actually set on the device
         # once the monitor threads have started.
-        self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']]))
-        self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']]))
-        self.lwp_setpoint.submit_data(np.array([self.config['lwp_setpoint']]))
+        self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']], dtype='float32'))
+        self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']], dtype='float32'))
+        self.lwp_setpoint.submit_data(np.array([self.config['lwp_setpoint']], dtype='float32'))
 
         # Start threads.
         funcs = {
@@ -143,3 +143,7 @@ class NktSuperkVaria(Service):
     set_lwp_setpoint = write_register(RegisterWriteU16, REG_LWP_SETPOINT, ratio=0.1)
 
     get_status_bits = read_register(RegisterReadU16, REG_STATUS_BITS)
+
+if __name__ == '__main__':
+    service = NktSuperkVaria()
+    service.run()
