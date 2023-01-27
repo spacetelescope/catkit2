@@ -3,6 +3,7 @@ import sys
 import glob
 import os
 import numpy as np
+import traceback
 
 from catkit2.testbed.service import Service
 
@@ -23,17 +24,24 @@ class ThorlabsTSP01(Service):
 
     def main(self):
         while not self.should_shut_down:
-            temperature = self.get_temperature(1)
-            self.temperature_internal.submit_data(np.array([temperature]))
+            try:
+                temperature = self.get_temperature(1)
+                self.temperature_internal.submit_data(np.array([temperature]))
 
-            temperature = self.get_temperature(2)
-            self.temperature_header_1.submit_data(np.array([temperature]))
+                temperature = self.get_temperature(2)
+                self.temperature_header_1.submit_data(np.array([temperature]))
 
-            temperature = self.get_temperature(3)
-            self.temperature_header_2.submit_data(np.array([temperature]))
+                temperature = self.get_temperature(3)
+                self.temperature_header_2.submit_data(np.array([temperature]))
 
-            humidity = self.get_humidity()
-            self.humidity_internal.submit_data(np.array([humidity]))
+                humidity = self.get_humidity()
+                self.humidity_internal.submit_data(np.array([humidity]))
+            except Exception:
+                # The TSP most likely timed out. Let's log the error, but ignore it.
+                self.log.error(traceback.format_exc())
+
+                # Let's also sleep for a bit in addition to the interval, to let the TSP recover.
+                self.sleep(self.interval)
 
             self.sleep(self.interval)
 
