@@ -101,7 +101,7 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         if interface_name in cls._service_interfaces:
             return cls._service_interfaces[interface_name]
         else:
-            return cls
+            raise AttributeError(f"Service proxy class with interface name '{interface_name}' not found. Did you import it?")
 
     @classmethod
     def register_service_interface(cls, interface_name):
