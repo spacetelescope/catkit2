@@ -20,7 +20,7 @@ class ThorlabsPM(Service):
     def main(self):
         while not self.should_shut_down:
             power = self.get_power()
-            self.power.submit_data(np.array([power]))
+            self.power.submit_data(np.array([power], dtype='float64'))
 
             self.sleep(self.interval)
 
