@@ -86,6 +86,8 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
     def get_service_interface(cls, interface_name):
         '''Get the service proxy class belonging to an interface name.
 
+        If no interface is defined, return a default ServiceProxy class.
+
         Parameters
         ----------
         interface_name : string
@@ -93,11 +95,13 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
 
         Returns
         -------
-        derived class of ServiceProxy
+        derived class of ServiceProxy or ServiceProxy
             The class belonging to the interface name.
         '''
         if interface_name in cls._service_interfaces:
             return cls._service_interfaces[interface_name]
+        elif interface_name is None:
+            return cls
         else:
             raise AttributeError(f"Service proxy class with interface name '{interface_name}' not found. Did you import it?")
 
