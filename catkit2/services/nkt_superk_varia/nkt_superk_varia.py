@@ -48,21 +48,23 @@ class NktSuperkVaria(Service):
 
         self.threads = {}
 
+        self.port = 'COM10'
+
     def open(self):
         # Open port.
         # Make sure that the device is available (ie. not being used by someone else).
         # This is not strictly necessary according to the SDK, but speeds up reading/writing.
 
         # Make datastreams.
-        self.monitor_input = self.make_data_stream('monitor_input', [1], 'float32', 20)
+        self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
 
-        self.nd_setpoint = self.make_data_stream('nd_setpoint', [1], 'float32', 20)
-        self.swp_setpoint = self.make_data_stream('swp_setpoint', [1], 'float32', 20)
-        self.lwp_setpoint = self.make_data_stream('lwp_setpoint', [1], 'float32', 20)
+        self.nd_setpoint = self.make_data_stream('nd_setpoint', 'float32', [1], 20)
+        self.swp_setpoint = self.make_data_stream('swp_setpoint', 'float32', [1], 20)
+        self.lwp_setpoint = self.make_data_stream('lwp_setpoint', 'float32', [1], 20)
 
-        self.nd_filter_moving = self.make_data_stream('nd_filter_moving', [1], 'uint8', 20)
-        self.swp_filter_moving = self.make_data_stream('swp_filter_moving', [1], 'uint8', 20)
-        self.lwp_filter_moving = self.make_data_stream('lwp_filter_moving', [1], 'uint8', 20)
+        self.nd_filter_moving = self.make_data_stream('nd_filter_moving', 'uint8', [1], 20)
+        self.swp_filter_moving = self.make_data_stream('swp_filter_moving', 'uint8', [1], 20)
+        self.lwp_filter_moving = self.make_data_stream('lwp_filter_moving', 'uint8', [1], 20)
 
         # Set current setpoints. These will be actually set on the device
         # once the monitor threads have started.
@@ -78,14 +80,14 @@ class NktSuperkVaria(Service):
             'monitor_input': self.update_monitor_input
         }
 
-        for key, func in funcs:
+        # Create a pool with a single worker to perform communication with the device.
+        self.pool = ThreadPoolExecutor(max_workers=1)
+
+        for key, func in funcs.items():
             thread = threading.Thread(target=func)
             thread.start()
 
             self.threads[key] = thread
-
-        # Create a pool with a single worker to perform communication with the device.
-        self.pool = ThreadPoolExecutor(max_workers=1)
 
     def main(self):
         # Update status.
@@ -96,11 +98,16 @@ class NktSuperkVaria(Service):
 
     def close(self):
         # Join all threads.
-        for thread in self.threads:
+        for thread in self.threads.values():
             thread.join()
 
         # Close pool.
         self.pool.shutdown()
+
+    def check_result(self, result):
+        if result != 0:
+            self.log.error('Register error: ' + RegisterResultTypes(result))
+            raise RuntimeError(RegisterResultTypes(result))
 
     def update_status(self):
         status = self.get_status_bits()
@@ -116,13 +123,16 @@ class NktSuperkVaria(Service):
         self.lwp_filter_moving.submit_data(np.array([lwp_filter_moving], dtype='uint8'))
 
     def monitor(self, stream, setter):
-        while not self.should_shut_down:
-            try:
-                frame = stream.get_next_frame(1)
-            except Exception:
-                continue
+        def func():
+            while not self.should_shut_down:
+                try:
+                    frame = stream.get_next_frame(1)
+                except Exception:
+                    continue
 
-            setter(frame.data[0])
+                setter(frame.data[0])
+
+        return func
 
     def update_monitor_input(self):
         while not self.should_shut_down:
@@ -132,17 +142,17 @@ class NktSuperkVaria(Service):
 
             self.sleep(1)
 
-    get_monitor_input = read_register(RegisterReadU16, REG_MONITOR_INPUT, ratio=0.1)
+    get_monitor_input = read_register(registerReadU16, REG_MONITOR_INPUT, ratio=0.1)
 
-    get_nd_setpoint = read_register(RegisterReadU16, REG_ND_SETPOINT, ratio=0.1)
-    get_swp_setpoint = read_register(RegisterReadU16, REG_SWP_SETPOINT, ratio=0.1)
-    get_lwp_setpoint = read_register(RegisterReadU16, REG_LWP_SETPOINT, ratio=0.1)
+    get_nd_setpoint = read_register(registerReadU16, REG_ND_SETPOINT, ratio=0.1)
+    get_swp_setpoint = read_register(registerReadU16, REG_SWP_SETPOINT, ratio=0.1)
+    get_lwp_setpoint = read_register(registerReadU16, REG_LWP_SETPOINT, ratio=0.1)
 
-    set_nd_setpoint = write_register(RegisterWriteU16, REG_ND_SETPOINT, ratio=0.1)
-    set_swp_setpoint = write_register(RegisterWriteU16, REG_SWP_SETPOINT, ratio=0.1)
-    set_lwp_setpoint = write_register(RegisterWriteU16, REG_LWP_SETPOINT, ratio=0.1)
+    set_nd_setpoint = write_register(registerWriteU16, REG_ND_SETPOINT, ratio=0.1)
+    set_swp_setpoint = write_register(registerWriteU16, REG_SWP_SETPOINT, ratio=0.1)
+    set_lwp_setpoint = write_register(registerWriteU16, REG_LWP_SETPOINT, ratio=0.1)
 
-    get_status_bits = read_register(RegisterReadU16, REG_STATUS_BITS)
+    get_status_bits = read_register(registerReadU16, REG_STATUS_BITS)
 
 if __name__ == '__main__':
     service = NktSuperkVaria()
