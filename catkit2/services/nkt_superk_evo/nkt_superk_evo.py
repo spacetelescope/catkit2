@@ -56,6 +56,8 @@ class NktSuperkEvo(Service):
     def __init__(self):
         super().__init__('nkt_superk_evo')
 
+        self.port = 'COM10'
+
     def open(self):
         # Open port.
         # Make sure that the device is available (ie. not being used by someone else).
@@ -67,6 +69,7 @@ class NktSuperkEvo(Service):
         self.external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
 
         self.make_property('power_setpoint', self.get_power_setpoint, self.set_power_setpoint)
+        self.make_property('current_setpoint', self.get_current_setpoint, self.set_current_setpoint)
         self.make_property('emission', self.get_emission, self.set_emission)
 
         # Create a pool with a single worker to perform communication with the device.
