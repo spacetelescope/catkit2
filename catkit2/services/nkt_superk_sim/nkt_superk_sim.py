@@ -49,8 +49,8 @@ class NktSuperkSim(Service):
             'emission': self.monitor_func(self.emission, self.set_emission),
             'power_setpoint': self.monitor_func(self.power_setpoint, self.set_power_setpoint),
             'current_setpoint': self.monitor_func(self.current_setpoint, self.set_current_setpoint),
-            'varia_status': self.watch_func(self.update_varia_status),
-            'evo_status': self.watch_func(self.update_evo_status)
+            'varia_status': self.update_func(self.update_varia_status),
+            'evo_status': self.update_func(self.update_evo_status)
         }
 
         # Start all threads.
