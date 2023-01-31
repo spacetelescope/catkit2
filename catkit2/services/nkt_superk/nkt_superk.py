@@ -35,7 +35,7 @@ class Evo(Enum):
 
 
 class Varia(Enum):
-    DEVICE_ID_VARIA = 16
+    DEVICE_ID = 16
 
     # SuperK VARIA registers
     REG_MONITOR_INPUT = 0x13
@@ -49,8 +49,8 @@ class Varia(Enum):
 
 def read_register(read_func, device_id, register, *, ratio=1, index=-1):
     def getter(self):
-        res = self.pool.submit(read_func, self.port, device_id, register, index)
-        result, value = res.result()
+        future = self.pool.submit(read_func, self.port, device_id, register, index)
+        result, value = future.result()
 
         self.check_result(result)
 
@@ -65,8 +65,8 @@ def write_register(write_func, device_id, register, *, ratio=1, index=-1):
 
         self.log.debug(f'Writing value {register_value} to (dev={device_id}, reg={register}).')
 
-        res = self.pool.submit(write_func, self.port, device_id, register, register_value, index)
-        result = res.result()
+        future = self.pool.submit(write_func, self.port, device_id, register, register_value, index)
+        result = future.result()
 
         self.check_result(result)
 
@@ -86,10 +86,6 @@ class NktSuperk(Service):
         self.port = self.config['port']
 
     def open(self):
-        # Open port.
-        # Make sure that the device is available (ie. not being used by someone else).
-        # This is not strictly necessary according to the SDK, but speeds up reading/writing.
-
         # Make datastreams.
         self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
         self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
@@ -108,9 +104,6 @@ class NktSuperk(Service):
         self.nd_filter_moving = self.make_data_stream('nd_filter_moving', 'uint8', [1], 20)
         self.swp_filter_moving = self.make_data_stream('swp_filter_moving', 'uint8', [1], 20)
         self.lwp_filter_moving = self.make_data_stream('lwp_filter_moving', 'uint8', [1], 20)
-
-        # Create a pool with a single worker to perform communication with the device.
-        self.pool = ThreadPoolExecutor(max_workers=1)
 
         # Set current setpoints. These will be actually set on the device
         # once the monitor threads have started.
@@ -137,6 +130,12 @@ class NktSuperk(Service):
         # Create a pool with a single worker to perform communication with the device.
         self.pool = ThreadPoolExecutor(max_workers=1)
 
+        # Open port.
+        # Make sure that the device is available (ie. not being used by someone else).
+        # This is not strictly necessary according to the SDK, but speeds up reading/writing.
+        future = self.pool.submit(openPorts, self.port, autoMode=0, liveMode=0)
+        self.check_result(future.result())
+
         # Start all threads.
         for key, func in funcs.items():
             thread = threading.Thread(target=func)
@@ -153,12 +152,16 @@ class NktSuperk(Service):
         for thread in self.threads.values():
             thread.join()
 
+        # Close port.
+        future = self.pool.submit(closePorts, self.port)
+        self.check_result(future.result())
+
         # Close pool.
         self.pool.shutdown()
 
     def check_result(self, result):
         if result != 0:
-            self.log.error('Register error: ' + RegisterResultTypes(result))
+            self.log.error('NKT error: ' + RegisterResultTypes(result))
             raise RuntimeError(RegisterResultTypes(result))
 
     def update_evo_status(self):
@@ -226,13 +229,13 @@ class NktSuperk(Service):
     get_setup_bits = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_SETUP_BITS)
     set_setup_bits = write_register(registerWriteU8, Evo.DEVICE_ID, Evo.REG_SETUP_BITS)
 
-    get_interlock_msb = read_register(registerReadU8, Evo.Device_ID, Evo.REG_INTERLOCK, index=0)
-    get_interlock_lsb = read_register(registerReadU8, Evo.Device_ID, Evo.REG_INTERLOCK, index=1)
+    get_interlock_msb = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_INTERLOCK, index=0)
+    get_interlock_lsb = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_INTERLOCK, index=1)
 
-    get_evo_status_bits = read_register(registerReadU16, Evo.Device_ID, Evo.REG_STATUS_BITS)
+    get_evo_status_bits = read_register(registerReadU16, Evo.DEVICE_ID, Evo.REG_STATUS_BITS)
 
-    get_watchdog_timer = read_register(registerReadU8, Evo.Device_ID, Evo.REG_WATCHDOG_TIMER)
-    set_watchdog_timer = write_register(registerWriteU8, Evo.Device_ID, Evo.REG_WATCHDOG_TIMER)
+    get_watchdog_timer = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_WATCHDOG_TIMER)
+    set_watchdog_timer = write_register(registerWriteU8, Evo.DEVICE_ID, Evo.REG_WATCHDOG_TIMER)
 
     # Functions for the SuperK VARIA
     get_monitor_input = read_register(registerReadU16, Varia.DEVICE_ID, Varia.REG_MONITOR_INPUT, ratio=0.1)
