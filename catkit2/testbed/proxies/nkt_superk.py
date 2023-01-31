@@ -46,5 +46,5 @@ class NktSuperkProxy(ServiceProxy):
         lwp = center_wavelength - bandwidth / 2
         swp = center_wavelength + bandwidth / 2
 
-        self.lwp_setpoint.submit_data(np.array([lwp]))
-        self.swp_setpoint.submit_data(np.array([swp]))
+        self.lwp_setpoint.submit_data(np.array([lwp], dtype='float32'))
+        self.swp_setpoint.submit_data(np.array([swp], dtype='float32'))
