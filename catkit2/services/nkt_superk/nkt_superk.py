@@ -47,9 +47,11 @@ class Varia(Enum):
     REG_STATUS_BITS = 0x66
 
 
-def read_register(read_func, device_id, register, *, ratio=1, index=-1):
+def read_register(read_func, register, *, ratio=1, index=-1):
     def getter(self):
-        future = self.pool.submit(read_func, self.port, device_id, register, index)
+        device_id = register.__class__.DEVICE_ID
+
+        future = self.pool.submit(read_func, self.port, device_id.value, register.value, index)
         result, value = future.result()
 
         self.check_result(result)
@@ -58,14 +60,16 @@ def read_register(read_func, device_id, register, *, ratio=1, index=-1):
 
     return getter
 
-def write_register(write_func, device_id, register, *, ratio=1, index=-1):
+def write_register(write_func, register, *, ratio=1, index=-1):
     def setter(self, value):
+        device_id = register.__class__.DEVICE_ID
+
         # Convert the value to the register value. This assumes integer types.
         register_value = int(value / ratio)
 
-        self.log.debug(f'Writing value {register_value} to (dev={device_id}, reg={register}).')
+        self.log.debug(f'Writing value {register_value} to {register}.')
 
-        future = self.pool.submit(write_func, self.port, device_id, register, register_value, index)
+        future = self.pool.submit(write_func, self.port, device_id.value, register.value, register_value, index)
         result = future.result()
 
         self.check_result(result)
@@ -213,42 +217,42 @@ class NktSuperk(Service):
         return func
 
     # Functions for the SuperK EVO
-    get_base_temperature = read_register(registerReadS16, Evo.DEVICE_ID, Evo.REG_BASE_TEMPERATURE, ratio=0.1)
-    get_supply_voltage = read_register(registerReadU16, Evo.DEVICE_ID, Evo.REG_SUPPLY_VOLTAGE, ratio=0.001)
-    get_external_control_input = read_register(registerReadU16, Evo.DEVICE_ID, Evo.REG_EXTERNAL_CONTROL_INPUT, ratio=0.001)
+    get_base_temperature = read_register(registerReadS16, Evo.REG_BASE_TEMPERATURE, ratio=0.1)
+    get_supply_voltage = read_register(registerReadU16, Evo.REG_SUPPLY_VOLTAGE, ratio=0.001)
+    get_external_control_input = read_register(registerReadU16, Evo.REG_EXTERNAL_CONTROL_INPUT, ratio=0.001)
 
-    get_power_setpoint = read_register(registerReadU16, Evo.DEVICE_ID, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
-    set_power_setpoint = write_register(registerWriteU16, Evo.DEVICE_ID, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
+    get_power_setpoint = read_register(registerReadU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
+    set_power_setpoint = write_register(registerWriteU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
 
-    get_current_setpoint = read_register(registerReadU16, Evo.DEVICE_ID, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
-    set_current_setpoint = write_register(registerWriteU16, Evo.DEVICE_ID, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
+    get_current_setpoint = read_register(registerReadU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
+    set_current_setpoint = write_register(registerWriteU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
 
-    get_emission = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_EMISSION, ratio=0.5)
-    set_emission = write_register(registerWriteU8, Evo.DEVICE_ID, Evo.REG_EMISSION, ratio=0.5)
+    get_emission = read_register(registerReadU8, Evo.REG_EMISSION, ratio=0.5)
+    set_emission = write_register(registerWriteU8, Evo.REG_EMISSION, ratio=0.5)
 
-    get_setup_bits = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_SETUP_BITS)
-    set_setup_bits = write_register(registerWriteU8, Evo.DEVICE_ID, Evo.REG_SETUP_BITS)
+    get_setup_bits = read_register(registerReadU8, Evo.REG_SETUP_BITS)
+    set_setup_bits = write_register(registerWriteU8, Evo.REG_SETUP_BITS)
 
-    get_interlock_msb = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_INTERLOCK, index=0)
-    get_interlock_lsb = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_INTERLOCK, index=1)
+    get_interlock_msb = read_register(registerReadU8, Evo.REG_INTERLOCK, index=0)
+    get_interlock_lsb = read_register(registerReadU8, Evo.REG_INTERLOCK, index=1)
 
-    get_evo_status_bits = read_register(registerReadU16, Evo.DEVICE_ID, Evo.REG_STATUS_BITS)
+    get_evo_status_bits = read_register(registerReadU16, Evo.REG_STATUS_BITS)
 
-    get_watchdog_timer = read_register(registerReadU8, Evo.DEVICE_ID, Evo.REG_WATCHDOG_TIMER)
-    set_watchdog_timer = write_register(registerWriteU8, Evo.DEVICE_ID, Evo.REG_WATCHDOG_TIMER)
+    get_watchdog_timer = read_register(registerReadU8, Evo.REG_WATCHDOG_TIMER)
+    set_watchdog_timer = write_register(registerWriteU8, Evo.REG_WATCHDOG_TIMER)
 
     # Functions for the SuperK VARIA
-    get_monitor_input = read_register(registerReadU16, Varia.DEVICE_ID, Varia.REG_MONITOR_INPUT, ratio=0.1)
+    get_monitor_input = read_register(registerReadU16, Varia.REG_MONITOR_INPUT, ratio=0.1)
 
-    get_nd_setpoint = read_register(registerReadU16, Varia.DEVICE_ID, Varia.REG_ND_SETPOINT, ratio=0.1)
-    get_swp_setpoint = read_register(registerReadU16, Varia.DEVICE_ID, Varia.REG_SWP_SETPOINT, ratio=0.1)
-    get_lwp_setpoint = read_register(registerReadU16, Varia.DEVICE_ID, Varia.REG_LWP_SETPOINT, ratio=0.1)
+    get_nd_setpoint = read_register(registerReadU16, Varia.REG_ND_SETPOINT, ratio=0.1)
+    get_swp_setpoint = read_register(registerReadU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
+    get_lwp_setpoint = read_register(registerReadU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
 
-    set_nd_setpoint = write_register(registerWriteU16, Varia.DEVICE_ID, Varia.REG_ND_SETPOINT, ratio=0.1)
-    set_swp_setpoint = write_register(registerWriteU16, Varia.DEVICE_ID, Varia.REG_SWP_SETPOINT, ratio=0.1)
-    set_lwp_setpoint = write_register(registerWriteU16, Varia.DEVICE_ID, Varia.REG_LWP_SETPOINT, ratio=0.1)
+    set_nd_setpoint = write_register(registerWriteU16, Varia.REG_ND_SETPOINT, ratio=0.1)
+    set_swp_setpoint = write_register(registerWriteU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
+    set_lwp_setpoint = write_register(registerWriteU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
 
-    get_varia_status_bits = read_register(registerReadU16, Varia.DEVICE_ID, Varia.REG_STATUS_BITS)
+    get_varia_status_bits = read_register(registerReadU16, Varia.REG_STATUS_BITS)
 
 
 if __name__ == '__main__':
