@@ -104,22 +104,37 @@ class NktSuperkSim(Service):
         return func
 
     def set_emission(self, emission):
-        self.simulator.set_source_power(emission * self.power_setpoint.get()[0] * 1e-2)
+        self.testbed.simulator.set_source_power(
+            source_name=self.id,
+            power=emission * self.power_setpoint.get()[0] * 1e-2
+        )
 
     def set_power_setpoint(self, power_setpoint):
-        self.simulator.set_source_power(self.emission.get()[0] * power_setpoint)
+        self.testbed.simulator.set_source_power(
+            source_name=self.id,
+            power=self.emission.get()[0] * power_setpoint
+        )
 
     def set_current_setpoint(self, current_setpoint):
         pass
 
     def set_nd_setpoint(self, nd_setpoint):
-        self.simulator.move_filter(self.id + '_nd', nd_setpoint)
+        self.testbed.simulator.move_filter(
+            filter_wheel_name=self.id + '_nd',
+            new_filter_position=nd_setpoint
+        )
 
     def set_swp_setpoint(self, swp_setpoint):
-        self.simulator.move_filter(self.id + '_swp', swp_setpoint)
+        self.testbed.simulator.move_filter(
+            filter_wheel_name=self.id + '_swp',
+            new_filter_position=swp_setpoint
+        )
 
     def set_lwp_setpoint(self, lwp_setpoint):
-        self.simulator.move_filter(self.id + '_lwp', lwp_setpoint)
+        self.testbed.simulator.move_filter(
+            filter_wheel_name=self.id + '_lwp',
+            new_filter_position=lwp_setpoint
+        )
 
 
 if __name__ == '__main__':
