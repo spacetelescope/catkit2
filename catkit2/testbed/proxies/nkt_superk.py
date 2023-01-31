@@ -2,8 +2,8 @@ import numpy as np
 
 from ..service_proxy import ServiceProxy
 
-@ServiceProxy.register_service_interface('nkt_superk_varia')
-class NktSuperkVariaProxy(ServiceProxy):
+@ServiceProxy.register_service_interface('nkt_superk')
+class NktSuperkProxy(ServiceProxy):
     @property
     def center_wavelength(self):
         return (self.swp_setpoint.get()[0] + self.lwp_setpoint.get()[0]) / 2

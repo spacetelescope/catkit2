@@ -4,7 +4,7 @@ __all__ = [
     'FlipMountProxy',
     'BmcDmProxy',
     'NewportPicomotorProxy',
-    'NktSuperkVariaProxy',
+    'NktSuperkProxy',
     'WebPowerSwitchProxy'
 ]
 
@@ -13,5 +13,5 @@ from .camera import *
 from .newport_xps import *
 from .flip_mount import *
 from .newport_picomotor import *
-from .nkt_superk_varia import *
+from .nkt_superk import *
 from .web_power_switch import *
