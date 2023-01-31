@@ -14,7 +14,7 @@ class NktSuperkVariaProxy(ServiceProxy):
 
     @property
     def bandwidth(self):
-        return self.lwp_setpoint.get()[0] - self.swp_setpoint.get()[0]
+        return self.swp_setpoint.get()[0] - self.lwp_setpoint.get()[0]
 
     @bandwidth.setter
     def bandwidth(self, bandwidth):
@@ -43,8 +43,8 @@ class NktSuperkVariaProxy(ServiceProxy):
         if bandwidth < 0:
             bandwidth = 0
 
-        swp = center_wavelength - bandwidth / 2
-        lwp = center_wavelength + bandwidth / 2
+        lwp = center_wavelength - bandwidth / 2
+        swp = center_wavelength + bandwidth / 2
 
-        self.swp_setpoint.submit_data(np.array([swp]))
         self.lwp_setpoint.submit_data(np.array([lwp]))
+        self.swp_setpoint.submit_data(np.array([swp]))
