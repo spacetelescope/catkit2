@@ -65,16 +65,20 @@ void Synchronization::Create(const std::string &id, SynchronizationSharedData *s
 
 	shared_data->m_NumReadersWaiting = 0;
 #else
-	pthread_mutexattr_t mutex_attr = {};
+	pthread_mutexattr_t mutex_attr;
+	pthread_mutexattr_init(&mutex_attr);
 	pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED);
 	pthread_mutex_init(&(shared_data->m_Mutex), &mutex_attr);
+	pthread_mutexattr_destroy(&mutex_attr);
 
-	pthread_condattr_t cond_attr = {};
+	pthread_condattr_t cond_attr;
+	pthread_condattr_init(&cond_attr);
 	pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
 #ifndef __APPLE__
 	pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
 #endif // __APPLE__
 	pthread_cond_init(&(shared_data->m_Condition), &cond_attr);
+	pthread_condattr_destroy(&cond_attr);
 #endif // _WIN32
 
 	m_SharedData = shared_data;
