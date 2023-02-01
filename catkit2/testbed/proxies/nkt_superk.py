@@ -10,7 +10,7 @@ class NktSuperkProxy(ServiceProxy):
 
     @center_wavelength.setter
     def center_wavelength(self, center_wavelength):
-        self.set_wavelength_and_bandwidth(center_wavelength=center_wavelength)
+        self.set_spectrum(center_wavelength=center_wavelength)
 
     @property
     def bandwidth(self):
@@ -18,10 +18,9 @@ class NktSuperkProxy(ServiceProxy):
 
     @bandwidth.setter
     def bandwidth(self, bandwidth):
-        self.set_wavelength_and_bandwidth(bandwidth=bandwidth)
+        self.set_spectrum(bandwidth=bandwidth)
 
-    # TODO: decide if we need this function to be public.
-    def set_wavelength_and_bandwidth(self, center_wavelength=None, bandwidth=None):
+    def set_spectrum(self, center_wavelength=None, bandwidth=None):
         '''Set both center wavelength and bandwidth simultaneously.
 
         Parameters
