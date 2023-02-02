@@ -81,6 +81,7 @@ class Simulator(Service):
         self.make_command('move_filter', self.move_filter)
         self.make_command('move_flip_mount', self.move_flip_mount)
         self.make_command('switch_power', self.switch_power)
+        self.make_command('set_source_power', self.set_source_power)
 
         self.integrating_cameras = {}
         self.camera_integrated_power = {}
@@ -438,5 +439,17 @@ class Simulator(Service):
             The name of the outlet.
         powered : boolean
             Whether to turn the power on (True) or off (False).
+        '''
+        pass
+
+    def set_source_power(self, source_name, power):
+        '''Set the power of a light source.
+
+        Parameters
+        ----------
+        source_name : string
+            The name of the light source.
+        power : scalar
+            The new power of this light source.
         '''
         pass

@@ -42,3 +42,4 @@ exclude =
     tests
     proto
     extern
+    NKTP_DLL.py
