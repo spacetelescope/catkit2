@@ -27,6 +27,8 @@ class BmcDm(Service):
         self.gain_map_fname = self.config['gain_map_fname']
         self.max_volts = self.config['max_volts']
 
+        self.startup_maps = self.config.get('startup_maps', {})
+
         self.lock = threading.Lock()
 
         self.channels = {}
@@ -43,8 +45,13 @@ class BmcDm(Service):
     def add_channel(self, channel_name):
         self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.command_length], 20)
 
-        # Zero-out the channel.
-        self.channels[channel_name].submit_data(np.zeros(self.command_length))
+        # Get the right default flat map.
+        if channel_name in self.startup_maps:
+            flatmap = fits.getdata(self.startup_maps[channel_name]).astype('float64')
+        else:
+            flatmap = np.zeros(self.command_length)
+
+        self.channels[channel_name].submit_data(flatmap)
 
     def main(self):
         self.channel_threads = {}
