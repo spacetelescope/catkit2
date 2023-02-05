@@ -258,7 +258,7 @@ class Simulator(Service):
                 # Camera has stopped.
                 return
 
-            self.log.info(f'Reset camera image on {camera_name}.')
+            self.log.debug(f'Reset camera image on {camera_name}.')
 
             integration_time, frame_interval = self.integrating_cameras[camera_name]
 
@@ -294,7 +294,7 @@ class Simulator(Service):
             if camera_name not in self.camera_integrated_power:
                 return
 
-            self.log.info(f'Read out camera image on {camera_name}.')
+            self.log.debug(f'Read out camera image on {camera_name}.')
 
             # Read out camera image and yield image.
             self.camera_readout(camera_name, self.camera_integrated_power[camera_name])
