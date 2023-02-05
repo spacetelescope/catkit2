@@ -205,7 +205,7 @@ void DataStream::SubmitFrame(size_t id)
 		+ FRAMERATE_DECAY;
 }
 
-void DataStream::SubmitData(void *data)
+void DataStream::SubmitData(const void *data)
 {
 	DataFrame frame = RequestNewFrame();
 
