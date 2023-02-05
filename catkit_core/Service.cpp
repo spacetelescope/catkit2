@@ -366,11 +366,11 @@ const std::string &Service::GetId() const
 	return m_ServiceId;
 }
 
-void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter)
+void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter, DataType dtype)
 {
 	LOG_DEBUG("Making property \"" + property_name + "\".");
 
-	auto prop = std::make_shared<Property>(property_name, getter, setter);
+	auto prop = std::make_shared<Property>(property_name, nullptr, getter, setter);
 	m_Properties[property_name] = prop;
 }
 
