@@ -99,24 +99,14 @@ class LogDistributor:
                 # Let's ignore this error, but still print the exception.
                 print(traceback.format_exc())
 
-class LogWriter:
-    def __init__(self, host, port, log_format=None):
+class LogObserver:
+    def __init__(self, host, port):
         self.context = zmq.Context()
         self.host = host
         self.port = port
 
-        if log_format is None:
-            log_format = '{time} - {service_id} - {severity} - {message}'
-        self.log_format = log_format
-
-        self._output_file = None
-        self._output_filename = None
-        self.level = Severity.DEBUG
-
         self.shutdown_flag = threading.Event()
         self.thread = None
-
-        self.lock = threading.Lock()
 
     def start(self):
         '''Start the proxy thread.
@@ -133,35 +123,6 @@ class LogWriter:
 
         if self.thread:
             self.thread.join()
-
-    @contextlib.contextmanager
-    def output_to(self, output_filename):
-        old_output_filename = self.output_filename
-
-        self.output_filename = output_filename
-
-        try:
-            yield self
-        finally:
-            self.output_filename = old_output_filename
-
-    @property
-    def output_filename(self):
-        return self._output_filename
-
-    @output_filename.setter
-    def output_filename(self, output_filename):
-        with self.lock:
-            # Close the output file, if there is one.
-            if self._output_file is not None:
-                self._output_file.close()
-                self._output_file = None
-
-            # Open output file with new filename.
-            if output_filename is not None:
-                self._output_file = open(output_filename, 'a')
-
-        self._output_filename = output_filename
 
     def loop(self):
         # Set up sockets.
@@ -186,16 +147,65 @@ class LogWriter:
             log_message = log_message[0].decode('ascii')
             log_message = json.loads(log_message)
 
-            # Filter log message based on severity.
-            severity = getattr(Severity, log_message['severity'].upper())
-            if severity.value < self.level.value:
-                continue
+            self.handle_message(log_message)
 
-            # Format output message.
-            message = self.log_format.format(**log_message)
+    def handle_message(self, log_message):
+        pass
 
-            # Write log message to file.
-            with self.lock:
-                if self._output_file:
-                    self._output_file.write(message + '\n')
-                    self._output_file.flush()
+class LogWriter(LogObserver):
+    def __init__(self, host, port, log_format=None):
+        super().__init__(host, port)
+
+        if log_format is None:
+            log_format = '{time} - {service_id} - {severity} - {message}'
+        self.log_format = log_format
+
+        self._output_file = None
+        self._output_filename = None
+        self.level = Severity.DEBUG
+
+        self.file_lock = threading.Lock()
+
+    @contextlib.contextmanager
+    def output_to(self, output_filename):
+        old_output_filename = self.output_filename
+
+        self.output_filename = output_filename
+
+        try:
+            yield self
+        finally:
+            self.output_filename = old_output_filename
+
+    @property
+    def output_filename(self):
+        return self._output_filename
+
+    @output_filename.setter
+    def output_filename(self, output_filename):
+        with self.file_lock:
+            # Close the output file, if there is one.
+            if self._output_file is not None:
+                self._output_file.close()
+                self._output_file = None
+
+            # Open output file with new filename.
+            if output_filename is not None:
+                self._output_file = open(output_filename, 'a')
+
+        self._output_filename = output_filename
+
+    def handle_message(self, log_message):
+        # Filter log message based on severity.
+        severity = getattr(Severity, log_message['severity'].upper())
+        if severity.value < self.level.value:
+            return
+
+        # Format output message.
+        message = self.log_format.format(**log_message)
+
+        # Write log message to file.
+        with self.file_lock:
+            if self._output_file:
+                self._output_file.write(message + '\n')
+                self._output_file.flush()
