@@ -4,6 +4,7 @@ import zmq
 import json
 import contextlib
 import traceback
+from colorama import Fore, Back, Style
 
 from ..catkit_bindings import submit_log_entry, Severity
 
@@ -209,3 +210,29 @@ class LogWriter(LogObserver):
             if self._output_file:
                 self._output_file.write(message + '\n')
                 self._output_file.flush()
+
+class LogTerminal(LogObserver):
+    def __init__(self, host, port):
+        super().__init__(host, port)
+
+        self.level = Severity.WARNING
+        self.colors = {
+            Severity.DEBUG: Fore.GREEN,
+            Severity.INFO: Fore.BLUE,
+            Severity.WARNING: Fore.YELLOW,
+            Severity.ERROR: Fore.RED,
+            Severity.CRITICAL: Fore.WHITE + Back.RED
+        }
+
+    def handle_message(self, log_message):
+        severity = getattr(Severity, log_message['severity'].upper())
+
+        if log_message['service_id'] != 'experiment':
+            if severity.value < self.level.value:
+                return
+
+        header = '{time} - {severity: <8} - {service_id} - {filename}:{line}'.format(**log_message)
+        formatted_message = '{message}'.format(**log_message)
+
+        print(header)
+        print(self.colors[severity] + formatted_message + Style.RESET_ALL)
