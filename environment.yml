@@ -10,6 +10,7 @@ dependencies:
   - numpy
   - scipy
   - matplotlib
+  - colorama
   - pyzmq
   - zeromq>=4.0.0
   - conda-forge::pyvisa>=1.10
