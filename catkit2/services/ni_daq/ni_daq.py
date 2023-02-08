@@ -83,10 +83,6 @@ class NiDaq(Service):
 
         self.channel_threads = {}
 
-        # Stop and close the task.
-        self.task.stop()
-        self.task.close()
-
     def monitor_channel(self, channel_name):
         while not self.should_shut_down:
             try:
