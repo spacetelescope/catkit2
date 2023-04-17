@@ -18,7 +18,18 @@ Value Property::Get()
 	if (!m_Getter)
 		throw std::runtime_error("Property is not readable.");
 
-	return m_Getter();
+	Value value = m_Getter();
+
+	// Submit the gotten value on the stream, if there is one.
+	if (m_DataStream)
+	{
+		std::visit([this](auto &&arg)
+		{
+			m_DataStream->SubmitData(&arg);
+		}, value);
+	}
+
+	return value;
 }
 
 void Property::Set(const Value &value)
@@ -50,6 +61,7 @@ void Property::Set(const Value &value)
 
 	m_Setter(value);
 
+	// Submit the set value to the stream so that others know about it too.
 	if (m_DataStream)
 	{
 		std::visit([this](auto &&arg)
