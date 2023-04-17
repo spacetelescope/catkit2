@@ -63,3 +63,8 @@ std::string Property::GetName()
 {
 	return m_Name;
 }
+
+std::shared_ptr<DataStream> Property::GetStream()
+{
+	return m_DataStream;
+}

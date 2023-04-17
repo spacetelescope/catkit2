@@ -418,7 +418,11 @@ string Service::HandleGetInfo(const string &data)
 	reply.set_config(m_Config.dump());
 
 	for (auto& [key, value] : m_Properties)
+	{
 		reply.add_property_names(key);
+		if (value->GetStream())
+			(*reply.mutable_property_datastream_links())[key] = value->GetStream()->GetStreamId();
+	}
 
 	for (auto& [key, value] : m_Commands)
 		reply.add_command_names(key);

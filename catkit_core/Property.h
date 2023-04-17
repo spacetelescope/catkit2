@@ -18,6 +18,7 @@ public:
 	void Set(const Value &value);
 
 	std::string GetName();
+	std::shared_ptr<DataStream> GetStream();
 
 private:
 	std::string m_Name;

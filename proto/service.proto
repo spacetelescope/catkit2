@@ -18,6 +18,8 @@ message GetInfoReply
     repeated string command_names = 5;
     map<string, string> datastream_ids = 6;
 
+    map<string, string> property_datastream_links = 8;
+
     string heartbeat_stream_id = 7;
 }
 

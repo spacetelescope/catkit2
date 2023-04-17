@@ -58,6 +58,8 @@ private:
 	std::vector<std::string> m_CommandNames;
 	std::map<std::string, std::string> m_DataStreamIds;
 
+	std::map<std::string, std::string> m_PropertyDataStreamLinks;
+
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
 
 	std::shared_ptr<DataStream> m_Heartbeat;

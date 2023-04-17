@@ -280,6 +280,9 @@ void ServiceProxy::Connect()
 	for (auto& [key, value] : reply.datastream_ids())
 		m_DataStreamIds[key] = value;
 
+	for (auto& [key, value] : reply.property_datastream_links())
+		m_PropertyDataStreamLinks[key] = value;
+
 	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
 
 	m_TimeLastConnect = frame.m_TimeStamp;
