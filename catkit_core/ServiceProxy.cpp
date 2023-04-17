@@ -62,7 +62,7 @@ Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 					return ((double *) frame.GetData())[0];
 			}
 		}
-		catch(const std::runtime_error& e)
+		catch (std::runtime_error)
 		{
 			// There is no frame in the datastream. Ignore and fall back to a manual
 			// request to the service.
