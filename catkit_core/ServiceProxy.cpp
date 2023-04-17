@@ -44,7 +44,7 @@ Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
 		throw std::runtime_error("This is not a valid property name.");
 
-	if (std::find(m_PropertyDataStreamLinks.begin(), m_PropertyDataStreamLinks.end(), name) != m_PropertyDataStreamLinks.end())
+	if (m_PropertyDataStreamLinks.find(name) != m_PropertyDataStreamLinks.end())
 	{
 		// This property is backed by a datastream. Lets try to get the value from there first.
 		std::string stream_name = m_PropertyDataStreamLinks[name];
