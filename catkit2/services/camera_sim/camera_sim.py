@@ -36,29 +36,32 @@ class CameraSim(Service):
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
 
-        def make_property_helper(property_name, read_only=False):
+        def make_property_helper(property_name, read_only=False, dtype=None):
+            if dtype is None:
+                dtype = ''
+
             def getter():
                 return getattr(self, property_name)
 
             if read_only:
-                self.make_property(property_name, getter)
+                self.make_property(property_name, getter, type=dtype)
                 return
 
             def setter(value):
                 setattr(self, property_name, value)
 
-            self.make_property(property_name, getter, setter)
+            self.make_property(property_name, getter, setter, type=dtype)
 
-        make_property_helper('width')
-        make_property_helper('height')
-        make_property_helper('offset_x')
-        make_property_helper('offset_y')
+        make_property_helper('width', dtype='int64')
+        make_property_helper('height', dtype='int64')
+        make_property_helper('offset_x', dtype='int64')
+        make_property_helper('offset_y', dtype='int64')
 
-        make_property_helper('exposure_time')
-        make_property_helper('gain')
+        make_property_helper('exposure_time', dtype='int64')
+        make_property_helper('gain', dtype='int64')
 
-        make_property_helper('sensor_width', read_only=True)
-        make_property_helper('sensor_height', read_only=True)
+        make_property_helper('sensor_width', read_only=True, dtype='int64')
+        make_property_helper('sensor_height', read_only=True, dtype='int64')
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
