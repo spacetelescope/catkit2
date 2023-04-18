@@ -48,7 +48,6 @@ Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 	{
 		// This property is backed by a datastream. Lets try to get the value from there first.
 		std::string stream_name = m_PropertyDataStreamLinks[name];
-		std::cout << "Getting property from stream " + stream_name + ".";
 		std::shared_ptr<DataStream> stream = GetDataStream(stream_name, error_check);
 
 		try

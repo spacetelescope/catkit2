@@ -434,14 +434,14 @@ string Service::HandleGetInfo(const string &data)
 	{
 		reply.add_property_names(key);
 		if (value->GetStream())
-			(*reply.mutable_property_datastream_links())[key] = value->GetStream()->GetStreamId();
+			(*reply.mutable_property_datastream_links())[key] = value->GetStream()->GetStreamName();
 	}
 
 	for (auto& [key, value] : m_Commands)
 		reply.add_command_names(key);
 
 	for (auto& [key, value] : m_DataStreams)
-		(*reply.mutable_datastream_ids())[key] = value->GetStreamName();
+		(*reply.mutable_datastream_ids())[key] = value->GetStreamId();
 
 	reply.set_heartbeat_stream_id(m_Heartbeat->GetStreamId());
 
