@@ -4,11 +4,6 @@ import time
 import pytest
 import socket
 
-def _get_unused_port():
-    with socket.socket() as sock:
-        sock.bind(('', 0))
-        return sock.getsockname()[1]
-
 class OurServer(Server):
     def __init__(self, port):
         super().__init__(port)
@@ -35,8 +30,8 @@ class OurClient(Client):
     def baz(self):
         return self.make_request('baz', b'even_other_data')
 
-def test_server_client_communication():
-    port = _get_unused_port()
+def test_server_client_communication(unused_port):
+    port = unused_port()
 
     server = OurServer(port)
     client = OurClient(port)
