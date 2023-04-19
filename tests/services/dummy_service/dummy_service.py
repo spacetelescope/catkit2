@@ -4,7 +4,7 @@ class DummyService(Service):
     def __init__(self):
         super().__init__('dummy_service')
 
-        self.readonly_property = 0
+        self.readonly_property = self.config['readonly_property']
         self.readwrite_property = 1
 
     def open(self):

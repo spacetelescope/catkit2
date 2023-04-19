@@ -2,6 +2,8 @@ test_service:
   service_type: dummy_service
   requires_safety: false
 
+  readonly_property: 5
+
 safety:
   service_type: safety_monitor
   requires_safety: false
