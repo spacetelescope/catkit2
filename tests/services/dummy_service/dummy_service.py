@@ -1,5 +1,9 @@
 from catkit2 import Service
 
+import numpy as np
+
+N = 16
+
 class DummyService(Service):
     def __init__(self):
         super().__init__('dummy_service')
@@ -12,10 +16,14 @@ class DummyService(Service):
         self.make_property('readwrite_property', self.get_readwrite, self.set_readwrite)
 
         self.make_command('add', self.add)
+        self.make_command('push_on_stream', self.push_on_stream)
+
+        self.stream = self.make_data_stream('stream', 'float64', [N, N], 20)
+        self.push_on_stream()
 
     def main(self):
         while not self.should_shut_down:
-            self.sleep(1)
+            self.sleep(0.1)
 
     def close(self):
         pass
@@ -31,6 +39,10 @@ class DummyService(Service):
 
     def add(self, a, b):
         return a + b
+
+    def push_on_stream(self):
+        arr = np.random.randn(N, N).astype('float64')
+        self.stream.submit_data(arr)
 
 if __name__ == '__main__':
     service = DummyService()

@@ -20,3 +20,12 @@ def test_service_command(test_service):
     b = 'b'
 
     assert test_service.add(a=a, b=b) == a + b
+
+def test_service_datastream(test_service):
+    assert test_service.stream.dtype == 'float64'
+
+    before_id = test_service.stream.get_latest_frame().id
+    test_service.push_on_stream()
+    after_id = test_service.stream.get_latest_frame().id
+
+    assert after_id == before_id + 1
