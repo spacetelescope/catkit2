@@ -1,0 +1,11 @@
+test_service:
+  service_type: dummy_service
+  requires_safety: false
+
+safety:
+  service_type: safety_monitor
+  requires_safety: false
+
+  check_interval: 5
+
+  safeties: []
