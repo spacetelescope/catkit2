@@ -40,9 +40,9 @@ def testbed():
     process.join()
 
 @pytest.fixture(scope='session')
-def test_service(testbed):
-    testbed.start_service('test_service')
+def dummy_service(testbed):
+    testbed.start_service('dummy_service')
 
-    yield testbed.test_service
+    yield testbed.dummy_service
 
-    testbed.stop_service('test_service')
+    testbed.stop_service('dummy_service')

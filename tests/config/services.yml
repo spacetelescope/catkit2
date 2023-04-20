@@ -1,4 +1,4 @@
-test_service:
+dummy_service:
   service_type: dummy_service
   requires_safety: false
 

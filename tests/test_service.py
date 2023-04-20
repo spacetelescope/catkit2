@@ -1,31 +1,32 @@
 import pytest
 
-def test_service_property(test_service):
+def test_service_property(dummy_service):
     # We should be able to read and write to a property.
-    test_service.readwrite_property = 2
-    assert test_service.readwrite_property == 2
+    dummy_service.readwrite_property = 2
+    assert dummy_service.readwrite_property == 2
 
-def test_service_property_readonly(test_service):
-    expected_value = test_service.config['readonly_property']
+def test_service_property_readonly(dummy_service):
+    expected_value = dummy_service.config['readonly_property']
 
     # We should be able to read from a readonly property.
-    assert test_service.readonly_property == expected_value
+    assert dummy_service.readonly_property == expected_value
 
     # Writing to a readonly property should yield an exception.
     with pytest.raises(RuntimeError):
-        test_service.readonly_property = 3
+        dummy_service.readonly_property = 3
 
-def test_service_command(test_service):
+def test_service_command(dummy_service):
     a = 'a'
     b = 'b'
 
-    assert test_service.add(a=a, b=b) == a + b
+    assert dummy_service.add(a=a, b=b) == a + b
 
-def test_service_datastream(test_service):
-    assert test_service.stream.dtype == 'float64'
+def test_service_datastream(dummy_service):
+    assert dummy_service.stream.dtype == 'float64'
 
-    before_id = test_service.stream.get_latest_frame().id
-    test_service.push_on_stream()
-    after_id = test_service.stream.get_latest_frame().id
+    # Check that push_on_stream() submits something to the datastream.
+    before_id = dummy_service.stream.get_latest_frame().id
+    dummy_service.push_on_stream()
+    after_id = dummy_service.stream.get_latest_frame().id
 
     assert after_id == before_id + 1
