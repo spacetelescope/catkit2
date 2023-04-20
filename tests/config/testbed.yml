@@ -1,4 +1,4 @@
-default_port: 5235
+default_port: 6346
 safety:
   service_id: safety
   check_interval: 60
