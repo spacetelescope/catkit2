@@ -15,6 +15,26 @@ def test_service_property_readonly(dummy_service):
     with pytest.raises(RuntimeError):
         dummy_service.readonly_property = 3
 
+def test_service_datastream_backed_property_readonly(dummy_service):
+    expected_value = dummy_service.config['readonly_property']
+
+    # We should be able to read from a streambacked readonly property.
+    assert dummy_service.readonly_stream_backed_property == expected_value
+
+    with pytest.raises(RuntimeError):
+        dummy_service.readonly_stream_backed_property = 3
+
+def test_service_datastream_backed_property(dummy_service):
+    # We should be able to read and write to a streambacked property.
+    dummy_service.readwrite_stream_backed_property = 2
+    assert dummy_service.readwrite_stream_backed_property == 2
+
+    # An exception should be raised when trying to put a different datatype on that property.
+    with pytest.raises(RuntimeError):
+        print('before', dummy_service.readwrite_stream_backed_property)
+        dummy_service.readwrite_stream_backed_property = 3.0
+        print('after', dummy_service.readwrite_stream_backed_property)
+
 def test_service_command(dummy_service):
     a = 'a'
     b = 'b'
