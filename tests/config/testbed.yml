@@ -1,0 +1,17 @@
+default_port: 6346
+safety:
+  service_id: safety
+  check_interval: 60
+  safe_interval: 180
+
+service_paths:
+  - !path ../services/
+base_data_path:
+  default: !path "~/temp_data"
+support_data_path:
+  default: !path "~/temp_support"
+
+base_experiment_path: "{simulator_or_hardware}/{date_and_time}_{experiment_name}/"
+sub_experiment_path: "{experiment_id:03d}_{experiment_name}/"
+
+long_term_monitoring_path: "{simulator_or_hardware}/long_term_monitoring/"
