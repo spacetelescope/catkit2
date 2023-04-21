@@ -33,6 +33,7 @@ template<typename T>
 constexpr const char *GetDataTypeAsString();
 
 const char *GetDataTypeAsString(DataType type);
+const char *GetDataTypeAsFullString(DataType type);
 
 DataType GetDataTypeFromString(const char *type);
 DataType GetDataTypeFromString(std::string type);
