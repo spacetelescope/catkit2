@@ -29,11 +29,13 @@ def test_service_datastream_backed_property(dummy_service):
     dummy_service.readwrite_stream_backed_property = 2
     assert dummy_service.readwrite_stream_backed_property == 2
 
-    # An exception should be raised when trying to put a different datatype on that property.
+    # If a wrong data type is given, it will be casted to the right one.
+    dummy_service.readwrite_stream_backed_property = 3.0
+    assert dummy_service.readwrite_stream_backed_property == 3
+
+    # If an uncompatible data type, this will raise an exception.
     with pytest.raises(RuntimeError):
-        print('before', dummy_service.readwrite_stream_backed_property)
-        dummy_service.readwrite_stream_backed_property = 3.0
-        print('after', dummy_service.readwrite_stream_backed_property)
+        dummy_service.readwrite_stream_backed_property = '4'
 
 def test_service_command(dummy_service):
     a = 'a'
