@@ -34,41 +34,52 @@ Value Property::Get()
 
 void Property::Set(const Value &value)
 {
-	// If this property has a stream, we should check if the data type is compatible.
-	if (m_DataStream)
-	{
-		DataType expected_dtype = m_DataStream->GetDataType();
+	if (!m_Setter)
+		throw std::runtime_error("Property is not writable.");
 
-		switch (expected_dtype)
+	if (!m_DataStream)
+	{
+		// This property has no datastream. Just call the setter and return.
+		m_Setter(value);
+
+		return;
+	}
+
+	// If this property has a stream, we cast the given value to the right data type.
+	Value val;
+
+	DataType stream_dtype = m_DataStream->GetDataType();
+
+	try
+	{
+		switch (stream_dtype)
 		{
 			case DataType::DT_INT64:
-				if (std::holds_alternative<std::int64_t>(value))
-					break;
-			case DataType::DT_FLOAT64:
-				if (std::holds_alternative<double>(value))
-					break;
+				val = CastTo<std::int64_t>(value);
+				break;
 
-			throw std::runtime_error("The given value has the wrong data type.");
+			case DataType::DT_FLOAT64:
+				val = CastTo<double>(value);
+				break;
 
 			default:
 				// This should never happen.
 				throw std::runtime_error("The datastream has a data type that is not supported by a value.");
 		}
 	}
+	catch (std::bad_variant_access)
+	{
+		throw std::runtime_error(std::string("Could not cast the given value to a ") + GetDataTypeAsFullString(stream_dtype));
+	}
 
-	if (!m_Setter)
-		throw std::runtime_error("Property is not writable.");
-
-	m_Setter(value);
+	// Set the property to the casted value.
+	m_Setter(val);
 
 	// Submit the set value to the stream so that others know about it too.
-	if (m_DataStream)
+	std::visit([this](auto &&arg)
 	{
-		std::visit([this](auto &&arg)
-		{
-			m_DataStream->SubmitData(&arg);
-		}, value);
-	}
+		m_DataStream->SubmitData(&arg);
+	}, val);
 }
 
 std::string Property::GetName()
