@@ -58,7 +58,7 @@ class ZwoCamera(Service):
         num_cameras = zwoasi.get_num_cameras()
         if num_cameras == 0:
             raise RuntimeError("Not a single ZWO camera is connected.")
-        
+
         expected_device_name = self.config['device_name']
         expected_device_id = self.config.get('device_id', None)
 
@@ -96,8 +96,8 @@ class ZwoCamera(Service):
         for c in controls:
             self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
 
-        print('Bandwidth defaults',  self.camera.get_controls()['BandWidth'])
-        
+        print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
+
         print('Bandwidth before:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
         # Set bandwidth overload control to minvalue.
