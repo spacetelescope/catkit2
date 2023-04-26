@@ -80,7 +80,7 @@ class ZwoCamera(Service):
                         break
                 except Exception:
                     zwoasi._close_camera(i)
-                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name} with id {expected_device_id} of type {type(expected_device_id)}. It probably doesn\'t support an id.')
+                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.')
                 finally:
                     zwoasi._close_camera(i)
 
