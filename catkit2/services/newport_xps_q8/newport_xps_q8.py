@@ -15,6 +15,7 @@ except ImportError:
     print("To use the Newport XPS-Q8, you need to set the CATKIT_NEWPORT_LIB_PATH environment variable.")
     raise
 
+
 class NewportXpsQ8(Service):
     _OK_STATES = (7, 11, 12, 42)
 
@@ -53,7 +54,7 @@ class NewportXpsQ8(Service):
             # Move the actuator.
             with lock:
                 error_code, return_string = self.device.GroupMoveAbsolute(socket_id, positioner, [position])
-                self._raise_on_error(error_code, 'GroupMoveAbsolute')
+                self._raise_on_error(socket_id, error_code, 'GroupMoveAbsolute')
 
             # Update current position data stream.
             self.get_current_position(motor_id)
@@ -64,7 +65,7 @@ class NewportXpsQ8(Service):
 
         with lock:
             error_code, current_position = self.device.GroupPositionCurrentGet(socket_id, positioner, 1)
-            self._raise_on_error(error_code, 'GroupPositionCurrentGet')
+            self._raise_on_error(socket_id, error_code, 'GroupPositionCurrentGet')
 
         # Update current position data stream.
         stream = self.motor_current_positions[motor_id]
@@ -77,33 +78,33 @@ class NewportXpsQ8(Service):
 
         with lock:
             error_code, current_status = self.device.GroupStatusGet(socket_id, motor_id)
-            self._raise_on_error(error_code, 'GroupStatusGet')
+            self._raise_on_error(socket_id, error_code, 'GroupStatusGet')
 
             # Kill motor if it is not in a known good state.
             if current_status not in self._OK_STATES:
                 error_code, return_string = self.device.GroupKill(socket_id, motor_id)
-                self._raise_on_error(error_code, 'GroupKill')
+                self._raise_on_error(socket_id, error_code, 'GroupKill')
 
                 # Update the status.
                 error_code, current_status = self.device.GroupStatusGet(socket_id, motor_id)
-                self._raise_on_error(error_code, 'GroupStatusGet')
+                self._raise_on_error(socket_id, error_code, 'GroupStatusGet')
 
             # Initialize from killed state.
             if current_status == 7:
                 # Initialize the group
                 error_code, return_string = self.device.GroupInitialize(socket_id, motor_id)
-                self._raise_on_error(error_code, 'GroupInitialize')
+                self._raise_on_error(socket_id, error_code, 'GroupInitialize')
 
                 # Update the status
                 error_code, current_status = self.device.GroupStatusGet(socket_id, motor_id)
-                self._raise_on_error(error_code, 'GroupStatusGet')
+                self._raise_on_error(socket_id, error_code, 'GroupStatusGet')
 
             # Home search
             if current_status == 42:
                 error_code, return_string = self.device.GroupHomeSearch(socket_id, motor_id)
-                self._raise_on_error(error_code, 'GroupHomeSearch')
+                self._raise_on_error(socket_id, error_code, 'GroupHomeSearch')
 
-    def _raise_on_error(self, error_code, api_name):
+    def _raise_on_error(self, socket_id, error_code, api_name):
         if error_code == 0:
             return
 
@@ -112,7 +113,7 @@ class NewportXpsQ8(Service):
         elif error_code == -108:
             raise RuntimeError(f"{api_name}: The TCP/IP connection was closed by an administrator")
         else:
-            error_code2, error_string = self.instrument.ErrorStringGet(self.socket_id, error_code)
+            error_code2, error_string = self.device.ErrorStringGet(socket_id, error_code)
             if error_code2 != 0:
                 raise RuntimeError(f"{api_name}: ERROR '{error_code}'")
             else:

@@ -59,9 +59,32 @@ class ZwoCamera(Service):
         if num_cameras == 0:
             raise RuntimeError("Not a single ZWO camera is connected.")
 
-        # Get camera id and name.
-        cameras_found = zwoasi.list_cameras()  # Model names of the connected cameras.
-        camera_index = cameras_found.index(self.config['device_name'])
+        expected_device_name = self.config['device_name']
+        expected_device_id = self.config.get('device_id', None)
+
+        for i in range(num_cameras):
+            device_name = zwoasi._get_camera_property(i)['Name']
+
+            if not device_name.startswith(expected_device_name):
+                continue
+
+            if expected_device_id is None:
+                camera_index = i
+                break
+            else:
+                zwoasi._open_camera(i)
+                try:
+                    device_id = zwoasi._get_id(i)
+                    if device_id == str(expected_device_id):
+                        camera_index = i
+                        break
+                except Exception as e:
+                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.') from e
+                finally:
+                    zwoasi._close_camera(i)
+
+        else:
+            raise RuntimeError(f'Camera {expected_device_name} with id {expected_device_id} not found.')
 
         # Create a camera object using the zwoasi library.
         self.camera = zwoasi.Camera(camera_index)
@@ -73,8 +96,14 @@ class ZwoCamera(Service):
         for c in controls:
             self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
 
+        print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
+
+        print('Bandwidth before:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
+
         # Set bandwidth overload control to minvalue.
-        self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
+        self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+
+        print('Bandwidth after:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
         try:
             # Force any single exposure to be halted
