@@ -60,7 +60,7 @@ class ZwoCamera(Service):
             raise RuntimeError("Not a single ZWO camera is connected.")
         
         expected_device_name = self.config['device_name']
-        expected_device_id = self.config.get('device_id', 'None')
+        expected_device_id = self.config.get('device_id', None)
 
         for i in range(num_cameras):
             device_name = zwoasi._get_camera_property(i)['Name']
@@ -68,7 +68,7 @@ class ZwoCamera(Service):
             if not device_name.startswith(expected_device_name):
                 continue
 
-            if expected_device_id == 'None':
+            if expected_device_id is None:
                 camera_index = i
                 break
             else:
@@ -78,9 +78,8 @@ class ZwoCamera(Service):
                     if device_id == str(expected_device_id):
                         camera_index = i
                         break
-                except Exception:
-                    zwoasi._close_camera(i)
-                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.')
+                except Exception as e:
+                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.') from e
                 finally:
                     zwoasi._close_camera(i)
 
