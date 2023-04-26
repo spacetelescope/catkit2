@@ -67,20 +67,21 @@ class ZwoCamera(Service):
 
             if not device_name.startswith(expected_device_name):
                 continue
-            
-            zwoasi._open_camera(i)
-            try:
-                device_id = zwoasi._get_id(i)
-                if device_id == expected_device_id:
-                    camera_index = i
-                    break
-            except Exception:
-                # Camera doesn't have an id - probably an old one, we therefore assume 
-                # that this the camera that we're looking for. 
+
+            if expected_device_id is not None:
+                zwoasi._open_camera(i)
+                try:
+                    device_id = zwoasi._get_id(i)
+                    if device_id == expected_device_id:
+                        camera_index = i
+                        break
+                except Exception:
+                    zwoasi._close_camera(i)
+                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.')
+                finally:
+                    zwoasi._close_camera(i)
+            else:
                 camera_index = i
-                break
-            finally:
-                zwoasi._close_camera(i)
         else:
             raise RuntimeError(f'Camera {expected_device_name} with id {expected_device_id} not found.')
 
