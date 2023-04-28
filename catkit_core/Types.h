@@ -43,4 +43,21 @@ void FromProto(const catkit_proto::Value *proto_value, Value &value);
 void FromProto(const catkit_proto::List *proto_list, List &list);
 void FromProto(const catkit_proto::Dict *proto_dict, Dict &dict);
 
+template <typename T>
+T CastTo(const Value &val)
+{
+	return std::visit([](auto &&val)
+	{
+		if constexpr(std::is_convertible_v<decltype(val), T>)
+		{
+			return T(val);
+		}
+		else
+		{
+			throw std::bad_variant_access{};
+			return T{};
+		}
+	}, val);
+}
+
 #endif // TYPES_H

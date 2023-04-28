@@ -366,11 +366,24 @@ const std::string &Service::GetId() const
 	return m_ServiceId;
 }
 
-void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter)
+void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter, DataType dtype)
 {
 	LOG_DEBUG("Making property \"" + property_name + "\".");
 
-	auto prop = std::make_shared<Property>(property_name, getter, setter);
+	std::shared_ptr<DataStream> stream;
+
+	if (dtype != DataType::DT_UNKNOWN)
+	{
+		LOG_DEBUG("This property is backed by a data stream.");
+
+		std::string stream_name = property_name + "_stream";
+		std::vector<size_t> dimensions = {1};
+		size_t num_frames_in_buffer = 20;
+
+		stream = MakeDataStream(stream_name, dtype, dimensions, num_frames_in_buffer);
+	}
+
+	auto prop = std::make_shared<Property>(property_name, stream, getter, setter);
 	m_Properties[property_name] = prop;
 }
 
@@ -418,7 +431,11 @@ string Service::HandleGetInfo(const string &data)
 	reply.set_config(m_Config.dump());
 
 	for (auto& [key, value] : m_Properties)
+	{
 		reply.add_property_names(key);
+		if (value->GetStream())
+			(*reply.mutable_property_datastream_links())[key] = value->GetStream()->GetStreamName();
+	}
 
 	for (auto& [key, value] : m_Commands)
 		reply.add_command_names(key);

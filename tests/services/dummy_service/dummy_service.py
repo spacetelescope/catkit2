@@ -11,9 +11,15 @@ class DummyService(Service):
         self.readonly_property = self.config['readonly_property']
         self.readwrite_property = 1
 
+        self.readonly_property_streambacked = self.config['readonly_property']
+        self.readwrite_property_streambacked = 1
+
     def open(self):
         self.make_property('readonly_property', self.get_readonly)
         self.make_property('readwrite_property', self.get_readwrite, self.set_readwrite)
+
+        self.make_property('readonly_stream_backed_property', self.get_readonly_streambacked, type='int64')
+        self.make_property('readwrite_stream_backed_property', self.get_readwrite_streambacked, self.set_readwrite_streambacked, type='int64')
 
         self.make_command('add', self.add)
         self.make_command('push_on_stream', self.push_on_stream)
@@ -36,6 +42,15 @@ class DummyService(Service):
 
     def set_readwrite(self, value):
         self.readwrite_property = value
+
+    def get_readonly_streambacked(self):
+        return self.readonly_property_streambacked
+
+    def get_readwrite_streambacked(self):
+        return self.readwrite_property_streambacked
+
+    def set_readwrite_streambacked(self, value):
+        self.readwrite_property_streambacked = value
 
     def add(self, a, b):
         return a + b

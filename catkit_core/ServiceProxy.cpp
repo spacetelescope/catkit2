@@ -44,6 +44,32 @@ Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
 		throw std::runtime_error("This is not a valid property name.");
 
+	if (m_PropertyDataStreamLinks.find(name) != m_PropertyDataStreamLinks.end())
+	{
+		// This property is backed by a datastream. Lets try to get the value from there first.
+		std::string stream_name = m_PropertyDataStreamLinks[name];
+		std::shared_ptr<DataStream> stream = GetDataStream(stream_name, error_check);
+
+		try
+		{
+			DataFrame frame = stream->GetLatestFrame();
+
+			switch (frame.GetDataType())
+			{
+				case DataType::DT_INT64:
+					return ((std::int64_t *) frame.GetData())[0];
+				case DataType::DT_FLOAT64:
+					return ((double *) frame.GetData())[0];
+			}
+		}
+		catch (std::runtime_error)
+		{
+			// There is no frame in the datastream. Ignore and fall back to a manual
+			// request to the service.
+		}
+	}
+
+	// Set the service a request for the value of this property and return that.
 	catkit_proto::service::GetPropertyRequest request;
 	request.set_property_name(name);
 
@@ -279,6 +305,9 @@ void ServiceProxy::Connect()
 
 	for (auto& [key, value] : reply.datastream_ids())
 		m_DataStreamIds[key] = value;
+
+	for (auto& [key, value] : reply.property_datastream_links())
+		m_PropertyDataStreamLinks[key] = value;
 
 	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
 
