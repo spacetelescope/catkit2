@@ -122,11 +122,14 @@ class FlirCamera(Service):
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         # Create properties
-        def make_property_helper(name, read_only=False):
+        def make_property_helper(name, read_only=False, dtype=None):
+            if dtype is None:
+                dtype = ''
+
             if read_only:
-                self.make_property(name, lambda: getattr(self, name))
+                self.make_property(name, lambda: getattr(self, name), type=dtype)
             else:
-                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
+                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val), type=dtype)
 
         # Set properties from config.
         self.width = self.config['width']
@@ -137,21 +140,21 @@ class FlirCamera(Service):
         self.pixel_format = self.config['pixel_format']
         self.adc_bit_depth = self.config['adc_bit_depth']
 
-        make_property_helper('exposure_time')
-        make_property_helper('gain')
+        make_property_helper('exposure_time', dtype='int64')
+        make_property_helper('gain', dtype='int64')
 
-        make_property_helper('width')
-        make_property_helper('height')
-        make_property_helper('offset_x')
-        make_property_helper('offset_y')
+        make_property_helper('width', dtype='int64')
+        make_property_helper('height', dtype='int64')
+        make_property_helper('offset_x', dtype='int64')
+        make_property_helper('offset_y', dtype='int64')
 
-        make_property_helper('sensor_width', read_only=True)
-        make_property_helper('sensor_height', read_only=True)
+        make_property_helper('sensor_width', read_only=True, dtype='int64')
+        make_property_helper('sensor_height', read_only=True, dtype='int64')
 
         make_property_helper('pixel_format')
         make_property_helper('adc_bit_depth')
 
-        make_property_helper('acquisition_frame_rate')
+        make_property_helper('acquisition_frame_rate', dtype='float64')
         make_property_helper('acquisition_frame_rate_enable')
 
         make_property_helper('device_name', read_only=True)
