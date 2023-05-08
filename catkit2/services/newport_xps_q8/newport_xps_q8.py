@@ -28,11 +28,12 @@ class NewportXpsQ8(Service):
         self.motor_positions = self.config['motors']
         self.update_interval = self.config['update_interval']
         self.motor_ids = list(self.config['motors'].keys())
-        self.atol = self.config['atol']
+        self.default_atol = self.config['atol']['default']
 
         self.motor_commands = {}
         self.motor_current_positions = {}
         self.motor_threads = {}
+        self.motor_atols = {}
 
         for motor_id in self.motor_ids:
             self.add_motor(motor_id)
@@ -43,6 +44,7 @@ class NewportXpsQ8(Service):
     def add_motor(self, motor_id):
         self.motor_commands[motor_id] = self.make_data_stream(motor_id.lower() + '_command', 'float64', [1], 20)
         self.motor_current_positions[motor_id] = self.make_data_stream(motor_id.lower() + '_current_position', 'float64', [1], 20)
+        self.motor_atols[motor_id] = self.config['atol'].get(motor_id, self.default_atol)
 
     def set_current_position(self, motor_id, position):
         socket_id, lock = self.socket_set[motor_id]
@@ -50,7 +52,7 @@ class NewportXpsQ8(Service):
 
         current_position = self.get_current_position(motor_id)
 
-        if not np.isclose(current_position, position, atol=self.atol):
+        if not np.isclose(current_position, position, atol=self.motor_atols[motor_id]):
             # Move the actuator.
             with lock:
                 error_code, return_string = self.device.GroupMoveAbsolute(socket_id, positioner, [position])
