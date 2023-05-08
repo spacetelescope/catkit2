@@ -28,7 +28,7 @@ class NewportXpsQ8(Service):
         self.motor_positions = self.config['motors']
         self.update_interval = self.config['update_interval']
         self.motor_ids = list(self.config['motors'].keys())
-        self.default_atol = self.config['atol']
+        self.default_atol = self.config['atol']['default']
 
         self.motor_commands = {}
         self.motor_current_positions = {}
@@ -44,7 +44,7 @@ class NewportXpsQ8(Service):
     def add_motor(self, motor_id):
         self.motor_commands[motor_id] = self.make_data_stream(motor_id.lower() + '_command', 'float64', [1], 20)
         self.motor_current_positions[motor_id] = self.make_data_stream(motor_id.lower() + '_current_position', 'float64', [1], 20)
-        self.motor_atols[motor_id] = self.config.get([motor_id]['atol'], self.default_atol)
+        self.motor_atols[motor_id] = self.config['atol'].get(motor_id, self.default_atol)
 
     def set_current_position(self, motor_id, position):
         socket_id, lock = self.socket_set[motor_id]
