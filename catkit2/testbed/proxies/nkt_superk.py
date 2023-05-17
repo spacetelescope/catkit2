@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 from ..service_proxy import ServiceProxy
 
