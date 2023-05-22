@@ -220,3 +220,16 @@ Simulated network failure on the main computer.
 
 2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically.
 Getting the messages "refusing to start a crashed service" for both humidity sensors.
+
+Simulated humidity safety violation. 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Test:** Terminate omega_dm1 service while boston_dm service is running. 
+
+**Check 1:** The boston_dm service should swith to 'FAIL_SAFE' mode. 
+
+2023-05-22 (Raphael Pourcelot). Checked. 
+
+**Check 2:** The boston_dm shouldn't be able to start while omega_dm1 is crashed.
+
+2023-05-22 (Raphael Pourcelot). Checked. 

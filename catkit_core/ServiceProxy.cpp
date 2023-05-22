@@ -199,6 +199,9 @@ void ServiceProxy::Start(double timeout_in_sec, void (*error_check)())
 		case ServiceState::CRASHED:
 		throw std::runtime_error("Refusing to start a crashed service. Ask the TestbedProxy to start it.");
 
+		case ServiceState::FAIL_SAFE:
+		throw std::runtime_error("Refusing to start a fail safed service. Ask the TestbedProxy to start it.");
+
 		default:
 		throw std::runtime_error("Unknown service state.");
 	}
@@ -222,6 +225,9 @@ void ServiceProxy::Start(double timeout_in_sec, void (*error_check)())
 
 			if (GetState() == ServiceState::CRASHED)
 				throw std::runtime_error("The service crashed during startup.");
+
+			if (GetState() == ServiceState::FAIL_SAFE)
+				throw std::runtime_error("The service went into fail safe during startup.");
 		}
 	}
 
