@@ -34,7 +34,7 @@ class NewportPicomotorSim(Service):
 
         # Notify the simulator of the changed state. The simulator will update the current
         # position stream when the move actually happened in simulated time.
-        self.testbed.simulator.move_stage(stage_id=self.id + '_' + axis_name, old_position=position_before, new_position=position)
+        self.testbed.simulator.move_stage(stage_id=self.id + '_' + axis_name, old_position=int(position_before), new_position=int(position))
 
     def get_current_position(self, axis_name):
         return self.axis_current_positions[axis_name].get()[0]
