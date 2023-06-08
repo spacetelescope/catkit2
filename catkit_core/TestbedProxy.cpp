@@ -262,6 +262,13 @@ int TestbedProxy::GetTracingEgressPort()
 	return m_TracingEgressPort;
 }
 
+std::string TestbedProxy::GetMode()
+{
+    GetTestbedInfo();
+
+    return m_Config["testbed"]["mode"];
+}
+
 std::vector<std::string> TestbedProxy::GetActiveServices()
 {
 	return std::vector<std::string>();
