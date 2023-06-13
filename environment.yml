@@ -25,7 +25,6 @@ dependencies:
   - protobuf
   - libprotobuf
   - conda-forge:hcipy
-  - docopt
   - pip
   - cmake>=3.0.0
   - conda-forge::doxygen
