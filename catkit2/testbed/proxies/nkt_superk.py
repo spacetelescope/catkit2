@@ -41,7 +41,7 @@ class NktSuperkProxy(ServiceProxy):
 
         # Ensure the bandwidth is positive for safety reasons.
         if bandwidth < 0:
-            bandwidth = 0
+            bandwidth = 2
 
         lwp = center_wavelength - bandwidth / 2
         swp = center_wavelength + bandwidth / 2
