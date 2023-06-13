@@ -543,7 +543,14 @@ void Service::UpdateState(ServiceState state)
 
 void print_usage()
 {
-	std::cout << "Usage:\n  service --id ID --port PORT --testbed_port TESTBEDPORT";
+	std::cout
+		<< "Usage:" << std::endl
+		<< "service --id=ID --port=PORT --testbed_port=TESTBED_PORT" << std::endl
+		<< std::endl
+		<< "Options:" << std::endl
+		<< "--id=ID                      The ID of the service. This should correspond to a value in the testbed configuration." << std::endl
+		<< "--port=PORT                  The port for this service." << std::endl
+		<< "--testbed_port=TESTBED_PORT  The port where the testbed is running." << std::endl;
 }
 
 std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
