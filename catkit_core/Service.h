@@ -99,6 +99,6 @@ private:
 	LogForwarder m_LoggerPublish;
 };
 
-std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[]);
+std::tuple<std::string, int, int> ParseServiceArgs(std::vector<std::string> arguments);
 
 #endif // SERVICE_H

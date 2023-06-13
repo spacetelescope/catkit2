@@ -607,6 +607,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 	m.def("submit_log_entry", &SubmitLogEntry);
 	m.def("severity_to_string", &ConvertSeverityToString);
 	m.def("get_host_name", &GetHostName);
+	m.def("parse_service_args", [](std::vector<std::string> arguments)
+	{
+		return ParseServiceArgs(arguments);
+	});
 
 	py::class_<LogConsole>(m, "LogConsole")
 		.def(py::init<bool, bool>(),

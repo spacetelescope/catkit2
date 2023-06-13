@@ -553,7 +553,7 @@ void print_usage()
 		<< "--testbed_port=TESTBED_PORT  The port where the testbed is running." << std::endl;
 }
 
-std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
+std::tuple<std::string, int, int> ParseServiceArgs(std::vector<std::string> arguments)
 {
 	std::string service_id;
 	int service_port;
@@ -564,19 +564,19 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 	bool testbed_port_found = false;
 
 	size_t i = 1;
-	while (i < argc)
+	while (i < arguments.size())
 	{
-		std::string arg = argv[i];
+		std::string arg = arguments[i];
 
 		if (arg == "--id" || arg == "-n")
 		{
-			if (i + 1 == argc)
+			if (i + 1 == arguments.size())
 			{
 				print_usage();
 				throw std::runtime_error("Did not supply all arguments.");
 			}
 
-			service_id = argv[i + 1];
+			service_id = arguments[i + 1];
 			id_found = true;
 
 			i += 2;
@@ -597,13 +597,13 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 		}
 		else if (arg == "--port" || arg == "-p")
 		{
-			if (i + 1 == argc)
+			if (i + 1 == arguments.size())
 			{
 				print_usage();
 				throw std::runtime_error("Did not supply all arguments.");
 			}
 
-			service_port = std::stoi(argv[i + 1]);
+			service_port = std::stoi(arguments[i + 1]);
 			service_port_found = true;
 
 			i += 2;
@@ -624,13 +624,13 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 		}
 		else if (arg == "--testbed_port" || arg == "-t")
 		{
-			if (i + 1 == argc)
+			if (i + 1 == arguments.size())
 			{
 				print_usage();
 				throw std::runtime_error("Did not supply all arguments.");
 			}
 
-			service_port = std::stoi(argv[i + 1]);
+			service_port = std::stoi(arguments[i + 1]);
 			service_port_found = true;
 
 			i += 2;
