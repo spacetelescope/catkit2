@@ -630,8 +630,8 @@ std::tuple<std::string, int, int> ParseServiceArgs(std::vector<std::string> argu
 				throw std::runtime_error("Did not supply all arguments.");
 			}
 
-			service_port = std::stoi(arguments[i + 1]);
-			service_port_found = true;
+			testbed_port = std::stoi(arguments[i + 1]);
+			testbed_port_found = true;
 
 			i += 2;
 		}
