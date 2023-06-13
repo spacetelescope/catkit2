@@ -8,7 +8,12 @@ from .testbed_proxy import TestbedProxy
 
 doc = '''
 Usage:
-  service --id ID --port PORT --testbed_port TESTBEDPORT
+  service --id=ID --port=PORT --testbed_port=TESTBED_PORT
+
+Options:
+  --id=ID                      The ID of the service. This should correspond to a value in the testbed configuration.
+  --port=PORT                  The port for this service.
+  --testbed_port=TESTBED_PORT  The port where the testbed is running.
 '''
 
 def parse_service_args(argv=None):
@@ -32,9 +37,9 @@ def parse_service_args(argv=None):
     arguments = docopt(doc, argv=argv)
 
     res = {
-        'service_id': arguments['ID'],
-        'service_port': int(arguments['PORT']),
-        'testbed_port': int(arguments['TESTBEDPORT'])
+        'service_id': arguments['--id'],
+        'service_port': int(arguments['--port']),
+        'testbed_port': int(arguments['--testbed_port'])
     }
 
     return res
