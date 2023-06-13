@@ -635,7 +635,7 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 
 			i += 1;
 		}
-		else if (arg.rfind("-p=", 0) == 0)
+		else if (arg.rfind("-t=", 0) == 0)
 		{
 			testbed_port = std::stoi(arg.substr(3));
 			testbed_port_found = true;
