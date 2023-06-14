@@ -662,5 +662,7 @@ std::tuple<std::string, int, int> ParseServiceArgs(std::vector<std::string> argu
 		throw std::runtime_error("Did not supply all arguments.");
 	}
 
+	// Due to different types of service ids and ports, this cannot be a std::map<key, value>
+	// and has to be a tuple, which supports different data types.
 	return std::make_tuple(service_id, service_port, testbed_port);
 }
