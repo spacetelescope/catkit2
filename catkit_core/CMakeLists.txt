@@ -62,7 +62,7 @@ set(CPPZMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/cppzmq-4.8.1)
 target_include_directories(catkit_core PUBLIC ${CPPZMQ_INCLUDE_DIR})
 
 # Link Eigen
-set(EIGEN_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/eigen-3.3.9)
+set(EIGEN_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/eigen-3.4.0)
 target_include_directories(catkit_core PUBLIC ${EIGEN_INCLUDE_DIR})
 
 # Link nlohmann JSON
