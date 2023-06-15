@@ -1,6 +1,5 @@
 import logging
-
-from docopt import docopt
+import sys
 
 from .. import catkit_bindings
 from .logging import CatkitLogHandler
@@ -8,7 +7,12 @@ from .testbed_proxy import TestbedProxy
 
 doc = '''
 Usage:
-  service --id ID --port PORT --testbed_port TESTBEDPORT
+  service --id=ID --port=PORT --testbed_port=TESTBED_PORT
+
+Options:
+  --id=ID                      The ID of the service. This should correspond to a value in the testbed configuration.
+  --port=PORT                  The port for this service.
+  --testbed_port=TESTBED_PORT  The port where the testbed is running.
 '''
 
 def parse_service_args(argv=None):
@@ -18,7 +22,7 @@ def parse_service_args(argv=None):
     ----------
     argv : list of strings or None
         The command line arguments. If this is None (default),
-        sys.argv[1:] will be used instead.
+        sys.argv will be used instead.
 
     Returns
     -------
@@ -29,12 +33,15 @@ def parse_service_args(argv=None):
     testbed_port : integer
         The port of the testbed server to connect to.
     '''
-    arguments = docopt(doc, argv=argv)
+    if argv is None:
+        argv = sys.argv
+
+    arguments = catkit_bindings.parse_service_args(argv)
 
     res = {
-        'service_id': arguments['ID'],
-        'service_port': int(arguments['PORT']),
-        'testbed_port': int(arguments['TESTBEDPORT'])
+        'service_id': arguments[0],
+        'service_port': arguments[1],
+        'testbed_port': arguments[2],
     }
 
     return res
