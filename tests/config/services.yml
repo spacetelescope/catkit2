@@ -1,3 +1,9 @@
+dummy_dm_service:
+  service_type: dummy_dm_service
+  requires_safety: false
+
+  readonly_property: 5
+
 dummy_service:
   service_type: dummy_service
   requires_safety: false

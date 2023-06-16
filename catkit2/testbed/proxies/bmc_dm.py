@@ -37,6 +37,23 @@ class BmcDmProxy(ServiceProxy):
 
         return command
 
+    def save_and_zero_channel(self, channel):
+        full_command = getattr(self, channel).get_latest_frame().data.copy()
+        self.apply_shape(channel, np.zeros(2 * self.num_actuators))
+
+        return full_command
+
+    def move_dm_command(self, from_channel_names):
+        move_command = np.zeros(2 * self.num_actuators)
+
+        # Get commands from channels, zero each channel, and sum commands
+        for channel_name in from_channel_names:
+            channel_command = self.save_and_zero_channel(channel_name)
+            move_command += channel_command
+
+        # Return summed command
+        return self.command_to_dm_shapes(move_command)
+
     def command_to_dm_shapes(self, command):
         dm1_shape = np.zeros((34, 34))
         dm2_shape = np.zeros((34, 34))
