@@ -88,9 +88,9 @@ class BmcDmSim(Service):
         voltages /= self.max_volts
 
         dac_bit_depth = self.config['dac_bit_depth']
-        descretized_voltages = (np.round(voltages * 2**dac_bit_depth)) / (2**dac_bit_depth)
+        discretized_voltages = (np.round(voltages * 2**dac_bit_depth)) / (2**dac_bit_depth)
 
-        discretized_surface = (descretized_voltages * self.max_volts - self.flat_map) * self.gain_map
+        discretized_surface = (discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
 
         with self.lock:
             self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=discretized_surface)
