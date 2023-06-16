@@ -97,6 +97,11 @@ class BmcDm(Service):
         voltages = self.flat_map + total_surface * self.gain_map_inv
         voltages /= self.max_volts
 
+        voltages = np.clip(voltages, 0, 1)
+
+        dac_bit_depth = self.config['dac_bit_depth']
+        discretized_voltages = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
+
         with self.lock:
             status = self.device.send_data(voltages)
 
@@ -104,7 +109,7 @@ class BmcDm(Service):
                 raise RuntimeError(f'Failed to send data: {self.device.error_string(status)}.')
 
         # Submit these voltages to the total voltage data stream.
-        self.total_voltage.submit_data(voltages)
+        self.total_voltage.submit_data(discretized_voltages)
 
     def open(self):
         self.flat_map = fits.getdata(self.flat_map_fname)

@@ -87,11 +87,18 @@ class BmcDmSim(Service):
         voltages = self.flat_map + total_surface * self.gain_map_inv
         voltages /= self.max_volts
 
+        voltages = np.clip(voltages, 0, 1)
+
+        dac_bit_depth = self.config['dac_bit_depth']
+        discretized_voltages = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
+
+        discretized_surface = (discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
+
         with self.lock:
-            self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=total_surface)
+            self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=discretized_surface)
 
         # Submit these voltages to the total voltage data stream.
-        self.total_voltage.submit_data(voltages)
+        self.total_voltage.submit_data(discretized_voltages)
 
     def open(self):
         self.flat_map = fits.getdata(self.flat_map_fname)
@@ -103,6 +110,7 @@ class BmcDmSim(Service):
 
         zeros = np.zeros(self.command_length, dtype='float64')
         self.send_surface(zeros)
+
 
 if __name__ == '__main__':
     service = BmcDmSim()
