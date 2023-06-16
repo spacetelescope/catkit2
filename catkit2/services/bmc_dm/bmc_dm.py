@@ -100,7 +100,7 @@ class BmcDm(Service):
         voltages = np.clip(voltages, 0, 1)
 
         dac_bit_depth = self.config['dac_bit_depth']
-        discretized_voltages = (np.round(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
+        discretized_voltages = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
 
         with self.lock:
             status = self.device.send_data(voltages)

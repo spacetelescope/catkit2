@@ -90,7 +90,7 @@ class BmcDmSim(Service):
         voltages = np.clip(voltages, 0, 1)
 
         dac_bit_depth = self.config['dac_bit_depth']
-        discretized_voltages = (np.round(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
+        discretized_voltages = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
 
         discretized_surface = (discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
 
