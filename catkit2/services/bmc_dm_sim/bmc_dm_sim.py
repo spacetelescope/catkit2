@@ -96,7 +96,7 @@ class BmcDmSim(Service):
             self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=discretized_surface)
 
         # Submit these voltages to the total voltage data stream.
-        self.total_voltage.submit_data(descretized_voltages)
+        self.total_voltage.submit_data(discretized_voltages)
 
     def open(self):
         self.flat_map = fits.getdata(self.flat_map_fname)
