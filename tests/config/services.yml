@@ -2,7 +2,9 @@ dummy_dm_service:
   service_type: dummy_dm_service
   requires_safety: false
 
-  readonly_property: 5
+  num_actuators: 952 
+  dm_shape: 2048
+  channel_init_value: 1
 
 dummy_service:
   service_type: dummy_service

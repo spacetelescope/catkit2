@@ -6,15 +6,19 @@ class DummyDmService(Service):
     def __init__(self):
         super().__init__('dummy_dm_service')
 
-        self.num_actuators = 952
         self.channel_names = ['correction_howfs', 'correction_lowfs', 'probe', 'poke', 'aberration', 'atmosphere', 'astrogrid', 'resume', 'flat', 'total']
-        for channel in self.channel_names:
-            setattr(self, channel, np.zeros(2 * self.num_actuators))
+
+        self.num_actuators = self.config['num_actuators']
+        self.dm_shape = self.config['dm_shape']
+        self.channel_init_value = self.config['channel_init_value']
 
     def open(self):
         self.make_property('num_actuators', self.get_actuators)
+
+        # Make channels streamable
         for channel in self.channel_names:
-            self.make_property(channel, self.get_channel(channel), self.set_channel(channel))
+            setattr(self, channel, self.make_data_stream(channel, 'float64', [self.dm_shape], 20))
+            getattr(self, channel).submit_data(np.ones(self.dm_shape,)*self.channel_init_value)
 
     def main(self):
         while not self.should_shut_down:
@@ -22,18 +26,6 @@ class DummyDmService(Service):
 
     def get_actuators(self):
         return self.num_actuators
-
-    def get_channel(self, channel):
-        def get():
-            return getattr(self, channel)
-
-        return get
-
-    def set_channel(self, channel):
-        def set(value):
-            setattr(self, channel, value)
-
-        return set
 
     def close(self):
         pass
