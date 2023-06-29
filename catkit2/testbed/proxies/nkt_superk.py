@@ -42,6 +42,7 @@ class NktSuperkProxy(ServiceProxy):
         # Ensure the bandwidth is positive for safety reasons.
         if bandwidth < 2:
             bandwidth = 2
+            raise ValueError('Negative bandwidths are not allowed.')
 
         lwp = center_wavelength - bandwidth / 2
         swp = center_wavelength + bandwidth / 2
