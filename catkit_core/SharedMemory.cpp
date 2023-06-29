@@ -60,13 +60,20 @@ SharedMemory::~SharedMemory()
 std::shared_ptr<SharedMemory> SharedMemory::Create(const std::string &id, size_t num_bytes_in_buffer)
 {
 #ifdef _WIN32
+	// Ensure last error is zero before calling CreateFileMapping().
+	SetLastError(NO_ERROR);
+
 	FileObject file = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes_in_buffer, (id + ".mem").c_str());
 
-	if (file == NULL)
+	if (file == NULL || GetLastError() != NO_ERROR)
 	{
 		// Throw an error containing the error message.
 		DWORD error_message_id = GetLastError();
 		std::string error_message = GetLastErrorAsString(error_message_id);
+
+		// Ensure that we close the file handle, if we were given one.
+		if (file)
+			CloseHandle(file);
 
 		throw std::runtime_error("Something went wrong while creating shared memory: " + error_message);
 	}
