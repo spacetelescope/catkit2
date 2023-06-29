@@ -83,7 +83,7 @@ def test_datastream_lifetime():
 
     # Opening a deleted stream should raise an error.
     with pytest.raises(RuntimeError):
-        DataStream.open(stream_name, service_id, dtype, shape, 20)
+        DataStream.open(stream_id)
 
     # Reopening a stream with the same info right after deleting the original one should be fine.
     stream_created = DataStream.create(stream_name, service_id, dtype, shape, 20)
