@@ -10,7 +10,7 @@
 
 using namespace std::string_literals;
 
-const double TIMEOUT_TO_START = 30;  // seconds
+const double TIMEOUT_TO_START = 120;  // seconds
 
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
 	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr), m_State(nullptr),
