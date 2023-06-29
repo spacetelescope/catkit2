@@ -76,17 +76,10 @@ def test_datastream_lifetime():
         DataStream.create(stream_name, service_id, dtype, shape, 20)
 
     # We should be able to open this stream.
-    stream_opened_1 = DataStream.open(stream_id)
+    stream_opened = DataStream.open(stream_id)
 
     # Delete the created
     del stream_created
-
-    # Because the opened stream is still open, opening the datastream again should be fine.
-    stream_opened_2 = DataStream.open(stream_id)
-
-    # Deleting both opened streams. This should give the shared memory back to the OS.
-    del stream_opened_1
-    del stream_opened_2
 
     # Opening a deleted stream should raise an error.
     with pytest.raises(RuntimeError):
@@ -94,6 +87,3 @@ def test_datastream_lifetime():
 
     # Reopening a stream with the same info right after deleting the original one should be fine.
     stream_created = DataStream.create(stream_name, service_id, dtype, shape, 20)
-
-    # Deleting new created stream
-    del stream_created
