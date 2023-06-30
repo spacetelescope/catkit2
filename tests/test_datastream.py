@@ -78,8 +78,9 @@ def test_datastream_lifetime():
     # We should be able to open this stream.
     stream_opened = DataStream.open(stream_id)
 
-    # Delete the created
+    # Delete the created and opened streams.
     del stream_created
+    del stream_opened
 
     # Opening a deleted stream should raise an error.
     with pytest.raises(RuntimeError):
