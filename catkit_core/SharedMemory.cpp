@@ -42,15 +42,24 @@ SharedMemory::~SharedMemory()
 	if (m_Buffer)
 	{
 #ifdef _WIN32
+		// Unmap the buffer.
 		UnmapViewOfFile(m_Buffer);
+
+		// Close the file.
+		// If all handles to the file are closed, the file is automatically removed. In Windows
+		// there is no manual remove as for Linux/MacOS.
 		CloseHandle(m_File);
 #else
+		// Remove the shared memory if we are the owner. After this, the shared memory cannot
+		// be opened again.
 		if (m_IsOwner)
 			shm_unlink((m_Id + ".mem").c_str());
 
+		// Get size in bytes.
 		struct stat stat_buf;
 		fstat(m_File, &stat_buf);
 
+		// Unmap buffer and close the file.
 		munmap(m_Buffer, stat_buf.st_size);
 		close(m_File);
 #endif
@@ -81,7 +90,12 @@ std::shared_ptr<SharedMemory> SharedMemory::Create(const std::string &id, size_t
 	FileObject file = shm_open((id + ".mem").c_str(), O_CREAT | O_RDWR | O_EXCL, 0666);
 
 	if (file < 0)
-		throw std::runtime_error("Something went wrong while creating shared memory.");
+	{
+		// Throw an error containing the error message.
+		std::string error_message = ErrnoAsString(errno);
+
+		throw std::runtime_error("Something went wrong while creating shared memory: " + error_message);
+	}
 
     int res = ftruncate(file, num_bytes_in_buffer);
 
