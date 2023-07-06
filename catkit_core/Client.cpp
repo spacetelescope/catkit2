@@ -14,6 +14,8 @@
 using namespace std;
 using namespace zmq;
 
+const int SOCKET_TIMEOUT = 60000;  // milliseconds.
+
 Client::Client(std::string host, int port)
     : m_Host(host), m_Port(port)
 {
@@ -98,7 +100,7 @@ Client::socket_ptr Client::GetSocket()
 
 		socket = new zmq::socket_t(m_Context, ZMQ_REQ);
 
-		socket->set(zmq::sockopt::rcvtimeo, 10000);
+		socket->set(zmq::sockopt::rcvtimeo, SOCKET_TIMEOUT);
 		socket->set(zmq::sockopt::linger, 0);
 		socket->set(zmq::sockopt::req_relaxed, 1);
 		socket->set(zmq::sockopt::req_correlate, 1);
