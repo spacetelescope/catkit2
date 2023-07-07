@@ -1,3 +1,11 @@
+dummy_dm_service:
+  service_type: dummy_dm_service
+  requires_safety: false
+  interface: bmc_dm
+
+  num_actuators: 952 
+  dm_shape: 2048
+
 dummy_service:
   service_type: dummy_service
   requires_safety: false
