@@ -46,11 +46,3 @@ def dummy_service(testbed):
     yield testbed.dummy_service
 
     testbed.stop_service('dummy_service')
-
-@pytest.fixture(scope='session')
-def dummy_dm_service(testbed):
-    testbed.start_service('dummy_dm_service')
-
-    yield testbed.dummy_dm_service
-
-    testbed.stop_service('dummy_dm_service')
