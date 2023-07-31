@@ -59,13 +59,13 @@ class ZwoCamera(Service):
         if num_cameras == 0:
             raise RuntimeError("Not a single ZWO camera is connected.")
 
-        self.expected_device_name = self.config['device_name']
+        expected_device_name = self.config['device_name']
         expected_device_id = self.config.get('device_id', None)
 
         for i in range(num_cameras):
             device_name = zwoasi._get_camera_property(i)['Name']
 
-            if not device_name.startswith(self.expected_device_name):
+            if not device_name.startswith(expected_device_name):
                 continue
 
             if expected_device_id is None:
@@ -79,12 +79,12 @@ class ZwoCamera(Service):
                         camera_index = i
                         break
                 except Exception as e:
-                    raise RuntimeError(f'Impossible to read camera id for camera {self.expected_device_name}. It probably doesn\'t support an id.') from e
+                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.') from e
                 finally:
                     zwoasi._close_camera(i)
 
         else:
-            raise RuntimeError(f'Camera {self.expected_device_name} with id {expected_device_id} not found.')
+            raise RuntimeError(f'Camera {expected_device_name} with id {expected_device_id} not found.')
 
         # Create a camera object using the zwoasi library.
         self.camera = zwoasi.Camera(camera_index)
@@ -224,7 +224,7 @@ class ZwoCamera(Service):
 
     @exposure_time.setter
     def exposure_time(self, exposure_time):
-        if self.expected_device_name == 'ZWO ASI533MM':
+        if self.config['device_name'] == 'ZWO ASI533MM':
             x_intercept = self.exposure_time_offset_correction
             initial_step_offset = self.exposure_base_step - self.exposure_time_step_size
             step_size = self.exposure_time_step_size
