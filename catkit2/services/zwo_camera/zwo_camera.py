@@ -220,7 +220,7 @@ class ZwoCamera(Service):
     @property
     def exposure_time(self):
         exposure_time, auto = self.camera.get_control_value(zwoasi.ASI_EXPOSURE)
-        return exposure_time
+        return exposure_time + self.exposure_time_offset_correction
 
     @exposure_time.setter
     def exposure_time(self, exposure_time):
