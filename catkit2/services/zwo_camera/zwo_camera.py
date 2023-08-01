@@ -127,6 +127,9 @@ class ZwoCamera(Service):
 
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
+        self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
+        self.exposure_time_offset_correction = self.config.get('exposure_time_offset_correction', 0)
+        self.exposure_time_base_step = self.config.get('exposure_time_base_step', 1)
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
@@ -224,12 +227,10 @@ class ZwoCamera(Service):
 
     @exposure_time.setter
     def exposure_time(self, exposure_time):
-        x_intercept = self.exposure_time_offset_correction
-        initial_step_offset = self.exposure_base_step - self.exposure_time_step_size
-        step_size = self.exposure_time_step_size
 
-        exposure_time = np.maximum(np.floor((exposure_time - initial_step_offset) / step_size), 0) * step_size + \
-                        initial_step_offset - x_intercept
+        initial_step_offset = self.exposure_base_step - self.exposure_time_step_size
+        exposure_time = np.maximum(np.floor((exposure_time - initial_step_offset) / self.exposure_time_step_size), 0)\
+                        * self.exposure_time_step_size + initial_step_offset - self.exposure_time_offset_correction
 
         self.camera.set_control_value(zwoasi.ASI_EXPOSURE, int(exposure_time))
 
