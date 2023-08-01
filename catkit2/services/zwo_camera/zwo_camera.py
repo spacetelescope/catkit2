@@ -224,13 +224,12 @@ class ZwoCamera(Service):
 
     @exposure_time.setter
     def exposure_time(self, exposure_time):
-        if self.config['device_name'] == 'ZWO ASI533MM':
-            x_intercept = self.exposure_time_offset_correction
-            initial_step_offset = self.exposure_base_step - self.exposure_time_step_size
-            step_size = self.exposure_time_step_size
+        x_intercept = self.exposure_time_offset_correction
+        initial_step_offset = self.exposure_base_step - self.exposure_time_step_size
+        step_size = self.exposure_time_step_size
 
-            exposure_time = np.maximum(np.floor((exposure_time - initial_step_offset) / step_size), 0) * step_size + \
-                            initial_step_offset - x_intercept
+        exposure_time = np.maximum(np.floor((exposure_time - initial_step_offset) / step_size), 0) * step_size + \
+                        initial_step_offset - x_intercept
 
         self.camera.set_control_value(zwoasi.ASI_EXPOSURE, int(exposure_time))
 
