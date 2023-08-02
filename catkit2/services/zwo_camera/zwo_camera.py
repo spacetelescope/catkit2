@@ -227,14 +227,10 @@ class ZwoCamera(Service):
 
     @exposure_time.setter
     def exposure_time(self, exposure_time):
-
-        self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
-        self.exposure_time_offset_correction = self.config.get('exposure_time_offset_correction', 0)
-        self.exposure_time_base_step = self.config.get('exposure_time_base_step', 1)
-
-        initial_step_offset = self.exposure_time_base_step - self.exposure_time_step_size
-        exposure_time = np.maximum(np.floor((exposure_time - initial_step_offset +  self.exposure_time_offset_correction) / self.exposure_time_step_size), 0)\
-                        * self.exposure_time_step_size + initial_step_offset
+        exposure_time += self.exposure_time_offset_correction
+        exposure_time = np.round((exposure_time - self.exposure_time_base_step) / self.exposure_time_step_size)
+        exposure_time = np.maximum(exposure_time, 0)
+        exposure_time = exposure_time * self.exposure_time_step_size + self.exposure_time_base_step
 
         self.camera.set_control_value(zwoasi.ASI_EXPOSURE, int(exposure_time))
 
