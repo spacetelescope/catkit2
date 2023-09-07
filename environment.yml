@@ -26,7 +26,7 @@ dependencies:
   - libprotobuf
   - conda-forge:hcipy
   - pip
-  - cmake>=3.0.0
+  - conda-forge::cmake>=3.0.0
   - conda-forge::doxygen
   - sphinx
   - conda-forge::sphinx-automodapi
