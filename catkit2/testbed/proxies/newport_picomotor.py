@@ -43,16 +43,15 @@ class NewportPicomotorProxy(ServiceProxy):
 
                     current_position = stream.get_next_frame(wait_time_ms).data[0]
                     if abs(current_position - position) < self.atol:
-                        self.log(f'Waiting for movement: currently {current_position}, waiting for {position}.')
+                        break
                 except RuntimeError as e:
                     if str(e) == exception_text:
                         raise
                     else:
-                        # Datastream read timed out. This is to facilitate wait time checking.
-                        current_position = stream.get()[0]
-                        self.log(f'Waiting for movement: currently {current_position}, waiting for {position}.')
-
-                        continue
+                        # Datastream read timed out. This is to facilitate wait time checking, so this is normal.
+                        pass
+                current_position = stream.get()[0]
+                self.log(f'Waiting for movement: currently {current_position}, waiting for {position}.')
 
     @property
     def atol(self):
