@@ -31,7 +31,13 @@ class NewportPicomotorProxy(ServiceProxy):
         if timeout is None or timeout > 0:
             while True:
                 try:
-                    wait_time_ms = None if timeout is None else int((timeout - (time.time() - waiting_start)) * 1000)
+                    if timeout is None:
+                        wait_time_ms = None
+                    else:
+                        # Wait for 1 sec or the remaining time until timeout, whichever is shortest.
+                        wait_time_ms = int((timeout - (time.time() - waiting_start)) * 1000)
+                        wait_time_ms = min(1000, wait_time_ms)
+
                     if wait_time_ms is not None and wait_time_ms <= 0:
                         raise RuntimeError(exception_text)
 
