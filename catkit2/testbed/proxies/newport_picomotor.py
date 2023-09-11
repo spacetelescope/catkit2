@@ -3,6 +3,9 @@ import numpy as np
 from ..service_proxy import ServiceProxy
 
 
+MAX_TIMEOUT_FOR_CHECKING = 1000  # ms
+
+
 @ServiceProxy.register_service_interface('newport_picomotor')
 class NewportPicomotorProxy(ServiceProxy):
 
@@ -32,26 +35,31 @@ class NewportPicomotorProxy(ServiceProxy):
             while True:
                 try:
                     if timeout is None:
-                        wait_time_ms = None
+                        wait_time_ms = MAX_TIMEOUT_FOR_CHECKING
                     else:
-                        # Wait for 1 sec or the remaining time until timeout, whichever is shortest.
+                        # Wait for MAX_TIMEOUT_FOR_CHECKING ms or the remaining time until timeout, whichever is shortest.
                         wait_time_ms = int((timeout - (time.time() - waiting_start)) * 1000)
-                        wait_time_ms = min(1000, wait_time_ms)
+                        wait_time_ms = min(MAX_TIMEOUT_FOR_CHECKING, wait_time_ms)
 
                     if wait_time_ms is not None and wait_time_ms <= 0:
+                        # The final timeout was reached. Raise an exception.
                         raise RuntimeError(exception_text)
 
+                    # Check if we are at our final position, within absolute tolerance.
                     current_position = stream.get_next_frame(wait_time_ms).data[0]
                     if abs(current_position - position) < self.atol:
                         break
                 except RuntimeError as e:
                     if str(e) == exception_text:
+                        # The final timeout was reached, so reraise the exception.
                         raise
                     else:
                         # Datastream read timed out. This is to facilitate wait time checking, so this is normal.
                         pass
+
+                # Send a log message to indicate we are still waiting.
                 current_position = stream.get()[0]
-                self.log(f'Waiting for movement: currently {current_position}, waiting for {position}.')
+                self.log(f'Waiting for stage movement: currently {current_position}, waiting for {position}.')
 
     @property
     def atol(self):
