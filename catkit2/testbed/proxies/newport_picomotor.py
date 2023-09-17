@@ -1,4 +1,6 @@
 import time
+import logging
+
 import numpy as np
 from ..service_proxy import ServiceProxy
 
@@ -8,6 +10,7 @@ MAX_TIMEOUT_FOR_CHECKING = 1000  # ms
 
 @ServiceProxy.register_service_interface('newport_picomotor')
 class NewportPicomotorProxy(ServiceProxy):
+    log = logging.getLogger(__name__)
 
     def move_relative(self, axis_name, distance, timeout=None):
         # Get current position.
@@ -59,7 +62,7 @@ class NewportPicomotorProxy(ServiceProxy):
 
                 # Send a log message to indicate we are still waiting.
                 current_position = stream.get()[0]
-                self.log(f'Waiting for stage movement: currently {current_position}, waiting for {position}.')
+                self.log.info(f'Waiting for stage movement: currently {current_position}, waiting for {position}.')
 
     @property
     def atol(self):
