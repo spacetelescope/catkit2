@@ -60,12 +60,16 @@ class NewportPicomotor(Service):
 
         position_before = self.get_current_position(axis_name)
 
+        self.log.info(f'Setting picomotor {axis_name} from {position_before} to {position}.')
+
         self.send_command('exact_move', axis, position)
 
         sleep_time = self.sleep_per_step * abs(position_before - position) + self.sleep_base
         time.sleep(sleep_time)
 
         position_after = self.get_current_position(axis_name)
+
+        self.log.info(f'Done. Position is now {position_after}.')
 
         if position_after != position:
             raise RuntimeError('Newport picomotor failed to move to {position}; currently at {position_after}. Try increasing sleep_per_step.')
