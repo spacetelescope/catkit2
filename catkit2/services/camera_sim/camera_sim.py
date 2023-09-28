@@ -19,6 +19,8 @@ class CameraSim(Service):
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
+        self.e_field_images = self.make_data_stream('e_field_images', 'complex64',
+                                                    [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
         self.temperature.submit_data(np.array([30.0]))
 
