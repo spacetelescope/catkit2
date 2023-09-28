@@ -85,6 +85,7 @@ class Simulator(Service):
 
         self.integrating_cameras = {}
         self.camera_integrated_power = {}
+        self.camera_integrated_e_field = {}
         self.camera_callbacks = {}
 
         self.lock = threading.Lock()
@@ -95,9 +96,12 @@ class Simulator(Service):
         while not self.should_shut_down:
             # Get the current images on all cameras.
             camera_images = {}
-
+            camera_e_field_images = {}
             for camera_name in self.camera_integrated_power.keys():
                 camera_images[camera_name] = self.get_camera_power(camera_name)
+                # if the e_field_camera also get the electric field
+                if camera_name == 'e_field_camera':
+                    camera_e_field_images[camera_name] = self.get_camera_e_field(camera_name)
 
             # Get the next callback. If there isn't one, continue.
             if not self.callbacks:
@@ -120,6 +124,12 @@ class Simulator(Service):
 
             for camera_name in self.camera_integrated_power.keys():
                 self.camera_integrated_power[camera_name] += camera_images[camera_name] * integration_time
+                if camera_name == 'e_field_camera':
+                    try:
+                        self.camera_integrated_e_field[camera_name] += camera_e_field_images[camera_name] * integration_time
+                    except KeyError:
+                        self.camera_integrated_e_field[camera_name] = (camera_e_field_images[camera_name]
+                                                                       * integration_time)
 
             # Progress time on the simulator.
             self.time.submit_data(np.array([callback.time], dtype='float'))
@@ -299,8 +309,13 @@ class Simulator(Service):
             # Read out camera image and yield image.
             self.camera_readout(camera_name, self.camera_integrated_power[camera_name])
 
+            if camera_name == 'e_field_camera':
+                self.camera_e_field_readout(camera_name, self.camera_integrated_e_field[camera_name])
+
             # Stop camera integration.
             del self.camera_integrated_power[camera_name]
+            if camera_name == 'e_field_camera':
+                del self.camera_integrated_e_field[camera_name]
 
             if camera_name in self.integrating_cameras:
                 # We are still integrating, so schedule reset.
@@ -346,6 +361,21 @@ class Simulator(Service):
         '''
         raise NotImplementedError()
 
+    def get_camera_e_field(self, camera_name):
+        '''Get the current electric field on a camera.
+
+        Parameters
+        ----------
+        camera_name : string
+            The name of the camera.
+
+        Returns
+        -------
+        hcipy.Field
+            The incident power on that camera.
+        '''
+        raise NotImplementedError()
+
     def camera_readout(self, camera_name, integrated_power):
         '''Read out a camera.
 
@@ -359,6 +389,22 @@ class Simulator(Service):
         integrated_power : hcipy.Field
             The integrated power for this camera, ie. integration time times average
             incident power on each pixel.
+        '''
+        pass
+
+    def camera_e_field_readout(self, camera_name, integrated_e_field):
+        '''Read out a camera.
+
+        This function should be overriden by the child class. It is responsible
+        for handling the image and submitting it to the right service.
+
+        Parameters
+        ----------
+        camera_name : string
+            The name of the camera.
+        integrated_e_field : hcipy.Field
+            The integrated electric field for this camera, ie. integration time times average
+            incident electric field on each pixel.
         '''
         pass
 
