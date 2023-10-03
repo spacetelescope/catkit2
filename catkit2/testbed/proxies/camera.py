@@ -1,3 +1,5 @@
+import numpy as np
+
 from ..service_proxy import ServiceProxy
 
 import warnings
@@ -37,7 +39,7 @@ class CameraProxy(ServiceProxy):
             if not was_acquiring:
                 self.end_acquisition()
 
-    def take_e_field_exposures(self, num_exposures, weights):
+    def take_e_field_exposures(self, num_exposures, weights=None):
         if not self.testbed.is_simulated:
             raise NotImplementedError('Electric field camera is not supported outside of simulation')
         was_acquiring = self.is_acquiring.get()[0]
@@ -64,7 +66,8 @@ class CameraProxy(ServiceProxy):
                     continue
                 finally:
                     i += 1
-
+                if weights is None:
+                    weights = np.ones_like(frame.data)
                 yield frame.data.copy() * weights
                 num_exposures_remaining -= 1
         finally:
