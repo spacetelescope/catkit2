@@ -38,6 +38,8 @@ class CameraProxy(ServiceProxy):
                 self.end_acquisition()
 
     def take_e_field_exposures(self, num_exposures, weights):
+        if not self.testbed.is_simulated:
+            raise NotImplementedError('Electric field camera is not supported outside of simulation')
         was_acquiring = self.is_acquiring.get()[0]
         if not was_acquiring:
             self.start_acquisition()
