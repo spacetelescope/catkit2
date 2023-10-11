@@ -1,7 +1,22 @@
+import ctypes
 import threading
 import numpy as np
 
 from catkit2.testbed.service import Service
+
+try:
+    __ANDOR_SDK3 = 'ANDOR_SDK3'
+    __env_filename = os.getenv(__ANDOR_SDK3)
+
+    if not __env_filename:
+        raise OSError(f"Environment variable '{__ANDOR_SDK3}' doesn't exist. Create and point to Andor SDK3")
+
+    if not os.path.exists(__env_filename):
+        raise OSError(f"File not found: '{__ANDOR_SDK3}' -> '{__env_filename}'")
+
+    andor = ctypes.cdll.LoadLibrary(__env_filename)
+except Exception as error:
+    raise ImportError(f"Failed to load {__ANDOR_SDK3}") from error
 
 
 class AndorCamera(Service):
@@ -10,6 +25,8 @@ class AndorCamera(Service):
     def __int__(self):
         super().__init__('andor_camera')
 
+        self.index = self.config['camera_index']
+
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
@@ -17,9 +34,11 @@ class AndorCamera(Service):
         self.mutex = threading.Lock()
 
     def open(self):
-        self.cam = None
-
         # Make sure the camera is stopped
+        self.close()
+
+        andor.AT_InitialiseLibrary()
+        self.cam = andor.AT_Open(self.index)
 
         # Set standard exposure settings
 
@@ -38,6 +57,11 @@ class AndorCamera(Service):
 
     def close(self):
         self.temperature_thread.join()
+
+        if self.cam is not None:
+            andor.AT_Close(self.cam)
+        self.cam = None
+        andor.AT_FinaliseLibrary()
 
     def main(self):
         while not self.should_shut_down:
