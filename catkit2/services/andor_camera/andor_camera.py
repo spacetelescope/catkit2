@@ -17,7 +17,7 @@ try:
     if not os.path.exists(__env_filename):
         raise OSError(f"File not found: '{__ANDOR_SDK3}' -> '{__env_filename}'")
 
-    andor = ctypes.cdll.LoadLibrary(__env_filename)
+    lib = ctypes.cdll.LoadLibrary(__env_filename)
 except Exception as error:
     raise ImportError(f"Failed to load {__ANDOR_SDK3}") from error
 
@@ -33,20 +33,27 @@ class AndorCamera(Service):
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
-        # Create lock for camera access
-        self.mutex = threading.Lock()
+        # Initialize the library
+        error = lib.AT_InitialiseLibrary()
+        if not error == AT_ERR.SUCCESS:
+            raise AndorError(error)
 
     def open(self):
-        # Make sure the camera is stopped
+        # Close any currently open camera
         self.close()
 
-        andor.AT_InitialiseLibrary()
-        self.cam = andor.AT_Open(self.index)
+        camera_handle = ctypes.c_int()
+        error = lib.AT_Open(self.index, ctypes.byref(camera_handle))
+        if not error == AT_ERR.SUCCESS:
+            raise AndorError(error)
+        self.cam = camera_handle.value
 
         # Set standard exposure settings
+        #TODO
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
+        #TODO
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
 
@@ -54,6 +61,7 @@ class AndorCamera(Service):
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         # Set properties from config.
+        #TODO
 
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
