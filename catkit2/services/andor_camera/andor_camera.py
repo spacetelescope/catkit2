@@ -70,10 +70,25 @@ class AndorCamera(Service):
 
     def acquisition_loop(self):
         # Make sure the data stream has the right size and datatype.
+        #TODO
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
 
-        # Start the acquisition
+        error = lib.AT_Command(self.cam, "AcquisitionStart")
+        if not error == AT_ERR.SUCCESS:
+            raise AndorError(error)
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
+
+        try:
+            while self.should_be_acquiring.is_set() and not self.should_shut_down:
+                #TODO
+                img = None
+
+                self.images.submit_data(img.astype('float32'))
+        finally:
+            # Stop acquisition.
+            lib.AT_Command(self.came, "AcquisitionStop")
+            self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+            self.flush()
 
     def monitor_temperature(self):
         while not self.should_shut_down:
