@@ -37,6 +37,7 @@ dependencies:
   - pytest
   - flake8
   - pip:
+    - andor3 # Requires additional manual installation of driver(s) from https://www.andor.com/scientific-software/software-development-kit
     - dcps
     - zwoasi>=0.0.21 # Requires additional manual install of driver(s) from https://astronomy-imaging-camera.com/software-drivers
     - git+https://github.com/alliedvision/VimbaPython.git@v1.2.1 # Requires additional manual install of driver(s) from https://www.alliedvision.com/en/products/vimba-sdk/
