@@ -89,9 +89,12 @@ class AndorCamera(Service):
         self.should_be_acquiring.clear()
 
     def get_temperature(self):
-        with self.mutex:
-            temperature = None
-            return temperature
+        return lib.AT_GetFloat(self.cam, "SensorTemperature")
+
+    def flush(self):
+        error = lib.AT_Flush(self.cam)
+        if not error == AT_ERR.SUCCESS:
+            raise AndorError(error)
 
 
 if __name__ == '__main__':
