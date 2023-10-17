@@ -147,9 +147,9 @@ class FlirCamera(Service):
         make_property_helper('height')
         make_property_helper('offset_x')
         make_property_helper('offset_y')
-        make_property_helper('rot90')
-        make_property_helper('flip_x')
-        make_property_helper('flip_y')
+        make_property_helper('rot90', read_only=True)
+        make_property_helper('flip_x', read_only=True)
+        make_property_helper('flip_y', read_only=True)
 
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
