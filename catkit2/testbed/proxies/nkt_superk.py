@@ -39,9 +39,9 @@ class NktSuperkProxy(ServiceProxy):
         if bandwidth is None:
             bandwidth = self.bandwidth
 
-        # Ensure the bandwidth is positive for safety reasons.
+        # Raise an error if the bandwidth is negative for safety reasons.
         if bandwidth < 0:
-            bandwidth = 0
+            raise ValueError('Negative bandwidths are considered dangerous for the NKT VARIA.')
 
         lwp = center_wavelength - bandwidth / 2
         swp = center_wavelength + bandwidth / 2
