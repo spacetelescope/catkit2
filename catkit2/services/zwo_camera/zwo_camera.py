@@ -117,13 +117,21 @@ class ZwoCamera(Service):
         self.camera.set_image_type(zwoasi.ASI_IMG_RAW16)
 
         # Set device values from config file (set width and height before offsets)
+        # TODO offset x and y defined with respect to CAMERA coords (width, height). If we want it
+        #  to be with respect to the cameras given axis (if rotated) should write a transform helper function
         offset_x = self.config.get('offset_x', 0)
         offset_y = self.config.get('offset_y', 0)
+        rot90 = self.config.get('rot90', False)
+        flip_x = self.config.get('flip_x', False)
+        flip_y = self.config.get('flip_y', False)
 
         self.width = self.config.get('width', self.sensor_width - offset_x)
         self.height = self.config.get('height', self.sensor_height - offset_y)
         self.offset_x = offset_x
         self.offset_y = offset_y
+        self.rot90 = rot90
+        self.flip_x = flip_x
+        self.flip_y = flip_y
 
         self.gain = self.config.get('gain', 0)
         self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
@@ -133,7 +141,13 @@ class ZwoCamera(Service):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
+        # If the sensor is rotated by 90 degrees, make sure to flip the axes in the datastream
+        if self.rot90:
+            self.images = self.make_data_stream('images', 'float32', [self.sensor_width, self.sensor_height],
+                                                self.NUM_FRAMES_IN_BUFFER)
+        else:
+            self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width],
+                                                self.NUM_FRAMES_IN_BUFFER)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
@@ -162,6 +176,9 @@ class ZwoCamera(Service):
         make_property_helper('height', requires_stopped_acquisition=True)
         make_property_helper('offset_x')
         make_property_helper('offset_y')
+        make_property_helper('rot90')
+        make_property_helper('flip_x')
+        make_property_helper('flip_y')
 
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
@@ -186,10 +203,16 @@ class ZwoCamera(Service):
 
     def acquisition_loop(self):
         # Make sure the data stream has the right size and datatype.
-        has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
+        if self.rot90:
+            has_correct_parameters = np.allclose(self.images.shape, [self.width, self.height])
+        else:
+            has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
 
         if not has_correct_parameters:
-            self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
+            if self.rot90:
+                self.images.update_parameters('float32', [self.width, self.height], self.NUM_FRAMES_IN_BUFFER)
+            else:
+                self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
 
         # Start acquisition.
         self.camera.start_video_capture()
@@ -200,7 +223,8 @@ class ZwoCamera(Service):
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 img = self.camera.capture_video_frame(timeout=timeout)
-
+                # make sure image has proper rotation and flips for the camera
+                img = self.rot_flip_image(img)
                 self.images.submit_data(img.astype('float32'))
         finally:
             # Stop acquisition.
@@ -315,6 +339,17 @@ class ZwoCamera(Service):
     @offset_y.setter
     def offset_y(self, offset_y):
         self.camera.set_roi_start_position(self.offset_x, offset_y)
+
+    def rot_flip_image(self, img):
+        # rotation needs to happen first
+        if self.rot90:
+            img = np.rot90(img)
+        if self.flip_x:
+            img = np.flipud(img)
+        if self.flip_y:
+            img = np.fliplr(img)
+        return img
+
 
 if __name__ == '__main__':
     service = ZwoCamera()
