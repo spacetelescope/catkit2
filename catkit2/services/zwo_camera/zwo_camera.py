@@ -348,7 +348,7 @@ class ZwoCamera(Service):
             img = np.flipud(img)
         if self.flip_y:
             img = np.fliplr(img)
-        return img
+        return np.ascontiguousarray(img)
 
 
 if __name__ == '__main__':
