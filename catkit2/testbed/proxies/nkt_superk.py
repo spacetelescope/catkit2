@@ -49,6 +49,10 @@ class NktSuperkProxy(ServiceProxy):
         current_lwp = self.lwp_setpoint.get()[0]
         current_swp = self.lwp_setpoint.get()[0]
 
+        # Back out early if we do not need to move the VARIA filter.
+        if np.allclose(lwp, current_lwp) and np.allclose(swp, current_swp):
+            return
+
         sleep_time = max(abs(lwp - current_lwp), abs(swp - current_swp)) * self.sleep_time_per_nm
 
         self.lwp_setpoint.submit_data(np.array([lwp], dtype='float32'))
