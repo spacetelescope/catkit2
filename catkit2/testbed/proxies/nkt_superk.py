@@ -47,7 +47,7 @@ class NktSuperkProxy(ServiceProxy):
         swp = center_wavelength + bandwidth / 2
 
         current_lwp = self.lwp_setpoint.get()[0]
-        current_swp = self.lwp_setpoint.get()[0]
+        current_swp = self.swp_setpoint.get()[0]
 
         # Back out early if we do not need to move the VARIA filter.
         if np.allclose(lwp, current_lwp) and np.allclose(swp, current_swp):
