@@ -39,15 +39,19 @@ class NktSuperkProxy(ServiceProxy):
         if bandwidth is None:
             bandwidth = self.bandwidth
 
-        # Ensure the bandwidth is positive for safety reasons.
+        # Raise an error if the bandwidth is negative for safety reasons.
         if bandwidth < 0:
-            bandwidth = 0
+            raise ValueError('Negative bandwidths are considered dangerous for the NKT VARIA.')
 
         lwp = center_wavelength - bandwidth / 2
         swp = center_wavelength + bandwidth / 2
 
         current_lwp = self.lwp_setpoint.get()[0]
-        current_swp = self.lwp_setpoint.get()[0]
+        current_swp = self.swp_setpoint.get()[0]
+
+        # Back out early if we do not need to move the VARIA filter.
+        if np.allclose(lwp, current_lwp) and np.allclose(swp, current_swp):
+            return
 
         sleep_time = max(abs(lwp - current_lwp), abs(swp - current_swp)) * self.sleep_time_per_nm
 
