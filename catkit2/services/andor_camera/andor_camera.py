@@ -145,19 +145,19 @@ class AndorCamera(Service):
 
     @property
     def sensor_width(self):
-        pass
+        return self.cam.SensorWidth
 
     @sensor_width.setter
     def sensor_width(self, value):
-        pass
+        self.cam.SensorWidth = value
 
     @property
     def sensor_height(self):
-        pass
+        return self.cam.SensorHeight
 
     @sensor_height.setter
     def sensor_height(self, value):
-        pass
+        self.cam.SensorHeight = value
 
     @property
     def offset_x(self):
