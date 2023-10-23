@@ -91,12 +91,18 @@ class AndorCamera(Service):
             self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
 
         self.cam.start()
+        self.cam.queueBuffer(self.NUM_FRAMES_IN_BUFFER)
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
+
+        timeout = 1000   # ms
 
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
-                # TODO
-                img = None
+                img = self.cam.waitBuffer(timeout, copy=True, requeue=True)
+                # TODO: check whether really want to copy data, it slows things down.
+                # Since I  requeue the buffer in the wait, we might overwrite images though if we don't copy.
+
+                # TODO: images are returned as a 1D array, reshape to 2D
 
                 self.images.submit_data(img.astype('float32'))
         finally:
