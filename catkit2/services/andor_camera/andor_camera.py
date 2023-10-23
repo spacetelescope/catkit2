@@ -1,25 +1,11 @@
 import ctypes
 import os
 import threading
-
-from andor3 import AndorError, AT_ERR, AT_HANDLE
 import numpy as np
 
 from catkit2.testbed.service import Service
 
-try:
-    __ANDOR_SDK3 = 'ANDOR_SDK3'
-    __env_filename = os.getenv(__ANDOR_SDK3)
-
-    if not __env_filename:
-        raise OSError(f"Environment variable '{__ANDOR_SDK3}' doesn't exist. Create and point to Andor SDK3")
-
-    if not os.path.exists(__env_filename):
-        raise OSError(f"File not found: '{__ANDOR_SDK3}' -> '{__env_filename}'")
-
-    lib = ctypes.cdll.LoadLibrary(__env_filename)
-except Exception as error:
-    raise ImportError(f"Failed to load {__ANDOR_SDK3}") from error
+import andor3
 
 
 class AndorCamera(Service):
