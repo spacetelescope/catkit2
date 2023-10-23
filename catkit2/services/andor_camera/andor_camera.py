@@ -98,6 +98,54 @@ class AndorCamera(Service):
         self.cam.SensorCooling = True
         self.cam.FanSpeed = 0
 
+    @property
+    def width(self):
+        return self.cam.AOIWidth
+
+    @width.setter
+    def width(self, value):
+        self.cam.AOIWidth = value
+
+    @property
+    def height(self):
+        return self.cam.AOIHeight
+
+    @height.setter
+    def height(self, value):
+        self.cam.AOIHeight = value
+
+    @property
+    def sensor_width(self):
+        pass
+
+    @sensor_width.setter
+    def sensor_width(self, value):
+        pass
+
+    @property
+    def sensor_height(self):
+        pass
+
+    @sensor_height.setter
+    def sensor_height(self, value):
+        pass
+
+    @property
+    def offset_x(self):
+        return self.cam.AOITop
+
+    @offset_x.setter
+    def offset_x(self, value):
+        self.cam.AOITop = value
+
+    @property
+    def offset_y(self):
+        return self.cam.AOILeft
+
+    @offset_y.setter
+    def offset_y(self, value):
+        self.cam.AOILeft = value
+
 
 if __name__ == '__main__':
     service = AndorCamera()
