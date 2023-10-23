@@ -117,8 +117,6 @@ class ZwoCamera(Service):
         self.camera.set_image_type(zwoasi.ASI_IMG_RAW16)
 
         # Set device values from config file (set width and height before offsets)
-        # TODO offset x and y defined with respect to CAMERA coords (width, height). If we want it
-        #  to be with respect to the cameras given axis (if rotated) should write a transform helper function
         offset_x = self.config.get('offset_x', 0)
         offset_y = self.config.get('offset_y', 0)
         rot90 = self.config.get('rot90', False)
@@ -127,6 +125,9 @@ class ZwoCamera(Service):
 
         self.width = self.config.get('width', self.sensor_width - offset_x)
         self.height = self.config.get('height', self.sensor_height - offset_y)
+
+        offset_x, offset_y = self.get_camera_offset(offset_x, offset_y)
+
         self.offset_x = offset_x
         self.offset_y = offset_y
         self.rot90 = rot90
