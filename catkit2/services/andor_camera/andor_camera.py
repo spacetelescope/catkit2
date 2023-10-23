@@ -90,10 +90,10 @@ class AndorCamera(Service):
         return self.cam.SensorTemperature
 
     def initialize_cooling(self):
-        # Turn on sensor cooling, turn off fan and set requested temperature to -35C
+        # Set requested temperature to -35C, turn on sensor cooling and turn off fan
+        self.cam.TemperatureControl = 4
         self.cam.SensorCooling = True
         self.cam.FanSpeed = 0
-        self.cam.TemperatureControl = 4
 
 
 if __name__ == '__main__':
