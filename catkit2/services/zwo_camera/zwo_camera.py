@@ -350,6 +350,75 @@ class ZwoCamera(Service):
             img = np.fliplr(img)
         return np.ascontiguousarray(img)
 
+    def get_camera_offset(self, x, y):
+        """Convert relative camera offsets given by the user to absolute offsets in camera array coordinates.
+
+        This is done by performing the following procedure:
+        1.) Translate the origin to the center of the ROI.
+        2.) if rot90 is True, rotate 90 degrees counter-clockwise about the center of the ROI
+        3.) Translate the origin back to the upper left fo the ROI.
+        4.) If flip_x is True, reflect in x.
+        5.) If flip_y is True, reflect in y.
+
+        Parameters
+        ----------
+        x: float
+            The x-offset coordinate
+        y: float
+            The y-offset coordinate
+        Returns
+        -------
+        new_x, new_y: float, float
+            The transformed x and y coordinates for their location in camera array coordinates. If there is no rotation
+            or flip in x or y, then this returns the same x, y values that are input.
+        """
+        # Define the translation matrix T to get to the center of the ROI.
+        T = np.zeros((3, 3))
+        np.fill_diagonal(T, 1)
+        T[0][-1] = self.width / 2
+        T[1][-1] = -self.height / 2  # Negative due to origin in upper left.
+
+        # Initialize rotation matrix R.
+        R = np.zeros((3, 3))
+
+        # Initialize x reflection matrix, X. Defaults to unity matrix.
+        X = np.zeros((3, 3))
+        np.fill_diagonal(X, 1)
+
+        # Initialize y reflection matrix, Y. Defaults to unity matrix.
+        Y = np.zeros((3, 3))
+        np.fill_diagonal(Y, 1)
+
+        if self.rot90:
+            # Define rotation matrix.
+            R[0][1] = -1
+            R[1][0] = 1
+            R[2][2] = 1
+        else:
+            # Default to unity matrix.
+            np.fill_diagonal(R, 1)
+
+        if self.flip_x:
+            # Define x reflection matrix.
+            X[1][1] = -1
+
+        if self.flip_y:
+            # Define y reflection matrix.
+            Y[0][0] = -1
+
+        # Define translation matrix back so that the origin is in the upper left as expected.
+        T_back = np.zeros((3, 3))
+        np.fill_diagonal(T_back, 1)
+        T_back[0][-1] = -self.width / 2
+        T_back[1][-1] = self.height / 2
+
+        # Perform the dot product. First flip in x to establish top left origin, then translate to ROI center, rotate,
+        # translate back to origin, flip in x, and finally flip in y.
+        coords = [x, y, 1]
+        new_coords = np.linalg.multi_dot([Y, X, T_back, R, T, coords])
+
+        return new_coords[0], new_coords[1]
+
 
 if __name__ == '__main__':
     service = ZwoCamera()
