@@ -38,6 +38,9 @@ class AndorCamera(Service):
         # Set properties from config.
         #TODO
 
+        self.make_command('start_acquisition', self.start_acquisition)
+        self.make_command('end_acquisition', self.end_acquisition)
+
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
 
