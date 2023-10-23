@@ -46,16 +46,13 @@ class AndorCamera(Service):
         make_property_helper('exposure_time')
 
         # Set standard camera settings
-        self.cam.PreAmpGainControl = 5
-        self.cam.AOIWidth = self.width
-        self.cam.AOIHeight = self.height
+        self.cam.PreAmpGainControl = 5   # TODO: use enumerated string instead of enumerated index - indem for all other cases like this
         self.cam.AOIBinning = 0
+        self.cam.AOIWidth = self.width
         self.cam.AOILeft = self.offset_y
+        self.cam.AOIHeight = self.height
         self.cam.AOITop = self.offset_x
-        self.cam.AOIStride = 801
-        self.cam.ImageSizeBytes = 320400
-        # TODO: set exposure time
-        # TODO: set frame rate
+        self.cam.ExposureTime = 0.01   # seconds
         self.cam.TriggerMode = 4
         self.cam.CycleMode = 1
         self.cam.SpuriousNoiseFilter = False
