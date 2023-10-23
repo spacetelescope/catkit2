@@ -23,20 +23,36 @@ class AndorCamera(Service):
 
         self.initialize_cooling()
 
-        # Set standard exposure settings
-        #TODO
+        # Set properties from config.
+        self.width = self.config.get('width', 400)
+        self.height = self.config.get('height', 400)
+        self.offset_y = self.config.get('aoi_left', 1)
+        self.offset_x = self.config.get('aoi_top', 100)
+
+        # Set standard camera settings
+        self.cam.PreAmpGainControl = 5
+        self.cam.AOIWidth = self.width
+        self.cam.AOIHeight = self.height
+        self.cam.AOIBinning = 0
+        self.cam.AOILeft = self.offset_y
+        self.cam.AOITop = self.offset_x
+        self.cam.AOIStride = 801
+        self.cam.ImageSizeBytes = 320400
+        # TODO: set exposure time
+        # TODO: set frame rate
+        self.cam.TriggerMode = 4
+        self.cam.CycleMode = 1
+        self.cam.SpuriousNoiseFilter = False
+        self.cam.AccumulateCount = 1
+        self.cam.ElectronicShutteringMode = 0
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        #TODO
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
-
-        # Set properties from config.
-        #TODO
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
