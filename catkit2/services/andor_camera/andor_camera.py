@@ -44,13 +44,7 @@ class AndorCamera(Service):
     def close(self):
         self.temperature_thread.join()
 
-        if not self.camera_handle == AT_HANDLE.UNINITIALISED:
-            error = lib.AT_Close(self.camera_handle)
-            if not error == AT_ERR.SUCCESS:
-                raise AndorError(error)
-            self.camera_handle = AT_HANDLE.UNINITIALISED
-            self.cam = None
-            lib.AT_FinaliseLibrary()
+        self.cam.close()
 
     def main(self):
         while not self.should_shut_down:
