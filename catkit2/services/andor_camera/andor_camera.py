@@ -1,5 +1,3 @@
-import ctypes
-import os
 import threading
 import numpy as np
 
@@ -22,6 +20,8 @@ class AndorCamera(Service):
     def open(self):
         self.cam = andor3.Andor3()
         self.cam.open(self.index)
+
+        self.initialize_cooling()
 
         # Set standard exposure settings
         #TODO
@@ -71,7 +71,7 @@ class AndorCamera(Service):
             # Stop acquisition.
             lib.AT_Command(self.came, "AcquisitionStop")
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
-            self.flush()
+            self.cam.flush()
 
     def monitor_temperature(self):
         while not self.should_shut_down:
@@ -87,12 +87,13 @@ class AndorCamera(Service):
         self.should_be_acquiring.clear()
 
     def get_temperature(self):
-        return lib.AT_GetFloat(self.cam, "SensorTemperature")
+        return self.cam.SensorTemperature
 
-    def flush(self):
-        error = lib.AT_Flush(self.cam)
-        if not error == AT_ERR.SUCCESS:
-            raise AndorError(error)
+    def initialize_cooling(self):
+        # Turn on sensor cooling, turn off fan and set requested temperature to -35C
+        self.cam.SensorCooling = True
+        self.cam.FanSpeed = 0
+        self.cam.TemperatureControl = 4
 
 
 if __name__ == '__main__':
