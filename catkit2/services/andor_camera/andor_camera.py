@@ -19,20 +19,9 @@ class AndorCamera(Service):
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
-        # Initialize the library
-        error = lib.AT_InitialiseLibrary()
-        if not error == AT_ERR.SUCCESS:
-            raise AndorError(error)
-
     def open(self):
-        # Close any currently open camera
-        self.close()
-
-        camera_handle = ctypes.c_int()
-        error = lib.AT_Open(self.index, ctypes.byref(camera_handle))
-        if not error == AT_ERR.SUCCESS:
-            raise AndorError(error)
-        self.cam = camera_handle.value
+        self.cam = andor3.Andor3()
+        self.cam.open(self.index)
 
         # Set standard exposure settings
         #TODO
