@@ -24,10 +24,26 @@ class AndorCamera(Service):
         self.initialize_cooling()
 
         # Set properties from config.
+        def make_property_helper(name, read_only=False):
+            if read_only:
+                self.make_property(name, lambda: getattr(self, name))
+            else:
+                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
+
         self.width = self.config.get('width', 400)
         self.height = self.config.get('height', 400)
         self.offset_y = self.config.get('aoi_left', 1)
         self.offset_x = self.config.get('aoi_top', 100)
+
+        make_property_helper('width')
+        make_property_helper('height')
+        make_property_helper('offset_x')
+        make_property_helper('offset_y')
+
+        make_property_helper('sensor_width', read_only=True)
+        make_property_helper('sensor_height', read_only=True)
+
+        make_property_helper('exposure_time')
 
         # Set standard camera settings
         self.cam.PreAmpGainControl = 5
