@@ -421,7 +421,7 @@ class ZwoCamera(Service):
         # Perform the dot product. First flip in x to establish top left origin, then translate to ROI center, rotate,
         # translate back to origin, flip in x, and finally flip in y.
         coords = [x, y, 1]
-        new_coords = np.linalg.multi_dot([Y, X, T_back, R, T, coords])
+        new_coords = np.linalg.multi_dot([T_back, Y, X, R, T, coords])
 
         return new_coords[0], new_coords[1]
 
