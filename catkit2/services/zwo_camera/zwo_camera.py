@@ -383,12 +383,10 @@ class ZwoCamera(Service):
         R = np.zeros((3, 3))
 
         # Initialize x reflection matrix, X. Defaults to unity matrix.
-        X = np.zeros((3, 3))
-        np.fill_diagonal(X, 1)
+        X = np.eye(3, 3)
 
         # Initialize y reflection matrix, Y. Defaults to unity matrix.
-        Y = np.zeros((3, 3))
-        np.fill_diagonal(Y, 1)
+        Y = np.eye(3, 3)
 
         if self.rot90:
             # Define rotation matrix.
@@ -408,8 +406,7 @@ class ZwoCamera(Service):
             Y[1][1] = -1
 
         # Define translation matrix back so that the origin is in the upper left as expected.
-        T_back = np.zeros((3, 3))
-        np.fill_diagonal(T_back, 1)
+        T_back = np.eye(3, 3)
 
         if self.rot90:
             # Want to come back to new origin for which the height/width dimensions will be flipped if rotated.
