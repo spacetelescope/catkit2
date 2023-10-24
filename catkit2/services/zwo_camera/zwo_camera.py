@@ -410,8 +410,14 @@ class ZwoCamera(Service):
         # Define translation matrix back so that the origin is in the upper left as expected.
         T_back = np.zeros((3, 3))
         np.fill_diagonal(T_back, 1)
-        T_back[0][-1] = -self.width / 2
-        T_back[1][-1] = self.height / 2
+
+        if self.rot90:
+            # Want to come back to new origin for which the height/width dimensions will be flipped if rotated.
+            T_back[0][-1] = self.height / 2
+            T_back[1][-1] = self.width / 2
+        else:
+            T_back[0][-1] = self.width / 2
+            T_back[1][-1] = self.height / 2
 
         # Perform the dot product. First flip in x to establish top left origin, then translate to ROI center, rotate,
         # translate back to origin, flip in x, and finally flip in y.
