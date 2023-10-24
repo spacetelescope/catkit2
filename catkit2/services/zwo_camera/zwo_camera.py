@@ -119,14 +119,14 @@ class ZwoCamera(Service):
         # Set device values from config file (set width and height before offsets)
         offset_x = self.config.get('offset_x', 0)
         offset_y = self.config.get('offset_y', 0)
-        rot90 = self.config.get('rot90', False)
-        flip_x = self.config.get('flip_x', False)
-        flip_y = self.config.get('flip_y', False)
+        self.rot90 = self.config.get('rot90', False)
+        self.flip_x = self.config.get('flip_x', False)
+        self.flip_y = self.config.get('flip_y', False)
 
         self.width = self.config.get('width', self.sensor_width - offset_x)
         self.height = self.config.get('height', self.sensor_height - offset_y)
 
-        offset_x, offset_y = self.get_camera_offset(offset_x, offset_y)
+        self.offset_x, self.offset_y = self.get_camera_offset(offset_x, offset_y)
 
         if self.rot90:
             # If rotating by 90 degrees swap the values for width and height.
