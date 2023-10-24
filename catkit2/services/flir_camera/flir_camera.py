@@ -133,6 +133,9 @@ class FlirCamera(Service):
         self.height = self.config['height']
         self.offset_x = self.config['offset_x']
         self.offset_y = self.config['offset_y']
+        self.rot90 = self.config.get('rot90', False)
+        self.flip_x = self.config.get('flip_x', False)
+        self.flip_y = self.config.get('flip_y', False)
 
         self.pixel_format = self.config['pixel_format']
         self.adc_bit_depth = self.config['adc_bit_depth']
@@ -144,6 +147,9 @@ class FlirCamera(Service):
         make_property_helper('height')
         make_property_helper('offset_x')
         make_property_helper('offset_y')
+        make_property_helper('rot90', read_only=True)
+        make_property_helper('flip_x', read_only=True)
+        make_property_helper('flip_y', read_only=True)
 
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
@@ -186,11 +192,18 @@ class FlirCamera(Service):
             pixel_format = PySpin.PixelFormat_Mono16
 
         # Make sure the data stream has the right size and datatype.
-        has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
+        if self.rot90:
+            has_correct_parameters = np.allclose(self.images.shape, [self.width, self.height])
+        else:
+            has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
+
         has_correct_parameters = has_correct_parameters and (self.images.dtype == pixel_dtype)
 
         if not has_correct_parameters:
-            self.images.update_parameters(pixel_dtype, [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
+            if self.rot90:
+                self.images.update_parameters(pixel_dtype, [self.width, self.height], self.NUM_FRAMES_IN_BUFFER)
+            else:
+                self.images.update_parameters(pixel_dtype, [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
 
         self.cam.BeginAcquisition()
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
@@ -214,7 +227,7 @@ class FlirCamera(Service):
                         continue
 
                     img = image_result.Convert(pixel_format).GetNDArray().astype(pixel_dtype, copy=False)
-
+                    img = self.rot_flip_image(img)
                     # Submit image to datastream.
                     self.images.submit_data(img)
 
@@ -262,6 +275,17 @@ class FlirCamera(Service):
     def get_temperature(self):
         with self.mutex:
             return self.cam.DeviceTemperature.GetValue()
+
+    def rot_flip_image(self, img):
+        # rotation needs to happen first
+        if self.rot90:
+            img = np.rot90(img)
+        if self.flip_x:
+            img = np.flipud(img)
+        if self.flip_y:
+            img = np.fliplr(img)
+        return img
+
 
 if __name__ == '__main__':
     service = FlirCamera()
