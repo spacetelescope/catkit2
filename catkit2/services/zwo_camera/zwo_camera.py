@@ -128,11 +128,12 @@ class ZwoCamera(Service):
 
         offset_x, offset_y = self.get_camera_offset(offset_x, offset_y)
 
-        self.offset_x = offset_x
-        self.offset_y = offset_y
-        self.rot90 = rot90
-        self.flip_x = flip_x
-        self.flip_y = flip_y
+        if self.rot90:
+            # If rotating by 90 degrees swap the values for width and height.
+            w = self.width
+            h = self.height
+            self.width = h
+            self.height = w
 
         self.gain = self.config.get('gain', 0)
         self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
