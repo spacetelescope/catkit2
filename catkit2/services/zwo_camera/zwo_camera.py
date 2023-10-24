@@ -376,8 +376,8 @@ class ZwoCamera(Service):
         # Define the translation matrix T to get to the center of the ROI.
         T = np.zeros((3, 3))
         np.fill_diagonal(T, 1)
-        T[0][-1] = self.width / 2
-        T[1][-1] = -self.height / 2  # Negative due to origin in upper left.
+        T[0][-1] = -self.width / 2
+        T[1][-1] = -self.height / 2
 
         # Initialize rotation matrix R.
         R = np.zeros((3, 3))
@@ -401,11 +401,11 @@ class ZwoCamera(Service):
 
         if self.flip_x:
             # Define x reflection matrix.
-            X[1][1] = -1
+            X[0][0] = -1
 
         if self.flip_y:
             # Define y reflection matrix.
-            Y[0][0] = -1
+            Y[1][1] = -1
 
         # Define translation matrix back so that the origin is in the upper left as expected.
         T_back = np.zeros((3, 3))
