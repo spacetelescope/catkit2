@@ -116,7 +116,7 @@ class ZwoCamera(Service):
         # Set image format to be RAW16, although camera is only 12-bit.
         self.camera.set_image_type(zwoasi.ASI_IMG_RAW16)
 
-        # Set device values from config file (set width and height before offsets)
+        # Set device values from config file.
         offset_x = self.config.get('offset_x', 0)
         offset_y = self.config.get('offset_y', 0)
         self.rot90 = self.config.get('rot90', False)
@@ -128,6 +128,7 @@ class ZwoCamera(Service):
 
         self.offset_x, self.offset_y = self.get_camera_offset(offset_x, offset_y)
 
+        # Note that get_camera_offset must be called before updating the values of self.width and self.height.
         if self.rot90:
             # If rotating by 90 degrees swap the values for width and height.
             w = self.width
