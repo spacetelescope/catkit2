@@ -3,7 +3,6 @@ import time
 import os
 import numpy as np
 
-import vimba
 from catkit2.testbed.service import Service
 
 from vimba import *
@@ -16,8 +15,8 @@ class AlliedVisionCamera(Service):
     def __init__(self):
         super().__init__('AlliedVision_camera')
 
-        self.should_be_aquiring = threading.Event()
-        self.should_be_aquiring.set()
+        self.should_be_acquiring = threading.Event()
+        self.should_be_acquiring.set()
 
         self.mutex = threading.Lock()
 
@@ -52,11 +51,15 @@ class AlliedVisionCamera(Service):
 
                 # Create datastreams
                 # Use the full sensor size here to always allocate enough shared memory.
-                self.images      = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width],
-                                                         self.NUM_FRAMES_IN_BUFFER)
-                self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
+                self.images      = self.make_data_stream('images', 'float32', [self.height, self.width],
+                                                         self.NUM_FRAMES)
+                print(self.sensor_height)
+                print(self.sensor_width )
+                print( self.height )
+                print( self.width )
+                self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES)
 
-                self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
+                self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
                 self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
                 # Create properties
@@ -91,46 +94,138 @@ class AlliedVisionCamera(Service):
                 self.make_command('start_acquisition', self.start_acquisition)
                 self.make_command('end_acquisition', self.end_acquisition)
 
-            def main(self):
-                with Vimba.get_instance as vimba:
-                    with vimba.get_all_cameras()[0] as cam:
-                        cam.start_streaming(handler=acquisition_loop, buffer_count=NUM_FRAMES)
-                        cam.stop_streaming()
+    def main(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                cam.start_streaming(handler=self.acquisition_loop, buffer_count=self.NUM_FRAMES)
+                cam.stop_streaming()
+
+    def close(self):
+        ##close cam AV
+        pass
+
+    def acquisition_loop(self, cam, frame):
+        # Make sure the data stream has the right size and datatype.
+        has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
+
+        if not has_correct_parameters:
+
+            self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
+
+        try:
+            while self.should_be_acquiring.is_set() and not self.should_shut_down:
+
+                if frame.get_status()== FrameStatus.Complete:
+                    frame.convert_pixel_format(PixelFormat.Mono8) # TODO change
+                    print(frame.as_numpy_ndarray().astype('float32').shape )
+                    self.images.submit_data( frame.as_numpy_ndarray().astype('float32') )
 
 
-            def close(self):
-                ##close cam AV
+        finally:
+            # Stop acquisition.
+            self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
+    def start_acquisition(self):
+        self.should_be_acquiring.set()
 
+    def end_acquisition(self):
+        self.should_be_acquiring.clear()
 
+    @property
+    def exposure_time(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.ExposureTime.get()
 
+    @exposure_time.setter
+    def exposure_time(self, exposure_time):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                cam.ExposureTime.set( exposure_time )
 
+    @property
+    def gain(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.Gain.get()
 
-            def acquisition_loop(self, cam, frame):
-                # Make sure the data stream has the right size and datatype.
-                has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
+    @gain.setter
+    def gain(self, gain):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                cam.Gain.set( gain )
 
-                if not has_correct_parameters:
+    @property
+    def brightness(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.Brightness.get()
 
-                    self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
+    @brightness.setter
+    def brightness(self, brightness):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                cam.Brightness.set( brightness )
 
-                try:
-                    while self.should_be_acquiring.is_set() and not self.should_shut_down:
+    @property
+    def sensor_width(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.SensorWidth.get()
 
-                        if frame.get_status()== FrameStatus.Complete:
-                            frame.convert_pixel_format(PixelFormat.Mono8) # TODO change
-                            self.images.submit_data( frame.as_numpy_ndarray().astype('float32') )
+    @property
+    def sensor_height(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.SensorHeight.get()
 
+    @property
+    def width(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.Width.get()
 
-                finally:
-                    # Stop acquisition.
-                    self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+    @width.setter
+    def width(self, width):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                cam.Width.set( width )
 
-            def start_acquisition(self):
-                self.should_be_acquiring.set()
+    @property
+    def height(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.Height.get()
 
-            def end_acquisition(self):
-                self.should_be_acquiring.clear()
+    @height.setter
+    def height(self, height):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                cam.Height.set( height )
+
+    @property
+    def offset_x(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.OffsetX.get()
+
+    @offset_x.setter
+    def offset_x(self, offset_x):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                cam.OffsetX.set( offset_x )
+
+    @property
+    def offset_y(self):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                return cam.OffsetY.get()
+
+    @offset_y.setter
+    def offset_y(self, offset_y):
+        with Vimba.get_instance() as vimba:
+            with vimba.get_all_cameras()[0] as cam:
+                cam.OffsetY.set( offset_y )
 
 if __name__ == '__main__':
     service = AlliedVisionCamera()
