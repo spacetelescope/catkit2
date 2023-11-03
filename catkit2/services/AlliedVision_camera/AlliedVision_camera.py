@@ -3,6 +3,7 @@ import time
 import os
 import numpy as np
 
+import vimba
 from catkit2.testbed.service import Service
 
 from vimba import *
@@ -31,9 +32,12 @@ class AlliedVisionCamera(Service):
 
             with vimba.get_all_cameras()[0] as cam:
 
+
+
                  # Set device values from config file (set width and height before offsets)
                 offset_x = self.config.get('offset_x', 0)
                 offset_y = self.config.get('offset_y', 0)
+
 
                 self.width = self.config.get('width', self.sensor_width - offset_x)
                 self.height = self.config.get('height', self.sensor_height - offset_y)
@@ -48,7 +52,8 @@ class AlliedVisionCamera(Service):
 
                 # Create datastreams
                 # Use the full sensor size here to always allocate enough shared memory.
-                self.images      = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
+                self.images      = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width],
+                                                         self.NUM_FRAMES_IN_BUFFER)
                 self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
 
                 self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
@@ -87,13 +92,19 @@ class AlliedVisionCamera(Service):
                 self.make_command('end_acquisition', self.end_acquisition)
 
             def main(self):
-                while not self.should_shut_down:
-                    if self.should_be_acquiring.wait(0.05):
-
+                with Vimba.get_instance as vimba:
+                    with vimba.get_all_cameras()[0] as cam:
                         cam.start_streaming(handler=acquisition_loop, buffer_count=NUM_FRAMES)
+                        cam.stop_streaming()
+
 
             def close(self):
                 ##close cam AV
+
+
+
+
+
 
             def acquisition_loop(self, cam, frame):
                 # Make sure the data stream has the right size and datatype.
@@ -114,3 +125,13 @@ class AlliedVisionCamera(Service):
                 finally:
                     # Stop acquisition.
                     self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+
+            def start_acquisition(self):
+                self.should_be_acquiring.set()
+
+            def end_acquisition(self):
+                self.should_be_acquiring.clear()
+
+if __name__ == '__main__':
+    service = AlliedVisionCamera()
+    service.run()
