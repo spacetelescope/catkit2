@@ -7,10 +7,9 @@ from catkit2.testbed.service import Service
 
 from vimba import FrameStatus, PixelFormat, Vimba
 
+
 class AlliedVisionCamera(Service):
-
     NUM_FRAMES = 20
-
 
     def __init__(self):
         super().__init__('allied_vision_camera')
@@ -20,23 +19,15 @@ class AlliedVisionCamera(Service):
 
         self.mutex = threading.Lock()
 
-
     def open(self):
-
         with Vimba.get_instance() as vimba:
-
             if len(vimba.get_all_cameras()) == 0:
-
                 raise RuntimeError("Not a single Allied Vision camera is connected.")
 
             with vimba.get_all_cameras()[0] as cam:
-
-
-
-                 # Set device values from config file (set width and height before offsets)
+                # Set device values from config file (set width and height before offsets)
                 offset_x = self.config.get('offset_x', 0)
                 offset_y = self.config.get('offset_y', 0)
-
 
                 self.width = self.config.get('width', self.sensor_width - offset_x)
                 self.height = self.config.get('height', self.sensor_height - offset_y)
@@ -51,8 +42,7 @@ class AlliedVisionCamera(Service):
 
                 # Create datastreams
                 # Use the full sensor size here to always allocate enough shared memory.
-                self.images      = self.make_data_stream('images', 'float32', [self.height, self.width],
-                                                         self.NUM_FRAMES)
+                self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
                 print(self.sensor_height)
                 print(self.sensor_width )
                 print( self.height )
@@ -109,17 +99,14 @@ class AlliedVisionCamera(Service):
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
 
         if not has_correct_parameters:
-
             self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
 
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
-
                 if frame.get_status()== FrameStatus.Complete:
                     frame.convert_pixel_format(PixelFormat.Mono8) # TODO change
                     print(frame.as_numpy_ndarray().astype('float32').shape )
                     self.images.submit_data( frame.as_numpy_ndarray().astype('float32') )
-
 
         finally:
             # Stop acquisition.
@@ -226,6 +213,7 @@ class AlliedVisionCamera(Service):
         with Vimba.get_instance() as vimba:
             with vimba.get_all_cameras()[0] as cam:
                 cam.OffsetY.set( offset_y )
+
 
 if __name__ == '__main__':
     service = AlliedVisionCamera()
