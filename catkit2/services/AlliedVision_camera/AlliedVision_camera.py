@@ -89,7 +89,7 @@ class AlliedVisionCamera(Service):
                 cam.stop_streaming()
 
     def close(self):
-        ##close cam AV
+        # close cam AV
         pass
 
     def acquisition_loop(self, cam, frame):
@@ -102,7 +102,7 @@ class AlliedVisionCamera(Service):
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 if frame.get_status() == FrameStatus.Complete:
-                    frame.convert_pixel_format(PixelFormat.Mono8) # TODO change
+                    frame.convert_pixel_format(PixelFormat.Mono8)  # TODO change
                     print(frame.as_numpy_ndarray().astype('float32').shape)
                     self.images.submit_data(frame.as_numpy_ndarray().astype('float32'))
 
