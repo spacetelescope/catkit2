@@ -22,7 +22,8 @@ class AlliedVisionCamera(Service):
         self.vimba = vimba.get_instance()
         self.exit_stack.enter(self.vimba)
 
-        self.cam = self.vimba.get_all_cameras()[0]
+        camera_id = self.config.get('camera_id', 0)
+        self.cam = self.vimba.get_camera_by_id(camera_id)
         self.exit_stack.enter(self.cam)
 
         # Set device values from config file (set width and height before offsets)
