@@ -15,8 +15,6 @@ class AlliedVisionCamera(Service):
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
-        self.mutex = threading.Lock()
-
     def open(self):
         with Vimba.get_instance() as vimba:
             if len(vimba.get_all_cameras()) == 0:
