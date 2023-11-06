@@ -13,7 +13,7 @@ class AlliedVisionCamera(Service):
 
 
     def __init__(self):
-        super().__init__('AlliedVision_camera')
+        super().__init__('allied_vision_camera')
 
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
