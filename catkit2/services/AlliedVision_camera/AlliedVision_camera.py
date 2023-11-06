@@ -53,26 +53,18 @@ class AlliedVisionCamera(Service):
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
         # Create properties
-        def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
+        def make_property_helper(name, read_only=False):
             if read_only:
                 self.make_property(name, lambda: getattr(self, name))
             else:
-                if requires_stopped_acquisition:
-                    def setter(val):
-                        with StoppedAcquisition(self):
-                            setattr(self, name, val)
-                else:
-                    def setter(val):
-                        setattr(self, name, val)
-
-                self.make_property(name, lambda: getattr(self, name), setter)
+                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
         make_property_helper('brightness')
 
-        make_property_helper('width', requires_stopped_acquisition=True)
-        make_property_helper('height', requires_stopped_acquisition=True)
+        make_property_helper('width')
+        make_property_helper('height')
         make_property_helper('offset_x')
         make_property_helper('offset_y')
 
