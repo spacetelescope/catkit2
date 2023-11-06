@@ -4,7 +4,7 @@ import contextlib
 
 from catkit2.testbed.service import Service
 
-from vimba import FrameStatus, PixelFormat, Vimba
+import vimba
 
 
 class AlliedVisionCamera(Service):
@@ -19,7 +19,7 @@ class AlliedVisionCamera(Service):
         self.should_be_acquiring.set()
 
     def open(self):
-        self.vimba = vimba.get_instance()
+        self.vimba = vimba.Vimba.get_instance()
         self.exit_stack.enter(self.vimba)
 
         camera_id = self.config.get('camera_id', 0)
@@ -94,8 +94,8 @@ class AlliedVisionCamera(Service):
 
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
-                if frame.get_status() == FrameStatus.Complete:
-                    frame.convert_pixel_format(PixelFormat.Mono8)  # TODO change
+                if frame.get_status() == self.vimba.FrameStatus.Complete:
+                    frame.convert_pixel_format(self.vimba.PixelFormat.Mono8)  # TODO change
                     print(frame.as_numpy_ndarray().astype('float32').shape)
                     self.images.submit_data(frame.as_numpy_ndarray().astype('float32'))
 
