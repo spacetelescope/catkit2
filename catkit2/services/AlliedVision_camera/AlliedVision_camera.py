@@ -42,9 +42,9 @@ class AlliedVisionCamera(Service):
                 # Use the full sensor size here to always allocate enough shared memory.
                 self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
                 print(self.sensor_height)
-                print(self.sensor_width )
-                print( self.height )
-                print( self.width )
+                print(self.sensor_width)
+                print(self.height)
+                print(self.width)
                 self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES)
 
                 self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
@@ -101,10 +101,10 @@ class AlliedVisionCamera(Service):
 
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
-                if frame.get_status()== FrameStatus.Complete:
+                if frame.get_status() == FrameStatus.Complete:
                     frame.convert_pixel_format(PixelFormat.Mono8) # TODO change
-                    print(frame.as_numpy_ndarray().astype('float32').shape )
-                    self.images.submit_data( frame.as_numpy_ndarray().astype('float32') )
+                    print(frame.as_numpy_ndarray().astype('float32').shape)
+                    self.images.submit_data(frame.as_numpy_ndarray().astype('float32'))
 
         finally:
             # Stop acquisition.
@@ -126,7 +126,7 @@ class AlliedVisionCamera(Service):
     def exposure_time(self, exposure_time):
         with Vimba.get_instance() as vimba:
             with vimba.get_all_cameras()[0] as cam:
-                cam.ExposureTime.set( exposure_time )
+                cam.ExposureTime.set(exposure_time)
 
     @property
     def gain(self):
@@ -138,7 +138,7 @@ class AlliedVisionCamera(Service):
     def gain(self, gain):
         with Vimba.get_instance() as vimba:
             with vimba.get_all_cameras()[0] as cam:
-                cam.Gain.set( gain )
+                cam.Gain.set(gain)
 
     @property
     def brightness(self):
@@ -150,7 +150,7 @@ class AlliedVisionCamera(Service):
     def brightness(self, brightness):
         with Vimba.get_instance() as vimba:
             with vimba.get_all_cameras()[0] as cam:
-                cam.Brightness.set( brightness )
+                cam.Brightness.set(brightness)
 
     @property
     def sensor_width(self):
@@ -174,7 +174,7 @@ class AlliedVisionCamera(Service):
     def width(self, width):
         with Vimba.get_instance() as vimba:
             with vimba.get_all_cameras()[0] as cam:
-                cam.Width.set( width )
+                cam.Width.set(width)
 
     @property
     def height(self):
@@ -186,7 +186,7 @@ class AlliedVisionCamera(Service):
     def height(self, height):
         with Vimba.get_instance() as vimba:
             with vimba.get_all_cameras()[0] as cam:
-                cam.Height.set( height )
+                cam.Height.set(height)
 
     @property
     def offset_x(self):
@@ -198,7 +198,7 @@ class AlliedVisionCamera(Service):
     def offset_x(self, offset_x):
         with Vimba.get_instance() as vimba:
             with vimba.get_all_cameras()[0] as cam:
-                cam.OffsetX.set( offset_x )
+                cam.OffsetX.set(offset_x)
 
     @property
     def offset_y(self):
@@ -210,7 +210,7 @@ class AlliedVisionCamera(Service):
     def offset_y(self, offset_y):
         with Vimba.get_instance() as vimba:
             with vimba.get_all_cameras()[0] as cam:
-                cam.OffsetY.set( offset_y )
+                cam.OffsetY.set(offset_y)
 
 
 if __name__ == '__main__':
