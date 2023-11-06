@@ -5,7 +5,7 @@ import numpy as np
 
 from catkit2.testbed.service import Service
 
-from vimba import *
+from vimba import FrameStatus, PixelFormat, Vimba
 
 class AlliedVisionCamera(Service):
 
