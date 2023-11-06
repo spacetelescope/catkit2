@@ -1,6 +1,4 @@
 import threading
-import time
-import os
 import numpy as np
 
 from catkit2.testbed.service import Service
