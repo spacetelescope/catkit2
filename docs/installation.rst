@@ -28,7 +28,7 @@ At this point, all C++ and Python dependencies of catkit2 should have been downl
 
     python setup.py develop
 
-This step can fail if environment variable for cmake are not well-defined. Defining `CMAKE_GENERATOR` with a value of a generator in the available generators (which can be found with `cmake --help`) should fix the error. If the error persists, try to reboot to apply the environment variable (needed on Windows).
+This will use the default CMake generator to compile catkit_core and its Python bindings. If the default generator doesn't support 64bit compilation, this step will return an error and you will need to specify a default generator to use by setting the CMAKE_GENERATOR environment variable to your preferred generator. You can list all generators installed on your machine with cmake --help. You will have to restart your terminal after changing your environment variables as usual.
 
 You should see the main compilation complete in the terminal output without errors. We installed catkit2 in editable mode to make it easier to apply updates. Any updates to the core library requires recompilation of the bindings, which can be done by simply reinstalling the package:
 
