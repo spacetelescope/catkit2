@@ -36,9 +36,6 @@ class AlliedVisionCamera(Service):
         self.offset_y = offset_y
 
         self.gain = self.config.get('gain', 0)
-        self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
-        self.exposure_time_offset_correction = self.config.get('exposure_time_offset_correction', 0)
-        self.exposure_time_base_step = self.config.get('exposure_time_base_step', 1)
         self.exposure_time = self.config.get('exposure_time', 1000)
 
         # Create datastreams
