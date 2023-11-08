@@ -79,7 +79,6 @@ class AlliedVisionCamera(Service):
 
     def main(self):
         self.cam.start_streaming(handler=self.acquisition_loop, buffer_count=self.NUM_FRAMES)
-        self.cam.stop_streaming()
 
     def close(self):
         self.cam = None
@@ -100,6 +99,7 @@ class AlliedVisionCamera(Service):
 
         finally:
             # Stop acquisition.
+            self.cam.stop_streaming()
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
     def start_acquisition(self):
