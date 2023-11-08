@@ -92,19 +92,21 @@ class AlliedVisionCamera(Service):
         if not has_correct_parameters:
             self.images.update_parameters('float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
 
-        def frame_handler(frame):
-            self.cam.queue_frame(frame)
+        def frame_handler(cam: self.vimba.Camera, frame: self.vimba.Frame):
+            if frame.get_status() == self.vimba.FrameStatus.Complete:
+                frame.convert_pixel_format(self.vimba.PixelFormat.Mono8)  # TODO change
+
+                print(frame.as_numpy_ndarray().astype('float32').shape)
+                self.images.submit_data(frame.as_numpy_ndarray().astype('float32'))
+
+            cam.queue_frame(frame)
 
         # Start acquisition.
-        self.cam.start_streaming(handler=frame_handler, buffer_count=self.NUM_FRAMES)
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
-                if frame.get_status() == self.vimba.FrameStatus.Complete:
-                    frame.convert_pixel_format(self.vimba.PixelFormat.Mono8)  # TODO change
-                    print(frame.as_numpy_ndarray().astype('float32').shape)
-                    self.images.submit_data(frame.as_numpy_ndarray().astype('float32'))
+                self.cam.start_streaming(handler=frame_handler, buffer_count=self.NUM_FRAMES)
 
         finally:
             # Stop acquisition.
