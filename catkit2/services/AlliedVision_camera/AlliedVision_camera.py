@@ -79,8 +79,7 @@ class AlliedVisionCamera(Service):
         self.cam.stop_streaming()
 
     def close(self):
-        # close cam AV
-        pass
+        self.cam = None
 
     def acquisition_loop(self, cam, frame):
         # Make sure the data stream has the right size and datatype.
