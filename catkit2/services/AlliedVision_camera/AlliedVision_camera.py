@@ -85,7 +85,7 @@ class AlliedVisionCamera(Service):
     def close(self):
         self.cam = None
 
-    def acquisition_loop(self, cam, frame):
+    def acquisition_loop(self):
         # Make sure the data stream has the right size and datatype.
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
 
