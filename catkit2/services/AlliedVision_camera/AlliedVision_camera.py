@@ -23,7 +23,10 @@ class AlliedVisionCamera(Service):
         self.exit_stack.enter(self.vimba)
 
         camera_id = self.config.get('camera_id', 0)
-        self.cam = self.vimba.get_camera_by_id(camera_id)
+        try:
+            self.cam = self.vimba.get_camera_by_id(camera_id)
+        except vimba.VimbaCameraError:
+            raise RuntimeError(f'Could not find camera with ID {camera_id}')
         self.exit_stack.enter(self.cam)
 
         # Set device values from config file (set width and height before offsets)
