@@ -90,9 +90,7 @@ class AlliedVisionCamera(Service):
             if self.should_be_acquiring.is_set() and not self.should_shut_down:
                 if frame.get_status() == vimba.FrameStatus.Complete:
                     frame.convert_pixel_format(vimba.PixelFormat.Mono8) # TODO change
-                    print( self.sensor_height , self.sensor_width )
-                    print( frame.as_numpy_ndarray().astype( 'float32' ).shape )
-                    self.images.submit_data( frame.as_numpy_ndarray().astype('float32') )
+                    self.images.submit_data( np.squeeze(frame.as_numpy_ndarray().astype('float32'),2) )
                     cam.queue_frame(frame)
         finally:
             # Stop acquisition.
