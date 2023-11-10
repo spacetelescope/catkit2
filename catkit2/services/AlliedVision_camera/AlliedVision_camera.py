@@ -89,7 +89,7 @@ class AlliedVisionCamera(Service):
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
 
         if not has_correct_parameters:
-            self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
+            self.images.update_parameters('float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
 
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
