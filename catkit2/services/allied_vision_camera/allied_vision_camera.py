@@ -44,10 +44,6 @@ class AlliedVisionCamera(Service):
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
-        print(self.sensor_height)
-        print(self.sensor_width)
-        print(self.height)
-        print(self.width)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES)
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
