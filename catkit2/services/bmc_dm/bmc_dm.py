@@ -96,11 +96,13 @@ class BmcDm(Service):
         # Compute the voltages from the request total surface.
         voltages = self.flat_map + total_surface * self.gain_map_inv
         voltages /= self.max_volts
-
         voltages = np.clip(voltages, 0, 1)
 
         dac_bit_depth = self.config['dac_bit_depth']
-        discretized_voltages = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
+
+        discretized_voltages = voltages
+        if dac_bit_depth is not None:
+            discretized_voltages = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
 
         with self.lock:
             status = self.device.send_data(voltages)
