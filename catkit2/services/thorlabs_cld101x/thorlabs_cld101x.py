@@ -39,12 +39,7 @@ class ThorlabsCLD101X(Service):
 
     def main(self):
         while not self.should_shut_down:
-            # read current setpoint
-
-            # update current setpoint data stream
-
-            # wait for 1 second
-            pass
+            self.sleep(1)
 
     def close(self):
         self.connection.write("source1:current:level:amplitude 0.0")
