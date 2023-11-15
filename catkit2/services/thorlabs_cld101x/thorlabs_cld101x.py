@@ -10,6 +10,9 @@ def to_number(input):
 
 
 class ThorlabsCLD101X(Service):
+    _GET_CURRENT = "source1:current:level:amplitude?"
+    _SET_CURRENT = "source1:current:level:amplitude "
+
     def __int__(self):
         super().__init__('thorlabs_cld101x')
 
@@ -29,10 +32,10 @@ class ThorlabsCLD101X(Service):
 
         # Turn laser on and set current setpoint to 0.0
         self.connection.write("output1:state on")
-        self.connection.write("source1:current:level:amplitude 0.0")
+        self.connection.write(f"{self._SET_CURRENT} 0.0")
 
         # Read max current setpoint
-        self.max_current = to_number(self.connection.query("source1:current:limit:amplitude?"))
+        self.max_current = to_number(self.connection.query(self._GET_CURRENT))
 
     def main(self):
         while not self.should_shut_down:
