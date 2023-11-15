@@ -32,7 +32,7 @@ class ThorlabsCLD101X(Service):
 
         # Turn laser on and set current setpoint to 0.0
         self.connection.write("output1:state on")
-        self.connection.write(f"{self._SET_CURRENT} 0.0")
+        self.connection.write(f"{self._SET_CURRENT}0.0")
 
         # Read max current setpoint.
         self.max_current = to_number(self.connection.query(self._GET_CURRENT))
@@ -42,7 +42,7 @@ class ThorlabsCLD101X(Service):
             self.sleep(1)
 
     def close(self):
-        self.connection.write("source1:current:level:amplitude 0.0")
+        self.connection.write(f"{self._SET_CURRENT}0.0")
         self.connection.write("output1:state off")
         self.connection.close()
         self.connection = None
@@ -61,7 +61,7 @@ class ThorlabsCLD101X(Service):
         current_setpoint = current_percent / 100 * self.max_current
 
         try:
-            if current_setpoint == to_number(self.connection.query("source1:current:limit:amplitude?")):
+            if current_setpoint == to_number(self.connection.query(self._GET_CURRENT)):
                 return
         except Exception:
             # Cannot read current setpoint, so just continue.
