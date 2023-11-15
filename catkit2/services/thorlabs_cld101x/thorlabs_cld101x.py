@@ -49,11 +49,27 @@ class ThorlabsCLD101X(Service):
 
         self.manager.close()
 
-    def set_current_setpoint(self, current_setpoint):
-        # set current setpoint - scale to 0-100% of max current setpoint
+    def set_current_setpoint(self, current_percent):
+        """
+        Set the current setpoint of the laser, controlled as percent of the max current setpoint.
 
-        # update current setpoint data stream
-        pass
+        Parameters
+        ----------
+        current_percent : int
+            Limitied to range 0-100, in percent of the max current setpoint.
+        """
+        current_setpoint = current_percent / 100 * self.max_current
+
+        try:
+            if current_setpoint == to_number(self.connection.query("source1:current:limit:amplitude?")):
+                return
+        except Exception:
+            # Cannot read current setpoint, so just continue.
+            pass
+
+        self.connection.write(f"{self._SET_CURRENT}{current_setpoint}")
+
+        self.current_setpoint.submit_data(current_setpoint)
 
 
 if __name__ == '__main__':
