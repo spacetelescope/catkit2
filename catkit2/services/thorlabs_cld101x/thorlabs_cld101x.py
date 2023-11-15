@@ -12,19 +12,21 @@ class ThorlabsCLD101X(Service):
         self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
 
     def open(self):
-        manager = pyvisa.ResourceManager()
+        self.manager = pyvisa.ResourceManager()
+        self.connection = self.manager.open_resource(self.visa_id)
 
-        self.connection = manager.open_resource(self.visa_id)
+        # Reset device
+        self.connection.write('*RST')
 
-        # *IDN? query
+        # Set to constant current mode
+        self.connection.write('source1:function:mode current')
 
-        # reset device
+        # Turn laser on and set current setpoint to 0.0
+        self.connection.write("output1:state on")
+        self.connection.write("source1:current:level:amplitude 0.0")
 
-        # set to constant current mode
-
-        # turn laser on and set current setpoint to 0.0
-
-        # read max current setpoint
+        # Read max current setpoint
+        self.max_current = self.connection.query("source1:current:limit:amplitude?")
 
     def main(self):
         while not self.should_shut_down:
@@ -36,8 +38,12 @@ class ThorlabsCLD101X(Service):
             pass
 
     def close(self):
+        self.connection.write("source1:current:level:amplitude 0.0")
+        self.connection.write("output1:state off")
         self.connection.close()
         self.connection = None
+
+        self.manager.close()
 
     def set_current_setpoint(self, current_setpoint):
         # set current setpoint - scale to 0-100% of max current setpoint
