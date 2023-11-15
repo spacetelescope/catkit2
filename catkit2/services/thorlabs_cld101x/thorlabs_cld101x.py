@@ -6,7 +6,7 @@ import re
 
 def to_number(input):
     # Found at https://stackoverflow.com/a/18152837
-    return re.compile("-?\ *[0-9]+\.?[0-9]*(?:[Ee]\ *-?\ *[0-9]+)?")
+    return re.compile(r"-?\ *[0-9]+\.?[0-9]*(?:[Ee]\ *-?\ *[0-9]+)?")
 
 
 class ThorlabsCLD101X(Service):
