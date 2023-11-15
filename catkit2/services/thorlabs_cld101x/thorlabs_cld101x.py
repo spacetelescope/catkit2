@@ -24,17 +24,17 @@ class ThorlabsCLD101X(Service):
         self.manager = pyvisa.ResourceManager()
         self.connection = self.manager.open_resource(self.visa_id)
 
-        # Reset device
+        # Reset device.
         self.connection.write('*RST')
 
-        # Set to constant current mode
+        # Set to constant current mode.
         self.connection.write('source1:function:mode current')
 
         # Turn laser on and set current setpoint to 0.0
         self.connection.write("output1:state on")
         self.connection.write(f"{self._SET_CURRENT} 0.0")
 
-        # Read max current setpoint
+        # Read max current setpoint.
         self.max_current = to_number(self.connection.query(self._GET_CURRENT))
 
     def main(self):
