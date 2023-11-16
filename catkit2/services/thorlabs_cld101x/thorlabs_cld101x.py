@@ -1,12 +1,6 @@
 from catkit2.testbed.service import Service
 
 import pyvisa
-import re
-
-
-def to_number(input):
-    # Found at https://stackoverflow.com/a/18152837
-    return re.compile(r"-?\ *[0-9]+\.?[0-9]*(?:[Ee]\ *-?\ *[0-9]+)?")
 
 
 class ThorlabsCLD101X(Service):
@@ -35,7 +29,7 @@ class ThorlabsCLD101X(Service):
         self.connection.write(f"{self._SET_CURRENT}0.0")
 
         # Read max current setpoint.
-        self.max_current = to_number(self.connection.query(self._GET_CURRENT))
+        self.max_current = float(self.connection.query(self._GET_CURRENT))
 
     def main(self):
         while not self.should_shut_down:
@@ -61,7 +55,7 @@ class ThorlabsCLD101X(Service):
         current_setpoint = current_percent / 100 * self.max_current
 
         try:
-            if current_setpoint == to_number(self.connection.query(self._GET_CURRENT)):
+            if current_setpoint == float(self.connection.query(self._GET_CURRENT)):
                 return
         except Exception:
             # Cannot read current setpoint, so just continue.
