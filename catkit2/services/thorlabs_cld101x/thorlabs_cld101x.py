@@ -51,7 +51,7 @@ class ThorlabsCLD101X(Service):
 
     def set_current_setpoint(self, current_percent):
         """
-        Set the current setpoint of the laser, controlled as percent of the max current setpoint.
+        Set the current setpoint of the laser, controlled as percent of its max current setpoint.
 
         Parameters
         ----------
