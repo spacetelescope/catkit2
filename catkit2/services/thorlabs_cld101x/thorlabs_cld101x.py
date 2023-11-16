@@ -52,6 +52,9 @@ class ThorlabsCLD101X(Service):
         current_percent : int
             Limited to range 0-100, in percent of the max current setpoint in Ampere.
         """
+        if current_percent < 0 or current_percent > 100:
+            raise ValueError("Current_percent must be between 0 and 100.")
+
         current_setpoint = current_percent / 100 * self.max_current
 
         try:
