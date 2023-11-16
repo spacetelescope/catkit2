@@ -56,7 +56,7 @@ class ThorlabsCLD101X(Service):
         Parameters
         ----------
         current_percent : int
-            Limitied to range 0-100, in percent of the max current setpoint.
+            Limited to range 0-100, in percent of the max current setpoint.
         """
         current_setpoint = current_percent / 100 * self.max_current
 
