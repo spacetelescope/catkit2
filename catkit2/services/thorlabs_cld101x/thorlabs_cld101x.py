@@ -29,7 +29,7 @@ class ThorlabsCLD101X(Service):
         self.connection.write(f"{self._SET_CURRENT}0.0")
 
         # Read max current setpoint.
-        self.max_current = float(self.connection.query(self._GET_CURRENT))
+        self.max_current = float(self.connection.query(self._GET_CURRENT))  # in Ampere
 
     def main(self):
         while not self.should_shut_down:
@@ -50,7 +50,7 @@ class ThorlabsCLD101X(Service):
         Parameters
         ----------
         current_percent : int
-            Limited to range 0-100, in percent of the max current setpoint.
+            Limited to range 0-100, in percent of the max current setpoint in Ampere.
         """
         current_setpoint = current_percent / 100 * self.max_current
 
