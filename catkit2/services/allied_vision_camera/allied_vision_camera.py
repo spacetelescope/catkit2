@@ -1,6 +1,7 @@
 import threading
 import numpy as np
 import contextlib
+import time
 
 from catkit2.testbed.service import Service
 
@@ -21,7 +22,6 @@ class FrameHandler:
         elif frame.get_status() == vimba.FrameStatus.Complete:
             frame.convert_pixel_format(vimba.PixelFormat.Mono8)  # TODO change
             self.av_camera.images.submit_data(np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2))
-            print('Okay')
 
         cam.queue_frame(frame)
 
@@ -59,10 +59,15 @@ class AlliedVisionCamera(Service):
 
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20) #Dummy stream for now
+
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
+
+        self.temperature_thread = threading.Thread(target=self.monitor_temperature)
+        self.temperature_thread.start()
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
@@ -118,11 +123,21 @@ class AlliedVisionCamera(Service):
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
             self.cam.stop_streaming()
 
+    def monitor_temperature(self):
+        while not self.should_shut_down:
+            temperature = self.get_temperature()
+            self.temperature.submit_data(np.array([temperature]))
+
+            self.sleep(0.1)
+
     def start_acquisition(self):
         self.should_be_acquiring.set()
 
     def end_acquisition(self):
         self.should_be_acquiring.clear()
+    
+    def get_temperature(self):
+       return np.sin(2 * np.pi * time.time() / 10)
 
     @property
     def exposure_time(self):
