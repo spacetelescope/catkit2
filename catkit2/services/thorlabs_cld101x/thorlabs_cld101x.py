@@ -7,7 +7,7 @@ class ThorlabsCLD101X(Service):
     _GET_CURRENT = "source1:current:level:amplitude?"
     _SET_CURRENT = "source1:current:level:amplitude "
 
-    def __int__(self):
+    def __init__(self):
         super().__init__('thorlabs_cld101x')
 
         self.visa_id = self.config['visa_id']
