@@ -59,15 +59,12 @@ class AlliedVisionCamera(Service):
 
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
-        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20) #Dummy stream for now
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
 
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
-
-        self.temperature_thread = threading.Thread(target=self.monitor_temperature)
-        self.temperature_thread.start()
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
@@ -95,6 +92,9 @@ class AlliedVisionCamera(Service):
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
+
+        self.temperature_thread = threading.Thread(target=self.monitor_temperature)
+        self.temperature_thread.start()
 
     def main(self):
         while not self.should_shut_down:
