@@ -20,6 +20,7 @@ class ThorlabsCLD101X(Service):
 
         # Reset device.
         self.connection.write('*RST')
+        self.connection.write('output2:state on')
 
         # Set to constant current mode.
         self.connection.write('source1:function:mode current')
@@ -40,6 +41,7 @@ class ThorlabsCLD101X(Service):
     def close(self):
         self.connection.write(f"{self._SET_CURRENT}0.0")
         self.connection.write("output1:state off")
+        self.connection.write("output2:state off")
         self.connection.close()
         self.connection = None
 
