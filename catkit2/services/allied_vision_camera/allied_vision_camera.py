@@ -80,29 +80,39 @@ class AlliedVisionCamera(Service):
     def close(self):
         self.cam = None
 
-    def frame_handler(self, cam, frame):
-        try:
-            if self.should_be_acquiring.is_set() and not self.should_shut_down:
-                if frame.get_status() == vimba.FrameStatus.Complete:
+    def acquisition_loop(self):
+        class FrameHandler:
+            def __init__(self):
+                self.shutdown_event = threading.Event()
+
+            def __call__(self, cam, frame):
+
+                if not self.should_be_acquiring.is_set():
+                    self.shutdown_event.set()
+                    return
+
+                elif frame.get_status() == vimba.FrameStatus.Complete:
                     frame.convert_pixel_format(vimba.PixelFormat.Mono8)  # TODO change
                     self.images.submit_data(np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2))
-                    cam.queue_frame(frame)
-        finally:
-            # Stop acquisition.
-            self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
-    def acquisition_loop(self):
+                cam.queue_frame(frame)
+
         # Start acquisition.
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
-
         # Make sure the data stream has the right size and datatype.
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
-
         if not has_correct_parameters:
             self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
 
-        self.cam.start_streaming(handler=self.frame_handler, buffer_count=self.NUM_FRAMES)
-        self.cam.stop_streaming()
+        frame_handler = FrameHandler()
+        try:
+            if self.should_be_acquiring.is_set() and not self.should_shut_down:
+                self.cam.start_streaming(handler=frame_handler, buffer_count=self.NUM_FRAMES)
+                frame_handler.shutdown_event.wait()
+        finally:
+            # Stop acquisition.
+            self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+            self.cam.stop_streaming()
 
     def start_acquisition(self):
         self.should_be_acquiring.set()
