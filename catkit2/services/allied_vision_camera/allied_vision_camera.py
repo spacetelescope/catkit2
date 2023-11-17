@@ -7,6 +7,25 @@ from catkit2.testbed.service import Service
 import vimba
 
 
+class FrameHandler:
+    def __init__(self, av_camera):
+        self.av_camera = av_camera
+        self.shutdown_event = threading.Event()
+
+    def __call__(self, cam, frame):
+
+        if not self.av_camera.should_be_acquiring.is_set():
+            self.shutdown_event.set()
+            return
+
+        elif frame.get_status() == vimba.FrameStatus.Complete:
+            frame.convert_pixel_format(vimba.PixelFormat.Mono8)  # TODO change
+            self.av_camera.images.submit_data(np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2))
+            print('Okay')
+
+        cam.queue_frame(frame)
+
+
 class AlliedVisionCamera(Service):
     NUM_FRAMES = 20
 
@@ -81,21 +100,6 @@ class AlliedVisionCamera(Service):
         self.cam = None
 
     def acquisition_loop(self):
-        class FrameHandler:
-            def __init__(self):
-                self.shutdown_event = threading.Event()
-
-            def __call__(self, cam, frame):
-
-                if not self.should_be_acquiring.is_set():
-                    self.shutdown_event.set()
-                    return
-
-                elif frame.get_status() == vimba.FrameStatus.Complete:
-                    frame.convert_pixel_format(vimba.PixelFormat.Mono8)  # TODO change
-                    self.images.submit_data(np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2))
-
-                cam.queue_frame(frame)
 
         # Start acquisition.
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
@@ -104,7 +108,7 @@ class AlliedVisionCamera(Service):
         if not has_correct_parameters:
             self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
 
-        frame_handler = FrameHandler()
+        frame_handler = FrameHandler(self)
         try:
             if self.should_be_acquiring.is_set() and not self.should_shut_down:
                 self.cam.start_streaming(handler=frame_handler, buffer_count=self.NUM_FRAMES)
