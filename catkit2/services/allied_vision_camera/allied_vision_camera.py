@@ -115,9 +115,8 @@ class AlliedVisionCamera(Service):
 
         frame_handler = FrameHandler(self)
         try:
-            if self.should_be_acquiring.is_set() and not self.should_shut_down:
-                self.cam.start_streaming(handler=frame_handler, buffer_count=self.NUM_FRAMES)
-                frame_handler.shutdown_event.wait()
+            self.cam.start_streaming(handler=frame_handler, buffer_count=self.NUM_FRAMES)
+            frame_handler.shutdown_event.wait()
         finally:
             # Stop acquisition.
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
