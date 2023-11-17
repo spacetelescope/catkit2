@@ -29,7 +29,7 @@ class ThorlabsCLD101X(Service):
         self.connection.write(f"{self._SET_CURRENT}0.0")
 
         # Read max current setpoint.
-        self.max_current = float(self.connection.query(self._GET_CURRENT))  # in Ampere
+        self.max_current = float(self.connection.query('source1:current:limit:amplitude?'))  # in Ampere
 
         self.make_command('set_current_setpoint', self.set_current_setpoint)
 
