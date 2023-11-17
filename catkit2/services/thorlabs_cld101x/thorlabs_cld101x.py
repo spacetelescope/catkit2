@@ -31,6 +31,8 @@ class ThorlabsCLD101X(Service):
         # Read max current setpoint.
         self.max_current = float(self.connection.query(self._GET_CURRENT))  # in Ampere
 
+        self.make_command('set_current_setpoint', self.set_current_setpoint)
+
     def main(self):
         while not self.should_shut_down:
             self.sleep(1)
