@@ -135,7 +135,7 @@ class AlliedVisionCamera(Service):
 
     def end_acquisition(self):
         self.should_be_acquiring.clear()
-    
+
     def get_temperature(self):
        return np.sin(2 * np.pi * time.time() / 10)
 
