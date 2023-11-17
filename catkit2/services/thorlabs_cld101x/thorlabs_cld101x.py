@@ -1,6 +1,7 @@
 from catkit2.testbed.service import Service
 
 import pyvisa
+import numpy as np
 
 
 class ThorlabsCLD101X(Service):
@@ -12,7 +13,7 @@ class ThorlabsCLD101X(Service):
 
         self.visa_id = self.config['visa_id']
 
-        self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
+        self.current_setpoint = self.make_data_stream('current_setpoint', 'float64', [1], 20)
 
     def open(self):
         self.manager = pyvisa.ResourceManager()
@@ -70,7 +71,7 @@ class ThorlabsCLD101X(Service):
 
         self.connection.write(f"{self._SET_CURRENT}{current_setpoint}")
 
-        self.current_setpoint.submit_data(current_setpoint)
+        self.current_setpoint.submit_data(np.array([current_setpoint]))
 
 
 if __name__ == '__main__':
