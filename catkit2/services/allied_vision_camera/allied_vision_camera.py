@@ -15,7 +15,7 @@ class FrameHandler:
 
     def __call__(self, cam, frame):
 
-        if not self.av_camera.should_be_acquiring.is_set():
+        if not self.av_camera.should_be_acquiring.is_set() or self.av_camera.should_shut_down:
             self.shutdown_event.set()
             return
 
