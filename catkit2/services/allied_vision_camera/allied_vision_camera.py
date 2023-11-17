@@ -20,7 +20,7 @@ class FrameHandler:
             return
 
         elif frame.get_status() == vimba.FrameStatus.Complete:
-            frame.convert_pixel_format(vimba.PixelFormat.Mono8)  # TODO change
+            frame.convert_pixel_format(vimba.PixelFormat.Mono8)  # TODO: check if this is really the format we want
             self.av_camera.images.submit_data(np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2))
 
         cam.queue_frame(frame)
