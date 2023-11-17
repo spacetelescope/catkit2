@@ -137,7 +137,7 @@ class AlliedVisionCamera(Service):
         self.should_be_acquiring.clear()
 
     def get_temperature(self):
-       return np.sin(2 * np.pi * time.time() / 10)
+       return np.sin(2 * np.pi * time.time() / 10)   # TODO: replace with real function
 
     @property
     def exposure_time(self):
