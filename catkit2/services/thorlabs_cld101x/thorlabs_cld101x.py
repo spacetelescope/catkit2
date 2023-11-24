@@ -38,7 +38,15 @@ class ThorlabsCLD101X(Service):
 
     def main(self):
         while not self.should_shut_down:
-            self.sleep(1)
+            try:
+                # Get an update for this channel
+                frame = self.current_percent.get_next_frame(10)
+                # Apply new power
+                self.set_current_setpoint(frame.data)
+
+            except Exception:
+                # Timed out. This is used to periodically check the shutdown flag.
+                continue
 
     def close(self):
         self.connection.write(f"{self._SET_CURRENT}0.0")
@@ -73,7 +81,6 @@ class ThorlabsCLD101X(Service):
         self.connection.write(f"{self._SET_CURRENT}{current_setpoint}")
 
         self.current_setpoint.submit_data(np.array([current_setpoint]))
-        self.current_percent.submit_data(np.array([current_percent]))
 
 
 if __name__ == '__main__':
