@@ -1,12 +1,13 @@
 from catkit2.testbed.service import Service
 
-import pyvisa
 import numpy as np
 
 
 class ThorlabsCLD101XSim(Service):
     def __init__(self):
         super().__init__('thorlabs_cld101x_sim')
+
+        self.wavelength = self.config['wavelength']
 
         self.current_setpoint = self.make_data_stream('current_setpoint', 'float64', [1], 20)
         self.current_percent = self.make_data_stream('current_percent', 'float64', [1], 20)
@@ -17,7 +18,15 @@ class ThorlabsCLD101XSim(Service):
 
     def main(self):
         while not self.should_shut_down:
-            self.sleep(1)
+            try:
+                # Get an update for this channel
+                frame = self.current_percent.get_next_frame(10)
+                # Apply new power
+                self.set_current_setpoint(frame.data)
+
+            except Exception:
+                # Timed out. This is used to periodically check the shutdown flag.
+                continue
 
     def close(self):
         pass
@@ -35,11 +44,9 @@ class ThorlabsCLD101XSim(Service):
             raise ValueError("Current_percent must be between 0 and 100.")
 
         current_setpoint = current_percent / 100 * self.max_current
-
-        self.testbed.simulator.set_source_power(source_name=test, power=current_percent)
+        self.testbed.simulator.set_source_power(source_name=self.id, power=current_percent)
 
         self.current_setpoint.submit_data(np.array([current_setpoint]))
-        self.current_percent.submit_data(np.array([current_percent]))
 
 
 if __name__ == '__main__':
