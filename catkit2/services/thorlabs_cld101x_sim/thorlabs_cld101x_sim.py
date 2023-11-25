@@ -21,7 +21,7 @@ class ThorlabsCLD101XSim(Service):
             try:
                 # Get an update for this channel
                 frame = self.current_percent.get_next_frame(10)
-                # Apply new power
+                # Set to new current
                 self.set_current_setpoint(frame.data)
 
             except Exception:
