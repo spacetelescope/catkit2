@@ -14,8 +14,8 @@ class ThorlabsCLD101X(Service):
         self.visa_id = self.config['visa_id']
         self.wavelength = self.config['wavelength']
 
-        self.current_setpoint = self.make_data_stream(f'current_setpoint_{self.wavelength}', 'float64', [1], 20)
-        self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float64', [1], 20)
+        self.current_setpoint = self.make_data_stream(f'current_setpoint_{self.wavelength}', 'float32', [1], 20)
+        self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float32', [1], 20)
 
     def open(self):
         self.manager = pyvisa.ResourceManager()
