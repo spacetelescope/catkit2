@@ -9,8 +9,8 @@ class ThorlabsCLD101XSim(Service):
 
         self.wavelength = self.config['wavelength']
 
-        self.current_setpoint = self.make_data_stream('current_setpoint', 'float64', [1], 20)
-        self.current_percent = self.make_data_stream('current_percent', 'float64', [1], 20)
+        self.current_setpoint = self.make_data_stream(f'current_setpoint_{self.wavelength}', 'float64', [1], 20)
+        self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float64', [1], 20)
 
     def open(self):
         self.make_command('set_current_setpoint', self.set_current_setpoint)
