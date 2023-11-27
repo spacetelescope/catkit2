@@ -14,7 +14,7 @@ class ThorlabsCLD101XSim(Service):
 
     def open(self):
         self.make_command('set_current_setpoint', self.set_current_setpoint)
-        self.max_current = 25  # in Ampere  # TODO: Get this from config?
+        self.max_current = 0.25  # in Ampere  # TODO: Get this from config?
 
     def main(self):
         while not self.should_shut_down:
