@@ -22,7 +22,7 @@ except Exception as error:
 
 class ZwoCamera(CameraService):
     def __init__(self):
-        super().__init__('zwo_camera')
+        super().__init__('zwo_camera_v2')
 
     def open(self):
         # Attempt to find USB camera.
