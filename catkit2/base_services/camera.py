@@ -131,42 +131,42 @@ class CameraService(Service):
     @property
     def width(self):
         # TODO: ROI transformation here.
-        return self.get_width()
+        return self.get_roi_width()
 
     @width.setter
     def width(self, width):
         # TODO: ROI transformation here.
-        self.set_width(width)
+        self.set_roi_width(width)
 
     @property
     def height(self):
         # TODO: ROI transformation here.
-        return self.get_height()
+        return self.get_roi_height()
 
     @height.setter
     def height(self, height):
         # TODO: ROI transformation here.
-        self.set_height(height)
+        self.set_roi_height(height)
 
     @property
     def offset_x(self):
         # TODO: ROI transformation here.
-        return self.get_offset_x()
+        return self.get_roi_offset_x()
 
     @offset_x.setter
     def offset_x(self, offset_x):
         # TODO: ROI transformation here.
-        self.set_offset_x(offset_x)
+        self.set_roi_offset_x(offset_x)
 
     @property
     def offset_y(self):
         # TODO: ROI transformation here.
-        return self.get_offset_y()
+        return self.get_roi_offset_y()
 
     @offset_y.setter
     def offset_y(self, offset_y):
         # TODO: ROI transformation here.
-        self.set_offset_y(offset_y)
+        self.set_roi_offset_y(offset_y)
 
     @property
     def sensor_width(self):
