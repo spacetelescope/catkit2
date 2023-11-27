@@ -1,9 +1,9 @@
 from catkit2.testbed.service import Service
 
 
-class DummyService(Service):
+class EmptyService(Service):
     def __init__(self):
-        super().__init__('dummy_service')
+        super().__init__('empty_service')
 
     def main(self):
         # Just wait until we're being shut down.
@@ -12,5 +12,5 @@ class DummyService(Service):
 
 
 if __name__ == '__main__':
-    service = DummyService()
+    service = EmptyService()
     service.run()
