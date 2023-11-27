@@ -46,7 +46,7 @@ class ThorlabsCLD101XSim(Service):
         current_setpoint = current_percent / 100 * self.max_current
         self.testbed.simulator.set_source_power(source_name=self.id, power=current_percent)
 
-        self.current_setpoint.submit_data(np.array([current_setpoint]))
+        self.current_setpoint.submit_data(np.array([current_setpoint], dtype='float32'))
 
 
 if __name__ == '__main__':
