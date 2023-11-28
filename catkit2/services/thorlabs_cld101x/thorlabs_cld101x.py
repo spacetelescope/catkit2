@@ -12,8 +12,10 @@ class ThorlabsCLD101X(Service):
         super().__init__('thorlabs_cld101x')
 
         self.visa_id = self.config['visa_id']
+        self.wavelength = self.config['wavelength']
 
-        self.current_setpoint = self.make_data_stream('current_setpoint', 'float64', [1], 20)
+        self.current_setpoint = self.make_data_stream(f'current_setpoint_{self.wavelength}', 'float32', [1], 20)
+        self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float32', [1], 20)
 
     def open(self):
         self.manager = pyvisa.ResourceManager()
@@ -33,11 +35,17 @@ class ThorlabsCLD101X(Service):
         # Read max current setpoint.
         self.max_current = float(self.connection.query('source1:current:limit:amplitude?'))  # in Ampere
 
-        self.make_command('set_current_setpoint', self.set_current_setpoint)
-
     def main(self):
         while not self.should_shut_down:
-            self.sleep(1)
+            try:
+                # Get an update for this channel
+                frame = self.current_percent.get_next_frame(10)
+                # Set to new current
+                self.set_current_setpoint(frame.data)
+
+            except Exception:
+                # Timed out. This is used to periodically check the shutdown flag.
+                continue
 
     def close(self):
         self.connection.write(f"{self._SET_CURRENT}0.0")
