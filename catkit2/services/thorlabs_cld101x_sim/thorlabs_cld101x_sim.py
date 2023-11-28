@@ -13,7 +13,6 @@ class ThorlabsCLD101XSim(Service):
         self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float32', [1], 20)
 
     def open(self):
-        self.make_command('set_current_setpoint', self.set_current_setpoint)
         self.max_current = 0.25  # in Ampere  # TODO: Get this from config?
 
     def main(self):
