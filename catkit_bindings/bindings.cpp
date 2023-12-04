@@ -506,7 +506,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			auto buffer_info = data.request();
 
 			// Check if data has the right dtype.
-			auto input_dtype = GetDataTypeFromString(py::str(py::dtype(buffer_info)));
+			auto input_dtype = GetDataTypeFromString(buffer_info.format);
 			if (s.GetDataType() != input_dtype)
 				throw std::runtime_error(std::string("Incompatible array dtype. Stream: ") + GetDataTypeAsString(s.GetDataType()) + ". Input: " + GetDataTypeAsString(input_dtype));
 
