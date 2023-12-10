@@ -35,6 +35,9 @@ class AimTtiPlp(Service):
                 continue
 
     def close(self):
+        self.device.setVoltage(0, channel=self.channel)
+        self.device.setCurrent(0, channel=self.channel)
+
         self.device.outputOff(self.channel)
         self.device.setLocal()
         self.device.close()
