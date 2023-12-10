@@ -1,7 +1,6 @@
 from catkit2.testbed.service import Service
 
 from dcps import AimTTiPPL
-import pyvisa
 
 
 class AimTtiPlp(Service):
