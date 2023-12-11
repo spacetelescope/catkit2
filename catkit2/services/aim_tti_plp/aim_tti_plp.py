@@ -51,12 +51,22 @@ class AimTtiPlp(Service):
         while not self.should_shut_down:
             try:
                 # Get an update for this channel
-                self.channels[channel_name].get_next_frame(10)
+                frame = self.channels[channel_name].get_next_frame(10)
 
-                # TODO: differentiate between voltage and current, then apply respective command
-                # TODO: add check for max voltage and current - could put that in separate method
-                self.device.setVoltage(voltage, channel=self.config[self.channels[channel_name]]['channel'])
-                self.device.setCurrent(current, channel=self.config[self.channels[channel_name]]['channel'])
+                # Update the device
+                channel_number = self.config[self.channels[channel_name]]['channel']
+                value = frame.data
+                if 'current' in channel_name:
+                    if value >= self.max_current:
+                        raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
+
+                    self.device.setCurrent(value, channel=channel_number)
+
+                elif 'voltage' in channel_name:
+                    if value >= self.max_volts:
+                        raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
+
+                    self.device.setVoltage(value, channel=channel_number)
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
