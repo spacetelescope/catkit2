@@ -43,8 +43,8 @@ class AimTtiPlp(Service):
     def main(self):
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
-            threa_current = threading.Thread(target=self.monitor_current_channel, args=(channel_name,))
-            threa_current.start()
+            thread_current = threading.Thread(target=self.monitor_current_channel, args=(channel_name,))
+            thread_current.start()
 
             self.stream_threads[channel_name] = thread_current
 
