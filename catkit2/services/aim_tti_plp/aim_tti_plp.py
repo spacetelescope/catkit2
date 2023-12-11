@@ -15,16 +15,22 @@ class AimTtiPlp(Service):
 
         self.lock = threading.Lock()
 
-        self.streams = {}
-        self.stream_names = ['voltage', 'current']
+        self.voltage_streams = {}
+        self.current_streams = {}
         self.stream_threads = {}
         for channel_name in self.config['channels']:
-            self.add_channel(channel_name)
+            self.add_voltage_channel(channel_name)
+            self.add_voltage_channel(channel_name)
 
-    def add_channel(self, channel_name):
+    def add_current_channel(self, channel_name):
         for name in self.stream_names:
-            stream = channel_name.lower() + '_' + name
-            self.streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
+            stream = channel_name.lower() + '_current'
+            self.current_streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
+
+    def add_voltage_channel(self, channel_name):
+        for name in self.stream_names:
+            stream = channel_name.lower() + '_voltage'
+            self.voltage_streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
 
     def open(self):
         self.device = AimTTiPPL(self.visa_id)
@@ -37,38 +43,54 @@ class AimTtiPlp(Service):
     def main(self):
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
-            thread = threading.Thread(target=self.monitor_channel, args=(channel_name,))
-            thread.start()
+            threa_current = threading.Thread(target=self.monitor_current_channel, args=(channel_name,))
+            threa_current.start()
 
-            self.channel_threads[channel_name] = thread
+            self.stream_threads[channel_name] = thread_current
+
+            thread_voltage = threading.Thread(target=self.monitor_voltage_channel, args=(channel_name,))
+            thread_voltage.start()
+
+            self.stream_threads[channel_name] = thread_voltage
 
         while not self.should_shut_down:
             time.sleep(0.01)
 
-        for thread in self.channel_threads.values():
+        for thread in self.stream_threads.values():
             thread.join()
-        self.channel_threads = {}
+        self.stream_threads = {}
 
-    def monitor_channel(self, channel_name):
+    def monitor_current_channel(self, channel_name):
         while not self.should_shut_down:
             try:
                 # Get an update for this channel
-                frame = self.channels[channel_name].get_next_frame(10)
+                frame = self.current_streams[channel_name].get_next_frame(10)
 
                 # Update the device if new frame arrives on this channel
                 channel_number = self.config[self.channels[channel_name]]['channel']
                 value = frame.data
-                if 'current' in channel_name:
-                    if value >= self.max_current:
-                        raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
+                if value >= self.max_current:
+                    raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
 
-                    self.device.setCurrent(value, channel=channel_number)
+                self.device.setCurrent(value, channel=channel_number)
 
-                elif 'voltage' in channel_name:
-                    if value >= self.max_volts:
-                        raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
+            except Exception:
+                # Timed out. This is used to periodically check the shutdown flag.
+                continue
 
-                    self.device.setVoltage(value, channel=channel_number)
+    def monitor_voltage_channel(self, channel_name):
+        while not self.should_shut_down:
+            try:
+                # Get an update for this channel
+                frame = self.voltage_streams[channel_name].get_next_frame(10)
+
+                # Update the device if new frame arrives on this channel
+                channel_number = self.config[self.channels[channel_name]]['channel']
+                value = frame.data
+                if value >= self.max_volts:
+                    raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
+
+                self.device.setVoltage(value, channel=channel_number)
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
