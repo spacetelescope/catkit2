@@ -72,7 +72,8 @@ class AimTtiPlp(Service):
                 if value >= self.max_current:
                     raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
 
-                self.device.setCurrent(value * 1e3, channel=channel_number)   # Convert to mA
+                with self.lock:
+                    self.device.setCurrent(value * 1e3, channel=channel_number)   # Convert to mA
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -90,7 +91,8 @@ class AimTtiPlp(Service):
                 if value >= self.max_volts:
                     raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
 
-                self.device.setVoltage(value, channel=channel_number)
+                with self.lock:
+                    self.device.setVoltage(value, channel=channel_number)
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
