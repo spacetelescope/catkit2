@@ -72,7 +72,7 @@ class AimTtiPlp(Service):
                 if value >= self.max_current:
                     raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
 
-                self.device.setCurrent(value, channel=channel_number)
+                self.device.setCurrent(value * 1e3, channel=channel_number)   # Convert to mA
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
