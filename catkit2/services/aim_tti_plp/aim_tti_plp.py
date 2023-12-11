@@ -53,7 +53,7 @@ class AimTtiPlp(Service):
                 # Get an update for this channel
                 frame = self.channels[channel_name].get_next_frame(10)
 
-                # Update the device
+                # Update the device if new frame arrives on this channel
                 channel_number = self.config[self.channels[channel_name]]['channel']
                 value = frame.data
                 if 'current' in channel_name:
