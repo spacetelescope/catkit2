@@ -10,7 +10,7 @@ class AimTtiPlp(Service):
         super().__init__('aim_tti_plp')
 
         self.visa_id = self.config['visa_id']
-        self.max_volts = self.config['max_volts']
+        self.max_voltage = self.config['max_voltage']
         self.max_current = self.config['max_current']
 
         self.lock = threading.Lock()
