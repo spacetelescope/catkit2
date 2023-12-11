@@ -54,6 +54,7 @@ class AimTtiPlp(Service):
                 self.channels[channel_name].get_next_frame(10)
 
                 # TODO: differentiate between voltage and current, then apply respective command
+                # TODO: add check for max voltage and current - could put that in separate method
                 self.device.setVoltage(voltage, channel=self.config[self.channels[channel_name]]['channel'])
                 self.device.setCurrent(current, channel=self.config[self.channels[channel_name]]['channel'])
 
