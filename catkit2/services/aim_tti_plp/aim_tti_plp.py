@@ -23,14 +23,12 @@ class AimTtiPlp(Service):
             self.add_voltage_channel(channel_name)
 
     def add_current_channel(self, channel_name):
-        for name in self.stream_names:
-            stream = channel_name.lower() + '_current'
-            self.current_streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
+        stream = channel_name.lower() + '_current'
+        self.current_streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
 
     def add_voltage_channel(self, channel_name):
-        for name in self.stream_names:
-            stream = channel_name.lower() + '_voltage'
-            self.voltage_streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
+        stream = channel_name.lower() + '_voltage'
+        self.voltage_streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
 
     def open(self):
         self.device = AimTTiPPL(self.visa_id)
