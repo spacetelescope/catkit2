@@ -63,13 +63,12 @@ class AimTtiPlp(Service):
             try:
                 # Get an update for this channel
                 frame = self.current_streams[channel_name].get_next_frame(10)
-
-                # Update the device if new frame arrives on this channel
-                channel_number = self.config[self.channels[channel_name]]['channel']
                 value = frame.data
                 if value >= self.max_current:
                     raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
 
+                # Update the device
+                channel_number = self.config[self.channels[channel_name]]['channel']
                 with self.lock:
                     self.device.setCurrent(value * 1e3, channel=channel_number)   # Convert to mA
 
@@ -82,13 +81,12 @@ class AimTtiPlp(Service):
             try:
                 # Get an update for this channel
                 frame = self.voltage_streams[channel_name].get_next_frame(10)
-
-                # Update the device if new frame arrives on this channel
-                channel_number = self.config[self.channels[channel_name]]['channel']
                 value = frame.data
                 if value >= self.max_volts:
                     raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
 
+                # Update the device
+                channel_number = self.config[self.channels[channel_name]]['channel']
                 with self.lock:
                     self.device.setVoltage(value, channel=channel_number)
 
