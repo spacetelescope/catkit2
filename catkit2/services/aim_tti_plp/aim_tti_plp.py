@@ -18,7 +18,7 @@ class AimTtiPlp(Service):
         self.voltage_streams = {}
         self.current_streams = {}
         self.stream_threads = {}
-        for channel_name in self.config['channels']:
+        for channel_name in list(self.config['channels']):
             self.add_current_channel(channel_name)
             self.add_voltage_channel(channel_name)
 
