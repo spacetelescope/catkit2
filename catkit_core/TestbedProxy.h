@@ -64,6 +64,8 @@ public:
 	int GetTracingIngressPort();
 	int GetTracingEgressPort();
 
+	std::string GetMode();
+
 	std::vector<std::string> GetActiveServices();
 	std::vector<std::string> GetInactiveServices();
 

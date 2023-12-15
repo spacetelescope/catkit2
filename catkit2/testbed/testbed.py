@@ -312,7 +312,7 @@ class Testbed:
                     self.launched_processes.remove(process)
 
             for service_id, service in self.services.items():
-                if service.state not in [ServiceState.CLOSED, ServiceState.CRASHED]:
+                if service.state not in [ServiceState.CLOSED, ServiceState.CRASHED, ServiceState.FAIL_SAFE]:
                     if service.process is None:
                         # The process is not running anymore, but its state indicates it's alive:
                         # it has crashed.
@@ -503,7 +503,7 @@ class Testbed:
         if service_id not in self.services:
             raise RuntimeError(f'Service "{service_id}" is not a known service.')
 
-        if self.services[service_id].state not in [ServiceState.CLOSED, ServiceState.CRASHED]:
+        if self.services[service_id].state not in [ServiceState.CLOSED, ServiceState.CRASHED, ServiceState.FAIL_SAFE]:
             self.log.debug(f'Service "{service_id}" was already started.')
             return
 

@@ -11,6 +11,7 @@ enum ServiceState
     CLOSING = 4;
     UNRESPONSIVE = 5;
     CRASHED = 6;
+    FAIL_SAFE = 7;
 }
 
 message ServiceReference

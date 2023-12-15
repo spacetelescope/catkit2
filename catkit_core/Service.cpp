@@ -83,7 +83,7 @@ void Service::Run(void (*error_check)())
 	if (!IsSafe())
 	{
 		LOG_CRITICAL("Testbed is unsafe. This service will not be started.");
-		UpdateState(ServiceState::CRASHED);
+		UpdateState(ServiceState::FAIL_SAFE);
 
 		return;
 	}
@@ -185,7 +185,7 @@ void Service::Run(void (*error_check)())
 	else if (m_FailSafe)
 	{
 		LOG_INFO("Service was safely closed after safety violation.");
-		UpdateState(ServiceState::CRASHED);
+		UpdateState(ServiceState::FAIL_SAFE);
 	}
 	else
 	{
@@ -366,11 +366,24 @@ const std::string &Service::GetId() const
 	return m_ServiceId;
 }
 
-void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter)
+void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter, DataType dtype)
 {
 	LOG_DEBUG("Making property \"" + property_name + "\".");
 
-	auto prop = std::make_shared<Property>(property_name, getter, setter);
+	std::shared_ptr<DataStream> stream;
+
+	if (dtype != DataType::DT_UNKNOWN)
+	{
+		LOG_DEBUG("This property is backed by a data stream.");
+
+		std::string stream_name = property_name + "_stream";
+		std::vector<size_t> dimensions = {1};
+		size_t num_frames_in_buffer = 20;
+
+		stream = MakeDataStream(stream_name, dtype, dimensions, num_frames_in_buffer);
+	}
+
+	auto prop = std::make_shared<Property>(property_name, stream, getter, setter);
 	m_Properties[property_name] = prop;
 }
 
@@ -418,7 +431,11 @@ string Service::HandleGetInfo(const string &data)
 	reply.set_config(m_Config.dump());
 
 	for (auto& [key, value] : m_Properties)
+	{
 		reply.add_property_names(key);
+		if (value->GetStream())
+			(*reply.mutable_property_datastream_links())[key] = value->GetStream()->GetStreamName();
+	}
 
 	for (auto& [key, value] : m_Commands)
 		reply.add_command_names(key);
@@ -526,17 +543,18 @@ void Service::UpdateState(ServiceState state)
 
 void print_usage()
 {
-	std::cout << "Usage:\n  service --id ID --port PORT --testbed_port TESTBEDPORT";
+	std::cout
+		<< "Usage:" << std::endl
+		<< "service --id=ID --port=PORT --testbed_port=TESTBED_PORT" << std::endl
+		<< std::endl
+		<< "Options:" << std::endl
+		<< "--id=ID                      The ID of the service. This should correspond to a value in the testbed configuration." << std::endl
+		<< "--port=PORT                  The port for this service." << std::endl
+		<< "--testbed_port=TESTBED_PORT  The port where the testbed is running." << std::endl;
 }
 
-std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
+std::tuple<std::string, int, int> ParseServiceArgs(std::vector<std::string> arguments)
 {
-	if (argc != 7)
-	{
-		print_usage();
-		throw std::runtime_error("Too few or too many arguments.");
-	}
-
 	std::string service_id;
 	int service_port;
 	int testbed_port;
@@ -545,25 +563,91 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 	bool service_port_found = false;
 	bool testbed_port_found = false;
 
-	for (size_t i = 1; i < argc; i += 2)
+	size_t i = 1;
+	while (i < arguments.size())
 	{
-		std::string arg = argv[i];
-		std::string param = argv[i + 1];
+		std::string arg = arguments[i];
 
 		if (arg == "--id" || arg == "-n")
 		{
-			service_id = param;
+			if (i + 1 == arguments.size())
+			{
+				print_usage();
+				throw std::runtime_error("Did not supply all arguments.");
+			}
+
+			service_id = arguments[i + 1];
 			id_found = true;
+
+			i += 2;
+		}
+		else if (arg.rfind("--id=", 0) == 0)
+		{
+			service_id = arg.substr(5);  // 5 is the length of "--id=".
+			id_found = true;
+
+			i += 1;
+		}
+		else if (arg.rfind("-n=", 0) == 0)
+		{
+			service_id = arg.substr(3);
+			id_found = true;
+
+			i += 1;
 		}
 		else if (arg == "--port" || arg == "-p")
 		{
-			service_port = std::stoi(param);
+			if (i + 1 == arguments.size())
+			{
+				print_usage();
+				throw std::runtime_error("Did not supply all arguments.");
+			}
+
+			service_port = std::stoi(arguments[i + 1]);
 			service_port_found = true;
+
+			i += 2;
+		}
+		else if (arg.rfind("--port=", 0) == 0)
+		{
+			service_port = std::stoi(arg.substr(7));  // 7 is the length of "--port=".
+			service_port_found = true;
+
+			i += 1;
+		}
+		else if (arg.rfind("-p=", 0) == 0)
+		{
+			service_port = std::stoi(arg.substr(3));
+			service_port_found = true;
+
+			i += 1;
 		}
 		else if (arg == "--testbed_port" || arg == "-t")
 		{
-			testbed_port = std::stoi(param);
+			if (i + 1 == arguments.size())
+			{
+				print_usage();
+				throw std::runtime_error("Did not supply all arguments.");
+			}
+
+			testbed_port = std::stoi(arguments[i + 1]);
 			testbed_port_found = true;
+
+			i += 2;
+		}
+		else if (arg.rfind("--testbed_port=", 0) == 0)
+		{
+			testbed_port = std::stoi(arg.substr(15));  // 15 is the length of "--testbed_port=".
+			testbed_port_found = true;
+
+			i += 1;
+		}
+		else if (arg.rfind("-t=", 0) == 0)
+		{
+			testbed_port = std::stoi(arg.substr(3));
+			testbed_port_found = true;
+
+			i += 1;
 		}
 		else
 		{
@@ -578,5 +662,7 @@ std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[])
 		throw std::runtime_error("Did not supply all arguments.");
 	}
 
+	// Due to different types of service ids and ports, this cannot be a std::map<key, value>
+	// and has to be a tuple, which supports different data types.
 	return std::make_tuple(service_id, service_port, testbed_port);
 }

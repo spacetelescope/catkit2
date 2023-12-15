@@ -5,7 +5,7 @@ import datetime
 import asdf
 import yaml
 
-from .logging import CatkitLogHandler, LogWriter
+from .logging import CatkitLogHandler, LogWriter, LogTerminal
 from ..catkit_bindings import LogForwarder
 
 class Experiment:
@@ -36,6 +36,7 @@ class Experiment:
         log_handler = None
         log_forwarder = None
         self._log_writer = None
+        self._log_terminal = None
 
         try:
             # Add myself to the list of running experiments.
@@ -76,6 +77,10 @@ class Experiment:
                 self._log_writer = LogWriter(self.testbed.host, self.testbed.logging_egress_port)
                 self._log_writer.start()
 
+                # Set up logging to terminal.
+                self._log_terminal = LogTerminal(self.testbed.host, self.testbed.logging_egress_port)
+                self._log_terminal.start()
+
             log_writer = Experiment._running_experiments[0]._log_writer
 
             # Log the start of this new experiment.
@@ -111,7 +116,10 @@ class Experiment:
 
                     raise
         finally:
-            # Tear down log handler.
+            # Tear down log handlers.
+            if self._log_terminal is not None:
+                self._log_terminal.stop()
+
             if self._log_writer is not None:
                 self._log_writer.stop()
 

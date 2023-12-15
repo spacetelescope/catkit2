@@ -59,9 +59,32 @@ class ZwoCamera(Service):
         if num_cameras == 0:
             raise RuntimeError("Not a single ZWO camera is connected.")
 
-        # Get camera id and name.
-        cameras_found = zwoasi.list_cameras()  # Model names of the connected cameras.
-        camera_index = cameras_found.index(self.config['device_name'])
+        expected_device_name = self.config['device_name']
+        expected_device_id = self.config.get('device_id', None)
+
+        for i in range(num_cameras):
+            device_name = zwoasi._get_camera_property(i)['Name']
+
+            if not device_name.startswith(expected_device_name):
+                continue
+
+            if expected_device_id is None:
+                camera_index = i
+                break
+            else:
+                zwoasi._open_camera(i)
+                try:
+                    device_id = zwoasi._get_id(i)
+                    if device_id == str(expected_device_id):
+                        camera_index = i
+                        break
+                except Exception as e:
+                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.') from e
+                finally:
+                    zwoasi._close_camera(i)
+
+        else:
+            raise RuntimeError(f'Camera {expected_device_name} with id {expected_device_id} not found.')
 
         # Create a camera object using the zwoasi library.
         self.camera = zwoasi.Camera(camera_index)
@@ -73,8 +96,14 @@ class ZwoCamera(Service):
         for c in controls:
             self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
 
+        print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
+
+        print('Bandwidth before:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
+
         # Set bandwidth overload control to minvalue.
-        self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
+        self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+
+        print('Bandwidth after:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
         try:
             # Force any single exposure to be halted
@@ -97,6 +126,9 @@ class ZwoCamera(Service):
         self.offset_y = offset_y
 
         self.gain = self.config.get('gain', 0)
+        self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
+        self.exposure_time_offset_correction = self.config.get('exposure_time_offset_correction', 0)
+        self.exposure_time_base_step = self.config.get('exposure_time_base_step', 1)
         self.exposure_time = self.config.get('exposure_time', 1000)
 
         # Create datastreams
@@ -169,7 +201,11 @@ class ZwoCamera(Service):
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 img = self.camera.capture_video_frame(timeout=timeout)
 
-                self.images.submit_data(img.astype('float32'))
+                # 2023-10-26 Temporary fix for HiCAT
+                if self.id == 'science_camera':
+                    self.images.submit_data(np.ascontiguousarray(np.flip(img.astype('float32'))))
+                else:
+                    self.images.submit_data(img.astype('float32'))
         finally:
             # Stop acquisition.
             self.camera.stop_video_capture()
@@ -191,10 +227,15 @@ class ZwoCamera(Service):
     @property
     def exposure_time(self):
         exposure_time, auto = self.camera.get_control_value(zwoasi.ASI_EXPOSURE)
-        return exposure_time
+        return exposure_time - self.exposure_time_offset_correction
 
     @exposure_time.setter
     def exposure_time(self, exposure_time):
+        exposure_time += self.exposure_time_offset_correction
+        exposure_time = np.round((exposure_time - self.exposure_time_base_step) / self.exposure_time_step_size)
+        exposure_time = np.maximum(exposure_time, 0)
+        exposure_time = exposure_time * self.exposure_time_step_size + self.exposure_time_base_step
+
         self.camera.set_control_value(zwoasi.ASI_EXPOSURE, int(exposure_time))
 
     @property

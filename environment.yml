@@ -10,6 +10,7 @@ dependencies:
   - numpy
   - scipy
   - matplotlib
+  - colorama
   - pyzmq
   - zeromq>=4.0.0
   - conda-forge::pyvisa>=1.10
@@ -25,9 +26,8 @@ dependencies:
   - protobuf
   - libprotobuf
   - conda-forge:hcipy
-  - docopt
   - pip
-  - cmake>=3.0.0
+  - conda-forge::cmake>=3.0.0
   - conda-forge::doxygen
   - sphinx
   - conda-forge::sphinx-automodapi
@@ -38,3 +38,4 @@ dependencies:
   - flake8
   - pip:
     - zwoasi>=0.0.21 # Requires additional manual install of driver(s) from https://astronomy-imaging-camera.com/software-drivers
+    - git+https://github.com/alliedvision/VimbaPython.git@v1.2.1 # Requires additional manual install of driver(s) from https://www.alliedvision.com/en/products/vimba-sdk/

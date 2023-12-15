@@ -37,6 +37,39 @@ const char *GetDataTypeAsString(DataType type)
 	}
 }
 
+const char *GetDataTypeAsFullString(DataType type)
+{
+	switch (type)
+	{
+		case DataType::DT_UINT8:
+			return "uint8";
+		case DataType::DT_UINT16:
+			return "uint16";
+		case DataType::DT_UINT32:
+			return "uint32";
+		case DataType::DT_UINT64:
+			return "uint64";
+		case DataType::DT_INT8:
+			return "int8";
+		case DataType::DT_INT16:
+			return "int16";
+		case DataType::DT_INT32:
+			return "int32";
+		case DataType::DT_INT64:
+			return "int64";
+		case DataType::DT_FLOAT32:
+			return "float32";
+		case DataType::DT_FLOAT64:
+			return "float64";
+		case DataType::DT_COMPLEX64:
+			return "complex64";
+		case DataType::DT_COMPLEX128:
+			return "complex128";
+		default:
+			return "unknown";
+	}
+}
+
 DataType GetDataTypeFromString(const char *type)
 {
 	return GetDataTypeFromString(string(type));

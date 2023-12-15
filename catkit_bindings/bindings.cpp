@@ -346,8 +346,9 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			service.Sleep(sleep_time_in_sec, error_check_python);
 		}, py::call_guard<py::gil_scoped_release>())
-		.def("make_property", [](Service &service, std::string name, py::object getter, py::object setter)
+		.def("make_property", [](Service &service, std::string name, py::object getter, py::object setter, std::string type)
 		{
+			DataType dtype = GetDataTypeFromString(type);
 			service.MakeProperty(name,
 			[getter]()
 			{
@@ -360,8 +361,9 @@ PYBIND11_MODULE(catkit_bindings, m)
 				py::gil_scoped_acquire acquire;
 
 				setter(ToPython(value));
-			});
-		}, py::arg("name"), py::arg("getter") = nullptr, py::arg("setter") = nullptr)
+			},
+			dtype);
+		}, py::arg("name"), py::arg("getter") = nullptr, py::arg("setter") = nullptr, py::arg("type") = "")
 		.def("make_command", [](Service &service, std::string name, py::object command)
 		{
 			service.MakeCommand(name, [command](const Dict &arguments)
@@ -387,7 +389,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.value("RUNNING", ServiceState::RUNNING)
 		.value("CLOSING", ServiceState::CLOSING)
 		.value("UNRESPONSIVE", ServiceState::UNRESPONSIVE)
-		.value("CRASHED", ServiceState::CRASHED);
+		.value("CRASHED", ServiceState::CRASHED)
+		.value("FAIL_SAFE", ServiceState::FAIL_SAFE);
 
 	m.def("is_alive_state", &IsAliveState);
 
@@ -464,7 +467,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("tracing_egress_port", &TestbedProxy::GetTracingEgressPort)
 		.def_property_readonly("base_data_path", &TestbedProxy::GetBaseDataPath)
 		.def_property_readonly("support_data_path", &TestbedProxy::GetSupportDataPath)
-		.def_property_readonly("long_term_monitoring_path", &TestbedProxy::GetLongTermMonitoringPath);
+		.def_property_readonly("long_term_monitoring_path", &TestbedProxy::GetLongTermMonitoringPath)
+		.def_property_readonly("mode", &TestbedProxy::GetMode);
 
 	py::class_<DataFrame>(m, "DataFrame")
 		.def_property_readonly("id", [](const DataFrame &f)
@@ -603,6 +607,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 	m.def("submit_log_entry", &SubmitLogEntry);
 	m.def("severity_to_string", &ConvertSeverityToString);
 	m.def("get_host_name", &GetHostName);
+	m.def("parse_service_args", [](std::vector<std::string> arguments)
+	{
+		return ParseServiceArgs(arguments);
+	});
 
 	py::class_<LogConsole>(m, "LogConsole")
 		.def(py::init<bool, bool>(),

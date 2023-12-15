@@ -46,7 +46,7 @@ public:
 	nlohmann::json GetConfig() const;
 	const std::string &GetId() const;
 
-	void MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter = nullptr);
+	void MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter = nullptr, DataType dtype = DataType::DT_UNKNOWN);
 	void MakeCommand(std::string command_name, Command::CommandFunction func);
 	std::shared_ptr<DataStream> MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
 	std::shared_ptr<DataStream> ReuseDataStream(std::string stream_name, std::string stream_id);
@@ -99,6 +99,6 @@ private:
 	LogForwarder m_LoggerPublish;
 };
 
-std::tuple<std::string, int, int> ParseServiceArgs(int argc, char *argv[]);
+std::tuple<std::string, int, int> ParseServiceArgs(std::vector<std::string> arguments);
 
 #endif // SERVICE_H

@@ -23,13 +23,13 @@ class NewportXpsQ8Proxy(ServiceProxy):
 
                     frame = current_position_stream.get_next_frame(wait_time_ms)
 
-                    if abs(frame.data[0] - position) < self.atol:
+                    if abs(frame.data[0] - position) < self._get_motor_atol(motor_id):
                         break
                 except RuntimeError:
                     # Timed out. First check if the command is still the same as what we commanded.
                     current_command = command_stream.get()
 
-                    if not np.allclose(current_command, position, atol=self.atol):
+                    if not np.allclose(current_command, position, atol=self._get_motor_atol(motor_id)):
                         # Someone else interrupted our move. Raise an exception.
                         raise RuntimeError(f'Absolute move interrupted or something went wrong when moving {motor_id} to {position} mm.')
 
@@ -59,9 +59,8 @@ class NewportXpsQ8Proxy(ServiceProxy):
     def positions(self):
         return {key.lower(): value for key, value in self.config['motors'].items()}
 
-    @property
-    def atol(self):
-        return self.config['atol']
+    def _get_motor_atol(self, motor_id):
+        return self.config['atol'].get(motor_id, self.config['atol']['default'])
 
     @property
     def motors(self):
