@@ -33,13 +33,13 @@ class NiDaq(Service):
 
         for channel in self.input_channels:
             channel_name = self.device_name + '/' + channel
-            self.task.ai_channels.add_ao_voltage_chan(channel_name)
+            self.task.ai_channels.add_ai_voltage_chan(channel_name)
 
         self.output_channels = self.config['daq_output_channels']
 
         for channel in self.output_channels:
             channel_name = self.device_name + '/' + channel
-            self.task.ai_channels.add_ao_voltage_chan(channel_name)
+            self.task.ao_channels.add_ao_voltage_chan(channel_name)
 
         self.command_length = len(self.output_channels)
 
@@ -143,3 +143,7 @@ class NiDaq(Service):
         values = np.clip(self.volt_limit_min, self.volt_limit_max, values)
 
         self.task.write(values)
+
+if __name__ == '__main__':
+    service = NiDaq()
+    service.run()
