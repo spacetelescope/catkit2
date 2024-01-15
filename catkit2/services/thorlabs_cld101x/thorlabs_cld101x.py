@@ -69,14 +69,6 @@ class ThorlabsCLD101X(Service):
             raise ValueError("Current_percent must be between 0 and 100.")
 
         current_setpoint = current_percent / 100 * self.max_current
-
-        try:
-            if current_setpoint == float(self.connection.query(self._GET_CURRENT)):
-                return
-        except Exception:
-            # Cannot read current setpoint, so just continue.
-            pass
-
         self.connection.write(f"{self._SET_CURRENT}{current_setpoint}")
 
         self.current_setpoint.submit_data(np.array([current_setpoint]))
