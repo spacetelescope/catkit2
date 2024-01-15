@@ -21,7 +21,7 @@ class ThorlabsCLD101XSim(Service):
                 # Get an update for this channel
                 frame = self.current_percent.get_next_frame(10)
                 # Set to new current
-                self.set_current_setpoint(frame.data)
+                self.set_current_setpoint(frame.data[0])
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
