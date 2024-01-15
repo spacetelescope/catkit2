@@ -71,7 +71,7 @@ class ThorlabsCLD101X(Service):
         current_setpoint = current_percent / 100 * self.max_current
         self.connection.write(f"{self._SET_CURRENT}{current_setpoint}")
 
-        self.current_setpoint.submit_data(np.array([current_setpoint]))
+        self.current_setpoint.submit_data(np.array([current_setpoint], dtype='float32'))
 
 
 if __name__ == '__main__':
