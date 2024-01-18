@@ -73,7 +73,7 @@ target_include_directories(catkit_core PUBLIC ${JSON_INCLUDE_DIR})
 INCLUDE(FindProtobuf)
 find_package(Protobuf REQUIRED)
 target_include_directories(catkit_core PUBLIC ${PROTOBUF_INCLUDE_DIR})
-target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARY})
+target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARIES})
 
 # Add install files
 install(TARGETS catkit_core DESTINATION lib)
