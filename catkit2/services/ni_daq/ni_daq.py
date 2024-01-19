@@ -140,7 +140,7 @@ class NiDaq(Service):
             self.log.warning(f'Min voltage: {np.min(values)} V; max voltage: {np.max(values)} V.')
             self.log.warning(f'Voltage limits: {self.volt_limit_min} V < voltage < {self.volt_limit_max} V.')
 
-        values = np.clip(self.volt_limit_min, self.volt_limit_max, values)
+        values = np.clip(values, self.volt_limit_min, self.volt_limit_max)
 
         self.task.write(values)
 
