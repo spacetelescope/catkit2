@@ -41,7 +41,7 @@ class ThorlabsCLD101X(Service):
                 # Get an update for this channel
                 frame = self.current_percent.get_next_frame(10)
                 # Set to new current
-                self.set_current_setpoint(frame.data)
+                self.set_current_setpoint(frame.data[0])
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -69,17 +69,9 @@ class ThorlabsCLD101X(Service):
             raise ValueError("Current_percent must be between 0 and 100.")
 
         current_setpoint = current_percent / 100 * self.max_current
-
-        try:
-            if current_setpoint == float(self.connection.query(self._GET_CURRENT)):
-                return
-        except Exception:
-            # Cannot read current setpoint, so just continue.
-            pass
-
         self.connection.write(f"{self._SET_CURRENT}{current_setpoint}")
 
-        self.current_setpoint.submit_data(np.array([current_setpoint]))
+        self.current_setpoint.submit_data(np.array([current_setpoint], dtype='float32'))
 
 
 if __name__ == '__main__':
