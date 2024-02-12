@@ -118,8 +118,7 @@ class NiDaqSim(Service):
 
         values = np.clip(values, self.volt_limit_min, self.volt_limit_max)
 
-        # TODO
-        # Submit to simulator here
+        self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=values)
 
 if __name__ == '__main__':
     service = NiDaqSim()
