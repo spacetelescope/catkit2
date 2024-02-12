@@ -69,7 +69,6 @@ class NiDaq(Service):
 
     def add_channel(self, channel_name):
         self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.command_length], 20)
-
         self.channels[channel_name].submit_data(np.zeros(self.command_length))
 
     def main(self):

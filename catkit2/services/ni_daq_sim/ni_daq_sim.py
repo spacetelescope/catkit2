@@ -93,7 +93,7 @@ class NiDaqSim(Service):
         ndarray
             The voltages for each of the channels.
         '''
-        pass
+        self.log.warning('Reading from the DAQ is not supported in the simulator (yet).')
 
     def write_multichannel(self, values):
         '''Write voltages to all configured output channels.
