@@ -192,8 +192,8 @@ class Testbed:
                 if 'safety' in self.config['testbed']:
                     self.services[self.config['testbed']['safety']['service_id']].depended_on_by.append(service_id)
                 else:
-                    self.log.error(f'No safety service specified in the configuration file and service "{service_id}" requires safety.')
-                    sys.exit(1)
+                    # raise a fatal error if a service requires safety but no safety service is specified.
+                    raise RuntimeError(f'Service "{service_id}" requires safety but no safety service is specified in the configuration file.')
 
         # Check for circular dependencies.
         services_to_shut_down = list(self.services.keys())
