@@ -163,7 +163,7 @@ class Testbed:
         if 'safety' in self.config['testbed']:
             self.startup_services.extend(self.config['testbed']['safety']['service_id'])
         else:
-            self.log.warning('No safety service specified in the configuration file. The testbed will not be safe.')
+            self.log.warning('No safety service specified in the configuration file. The testbed will not be checked for safety.')
 
         if 'startup_services' in self.config['testbed']:
             self.startup_services.extend(self.config['testbed']['startup_services'])
@@ -192,7 +192,7 @@ class Testbed:
                 if 'safety' in self.config['testbed']:
                     self.services[self.config['testbed']['safety']['service_id']].depended_on_by.append(service_id)
                 else:
-                    # raise a fatal error if a service requires safety but no safety service is specified.
+                    # Raise an exception if a service requires safety but no safety service is specified.
                     raise RuntimeError(f'Service "{service_id}" requires safety but no safety service is specified in the configuration file.')
 
         # Check for circular dependencies.
