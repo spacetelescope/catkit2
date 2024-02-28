@@ -1,7 +1,8 @@
 '''
 This module contains a service for Allied Vision cameras.
 
-This service is a wrapper around the Vimba SDK. It provides a simple interface to control the camera and acquire images.
+This service is a wrapper around the Vimba SDK.
+It provides a simple interface to control the camera and acquire images.
 '''
 
 from __future__ import annotations
@@ -29,16 +30,38 @@ class FrameHandler:
     It is used to handle incoming frames from the camera.
     The frames are then submitted to the data stream.
 
-    Args:
-        av_camera : AlliedVisionCamera
-            The AlliedVisionCamera service object to which the frames should be submitted.
+    Attributes
+    ----------
+    av_camera : AlliedVisionCamera
+        The AlliedVisionCamera service object to which the frames should be submitted.
+    shutdown_event : threading.Event
+        An event to signal that the frame handler should shut down.
     '''
     def __init__(self, av_camera: AlliedVisionCamera):
+        '''
+        Create a new FrameHandler.
+
+        Parameters
+        ----------
+        av_camera : AlliedVisionCamera
+            The AlliedVisionCamera service object to which the frames should be submitted.
+        '''
         self.av_camera = av_camera
         self.shutdown_event = threading.Event()
 
     def __call__(self, cam: Camera, frame: Frame):
+        '''
+        Handle incoming frames from the camera.
 
+        This function is called when a new frame is received from the camera.
+
+        Parameters
+        ----------
+        cam : Camera
+            The camera that received the frame.
+        frame : Frame
+            The frame that was received.
+        '''
         if not self.av_camera.should_be_acquiring.is_set() or self.av_camera.should_shut_down:
             self.shutdown_event.set()
             return
@@ -46,7 +69,10 @@ class FrameHandler:
         elif frame.get_status() == FrameStatus.Complete:
             if frame.get_pixel_format() == PixelFormat.Mono12Packed:
                 frame.convert_pixel_format(PixelFormat.Mono12)
-            self.av_camera.images.submit_data(np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2))
+            pixels = np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2)
+            # Hack to add the frame ID into the image.
+            # pixels[0,0] = frame.get_id()
+            self.av_camera.images.submit_data(pixels)
 
         cam.queue_frame(frame)
 
@@ -55,15 +81,66 @@ class AlliedVisionCamera(Service):
     '''
     Service for Allied Vision cameras.
 
-    This service is a wrapper around the Vimba SDK. It provides a simple interface to control the camera and acquire images.
+    This service is a wrapper around the Vimba SDK.
+    It provides a simple interface to control the camera and acquire images.
 
-    Args:
-        exit_stack : contextlib.ExitStack
-            The exit stack to which this service should be added. This is used to ensure that resources are properly cleaned up when the service is closed.
+    Attributes
+    ----------
+    vimba : Vimba
+        The Vimba instance to use for the camera.
+    cam : Camera
+        The camera to control.
+    exit_stack : contextlib.ExitStack
+        The exit stack to which this service should be added.
+        This is used to ensure that resources are properly cleaned up when the service is closed.
+    pixel_formats : dict
+        A dictionary to store the pixel format and the corresponding numpy dtype and vimba pixel format.
+    current_pixel_format : str
+        The current pixel format to use.
+    temperature_thread : threading.Thread
+        A thread to monitor the temperature of the camera.
+    temperature : DataStream
+        A data stream to submit the temperature of the camera.
+    images : DataStream
+        A data stream to submit the images from the camera.
+    is_acquiring : DataStream
+        A data stream to submit whether the camera is currently acquiring images.
+    should_be_acquiring : threading.Event
+        An event to signal whether the camera should be acquiring images.
+    NUM_FRAMES : int
+        The number of frames to allocate for the data streams.
+
+    Methods
+    -------
+    open()
+        Open the service.
+    main()
+        The main function of the service.
+    close()
+        Close the service.
+    acquisition_loop()
+        The main acquisition loop.
+    monitor_temperature()
+        Monitor the temperature of the camera.
+    start_acquisition()
+        Start the acquisition loop.
+    end_acquisition()
+        End the acquisition loop.
+    get_temperature()
+        Get the temperature of the camera.
     '''
     NUM_FRAMES = 20
 
     def __init__(self, exit_stack: contextlib.ExitStack):
+        '''
+        Create a new AlliedVisionCamera service.
+
+        Parameters
+        ----------
+        exit_stack : contextlib.ExitStack
+            The exit stack to which this service should be added.
+            This is used to ensure that resources are properly cleaned up when the service is closed.
+        '''
         super().__init__('allied_vision_camera')
 
         self.vimba = None
@@ -88,6 +165,21 @@ class AlliedVisionCamera(Service):
         self.should_be_acquiring.set()
 
     def open(self):
+        '''
+        Open the service.
+
+        This function is called when the service is opened.
+        It initializes the camera and creates the data streams and properties.
+
+        Raises
+        ------
+        RuntimeError
+            If the camera cannot be found.
+        ValueError
+            If the pixel format is invalid.
+        VimbaCameraError
+            If there is an error with the camera.
+        '''
         self.vimba = Vimba.get_instance()
         self.exit_stack.enter_context(self.vimba)
 
@@ -96,12 +188,12 @@ class AlliedVisionCamera(Service):
             return '.'.join([str(int_ip >> i & 0xff) for i in [24, 16, 8, 0]])
 
         # cams = self.vimba.get_all_cameras()
-        # self.log.debug('Cameras found: {}'.format(len(cams)))
+        # self.log.info('Cameras found: {}'.format(len(cams)))
         # for cam in cams:
-        #     self.log.debug('/// Camera Name   : {}'.format(cam.get_name()))
-        #     self.log.debug('/// Camera ID     : {}'.format(cam.get_id()))
+        #     self.log.info('/// Camera Name   : {}'.format(cam.get_name()))
+        #     self.log.info('/// Camera ID     : {}'.format(cam.get_id()))
         #     with cam:
-        #         self.log.debug(
+        #         self.log.info(
         #           '/// Camera IP     : {}'.format(int_to_ip(cam.GevCurrentIPAddress.get())))
 
         camera_id = self.config.get('camera_id', 0)
@@ -114,10 +206,10 @@ class AlliedVisionCamera(Service):
                 f'Could not find camera with ID {camera_id}') from e
         self.exit_stack.enter_context(self.cam)
 
-        self.log.debug('Camera Name: %s', self.cam.get_name())
-        self.log.debug('Camera Model: %s', self.cam.get_model())
-        self.log.debug('Camera ID: %s', self.cam.get_id())
-        self.log.debug('Camera IP: %s', int_to_ip(self.cam.GevCurrentIPAddress.get()))
+        self.log.info('Camera Name: %s', self.cam.get_name())
+        self.log.info('Camera Model: %s', self.cam.get_model())
+        self.log.info('Camera ID: %s', self.cam.get_id())
+        self.log.info('Camera IP: %s', int_to_ip(self.cam.GevCurrentIPAddress.get()))
 
         self.current_pixel_format = self.config.get('pixel_format', 'Mono8')
         if self.current_pixel_format not in self.pixel_formats:
@@ -125,7 +217,7 @@ class AlliedVisionCamera(Service):
                              self.current_pixel_format +
                              ', must be one of ' +
                              str(list(self.pixel_formats.keys())))
-        self.log.debug('Using pixel format: %s', self.current_pixel_format)
+        self.log.info('Using pixel format: %s', self.current_pixel_format)
         self.cam.set_pixel_format(self.pixel_formats[self.current_pixel_format])
 
         # Set device values from config file (set width and height before offsets)
@@ -144,7 +236,8 @@ class AlliedVisionCamera(Service):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
+        self.images = self.make_data_stream('images', 'float32',
+                                            [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
@@ -177,11 +270,23 @@ class AlliedVisionCamera(Service):
         self.temperature_thread.start()
 
     def main(self):
+        '''
+        The main function of the service.
+
+        This function is called when the service is started.
+        It starts the acquisition loop and waits for incoming frames.
+        '''
         while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
     def close(self):
+        '''
+        Close the service.
+
+        This function is called when the service is closed.
+        It stops the acquisition loop and cleans up the camera and data streams.
+        '''
         self.cam = None
 
     def acquisition_loop(self):
@@ -209,6 +314,12 @@ class AlliedVisionCamera(Service):
             self.cam.stop_streaming()
 
     def monitor_temperature(self):
+        '''
+        Monitor the temperature of the camera.
+
+        This function is a separate thread that monitors the temperature of
+        the camera and submits the data to the temperature data stream.
+        '''
         while not self.should_shut_down:
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
@@ -216,12 +327,34 @@ class AlliedVisionCamera(Service):
             self.sleep(0.1)
 
     def start_acquisition(self):
+        '''
+        Start the acquisition loop.
+
+        This function starts the acquisition loop.
+        '''
         self.should_be_acquiring.set()
 
     def end_acquisition(self):
+        '''
+        End the acquisition loop.
+
+        This function ends the acquisition loop.
+        '''
         self.should_be_acquiring.clear()
 
     def get_temperature(self):
+        '''
+        Get the temperature of the camera.
+
+        This is a dummy function gets the temperature of the camera.
+
+        TODO: Replace with real function.
+
+        Returns
+        -------
+        float:
+            The temperature of the camera in degrees Celsius.
+        '''
         return np.sin(2 * np.pi * time.time() / 10)  # TODO: replace with real function
 
     @property
@@ -232,7 +365,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the exposure time of the camera.
 
         Returns:
-            int: The exposure time in microseconds.
+        --------
+        int:
+            The exposure time in microseconds.
         '''
         try:
             # This is the old way of setting the exposure time.
@@ -248,9 +383,10 @@ class AlliedVisionCamera(Service):
 
         This property can be used to set the exposure time of the camera.
 
-        Args:
-            exposure_time : int
-                The exposure time in microseconds.
+        Parameters
+        ----------
+        exposure_time : int
+            The exposure time in microseconds.
         '''
         try:
             # This is the old way of getting the exposure time.
@@ -267,7 +403,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the gain of the camera.
 
         Returns:
-            int: The gain of the camera.
+        --------
+        int:
+            The gain of the camera.
         '''
         return self.cam.Gain.get()
 
@@ -278,9 +416,10 @@ class AlliedVisionCamera(Service):
 
         This property can be used to set the gain of the camera.
 
-        Args:
-            gain : int
-                The gain of the camera.
+        Parameters
+        ----------
+        gain : int
+            The gain of the camera.
         '''
         self.cam.Gain.set(gain)
 
@@ -292,7 +431,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the brightness of the camera.
 
         Returns:
-            int: The brightness of the camera.
+        --------
+        int:
+            The brightness of the camera.
         '''
         return self.cam.Brightness.get()
 
@@ -303,9 +444,10 @@ class AlliedVisionCamera(Service):
 
         This property can be used to set the brightness of the camera.
 
-        Args:
-            brightness : int
-                The brightness of the camera.
+        Parameters
+        ----------
+        brightness : int
+            The brightness of the camera.
         '''
         self.cam.Brightness.set(brightness)
 
@@ -317,7 +459,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the width of the sensor in pixels.
 
         Returns:
-            int: The width of the sensor in pixels.
+        --------
+        int:
+            The width of the sensor in pixels.
         '''
         return self.cam.SensorWidth.get()
 
@@ -329,7 +473,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the height of the sensor in pixels.
 
         Returns:
-            int: The height of the sensor in pixels.
+        --------
+        int:
+            The height of the sensor in pixels.
         '''
         return self.cam.SensorHeight.get()
 
@@ -341,7 +487,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the width of the image in pixels.
 
         Returns:
-            int: The width of the image in pixels.
+        --------
+        int:
+            The width of the image in pixels.
         '''
         return self.cam.Width.get()
 
@@ -352,9 +500,10 @@ class AlliedVisionCamera(Service):
 
         This property can be used to set the width of the image in pixels.
 
-        Args:
-            width : int
-                The width of the image in pixels.
+        Parameters
+        ----------
+        width : int
+            The width of the image in pixels.
         '''
         self.cam.Width.set(width)
 
@@ -366,7 +515,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the height of the image in pixels.
 
         Returns:
-            int: The height of the image in pixels.
+        --------
+        int:
+            The height of the image in pixels.
         '''
         return self.cam.Height.get()
 
@@ -377,9 +528,10 @@ class AlliedVisionCamera(Service):
 
         This property can be used to set the height of the image in pixels.
 
-        Args:
-            height : int
-                The height of the image in pixels.
+        Parameters
+        ----------
+        height : int
+            The height of the image in pixels.
         '''
         self.cam.Height.set(height)
 
@@ -391,7 +543,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the x offset of the image in pixels.
 
         Returns:
-            int: The x offset of the image in pixels.
+        --------
+        int:
+            The x offset of the image in pixels.
         '''
         return self.cam.OffsetX.get()
 
@@ -402,9 +556,10 @@ class AlliedVisionCamera(Service):
 
         This property can be used to set the x offset of the image in pixels.
 
-        Args:
-            offset_x : int
-                The x offset of the image in pixels.
+        Parameters
+        ----------
+        offset_x : int
+            The x offset of the image in pixels.
         '''
         self.cam.OffsetX.set(offset_x)
 
@@ -416,7 +571,9 @@ class AlliedVisionCamera(Service):
         This property can be used to get the y offset of the image in pixels.
 
         Returns:
-            int: The y offset of the image in pixels.
+        --------
+        int:
+            The y offset of the image in pixels.
         '''
         return self.cam.OffsetY.get()
 
@@ -427,9 +584,10 @@ class AlliedVisionCamera(Service):
 
         This property can be used to set the y offset of the image in pixels.
 
-        Args:
-            offset_y : int
-                The y offset of the image in pixels.
+        Parameters
+        ----------
+        offset_y : int
+            The y offset of the image in pixels.
         '''
         self.cam.OffsetY.set(offset_y)
 
