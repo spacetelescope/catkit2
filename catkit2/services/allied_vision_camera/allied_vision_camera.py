@@ -8,7 +8,6 @@ It provides a simple interface to control the camera and acquire images.
 from __future__ import annotations
 import contextlib
 import threading
-import time
 
 import numpy as np
 
@@ -346,16 +345,14 @@ class AlliedVisionCamera(Service):
         '''
         Get the temperature of the camera.
 
-        This is a dummy function gets the temperature of the camera.
-
-        TODO: Replace with real function.
+        This function gets the temperature of the camera.
 
         Returns
         -------
         float:
             The temperature of the camera in degrees Celsius.
         '''
-        return np.sin(2 * np.pi * time.time() / 10)  # TODO: replace with real function
+        return self.cam.DeviceTemperature.get()
 
     @property
     def exposure_time(self):
