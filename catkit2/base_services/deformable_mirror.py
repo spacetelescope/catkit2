@@ -11,6 +11,19 @@ class DeformableMirrorService(Service):
 
         self.startup_maps = self.config.get('startup_maps', {})
 
+        dm_shape = tuple(self.config['dm_shape'])
+        fname = self.config.get('controlled_actuator_mask_fname', None)
+
+        if fname is not None:
+            self.controlled_actuator_mask = fits.getdata(fname).astype('bool')
+        else:
+            self.controlled_actuator_mask = np.ones(dm_shape, dtype='bool')
+
+        # Check if shapes from mask and DM shape from config match.
+        assert np.allclose(self.controlled_actuator_mask.shape, dm_shape)
+
+        self.num_actuators = np.sum(self.dm_mask)
+
         self.lock = threading.Lock()
 
         self.channels = {}
@@ -18,20 +31,17 @@ class DeformableMirrorService(Service):
         for channel in self.config['channels']:
             self.add_channel(channel)
 
-        channel_names = list(channel.lower() for channel in self.config['channels'])
-        self.make_property('channels', lambda: channel_names)
-
-        self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.command_length], 20)
-        self.total_surface = self.make_data_stream('total_surface', 'float64', [self.command_length], 20)
+        self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.num_actuators], 20)
+        self.total_surface = self.make_data_stream('total_surface', 'float64', [self.num_actuators], 20)
 
     def add_channel(self, channel_name):
-        self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.command_length], 20)
+        self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.num_actuators], 20)
 
         # Get the right default flat map.
         if channel_name in self.startup_maps:
             flatmap = fits.getdata(self.startup_maps[channel_name]).astype('float64')
         else:
-            flatmap = np.zeros(self.command_length)
+            flatmap = np.zeros(self.num_actuators)
 
         self.channels[channel_name].submit_data(flatmap)
 
