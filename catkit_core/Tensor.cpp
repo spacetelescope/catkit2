@@ -83,7 +83,7 @@ DataType GetDataTypeFromString(string type)
 		return DataType::DT_UINT16;
 	if (type == "I" || type == "uint32")
 		return DataType::DT_UINT32;
-	if (type == "Q" || type == "uint64")
+	if (type == "Q" || type == "L" || type == "uint64")
 		return DataType::DT_UINT64;
 	if (type == "b" || type == "int8")
 		return DataType::DT_INT8;
@@ -91,7 +91,7 @@ DataType GetDataTypeFromString(string type)
 		return DataType::DT_INT16;
 	if (type == "i" || type == "int32")
 		return DataType::DT_INT32;
-	if (type == "q" || type == "int64")
+	if (type == "q" || type == "l" || type == "int64")
 		return DataType::DT_INT64;
 	if (type == "f" || type == "float32")
 		return DataType::DT_FLOAT32;

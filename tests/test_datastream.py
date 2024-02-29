@@ -22,7 +22,7 @@ def test_data_stream(shape, dtype):
     assert opened_stream.dtype == dtype
     assert np.allclose(opened_stream.shape, shape)
 
-    data = np.random.randn(*shape).astype(dtype)
+    data = np.abs(np.random.randn(*shape)).astype(dtype)
     created_stream.submit_data(data)
 
     frame = opened_stream.get_latest_frame()
@@ -39,7 +39,7 @@ def test_data_stream(shape, dtype):
         if send_dtype == dtype:
             continue
 
-        data = np.random.randn(*shape).astype(send_dtype)
+        data = np.abs(np.random.randn(*shape)).astype(send_dtype)
 
         with pytest.raises(RuntimeError):
             created_stream.submit_data(data)
@@ -48,14 +48,14 @@ def test_data_stream(shape, dtype):
     wrong_shape = np.copy(shape)
     wrong_shape[-1] += 1
 
-    data = np.random.randn(*wrong_shape).astype(dtype)
+    data = np.abs(np.random.randn(*wrong_shape)).astype(dtype)
 
     with pytest.raises(RuntimeError):
         created_stream.submit_data(data)
 
     # We should get an error if we submit a non-contiguous array.
     if len(shape) >= 2:
-        data = np.random.randn(*wrong_shape).astype(dtype)
+        data = np.abs(np.random.randn(*wrong_shape)).astype(dtype)
         data = data[..., :-1]
 
         with pytest.raises(RuntimeError):

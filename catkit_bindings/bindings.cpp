@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 #include <pybind11_json/pybind11_json.hpp>
+#include <cctype>
 
 #include "DataStream.h"
 #include "Timing.h"
@@ -271,6 +272,52 @@ Value ValueFromPython(const py::handle &python_value)
 	return NoneValue();
 }
 
+DataType GetDataTypeFromBufferInfo(py::buffer_info &buffer_info)
+{
+	if (buffer_info.format == "B" || buffer_info.format == "b" ||
+		buffer_info.format == "H" || buffer_info.format == "h" ||
+		buffer_info.format == "I" || buffer_info.format == "i" ||
+		buffer_info.format == "Q" || buffer_info.format == "q" ||
+		buffer_info.format == "L" || buffer_info.format == "l")
+	{
+		// Get the exact data type from the number of bytes per integer.
+		// Integer size is platform dependent.
+		switch (buffer_info.itemsize)
+		{
+			case 1:
+				return std::isupper(buffer_info.format[0]) ? DataType::DT_UINT8 : DataType::DT_INT8;
+			case 2:
+				return std::isupper(buffer_info.format[0]) ? DataType::DT_UINT16 : DataType::DT_INT16;
+			case 4:
+				return std::isupper(buffer_info.format[0]) ? DataType::DT_UINT32 : DataType::DT_INT32;
+			case 8:
+				return std::isupper(buffer_info.format[0]) ? DataType::DT_UINT64 : DataType::DT_INT64;
+			default:
+				throw std::runtime_error("No integer datatype with this size.");
+		}
+	}
+	else if (buffer_info.format == "f")
+	{
+		return DataType::DT_FLOAT32;
+	}
+	else if (buffer_info.format == "d")
+	{
+		return DataType::DT_FLOAT64;
+	}
+	else if (buffer_info.format == "F" || buffer_info.format == "Zf")
+	{
+		return DataType::DT_COMPLEX64;
+	}
+	else if (buffer_info.format == "D" || buffer_info.format == "Zd")
+	{
+		return DataType::DT_COMPLEX128;
+	}
+	else
+	{
+		throw std::runtime_error("Buffer format " + buffer_info.format + " not recognized.");
+	}
+}
+
 // A callback for long-running C++ functions. This function gets called
 // periodically during the function call to allow Python KeyboardInterrupt
 // to cancel the operation.
@@ -506,7 +553,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			auto buffer_info = data.request();
 
 			// Check if data has the right dtype.
-			auto input_dtype = GetDataTypeFromString(py::str(py::dtype(buffer_info)));
+			auto input_dtype = GetDataTypeFromBufferInfo(buffer_info);
 			if (s.GetDataType() != input_dtype)
 				throw std::runtime_error(std::string("Incompatible array dtype. Stream: ") + GetDataTypeAsString(s.GetDataType()) + ". Input: " + GetDataTypeAsString(input_dtype));
 
