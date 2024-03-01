@@ -69,8 +69,6 @@ class FrameHandler:
             if frame.get_pixel_format() == PixelFormat.Mono12Packed:
                 frame.convert_pixel_format(PixelFormat.Mono12)
             pixels = np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2)
-            # Hack to add the frame ID into the image.
-            # pixels[0,0] = frame.get_id()
             self.av_camera.images.submit_data(pixels)
 
         cam.queue_frame(frame)
@@ -186,15 +184,6 @@ class AlliedVisionCamera(Service):
         def int_to_ip(int_ip):
             return '.'.join([str(int_ip >> i & 0xff) for i in [24, 16, 8, 0]])
 
-        # cams = self.vimba.get_all_cameras()
-        # self.log.info('Cameras found: {}'.format(len(cams)))
-        # for cam in cams:
-        #     self.log.info('/// Camera Name   : {}'.format(cam.get_name()))
-        #     self.log.info('/// Camera ID     : {}'.format(cam.get_id()))
-        #     with cam:
-        #         self.log.info(
-        #           '/// Camera IP     : {}'.format(int_to_ip(cam.GevCurrentIPAddress.get())))
-
         camera_id = self.config.get('camera_id', 0)
         self.log.info('Using camera with ID %s', camera_id)
 
@@ -204,11 +193,6 @@ class AlliedVisionCamera(Service):
             raise RuntimeError(
                 f'Could not find camera with ID {camera_id}') from e
         self.exit_stack.enter_context(self.cam)
-
-        self.log.info('Camera Name: %s', self.cam.get_name())
-        self.log.info('Camera Model: %s', self.cam.get_model())
-        self.log.info('Camera ID: %s', self.cam.get_id())
-        self.log.info('Camera IP: %s', int_to_ip(self.cam.GevCurrentIPAddress.get()))
 
         self.current_pixel_format = self.config.get('pixel_format', 'Mono8')
         if self.current_pixel_format not in self.pixel_formats:
@@ -231,7 +215,6 @@ class AlliedVisionCamera(Service):
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
-
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
