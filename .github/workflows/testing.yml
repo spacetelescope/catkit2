@@ -33,7 +33,7 @@ jobs:
       shell: bash -l {0}
     - name: Print debug information
       run: |
-        cd conda activate ci-env
+        conda activate ci-env
         echo $CONDA_PREFIX
         ls -la $CONDA_PREFIX/lib
         conda env list
