@@ -22,9 +22,9 @@ dependencies:
   - conda-forge::asdf
   - pyyaml
   - psutil
-  - protobuf
-  - libprotobuf
-  - conda-forge:hcipy
+  - conda-forge::protobuf
+  - conda-forge::libprotobuf
+  - conda-forge::hcipy
   - pip
   - conda-forge::cmake>=3.0.0
   - conda-forge::doxygen
