@@ -31,6 +31,7 @@ jobs:
         cd ../
         conda env create --name ci-env --file environment.yml
         conda activate ci-env
+        ls -la $CONDA_PREFIX/lib
         python setup.py develop
       shell: bash -l {0}
     - name: Run tests
