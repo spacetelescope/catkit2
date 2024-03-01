@@ -36,12 +36,12 @@ class DeformableMirrorProxy(ServiceProxy):
         if isinstance(channel_names, str):
             channel_names = [channel_names]
 
-        # Get commands from channels, zero each channel, and sum commands
+        # Get commands from channels, zero each channel, and sum commands.
         for channel_name in channel_names:
-            summed_command += getattr(self, channel_name).get_latest_frame().data
+            summed_command += getattr(self, channel_name).get()
             self.apply_shape(channel_name, np.zeros(self.num_actuators))
 
-        # Return summed command (note that this is not a DM shape)
+        # Return summed command (note that this is not a DM map).
         return summed_command
 
     def dm_maps_to_command(self, dm_shape):
