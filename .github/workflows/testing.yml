@@ -35,7 +35,7 @@ jobs:
       run: |
         conda activate ci-env
         echo $CONDA_PREFIX
-        ls -la $CONDA_PREFIX/lib
+        ls -la $CONDA_PREFIX/Library/lib
         conda env list
         conda list
       shell: bash -l {0}
