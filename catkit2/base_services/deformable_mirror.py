@@ -22,7 +22,7 @@ class DeformableMirrorService(Service):
         # Check if shapes from mask and DM shape from config match.
         assert np.allclose(self.controlled_actuator_mask.shape, dm_shape)
 
-        self.num_actuators = np.sum(self.dm_mask)
+        self.num_actuators = np.sum(self.controlled_actuator_mask)
 
         self.lock = threading.Lock()
 
@@ -79,7 +79,7 @@ class DeformableMirrorService(Service):
         # Add up all channels to get the total surface.
         total_surface = 0
         for stream in self.channels.values():
-            total_surface += stream.get_latest_frame().data
+            total_surface += stream.get()
 
         # Apply the command on the DM.
         self.send_surface(total_surface)
