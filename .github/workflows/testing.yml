@@ -30,8 +30,18 @@ jobs:
         bash ./download.sh
         cd ../
         conda env create --name ci-env --file environment.yml
-        conda activate ci-env
+      shell: bash -l {0}
+    - name: Print debug information
+      run: |
+        cd conda activate ci-env
+        echo $CONDA_PREFIX
         ls -la $CONDA_PREFIX/lib
+        conda env list
+        conda list
+      shell: bash -l {0}
+    - name: Install catkit2
+      run: |
+        conda activate ci-env
         python setup.py develop
       shell: bash -l {0}
     - name: Run tests
