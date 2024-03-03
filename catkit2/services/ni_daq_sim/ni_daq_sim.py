@@ -14,6 +14,8 @@ class NiDaqSim(Service):
         self.channel_threads = {}
 
     def open(self):
+        self.device_name = self.config['device_name']
+
         # Add all requested channels.
         self.input_channels = self.config['daq_input_channels']
 
