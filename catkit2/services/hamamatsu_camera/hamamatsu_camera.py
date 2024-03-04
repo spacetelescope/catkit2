@@ -118,7 +118,7 @@ class HamamatsuCamera(Service):
                              ', must be one of ' +
                              str(list(self.pixel_formats.keys())))
         self.log.info('Using pixel format: %s', self.current_pixel_format)
-        # self.cam.set_pixel_format(self.pixel_formats[self.current_pixel_format])   # TODO
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.IMAGE_PIXELTYPE, self.pixel_formats[self.current_pixel_format])
 
         # Set device values from config file (set width and height before offsets)
         offset_x = self.config.get('offset_x', 0)
@@ -258,7 +258,7 @@ class HamamatsuCamera(Service):
         float:
             The temperature of the camera in degrees Celsius.
         """
-        return self.cam.DeviceTemperature.get()   # TODO
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORTEMPERATURE)
 
     @property
     def exposure_time(self):
@@ -269,13 +269,13 @@ class HamamatsuCamera(Service):
 
         Returns:
         --------
-        int:
-            The exposure time in microseconds.   # TODO
+        float:
+            The exposure time in seconds.
         """
-        return self.cam.ExposureTime.get()   # TODO
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.EXPOSURETIME)
 
     @exposure_time.setter
-    def exposure_time(self, exposure_time: int):
+    def exposure_time(self, exposure_time: float):
         """
         Set the exposure time in microseconds.
 
@@ -283,10 +283,10 @@ class HamamatsuCamera(Service):
 
         Parameters
         ----------
-        exposure_time : int
-            The exposure time in microseconds.   # TODO
+        exposure_time : float
+            The exposure time in seconds.
         """
-        self.cam.ExposureTime.set(exposure_time)   # TODO
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.EXPOSURETIME, exposure_time)
 
     @property
     def gain(self):
@@ -356,7 +356,7 @@ class HamamatsuCamera(Service):
         int:
             The width of the sensor in pixels.
         """
-        return self.cam.SensorWidth.get()   # TODO
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH)   # TODO: Is this sensor or image width?
 
     @property
     def sensor_height(self):
@@ -370,7 +370,7 @@ class HamamatsuCamera(Service):
         int:
             The height of the sensor in pixels.
         """
-        return self.cam.SensorHeight.get()   # TODO
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT)   # TODO: Is this sensor or image height?
 
     @property
     def width(self):
