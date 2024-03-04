@@ -186,6 +186,302 @@ class HamamatsuCamera(Service):
         self.cam.dev_close()
         self.cam = None
 
+        dcam.Dcamapi.uninit()
+
+    def acquisition_loop(self):
+        """
+        The main acquisition loop.
+
+        This function is the main loop for acquiring images from the camera.
+        It starts the acquisition and then waits for incoming frames.
+        """
+        # Make sure the data stream has the right size and datatype.
+        has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
+        if not has_correct_parameters:
+            self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
+
+        # Start acquisition.
+        self.cam.buf_alloc(self.NUM_FRAMES)
+        self.cam.cap_start()
+        self.is_acquiring.submit_data(np.array([1], dtype='int8'))
+
+        try:
+            while self.should_be_acquiring.is_set() and not self.should_shut_down:
+                img = self.cam.buf_getlastframedata()
+
+                # TODO: there might be some image manipulation needed here
+        finally:
+            # Stop acquisition.
+            self.cam.cap_stop()
+            self.cam.buf_release()
+            self.is_acquiring.submit_data(np.array([0], dtype='int8'))
+
+    def monitor_temperature(self):
+        """
+        Monitor the temperature of the camera.
+
+        This function is a separate thread that monitors the temperature of
+        the camera and submits the data to the temperature data stream.
+        """
+        while not self.should_shut_down:
+            temperature = self.get_temperature()
+            self.temperature.submit_data(np.array([temperature]))
+
+            self.sleep(0.1)
+
+    def start_acquisition(self):
+        """
+        Start the acquisition loop.
+
+        This function starts the acquisition loop.
+        """
+        self.should_be_acquiring.set()
+
+    def end_acquisition(self):
+        """
+        End the acquisition loop.
+
+        This function ends the acquisition loop.
+        """
+        self.should_be_acquiring.clear()
+
+    def get_temperature(self):
+        """
+        Get the temperature of the camera.
+
+        This function gets the temperature of the camera.
+
+        Returns
+        -------
+        float:
+            The temperature of the camera in degrees Celsius.
+        """
+        return self.cam.DeviceTemperature.get()   # TODO
+
+    @property
+    def exposure_time(self):
+        """
+        The exposure time in microseconds.
+
+        This property can be used to get the exposure time of the camera.
+
+        Returns:
+        --------
+        int:
+            The exposure time in microseconds.   # TODO
+        """
+        return self.cam.ExposureTime.get()   # TODO
+
+    @exposure_time.setter
+    def exposure_time(self, exposure_time: int):
+        """
+        Set the exposure time in microseconds.
+
+        This property can be used to set the exposure time of the camera.
+
+        Parameters
+        ----------
+        exposure_time : int
+            The exposure time in microseconds.   # TODO
+        """
+        self.cam.ExposureTime.set(exposure_time)   # TODO
+
+    @property
+    def gain(self):
+        """
+        The gain of the camera.
+
+        This property can be used to get the gain of the camera.
+
+        Returns:
+        --------
+        int:
+            The gain of the camera.
+        """
+        return self.cam.Gain.get()   # TODO
+
+    @gain.setter
+    def gain(self, gain: int):
+        """
+        Set the gain of the camera.
+
+        This property can be used to set the gain of the camera.
+
+        Parameters
+        ----------
+        gain : int
+            The gain of the camera.
+        """
+        self.cam.Gain.set(gain)   # TODO
+
+    @property
+    def brightness(self):
+        """
+        The brightness of the camera.
+
+        This property can be used to get the brightness of the camera.
+
+        Returns:
+        --------
+        int:
+            The brightness of the camera.
+        """
+        return self.cam.Brightness.get()   # TODO
+
+    @brightness.setter
+    def brightness(self, brightness: int):
+        """
+        Set the brightness of the camera.
+
+        This property can be used to set the brightness of the camera.
+
+        Parameters
+        ----------
+        brightness : int
+            The brightness of the camera.
+        """
+        self.cam.Brightness.set(brightness)   # TODO
+
+    @property
+    def sensor_width(self):
+        """
+        The width of the sensor in pixels.
+
+        This property can be used to get the width of the sensor in pixels.
+
+        Returns:
+        --------
+        int:
+            The width of the sensor in pixels.
+        """
+        return self.cam.SensorWidth.get()   # TODO
+
+    @property
+    def sensor_height(self):
+        """
+        The height of the sensor in pixels.
+
+        This property can be used to get the height of the sensor in pixels.
+
+        Returns:
+        --------
+        int:
+            The height of the sensor in pixels.
+        """
+        return self.cam.SensorHeight.get()   # TODO
+
+    @property
+    def width(self):
+        """
+        The width of the image in pixels.
+
+        This property can be used to get the width of the image in pixels.
+
+        Returns:
+        --------
+        int:
+            The width of the image in pixels.
+        """
+        return self.cam.Width.get()   # TODO
+
+    @width.setter
+    def width(self, width: int):
+        """
+        Set the width of the image in pixels.
+
+        This property can be used to set the width of the image in pixels.
+
+        Parameters
+        ----------
+        width : int
+            The width of the image in pixels.
+        """
+        self.cam.Width.set(width)   # TODO
+
+    @property
+    def height(self):
+        """
+        The height of the image in pixels.
+
+        This property can be used to get the height of the image in pixels.
+
+        Returns:
+        --------
+        int:
+            The height of the image in pixels.
+        """
+        return self.cam.Height.get()   # TODO
+
+    @height.setter
+    def height(self, height: int):
+        """
+        Set the height of the image in pixels.
+
+        This property can be used to set the height of the image in pixels.
+
+        Parameters
+        ----------
+        height : int
+            The height of the image in pixels.
+        """
+        self.cam.Height.set(height)   # TODO
+
+    @property
+    def offset_x(self):
+        """
+        The x offset of the image in pixels.
+
+        This property can be used to get the x offset of the image in pixels.
+
+        Returns:
+        --------
+        int:
+            The x offset of the image in pixels.
+        """
+        return self.cam.OffsetX.get()   # TODO
+
+    @offset_x.setter
+    def offset_x(self, offset_x: int):
+        """
+        Set the x offset of the image in pixels.
+
+        This property can be used to set the x offset of the image in pixels.
+
+        Parameters
+        ----------
+        offset_x : int
+            The x offset of the image in pixels.
+        """
+        self.cam.OffsetX.set(offset_x)   # TODO
+
+    @property
+    def offset_y(self):
+        """
+        The y offset of the image in pixels.
+
+        This property can be used to get the y offset of the image in pixels.
+
+        Returns:
+        --------
+        int:
+            The y offset of the image in pixels.
+        """
+        return self.cam.OffsetY.get()   # TODO
+
+    @offset_y.setter
+    def offset_y(self, offset_y: int):
+        """
+        Set the y offset of the image in pixels.
+
+        This property can be used to set the y offset of the image in pixels.
+
+        Parameters
+        ----------
+        offset_y : int
+            The y offset of the image in pixels.
+        """
+        self.cam.OffsetY.set(offset_y)   # TODO
+
 
 if __name__ == '__main__':
     service = HamamatsuCamera()
