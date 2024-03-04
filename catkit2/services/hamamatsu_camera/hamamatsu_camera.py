@@ -4,6 +4,8 @@ This module contains a service for Hamamatsu digital cameras.
 This service is a wrapper around the DCAM-SDK4.
 It provides a simple interface to control the camera and acquire images.
 """
+import os
+import sys
 import threading
 import numpy as np
 from catkit2.testbed.service import Service
@@ -78,8 +80,8 @@ class HamamatsuCamera(Service):
 
         # Dictionary to store the pixel format and the corresponding numpy dtype and dcam pixel format
         self.pixel_formats = {
-            "Mono8": DCAM_PIXELTYPE.Mono8,
-            "Mono16": DCAM_PIXELTYPE.Mono16,
+            "Mono8": dcam.DCAM_PIXELTYPE.Mono8,
+            "Mono16": dcam.DCAM_PIXELTYPE.Mono16,
         }
         self.current_pixel_format = None
         self.temperature_thread = None
