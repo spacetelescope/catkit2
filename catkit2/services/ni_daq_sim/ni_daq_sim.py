@@ -18,14 +18,7 @@ class NiDaqSim(Service):
 
         # Add all requested channels.
         self.input_channels = self.config['daq_input_channels']
-
-        for channel in self.input_channels:
-            channel_name = self.device_name + '/' + channel
-
         self.output_channels = self.config['daq_output_channels']
-
-        for channel in self.output_channels:
-            channel_name = self.device_name + '/' + channel
 
         self.command_length = len(self.output_channels)
 
