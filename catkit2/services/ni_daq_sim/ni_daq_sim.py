@@ -3,11 +3,10 @@ from catkit2.testbed.service import Service
 import numpy as np
 import threading
 
-import nidaqmx
 
-class NiDaq(Service):
+class NiDaqSim(Service):
     def __init__(self):
-        super().__init__('ni_daq')
+        super().__init__('ni_daq_sim')
 
         self.lock = threading.Lock()
 
@@ -15,36 +14,13 @@ class NiDaq(Service):
         self.channel_threads = {}
 
     def open(self):
-        # Make sure our DAQ device is connected.
         self.device_name = self.config['device_name']
-
-        system = nidaqmx.system.System.local()
-        for device in system.devices:
-            if self.device_name == device.name:
-                break
-        else:
-            raise RuntimeError(f'Device {self.device_name} is not connected.')
-
-        # Create a task.
-        self.task = nidaqmx.Task()
 
         # Add all requested channels.
         self.input_channels = self.config['daq_input_channels']
-
-        for channel in self.input_channels:
-            channel_name = self.device_name + '/' + channel
-            self.task.ai_channels.add_ai_voltage_chan(channel_name)
-
         self.output_channels = self.config['daq_output_channels']
 
-        for channel in self.output_channels:
-            channel_name = self.device_name + '/' + channel
-            self.task.ao_channels.add_ao_voltage_chan(channel_name)
-
         self.command_length = len(self.output_channels)
-
-        # Start the task so that it does not restart every time a sample is written.
-        self.task.start()
 
         # Read in voltage limits.
         self.volt_limit_min = self.config['volt_limit_min']
@@ -82,10 +58,6 @@ class NiDaq(Service):
 
         self.channel_threads = {}
 
-        # Stop and close the task.
-        self.task.stop()
-        self.task.close()
-
     def monitor_channel(self, channel_name):
         while not self.should_shut_down:
             try:
@@ -116,7 +88,7 @@ class NiDaq(Service):
         ndarray
             The voltages for each of the channels.
         '''
-        return self.task.read()
+        self.log.warning('Reading from the DAQ is not supported in the simulator (yet).')
 
     def write_multichannel(self, values):
         '''Write voltages to all configured output channels.
@@ -141,8 +113,8 @@ class NiDaq(Service):
 
         values = np.clip(values, self.volt_limit_min, self.volt_limit_max)
 
-        self.task.write(values)
+        self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=values)
 
 if __name__ == '__main__':
-    service = NiDaq()
+    service = NiDaqSim()
     service.run()
