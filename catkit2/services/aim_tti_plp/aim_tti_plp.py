@@ -12,8 +12,6 @@ class AimTtiPlp(Service):
 
         self.visa_id = self.config['visa_id']
         self.channels = self.config['channels']
-        self.max_voltage = self.config['max_voltage']
-        self.max_current = self.config['max_current']
 
         self.lock_for_voltage = threading.Lock()
         self.lock_for_current = threading.Lock()
@@ -69,8 +67,6 @@ class AimTtiPlp(Service):
                 # Get an update for this channel
                 frame = self.voltage_commands[channel_name].get_next_frame(10)
                 value = frame.data
-                if value >= self.max_volts:
-                    raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
 
                 # Update the device
                 with self.lock_for_voltage:
@@ -86,8 +82,6 @@ class AimTtiPlp(Service):
                 # Get an update for this channel
                 frame = self.current_commands[channel_name].get_next_frame(10)
                 value = frame.data
-                if value >= self.max_current:
-                    raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
 
                 # Update the device
                 with self.lock_for_current:
