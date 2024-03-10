@@ -21,7 +21,7 @@ class AimTtiPlp(Service):
         self.measured_voltage = {}
         self.measured_current = {}
         self.stream_threads = {}
-        for channel_name in list(self.channels):
+        for channel_name in self.channels.keys():
             self.add_channel(channel_name)
 
     def add_channel(self, channel_name):
@@ -34,9 +34,9 @@ class AimTtiPlp(Service):
         self.device = AimTTiPPL(self.visa_id)
         self.device.open()
 
-        for channel_name in self.config['channels']:
-            if not self.device.isOutputOn(channel_name['channel']):
-                self.device.outputOn(channel_name['channel'])
+        for channel_name in self.channels.keys():
+            if not self.device.isOutputOn(self.channels[channel_name]['channel']):
+                self.device.outputOn(self.channels[channel_name]['channel'])
 
     def main(self):
         # Start channel monitoring threads
@@ -68,9 +68,8 @@ class AimTtiPlp(Service):
                     raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
 
                 # Update the device
-                channel_number = self.config[self.channels[channel_name]]['channel']
                 with self.lock:
-                    self.set_current(channel=channel_number, value=value*1e3)   # Convert to mA
+                    self.set_current(channel_name, value*1e3)   # Convert to mA
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -86,19 +85,18 @@ class AimTtiPlp(Service):
                     raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
 
                 # Update the device
-                channel_number = self.config[self.channels[channel_name]]['channel']
                 with self.lock:
-                    self.set_voltage(channel=channel_number, value=value)
+                    self.set_voltage(channel_name, value)
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 
     def close(self):
-        for channel_name in self.config['channels']:
-            self.set_voltage(channel=channel_name['channel'], value=0)
-            self.set_current(channel=channel_name['channel'], value=0)
-            self.device.outputOff(channel_name['channel'])
+        for channel_name in self.channels.keys():
+            self.set_voltage(channel_name, value=0)
+            self.set_current(channel_name, value=0)
+            self.device.outputOff(self.channels[channel_name]['channel'])
 
         self.device.setLocal()
         self.device.close()
@@ -120,15 +118,19 @@ class AimTtiPlp(Service):
         stream.submit_data(np.array([measured_current]))
 
     def set_voltage(self, channel_name, value):
-        self.device.setVoltage(value, channel=channel_number)
+        channel_number = self.channels[channel_name]['channel']
+        self.device.setVoltage(voltage=value, channel=channel_number)
 
     def set_current(self, channel_name, value):
-        self.device.setCurrent(value, channel=channel_number)   # in mA
+        channel_number = self.channels[channel_name]['channel']
+        self.device.setCurrent(current=value, channel=channel_number)   # in mA
 
     def query_commanded_voltage(self, channel_name):
+        channel_number = self.channels[channel_name]['channel']
         return self.device.queryVoltage(channel=channel_number)
 
     def query_commanded_current(self, channel_name):
+        channel_number = self.channels[channel_name]['channel']
         return self.device.queryCurrent(channel=channel_number)
 
 
