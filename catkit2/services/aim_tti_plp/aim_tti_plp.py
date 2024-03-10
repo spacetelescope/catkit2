@@ -39,6 +39,9 @@ class AimTtiPlp(Service):
             if not self.device.isOutputOn(self.channels[channel_name]['channel']):
                 self.device.outputOn(self.channels[channel_name]['channel'])
 
+        self.make_command('query_commanded_voltage', self.query_commanded_voltage)
+        self.make_command('query_commanded_current', self.query_commanded_current)
+
     def main(self):
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
@@ -128,10 +131,12 @@ class AimTtiPlp(Service):
 
     def query_commanded_voltage(self, channel_name):
         channel_number = self.channels[channel_name]['channel']
+
         return self.device.queryVoltage(channel=channel_number)
 
     def query_commanded_current(self, channel_name):
         channel_number = self.channels[channel_name]['channel']
+        
         return self.device.queryCurrent(channel=channel_number)
 
 
