@@ -3,6 +3,7 @@ from catkit2.testbed.service import Service
 from dcps import AimTTiPPL
 import threading
 import time
+import numpy as np
 
 
 class AimTtiPlp(Service):
@@ -90,7 +91,7 @@ class AimTtiPlp(Service):
 
                 # Update the device
                 with self.lock_for_current:
-                    self.set_current(channel_name, value*1e3)   # Convert to mA
+                    self.set_current(channel_name, value * 1e3)   # Convert to mA
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -136,7 +137,7 @@ class AimTtiPlp(Service):
 
     def query_commanded_current(self, channel_name):
         channel_number = self.channels[channel_name]['channel']
-        
+
         return self.device.queryCurrent(channel=channel_number)
 
 
