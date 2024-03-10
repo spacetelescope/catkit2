@@ -26,8 +26,8 @@ class AimTtiPlp(Service):
             self.add_channel(channel_name)
 
     def add_channel(self, channel_name):
-        self.current_commands[channel_name] = self.make_data_stream(channel_name.lower() + '_current_command', 'float32', [1], 20)
         self.voltage_commands[channel_name] = self.make_data_stream(channel_name.lower() + '_voltage_command', 'float32', [1], 20)
+        self.current_commands[channel_name] = self.make_data_stream(channel_name.lower() + '_current_command', 'float32', [1], 20)
         self.measured_voltage[channel_name] = self.make_data_stream(channel_name.lower() + '_measured_voltage', 'float32', [1], 20)
         self.measured_current[channel_name] = self.make_data_stream(channel_name.lower() + '_measured_current', 'float32', [1], 20)
 
@@ -42,15 +42,15 @@ class AimTtiPlp(Service):
     def main(self):
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
-            thread_current = threading.Thread(target=self.monitor_current_command, args=(channel_name,))
-            thread_current.start()
-
-            self.stream_threads[channel_name + '_current'] = thread_current
-
             thread_voltage = threading.Thread(target=self.monitor_voltage_command, args=(channel_name,))
             thread_voltage.start()
 
             self.stream_threads[channel_name + '_voltage'] = thread_voltage
+
+            thread_current = threading.Thread(target=self.monitor_current_command, args=(channel_name,))
+            thread_current.start()
+
+            self.stream_threads[channel_name + '_current'] = thread_current
 
         while not self.should_shut_down:
             time.sleep(0.01)
@@ -58,23 +58,6 @@ class AimTtiPlp(Service):
         for thread in self.stream_threads.values():
             thread.join()
         self.stream_threads = {}
-
-    def monitor_current_command(self, channel_name):
-        while not self.should_shut_down:
-            try:
-                # Get an update for this channel
-                frame = self.current_commands[channel_name].get_next_frame(10)
-                value = frame.data
-                if value >= self.max_current:
-                    raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
-
-                # Update the device
-                with self.lock_for_current:
-                    self.set_current(channel_name, value*1e3)   # Convert to mA
-
-            except Exception:
-                # Timed out. This is used to periodically check the shutdown flag.
-                continue
 
     def monitor_voltage_command(self, channel_name):
         while not self.should_shut_down:
@@ -88,6 +71,23 @@ class AimTtiPlp(Service):
                 # Update the device
                 with self.lock_for_voltage:
                     self.set_voltage(channel_name, value)
+
+            except Exception:
+                # Timed out. This is used to periodically check the shutdown flag.
+                continue
+
+    def monitor_current_command(self, channel_name):
+        while not self.should_shut_down:
+            try:
+                # Get an update for this channel
+                frame = self.current_commands[channel_name].get_next_frame(10)
+                value = frame.data
+                if value >= self.max_current:
+                    raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
+
+                # Update the device
+                with self.lock_for_current:
+                    self.set_current(channel_name, value*1e3)   # Convert to mA
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
