@@ -45,12 +45,12 @@ class AimTtiPlp(Service):
             thread_current = threading.Thread(target=self.monitor_current_command, args=(channel_name,))
             thread_current.start()
 
-            self.stream_threads[channel_name] = thread_current
+            self.stream_threads[channel_name + '_current'] = thread_current
 
             thread_voltage = threading.Thread(target=self.monitor_voltage_command, args=(channel_name,))
             thread_voltage.start()
 
-            self.stream_threads[channel_name] = thread_voltage
+            self.stream_threads[channel_name + '_voltage'] = thread_voltage
 
         while not self.should_shut_down:
             time.sleep(0.01)
