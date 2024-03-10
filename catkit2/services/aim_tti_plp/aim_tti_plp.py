@@ -10,25 +10,25 @@ class AimTtiPlp(Service):
         super().__init__('aim_tti_plp')
 
         self.visa_id = self.config['visa_id']
+        self.channels = self.config['channels']
         self.max_voltage = self.config['max_voltage']
         self.max_current = self.config['max_current']
 
         self.lock = threading.Lock()
 
-        self.voltage_streams = {}
-        self.current_streams = {}
+        self.voltage_commands = {}
+        self.current_commands = {}
+        self.measured_voltage = {}
+        self.measured_current = {}
         self.stream_threads = {}
-        for channel_name in list(self.config['channels']):
-            self.add_current_channel(channel_name)
-            self.add_voltage_channel(channel_name)
+        for channel_name in list(self.channels):
+            self.add_channel(channel_name)
 
-    def add_current_channel(self, channel_name):
-        stream = channel_name.lower() + '_current'
-        self.current_streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
-
-    def add_voltage_channel(self, channel_name):
-        stream = channel_name.lower() + '_voltage'
-        self.voltage_streams[stream] = self.make_data_stream(stream, 'float32', [1], 20)
+    def add_channel(self, channel_name):
+        self.current_commands[channel_name] = self.make_data_stream(channel_name.lower() + '_current_command', 'float32', [1], 20)
+        self.voltage_commands[channel_name] = self.make_data_stream(channel_name.lower() + '_voltage_command', 'float32', [1], 20)
+        self.measured_voltage[channel_name] = self.make_data_stream(channel_name.lower() + '_measured_voltage', 'float32', [1], 20)
+        self.measured_current[channel_name] = self.make_data_stream(channel_name.lower() + '_measured_current', 'float32', [1], 20)
 
     def open(self):
         self.device = AimTTiPPL(self.visa_id)
@@ -65,7 +65,7 @@ class AimTtiPlp(Service):
         while not self.should_shut_down:
             try:
                 # Get an update for this channel
-                frame = self.current_streams[channel_name].get_next_frame(10)
+                frame = self.current_commands[channel_name].get_next_frame(10)
                 value = frame.data
                 if value >= self.max_current:
                     raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
@@ -83,7 +83,7 @@ class AimTtiPlp(Service):
         while not self.should_shut_down:
             try:
                 # Get an update for this channel
-                frame = self.voltage_streams[channel_name].get_next_frame(10)
+                frame = self.voltage_commands[channel_name].get_next_frame(10)
                 value = frame.data
                 if value >= self.max_volts:
                     raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
