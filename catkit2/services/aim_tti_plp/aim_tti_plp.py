@@ -140,6 +140,26 @@ class AimTtiPlp(Service):
 
         return self.device.queryCurrent(channel=channel_number)
 
+    def set_over_voltage_protection(self, channel_name, value):
+        """Set over voltage protection trip point for a channel."""
+        channel_number = self.channels[channel_name]['channel']
+
+        str = 'OVP{} {}'.format(channel_number, value)
+        self.device._instWrite(str)
+
+        # Give some time for power suppluy to respond
+        time.sleep(self.device._wait)
+
+    def set_over_current_protection(self, channel_name, value):
+        """Set over current protection trip point for a channel."""
+        channel_number = self.channels[channel_name]['channel']
+
+        str = 'OCP{} {}'.format(channel_number, value)
+        self.device._instWrite(str)
+
+        # Give some time for power suppluy to respond
+        time.sleep(self.device._wait)
+
 
 if __name__ == '__main__':
     service = AimTtiPlp()
