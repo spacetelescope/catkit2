@@ -101,6 +101,7 @@ class AimTtiPlp(Service):
         self.device.close()
 
     def measure_voltage(self, channel_name):
+        """Return the measured voltage of a channel."""
         channel_number = self.channels[channel_name]['channel']
         measured_voltage = self.device.measureVoltage(channel=channel_number)
 
@@ -109,6 +110,7 @@ class AimTtiPlp(Service):
         stream.submit_data(np.array([measured_voltage]))
 
     def measure_current(self, channel_name):
+        """Return the measured current of a channel."""
         channel_number = self.channels[channel_name]['channel']
         measured_current = self.device.measureCurrent(channel=channel_number)
 
@@ -117,19 +119,23 @@ class AimTtiPlp(Service):
         stream.submit_data(np.array([measured_current]))
 
     def set_voltage(self, channel_name, value):
+        """Set output voltage for a channel."""
         channel_number = self.channels[channel_name]['channel']
         self.device.setVoltage(voltage=value, channel=channel_number)
 
     def set_current(self, channel_name, value):
+        """Set output current limit for a channel."""
         channel_number = self.channels[channel_name]['channel']
         self.device.setCurrent(current=value, channel=channel_number)   # in mA
 
     def query_commanded_voltage(self, channel_name):
+        """Return set voltage of output for a channel (not the measured voltage)."""
         channel_number = self.channels[channel_name]['channel']
 
         return self.device.queryVoltage(channel=channel_number)
 
     def query_commanded_current(self, channel_name):
+        """Return set current limit of output for a channel (not the measured current)."""
         channel_number = self.channels[channel_name]['channel']
 
         return self.device.queryCurrent(channel=channel_number)
