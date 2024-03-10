@@ -85,7 +85,7 @@ class AimTtiPlp(Service):
 
                 # Update the device
                 with self.lock_for_current:
-                    self.set_current(channel_name, value * 1e3)   # Convert to mA
+                    self.set_current(channel_name, value * 1e3)   # TODO: Convert to mA - is this right?
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
