@@ -126,7 +126,7 @@ class AimTtiPlp(Service):
     def set_current(self, channel_name, value):
         """Set output current limit for a channel."""
         channel_number = self.channels[channel_name]['channel']
-        self.device.setCurrent(current=value, channel=channel_number)   # in mA
+        self.device.setCurrent(current=value, channel=channel_number)   # TODO: in mA or in A?
 
     def query_commanded_voltage(self, channel_name):
         """Return set voltage of output for a channel (not the measured voltage)."""
