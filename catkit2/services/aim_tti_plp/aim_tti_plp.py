@@ -14,7 +14,8 @@ class AimTtiPlp(Service):
         self.max_voltage = self.config['max_voltage']
         self.max_current = self.config['max_current']
 
-        self.lock = threading.Lock()
+        self.lock_for_voltage = threading.Lock()
+        self.lock_for_current = threading.Lock()
 
         self.voltage_commands = {}
         self.current_commands = {}
@@ -68,7 +69,7 @@ class AimTtiPlp(Service):
                     raise ValueError(f'Current command exceeds maximum current of {self.max_current} A')
 
                 # Update the device
-                with self.lock:
+                with self.lock_for_current:
                     self.set_current(channel_name, value*1e3)   # Convert to mA
 
             except Exception:
@@ -85,7 +86,7 @@ class AimTtiPlp(Service):
                     raise ValueError(f'Voltage command exceeds maximum voltage of {self.max_volts} V')
 
                 # Update the device
-                with self.lock:
+                with self.lock_for_voltage:
                     self.set_voltage(channel_name, value)
 
             except Exception:
