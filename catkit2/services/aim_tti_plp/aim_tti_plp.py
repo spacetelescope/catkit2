@@ -73,7 +73,7 @@ class AimTtiPlp(Service):
                 # Update the device
                 channel_number = self.config[self.channels[channel_name]]['channel']
                 with self.lock:
-                    self.device.setCurrent(value * 1e3, channel=channel_number)   # Convert to mA
+                    self.set_current(channel=channel_number, value=value*1e3)   # Convert to mA
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -91,7 +91,7 @@ class AimTtiPlp(Service):
                 # Update the device
                 channel_number = self.config[self.channels[channel_name]]['channel']
                 with self.lock:
-                    self.device.setVoltage(value, channel=channel_number)
+                    self.set_voltage(channel=channel_number, value=value)
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -99,8 +99,8 @@ class AimTtiPlp(Service):
 
     def close(self):
         for channel_name in self.config['channels']:
-            self.device.setVoltage(0, channel=channel_name['channel'])
-            self.device.setCurrent(0, channel=channel_name['channel'])
+            self.set_voltage(channel=channel_name['channel'], value=0)
+            self.set_current(channel=channel_name['channel'], value=0)
             self.device.outputOff(channel_name['channel'])
 
         self.device.setLocal()
@@ -113,6 +113,18 @@ class AimTtiPlp(Service):
     def measure_current(self, channel_name):
         channel_number = self.config[self.channels[channel_name]]['channel']
         return self.device.measureCurrent(channel=channel_number)
+
+    def set_voltage(self, channel_name, value):
+        self.device.setVoltage(value, channel=channel_number)
+
+    def set_current(self, channel_name, value):
+        self.device.setCurrent(value, channel=channel_number)   # in mA
+
+    def query_commanded_voltage(self, channel_name):
+        return self.device.queryVoltage(channel=channel_number)
+
+    def query_commanded_current(self, channel_name):
+        return self.device.queryCurrent(channel=channel_number)
 
 
 if __name__ == '__main__':
