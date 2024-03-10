@@ -44,12 +44,12 @@ class AimTtiPlp(Service):
     def main(self):
         # Start channel monitoring threads
         for channel_name in self.channels.keys():
-            thread_current = threading.Thread(target=self.monitor_current_channel, args=(channel_name,))
+            thread_current = threading.Thread(target=self.monitor_current_command, args=(channel_name,))
             thread_current.start()
 
             self.stream_threads[channel_name] = thread_current
 
-            thread_voltage = threading.Thread(target=self.monitor_voltage_channel, args=(channel_name,))
+            thread_voltage = threading.Thread(target=self.monitor_voltage_command, args=(channel_name,))
             thread_voltage.start()
 
             self.stream_threads[channel_name] = thread_voltage
@@ -61,7 +61,7 @@ class AimTtiPlp(Service):
             thread.join()
         self.stream_threads = {}
 
-    def monitor_current_channel(self, channel_name):
+    def monitor_current_command(self, channel_name):
         while not self.should_shut_down:
             try:
                 # Get an update for this channel
@@ -79,7 +79,7 @@ class AimTtiPlp(Service):
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 
-    def monitor_voltage_channel(self, channel_name):
+    def monitor_voltage_command(self, channel_name):
         while not self.should_shut_down:
             try:
                 # Get an update for this channel
