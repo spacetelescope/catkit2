@@ -101,6 +101,7 @@ class DummyCamera(Service):
             frame = self.images.request_new_frame()
             frame.data[:] = img
             self.images.submit_frame(frame.id)
+            time.sleep(self.exposure_time / 1e6)
 
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
