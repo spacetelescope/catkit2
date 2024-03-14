@@ -88,7 +88,7 @@ class Aim_TTi_PLP(Service):
 
                 # Update the device
                 with self.lock_for_current:
-                    self.set_current(channel_name, value * 1e3)   # TODO: Convert to mA - is this right?
+                    self.set_current(channel_name, value)
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -128,7 +128,7 @@ class Aim_TTi_PLP(Service):
     def set_current(self, channel_name, value):
         """Set output current limit for a channel."""
         channel_number = self.channels[channel_name]['channel']
-        self.device.setCurrent(current=value, channel=channel_number)   # TODO: in mA or in A?
+        self.device.setCurrent(current=value, channel=channel_number)
 
     def query_commanded_voltage(self, channel_name):
         """Return set voltage of output for a channel (not the measured voltage)."""
