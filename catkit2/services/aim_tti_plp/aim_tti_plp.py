@@ -40,6 +40,9 @@ class AimTtiPlp(Service):
 
         self.make_command('query_commanded_voltage', self.query_commanded_voltage)
         self.make_command('query_commanded_current', self.query_commanded_current)
+        self.make_command('set_over_voltage_protection', self.set_over_voltage_protection)
+        self.make_command('set_over_current_protection', self.set_over_current_protection)
+        self.make_command('reset_trip_conditions', self.reset_trip_conditions)
 
     def main(self):
         # Start channel monitoring threads
