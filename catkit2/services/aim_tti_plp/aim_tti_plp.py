@@ -100,7 +100,6 @@ class Aim_TTi_PLP(Service):
             self.set_current(channel_name, value=0)
             self.device.outputOff(self.channels[channel_name]['channel'])
 
-        self.device.setLocal()
         self.device.close()
 
     def measure_voltage(self, channel_name):
