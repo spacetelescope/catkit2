@@ -160,6 +160,18 @@ class AimTtiPlp(Service):
         # Give some time for power suppluy to respond
         time.sleep(self.device._wait)
 
+    def reset_trip_conditions(self):
+        """Attempt to clear all trip conditions.
+
+        This only works if the device has not been set up so that it can only reset trip conditions manually on the
+        front panel, or by cycling the AC power.
+        """
+        str = 'TRIPRST'
+        self.device._instWrite(str)
+
+        # Give some time for power suppluy to respond
+        time.sleep(self.device._wait)
+
 
 if __name__ == '__main__':
     service = AimTtiPlp()
