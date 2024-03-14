@@ -626,11 +626,25 @@ class Testbed:
             The path to where the Python script or executable for the
             service can be found.
         '''
+        dirname = None
+        # find the service_type.py in the service paths and its subdirectories
         for base_path in self.service_paths:
-            dirname = os.path.join(base_path, service_type)
-            if os.path.exists(dirname):
+            for root, dirs, files in os.walk(base_path):
+                if service_type + '.py' in files:
+                    dirname = root
+                    break
+                else:
+                    for dir in dirs:
+                        subdir = os.path.join(root, dir)
+                        if service_type + '.py' in os.listdir(subdir):
+                            dirname = subdir
+                            break
+            if dirname:
                 break
-        else:
+
+        if dirname:
+            self.log.debug(f"Resolved service type '{service_type}' to path '{dirname}'.")
+        elif base_path is None:
             raise ValueError(f"Service type '{service_type}' not recognized.")
 
         return dirname
