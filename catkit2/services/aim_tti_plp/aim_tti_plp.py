@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 
-class AimTtiPlp(Service):
+class Aim_TTi_PLP(Service):
     def __init__(self):
         super().__init__('aim_tti_plp')
 
@@ -177,5 +177,5 @@ class AimTtiPlp(Service):
 
 
 if __name__ == '__main__':
-    service = AimTtiPlp()
+    service = Aim_TTi_PLP()
     service.run()
