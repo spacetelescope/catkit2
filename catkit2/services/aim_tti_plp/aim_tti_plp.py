@@ -31,7 +31,7 @@ class Aim_TTi_PLP(Service):
         self.measured_current[channel_name] = self.make_data_stream(channel_name.lower() + '_measured_current', 'float32', [1], 20)
 
     def open(self):
-        self.device = AimTTiPPL(self.visa_id)
+        self.device = AimTTiPLP(self.visa_id)
         self.device.open()
 
         for channel_name in self.channels.keys():
