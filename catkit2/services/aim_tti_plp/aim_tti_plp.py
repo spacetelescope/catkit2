@@ -1,6 +1,6 @@
 from catkit2.testbed.service import Service
 
-from dcps import AimTTiPPL
+from dcps import AimTTiPLP
 import threading
 import time
 import numpy as np
