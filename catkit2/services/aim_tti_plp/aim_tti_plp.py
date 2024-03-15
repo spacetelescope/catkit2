@@ -62,7 +62,7 @@ class Aim_TTi_PLP(Service):
                 self.measure_voltage(channel_name)
                 self.measure_current(channel_name)
 
-            time.sleep(0.01)
+            self.sleep(0.01)
 
         for thread in self.stream_threads.values():
             thread.join()
@@ -156,7 +156,7 @@ class Aim_TTi_PLP(Service):
         self.device._instWrite(str)
 
         # Give some time for power suppluy to respond
-        time.sleep(self.device._wait)
+        self.sleep(self.device._wait)
 
     def set_over_current_protection(self, channel_name, value):
         """Set over current protection trip point for a channel."""
@@ -166,7 +166,7 @@ class Aim_TTi_PLP(Service):
         self.device._instWrite(str)
 
         # Give some time for power suppluy to respond
-        time.sleep(self.device._wait)
+        self.sleep(self.device._wait)
 
     def reset_trip_conditions(self):
         """Attempt to clear all trip conditions.
@@ -178,7 +178,7 @@ class Aim_TTi_PLP(Service):
         self.device._instWrite(str)
 
         # Give some time for power suppluy to respond
-        time.sleep(self.device._wait)
+        self.sleep(self.device._wait)
 
 
 if __name__ == '__main__':
