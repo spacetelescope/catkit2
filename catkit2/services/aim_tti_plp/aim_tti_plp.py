@@ -73,7 +73,7 @@ class Aim_TTi_PLP(Service):
             try:
                 # Get an update for this channel
                 frame = self.voltage_commands[channel_name].get_next_frame(10)
-                value = frame.data
+                value = frame.data[0]
 
                 # Update the device
                 with self.lock_for_voltage:
@@ -88,7 +88,7 @@ class Aim_TTi_PLP(Service):
             try:
                 # Get an update for this channel
                 frame = self.current_commands[channel_name].get_next_frame(10)
-                value = frame.data
+                value = frame.data[0]
 
                 # Update the device
                 with self.lock_for_current:
