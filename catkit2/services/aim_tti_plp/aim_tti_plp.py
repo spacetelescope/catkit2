@@ -64,10 +64,6 @@ class Aim_TTi_PLP(Service):
 
             self.sleep(0.01)
 
-        for thread in self.stream_threads.values():
-            thread.join()
-        self.stream_threads = {}
-
     def monitor_voltage_command(self, channel_name):
         while not self.should_shut_down:
             try:
@@ -99,6 +95,10 @@ class Aim_TTi_PLP(Service):
                 continue
 
     def close(self):
+        for thread in self.stream_threads.values():
+            thread.join()
+        self.stream_threads = {}
+
         for channel_name in self.channels.keys():
             self.set_voltage(channel_name, value=0)
             self.set_current(channel_name, value=0)
