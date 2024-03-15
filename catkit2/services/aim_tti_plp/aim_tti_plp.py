@@ -6,9 +6,9 @@ import time
 import numpy as np
 
 
-class Aim_TTi_PLP(Service):
+class AimttiPLPDevice(Service):
     def __init__(self):
-        super().__init__('aim_tti_plp')
+        super().__init__('aimtti_plp_device')
 
         self.visa_id = self.config['visa_id']
         self.channels = self.config['channels']
@@ -182,5 +182,5 @@ class Aim_TTi_PLP(Service):
 
 
 if __name__ == '__main__':
-    service = Aim_TTi_PLP()
+    service = AimttiPLPDevice()
     service.run()
