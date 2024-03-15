@@ -72,8 +72,7 @@ class Aim_TTi_PLP(Service):
                 value = frame.data[0]
 
                 # Update the device
-                with self.lock_for_voltage:
-                    self.set_voltage(channel_name, value)
+                self.set_voltage(channel_name, value)
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -87,8 +86,7 @@ class Aim_TTi_PLP(Service):
                 value = frame.data[0]
 
                 # Update the device
-                with self.lock_for_current:
-                    self.set_current(channel_name, value)
+                self.set_current(channel_name, value)
 
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
@@ -129,12 +127,14 @@ class Aim_TTi_PLP(Service):
     def set_voltage(self, channel_name, value):
         """Set output voltage for a channel."""
         channel_number = self.channels[channel_name]['channel']
-        self.device.setVoltage(voltage=value, channel=channel_number)
+        with self.lock_for_voltage:
+            self.device.setVoltage(voltage=value, channel=channel_number)
 
     def set_current(self, channel_name, value):
         """Set output current limit for a channel."""
         channel_number = self.channels[channel_name]['channel']
-        self.device.setCurrent(current=value, channel=channel_number)
+        with self.lock_for_current:
+            self.device.setCurrent(current=value, channel=channel_number)
 
     def query_commanded_voltage(self, channel_name):
         """Return set voltage of output for a channel (not the measured voltage)."""
