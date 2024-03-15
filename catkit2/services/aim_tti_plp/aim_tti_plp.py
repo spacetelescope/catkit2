@@ -58,6 +58,10 @@ class Aim_TTi_PLP(Service):
             self.stream_threads[channel_name + '_current'] = thread_current
 
         while not self.should_shut_down:
+            for channel_name in self.channels.keys():
+                self.measure_voltage(channel_name)
+                self.measure_current(channel_name)
+
             time.sleep(0.01)
 
         for thread in self.stream_threads.values():
@@ -103,18 +107,20 @@ class Aim_TTi_PLP(Service):
         self.device.close()
 
     def measure_voltage(self, channel_name):
-        """Return the measured voltage of a channel."""
+        """Measure the voltage of a channel."""
         channel_number = self.channels[channel_name]['channel']
-        measured_voltage = self.device.measureVoltage(channel=channel_number)
+        with self.lock_for_voltage:
+            measured_voltage = self.device.measureVoltage(channel=channel_number)
 
         # Update measured voltage data stream.
         stream = self.measured_voltage[channel_name]
         stream.submit_data(np.array([measured_voltage]))
 
     def measure_current(self, channel_name):
-        """Return the measured current of a channel."""
+        """Measure the current of a channel."""
         channel_number = self.channels[channel_name]['channel']
-        measured_current = self.device.measureCurrent(channel=channel_number)
+        with self.lock_for_current:
+            measured_current = self.device.measureCurrent(channel=channel_number)
 
         # Update measured current data stream.
         stream = self.measured_current[channel_name]
