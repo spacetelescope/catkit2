@@ -626,27 +626,35 @@ class Testbed:
             The path to where the Python script or executable for the
             service can be found.
         '''
+        # The directory where the service type can be found.
         dirname = None
-        # find the service_type.py in the service paths and its subdirectories
+
+        # find the service_type in the service paths and its subdirectories
         for base_path in self.service_paths:
-            for root, dirs, files in os.walk(base_path):
+            for root, _, files in os.walk(base_path):
+                # Searching service type 'service_type' in 'root'
                 if service_type + '.py' in files:
+                    # The service type is a Python script.
                     dirname = root
                     break
-                else:
-                    for dir in dirs:
-                        subdir = os.path.join(root, dir)
-                        if service_type + '.py' in os.listdir(subdir):
-                            dirname = subdir
-                            break
+                elif service_type + '.exe' in files:
+                    # The service type is an executable.
+                    dirname = root
+                    break
+                elif service_type in files:
+                    # The service type is a script with no extension.
+                    dirname = root
+                    break
+
+            # if we found the service type, break the loop
             if dirname:
                 break
 
-        if dirname:
-            self.log.debug(f"Resolved service type '{service_type}' to path '{dirname}'.")
-        elif base_path is None:
+        # Raise an exception if the service type could not be found.
+        if dirname is None:
             raise ValueError(f"Service type '{service_type}' not recognized.")
 
+        self.log.debug(f"Resolved service type '{service_type}' to path '{dirname}'.")
         return dirname
 
     def shut_down_all_services(self):
