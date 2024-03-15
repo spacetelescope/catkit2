@@ -60,7 +60,7 @@ std::shared_ptr<SharedMemory> SharedMemory::Open(const std::string &id)
 	FileObject file = shm_open((id + ".mem").c_str(), O_RDWR, 0666);
 
 	if (file < 0)
-		throw std::runtime_error("Something went wrong while creating shared memory.");
+		throw std::runtime_error("Something went wrong while opening shared memory.");
 #endif
 
 	return std::shared_ptr<SharedMemory>(new SharedMemory(id, file, false));
