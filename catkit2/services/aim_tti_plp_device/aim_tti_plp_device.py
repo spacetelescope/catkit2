@@ -111,7 +111,7 @@ class AimttiPLPDevice(Service):
 
         # Update measured voltage data stream.
         stream = self.measured_voltage[channel_name]
-        stream.submit_data(np.array([measured_voltage]))
+        stream.submit_data(np.array([measured_voltage]).astype('float32'))
 
     def measure_current(self, channel_name):
         """Measure the current of a channel."""
@@ -121,7 +121,7 @@ class AimttiPLPDevice(Service):
 
         # Update measured current data stream.
         stream = self.measured_current[channel_name]
-        stream.submit_data(np.array([measured_current]))
+        stream.submit_data(np.array([measured_current]).astype('float32'))
 
     def set_voltage(self, channel_name, value):
         """Set output voltage for a channel."""
