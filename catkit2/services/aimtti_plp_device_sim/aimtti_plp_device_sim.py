@@ -94,7 +94,6 @@ class AimttiPLPDeviceSim(Service):
 
     def measure_voltage(self, channel_name):
         """Measure the voltage of a channel."""
-        channel_number = self.channels[channel_name]['channel']
         measured_voltage = 5.
 
         # Update measured voltage data stream.
@@ -103,7 +102,6 @@ class AimttiPLPDeviceSim(Service):
 
     def measure_current(self, channel_name):
         """Measure the current of a channel."""
-        channel_number = self.channels[channel_name]['channel']
         measured_current = 0.1
 
         # Update measured current data stream.
