@@ -42,6 +42,10 @@ class ThorlabsKDC101(Service):
 
     def home(self):
         self.motor.home()
+
+        while self.motor.status["homing"]:
+            self.sleep(0.1)
+
         # Update the current position data stream.
         self.get_current_position()
 
