@@ -54,6 +54,9 @@ class ThorlabsKDC101(Service):
         # Update the current position data stream.
         self.get_current_position()
 
+    def get_status(self):
+        return self.motor.status
+
 
 if __name__ == '__main__':
     service = ThorlabsKDC101()
