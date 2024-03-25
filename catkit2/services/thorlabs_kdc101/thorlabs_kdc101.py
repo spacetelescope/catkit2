@@ -41,6 +41,11 @@ class ThorlabsKDC101(Service):
         self.current_position.submit_data(np.array([current_position], dtype='float64'))
 
     def home(self):
+        """
+        Home the motor.
+
+        This will block until the motor has finished homing.
+        """
         self.motor.home()
 
         while self.motor.status["homing"]:
@@ -50,6 +55,7 @@ class ThorlabsKDC101(Service):
         self.get_current_position()
 
     def stop(self):
+        """Stop any current movement of the motor."""
         self.motor.stop()
         # Update the current position data stream.
         self.get_current_position()
