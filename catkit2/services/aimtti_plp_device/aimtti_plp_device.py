@@ -34,8 +34,8 @@ class AimttiPLPDevice(Service):
         self.device.open()
 
         for channel_name in self.channels.keys():
-            if not self.device.isOutputOn(self.channels[channel_name]['channel']):
-                self.device.outputOn(self.channels[channel_name]['channel'])
+            if not self.device.isOutputOn(self.channels[channel_name]['channel_number']):
+                self.device.outputOn(self.channels[channel_name]['channel_number'])
 
         self.make_command('query_commanded_voltage', self.query_commanded_voltage)
         self.make_command('query_commanded_current', self.query_commanded_current)
@@ -99,13 +99,13 @@ class AimttiPLPDevice(Service):
         for channel_name in self.channels.keys():
             self.set_voltage(channel_name, value=0)
             self.set_current(channel_name, value=0)
-            self.device.outputOff(self.channels[channel_name]['channel'])
+            self.device.outputOff(self.channels[channel_name]['channel_number'])
 
         self.device.close()
 
     def measure_voltage(self, channel_name):
         """Measure the voltage of a channel."""
-        channel_number = self.channels[channel_name]['channel']
+        channel_number = self.channels[channel_name]['channel_number']
         with self.lock_for_voltage:
             measured_voltage = self.device.measureVoltage(channel=channel_number)
 
@@ -115,7 +115,7 @@ class AimttiPLPDevice(Service):
 
     def measure_current(self, channel_name):
         """Measure the current of a channel."""
-        channel_number = self.channels[channel_name]['channel']
+        channel_number = self.channels[channel_name]['channel_number']
         with self.lock_for_current:
             measured_current = self.device.measureCurrent(channel=channel_number)
 
@@ -125,31 +125,31 @@ class AimttiPLPDevice(Service):
 
     def set_voltage(self, channel_name, value):
         """Set output voltage for a channel."""
-        channel_number = self.channels[channel_name]['channel']
+        channel_number = self.channels[channel_name]['channel_number']
         with self.lock_for_voltage:
             self.device.setVoltage(voltage=value, channel=channel_number)
 
     def set_current(self, channel_name, value):
         """Set output current limit for a channel."""
-        channel_number = self.channels[channel_name]['channel']
+        channel_number = self.channels[channel_name]['channel_number']
         with self.lock_for_current:
             self.device.setCurrent(current=value, channel=channel_number)
 
     def query_commanded_voltage(self, channel_name):
         """Return set voltage of output for a channel (not the measured voltage)."""
-        channel_number = self.channels[channel_name]['channel']
+        channel_number = self.channels[channel_name]['channel_number']
 
         return self.device.queryVoltage(channel=channel_number)
 
     def query_commanded_current(self, channel_name):
         """Return set current limit of output for a channel (not the measured current)."""
-        channel_number = self.channels[channel_name]['channel']
+        channel_number = self.channels[channel_name]['channel_number']
 
         return self.device.queryCurrent(channel=channel_number)
 
     def set_over_voltage_protection(self, channel_name, value):
         """Set over voltage protection trip point for a channel."""
-        channel_number = self.channels[channel_name]['channel']
+        channel_number = self.channels[channel_name]['channel_number']
 
         str = 'OVP{} {}'.format(channel_number, value)
         self.device._instWrite(str)
@@ -159,7 +159,7 @@ class AimttiPLPDevice(Service):
 
     def set_over_current_protection(self, channel_name, value):
         """Set over current protection trip point for a channel."""
-        channel_number = self.channels[channel_name]['channel']
+        channel_number = self.channels[channel_name]['channel_number']
 
         str = 'OCP{} {}'.format(channel_number, value)
         self.device._instWrite(str)
