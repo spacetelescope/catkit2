@@ -110,11 +110,11 @@ class AimttiPLPDeviceSim(Service):
 
     def set_voltage(self, channel_name, value):
         """Set output voltage for a channel."""
-        pass
+        self.log.warning("Setting voltage on simulated AimTTiPL-P not implemented.")
 
     def set_current(self, channel_name, value):
         """Set output current limit for a channel."""
-        pass
+        self.log.warning("Setting current on simulated AimTTiPL-P not implemented.")
 
     def query_commanded_voltage(self, channel_name):
         """Return set voltage of output for a channel (not the measured voltage)."""
