@@ -154,7 +154,7 @@ class AimttiPLPDevice(Service):
         str = 'OVP{} {}'.format(channel_number, value)
         self.device._instWrite(str)
 
-        # Give some time for power suppluy to respond
+        # Give some time for power supply to respond
         self.sleep(self.device._wait)
 
     def set_over_current_protection(self, channel_name, value):
@@ -164,7 +164,7 @@ class AimttiPLPDevice(Service):
         str = 'OCP{} {}'.format(channel_number, value)
         self.device._instWrite(str)
 
-        # Give some time for power suppluy to respond
+        # Give some time for power supply to respond
         self.sleep(self.device._wait)
 
     def reset_trip_conditions(self):
@@ -176,7 +176,7 @@ class AimttiPLPDevice(Service):
         str = 'TRIPRST'
         self.device._instWrite(str)
 
-        # Give some time for power suppluy to respond
+        # Give some time for power supply to respond
         self.sleep(self.device._wait)
 
 
