@@ -6,7 +6,7 @@ It provides a general infrastructure to control hardware and synchronize devices
 This package was developed for use on the High-contrast Imager for Complex Apertures Testbed (HiCAT) for 
 developing technologies relevant to direct imaging of exoplanets in astronomy in the laboratory.
 
-This is an open-source package, but it not actively supported.  Use at your own risk.
+This is an open-source package, but it is not actively supported.  Use at your own risk.
 
 Environment variables
 ---------------------
