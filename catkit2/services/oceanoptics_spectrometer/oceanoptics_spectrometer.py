@@ -8,7 +8,7 @@ It provides a simple interface to control the spectro and acquire spectras.
 import threading
 
 from seabreeze.spectrometers import Spectrometer as spct
-from seabreeze.spectrometers import SeabreezeError
+from seabreeze.spectrometers import SeaBreezeError
 
 from catkit2.testbed.service import Service
 
@@ -91,7 +91,7 @@ class OceanOpticsSpectrometer(Service):
 
         try:
             self.spectrometer = spct.from_serial_number(self.serial_number)
-        except SeabreezeError:
+        except SeaBreezeError:
             raise ImportError(f'OceanOptics: Could not find spectrometer with serial number {self.serial_number}')
 
         # exctract attributes
@@ -120,22 +120,20 @@ class OceanOpticsSpectrometer(Service):
     def start_acquisition(self):
         '''
         Start the acquisition loop.
-
-        This function starts the acquisition loop.
         '''
         self.should_be_acquiring.set()
 
     def end_acquisition(self):
         '''
         End the acquisition loop.
-
-        This function ends the acquisition loop.
         '''
         self.should_be_acquiring.clear()
 
     def get_spectra(self):
-        spectra = self.spectrometer.intensities()
-        self.spectras.submit_data(spectra, dtype='float32')
+        '''
+        Get spectrum from spectrometer and submit it to the data stream.
+        '''
+        self.spectras.submit_data(self.spectrometer.intensities(), dtype='float32')
 
     @property
     def exposure_time(self):
