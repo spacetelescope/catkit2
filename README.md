@@ -1,3 +1,13 @@
+The Control and Automation for Testbeds Kit 2 (CATKit2)
+---------------------
+CATKit2 is a toolkit for hardware controls that has been developed at the Space Telescope Science Institute. 
+It provides a general infrastructure to control hardware and synchronize devices.  
+
+This package was developed for use on the High-contrast Imager for Complex Apertures Testbed (HiCAT) for 
+developing technologies relevant to direct imaging of exoplanets in astronomy in the laboratory.
+
+This is an open-source package, but it is not actively supported.  Use at your own risk.
+
 Environment variables
 ---------------------
 
@@ -5,7 +15,7 @@ Set `FOR_DISABLE_CONSOLE_CTRL_HANDLER` to `1`. This disables the Fortran Ctrl+C 
 
 On Windows, you can set environment variables for your account only from the control panel, which doesn't require administrator rights.
 
-On MacOS, assuming a bash shell (the standard choice for hicat work) this is done by adding the following line at the end of your .bash_profile file:
+On MacOS, assuming a bash shell this is done by adding the following line at the end of your .bash_profile file:
 ```
 export FOR_DISABLE_CONSOLE_CTRL_HANDLER=1
 ```
