@@ -5,10 +5,13 @@ This service is a wrapper around the python seabreeze package
 It provides a simple interface to control the spectro and acquire spectras.
 '''
 
-from catkit2.testbed.service import Service
+import threading
 
 from seabreeze.spectrometers import Spectrometer as spct
 from seabreeze.spectrometers import SeabreezeError
+
+from catkit2.testbed.service import Service
+
 
 class OceanOpticsSpectrometer(Service):
     '''
@@ -29,6 +32,8 @@ class OceanOpticsSpectrometer(Service):
         A NDArray with the wl of the spectrometer.
     spectras : DataStream
         A data stream to submit the spectras from the spectrometer.
+    should_be_acquiring : threading.Event
+        An event to signal whether the spectra should be acquiring a spectrum.
     NUM_FRAMES : int
         The number of frames to allocate for the data streams.
 
@@ -62,6 +67,11 @@ class OceanOpticsSpectrometer(Service):
         self.wavelengths = None
         self.spectras = None
 
+        self._exposure_time = None
+
+        self.should_be_acquiring = threading.Event()
+        self.should_be_acquiring.set()
+
     def open(self):
         '''
         Open the service.
@@ -84,19 +94,18 @@ class OceanOpticsSpectrometer(Service):
         except SeabreezeError:
             raise ImportError(f'OceanOptics: Could not find spectrometer with serial number {self.serial_number}')
 
-        # Set the exposure time
-        self.exposure_time = self.config.get('exposure_time', 1000)
-        self.make_property('exposure_time', lambda: getattr(self, 'exposure_time'),
-                           lambda val: setattr(self, 'exposure_time', val))
-
         # exctract attributes
         self.model = self.spectrometer.model
         self.pixels_number = self.spectrometer.pixels
         self.wavelengths = self.spectrometer.wavelengths()
 
+        # Define and set defaut exposure time
+        self._exposure_time = self.config.get('exposure_time', 1000)
+        self.exposure_time(self._exposure_time)
+
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.spectras = self.make_data_stream('spectras', 'float32', self.pixels_number, self.NUM_FRAMES)
+        self.spectras = self.make_data_stream('spectras', 'float32', [self.pixels_number], self.NUM_FRAMES)
 
     def main(self):
         '''
@@ -105,12 +114,27 @@ class OceanOpticsSpectrometer(Service):
         This function is called when the service is started.
         '''
         while not self.should_shut_down:
+            self.should_be_acquiring.set()
             self.get_spectra()
 
     def get_spectra(self):
-        spectra = self.spectrometer.intensities() 
-        self.spectras.submit_data(spectra, dtype='float32')
- 
+        if self.should_be_acquiring.wait(0.05):
+            spectra = self.spectrometer.intensities()
+            self.spectras.submit_data(spectra, dtype='float32')
+            self.should_be_acquiring.clear()
+
+    @property
+    def exposure_time(self):
+        '''
+        The exposure time in microseconds.
+
+        Returns:
+        --------
+        int:
+            The exposure time in microseconds.
+        '''
+        return self._exposure_time
+
     @exposure_time.setter
     def exposure_time(self, exposure_time: int):
         '''
@@ -134,6 +158,7 @@ class OceanOpticsSpectrometer(Service):
             raise ValueError(
                 f"OceanOptics: integration time need to be in [{int_time_range[0]}, {int_time_range[1]}] range (ms)")
 
+        self._exposure_time = exposure_time
         self.spectrometer.integration_time_micros(exposure_time)
 
     def close(self):
