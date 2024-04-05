@@ -116,7 +116,7 @@ class OceanOpticsSpectrometer(Service):
         while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.get_spectra()
-    
+
     def start_acquisition(self):
         '''
         Start the acquisition loop.
@@ -132,7 +132,6 @@ class OceanOpticsSpectrometer(Service):
         This function ends the acquisition loop.
         '''
         self.should_be_acquiring.clear()
-
 
     def get_spectra(self):
         spectra = self.spectrometer.intensities()
