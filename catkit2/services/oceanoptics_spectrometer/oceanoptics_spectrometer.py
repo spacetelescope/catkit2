@@ -5,13 +5,10 @@ This service is a wrapper around the python seabreeze package
 It provides a simple interface to control the spectro and acquire spectras.
 '''
 
-import seabreeze
-
-seabreeze.use('pyseabreeze')
-
-from seabreeze.spectrometers import Spectrometer as spct
 from catkit2.testbed.service import Service
 
+from seabreeze.spectrometers import Spectrometer as spct
+from seabreeze.spectrometers import SeabreezeError
 
 class OceanOpticsSpectro(Service):
     '''
@@ -44,7 +41,7 @@ class OceanOpticsSpectro(Service):
     close()
         Close the service.
     get_spectra()
-        Get a spectra from the spectrometer.
+        Get a spectrum from the spectrometer.
     exposure_time()
         Set the exposure time of the spectrometer.
 
@@ -84,8 +81,8 @@ class OceanOpticsSpectro(Service):
 
         try:
             self.spectrometer = spct.from_serial_number(self.serial_number)
-        except:
-            raise RuntimeError(f'Could not find spectrometer with serial number {self.serial_number}')
+        except SeabreezeError:
+            raise ImportError(f'OceanOptics: Could not find spectrometer with serial number {self.serial_number}')
 
         # Set the exposure time
         self.exposure_time = self.config.get('exposure_time', 1000)
@@ -125,7 +122,7 @@ class OceanOpticsSpectro(Service):
         ----------
         exposure_time : int
             The exposure time in microseconds.
-        
+
         Raises
         ------
         ValueError
@@ -135,7 +132,7 @@ class OceanOpticsSpectro(Service):
         int_time_range = self.spectrometer.integration_time_micros_limits
         if exposure_time < int_time_range[0] or exposure_time > int_time_range[1]:
             raise ValueError(
-                f"Ocean Optics: integration time need to be in [{int_time_range[0]}, {int_time_range[1]}] range (ms)")
+                f"OceanOptics: integration time need to be in [{int_time_range[0]}, {int_time_range[1]}] range (ms)")
 
         self.spectrometer.integration_time_micros(exposure_time)
 
