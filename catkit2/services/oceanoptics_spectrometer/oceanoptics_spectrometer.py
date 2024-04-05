@@ -10,7 +10,7 @@ from catkit2.testbed.service import Service
 from seabreeze.spectrometers import Spectrometer as spct
 from seabreeze.spectrometers import SeabreezeError
 
-class OceanOpticsSpectro(Service):
+class OceanOpticsSpectrometer(Service):
     '''
     Service for Ocean Optics Spectrometer.
 
@@ -50,10 +50,10 @@ class OceanOpticsSpectro(Service):
 
     def __init__(self):
         '''
-        Create a new OceanOpticsSpectro service.
+        Create a new OceanOpticsSpectrometer service.
 
         '''
-        super().__init__('OceanOpticsSpectro')
+        super().__init__('oceanoptics_spectrometer')
 
         self.spectrometer = None
         self.model = None
@@ -105,12 +105,12 @@ class OceanOpticsSpectro(Service):
         This function is called when the service is started.
         '''
         while not self.should_shut_down:
-            spectra = self.get_spectra()
-            self.spectras.submit_data(spectra, dtype='float32')
+            self.get_spectra()
 
     def get_spectra(self):
-        return self.spectrometer.intensities()
-
+        spectra = self.spectrometer.intensities() 
+        self.spectras.submit_data(spectra, dtype='float32')
+ 
     @exposure_time.setter
     def exposure_time(self, exposure_time: int):
         '''
@@ -148,5 +148,5 @@ class OceanOpticsSpectro(Service):
 
 
 if __name__ == '__main__':
-    service = OceanOpticsSpectro()
+    service = OceanOpticsSpectrometer()
     service.run()
