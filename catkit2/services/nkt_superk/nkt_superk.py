@@ -5,7 +5,17 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 from enum import Enum
 
-from NKTP_DLL import *
+
+try:
+    sdk_path = os.path.join(os.environ.get('NKTP_SDK_PATH'), 'Examples', 'DLL_Example_Python')
+    if sdk_path is not None:
+        sys.path.append(sdk_path)
+
+    from NKTP_DLL import *
+except ImportError:
+    print('To use NKT SDK, you need to install the SDK and check the NKTP_SDK_PATH environment variable.')
+    raise
+
 
 # SuperK EVO registers.
 class Evo(Enum):
