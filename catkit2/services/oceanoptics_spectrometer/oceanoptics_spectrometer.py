@@ -24,6 +24,8 @@ class OceanOpticsSpectrometer(Service):
     ----------
     spectrometer : Spectrometer
         The spectrometer to control.
+    serial_number : str
+        The serial number of the spectrometer.
     model : str
         The model of the spectrometer.
     pixels_number : int
@@ -33,7 +35,7 @@ class OceanOpticsSpectrometer(Service):
     spectras : DataStream
         A data stream to submit the spectras from the spectrometer.
     should_be_acquiring : threading.Event
-        An event to signal whether the spectra should be acquiring a spectrum.
+        An event to signal whether the spectra should acquire a spectrum.
     NUM_FRAMES : int
         The number of frames to allocate for the data streams.
 
@@ -45,7 +47,9 @@ class OceanOpticsSpectrometer(Service):
         The main function of the service.
     close()
         Close the service.
-    get_spectra()
+    start_acquisition()
+        Start the acquisition.
+    take_one_spectrum()
         Get a spectrum from the spectrometer.
     exposure_time()
         Set the exposure time of the spectrometer.
@@ -59,7 +63,8 @@ class OceanOpticsSpectrometer(Service):
 
         '''
         super().__init__('oceanoptics_spectrometer')
-
+        
+        self.serial_number = None
         self.spectrometer = None
         self.model = None
         self.pixels_number = None
@@ -88,7 +93,6 @@ class OceanOpticsSpectrometer(Service):
 
         # Find the spectrometer
         self.serial_number = str(self.config['serial_number'])
-
         try:
             self.spectrometer = spct.from_serial_number(self.serial_number)
         except SeaBreezeError:
@@ -115,7 +119,8 @@ class OceanOpticsSpectrometer(Service):
         '''
         while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
-                self.get_spectra()
+                self.take_one_spectrum()
+                self.should_be_acquiring.clear()
 
     def start_acquisition(self):
         '''
@@ -123,15 +128,9 @@ class OceanOpticsSpectrometer(Service):
         '''
         self.should_be_acquiring.set()
 
-    def end_acquisition(self):
+    def take_one_spectrum(self):
         '''
-        End the acquisition loop.
-        '''
-        self.should_be_acquiring.clear()
-
-    def get_spectra(self):
-        '''
-        Get spectrum from spectrometer and submit it to the data stream.
+        measure one spectrum and submit it to the data stream.
         '''
         self.spectras.submit_data(self.spectrometer.intensities(), dtype='float32')
 
@@ -164,7 +163,6 @@ class OceanOpticsSpectrometer(Service):
         ValueError
             If the exposure time is not in the range of the accepted spectrometer values.
         '''
-
         int_time_range = self.spectrometer.integration_time_micros_limits
         if exposure_time < int_time_range[0] or exposure_time > int_time_range[1]:
             raise ValueError(
@@ -178,7 +176,7 @@ class OceanOpticsSpectrometer(Service):
         Close the service.
 
         This function is called when the service is closed.
-        It close the spectro loop and cleans up the data streams.
+        It close the spectro and cleans up the data streams.
         '''
         self.spectrometer.close()
         self.spectrometer = None
