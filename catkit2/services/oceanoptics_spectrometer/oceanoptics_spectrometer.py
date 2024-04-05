@@ -115,13 +115,13 @@ class OceanOpticsSpectrometer(Service):
         '''
         while not self.should_shut_down:
             self.should_be_acquiring.set()
-            self.get_spectra()
+            if self.should_be_acquiring.wait(0.05):
+                self.get_spectra()
+                self.should_be_acquiring.clear()
 
     def get_spectra(self):
-        if self.should_be_acquiring.wait(0.05):
-            spectra = self.spectrometer.intensities()
-            self.spectras.submit_data(spectra, dtype='float32')
-            self.should_be_acquiring.clear()
+        spectra = self.spectrometer.intensities()
+        self.spectras.submit_data(spectra, dtype='float32')
 
     @property
     def exposure_time(self):
