@@ -15,7 +15,9 @@ class ThorlabsKDC101(Service):
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
     def open(self):
+        print(f"start open method")
         self.motor = KDC101(serial_number=self.serial_number, home=False)
+        print(f"end open method")
 
     def main(self):
         while not self.should_shut_down:
