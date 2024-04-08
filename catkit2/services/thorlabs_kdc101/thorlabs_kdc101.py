@@ -10,7 +10,7 @@ class ThorlabsKDC101(Service):
 
     def __init__(self):
         #open serial port
-        ser = serial.Serial(port='COM1', baudrate=115200, bytesize=8,
+        self.ser = serial.Serial(port='COM1', baudrate=9600, bytesize=8,
                             parity=serial.PARITY_NONE,
                             stopbits=1, xonxoff=0,
                             rtscts=0,
