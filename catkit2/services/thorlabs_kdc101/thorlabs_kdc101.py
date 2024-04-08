@@ -15,8 +15,8 @@ class ThorlabsKDC101(Service):
                             stopbits=1, xonxoff=0,
                             rtscts=0,
                             timeout=1)
-        
-        super().__init__('thorlabs_kdc101', serial_port=ser)
+
+        super().__init__('thorlabs_kdc101')
 
         self.serial_number = self.config['serial_number']
 
