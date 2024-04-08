@@ -1,3 +1,5 @@
+import serial
+
 from catkit2.testbed.service import Service
 
 from thorlabs_apt_device import KDC101
@@ -7,10 +9,16 @@ import numpy as np
 class ThorlabsKDC101(Service):
 
     def __init__(self):
-        super().__init__('thorlabs_kdc101')
+        #open serial port
+        ser = serial.Serial(port='COM1', baudrate=115200, bytesize=8,
+                            parity=serial.PARITY_NONE,
+                            stopbits=1, xonxoff=0,
+                            rtscts=0,
+                            timeout=1)
+        
+        super().__init__('thorlabs_kdc101', serial_port=ser)
 
         self.serial_number = self.config['serial_number']
-        self.serial_port = self.config['serial_port']
 
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
