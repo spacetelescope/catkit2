@@ -14,37 +14,43 @@ class ThorlabsCubes(Service):
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
+        #Initialization of the parameters
         self.motor = None
-        self.motor.cube_model = None
+        self.cube_model = None
         self.motor_unit = None
         self.motor_max = None
         self.motor_min = None
 
     def open(self):
+        """
+            Open the motor and cube.
+
+            This will also check if the configured characteristics are matching the one the cube have.
+        """
         self.motor = apt.Motor(self.serial_number)
 
         #Retrieve min, max, unit and model of the motor and cube
         min = self.motor.get_stage_axis_info()[0]
         max = self.motor.get_stage_axis_info()[1]
         unit = ''
-        model = self.motor.hardware_info()[0]
+        model = self.motor.hardware_info[0]
         if self.motor.get_stage_axis_info()[2] == 1:
             unit = 'mm'
         if self.motor.get_stage_axis_info()[2] == 2:
             unit = 'deg'
 
         #Config min, max, unit and model of the motor and cube
-        self.motor.min_pos = self.config['motor_min_pos']
-        self.motor.max_pos = self.config['motor_max_pos']
-        self.motor.unit = self.config['motor_unit']
-        self.motor.cube_model = self.config['cube_model']
+        self.min_pos = self.config['motor_min_pos']
+        self.max_pos = self.config['motor_max_pos']
+        self.unit = self.config['motor_unit']
+        self.cube_model = self.config['cube_model']
 
         #Compare
         try :
-            self.motor.min_pos == min
-            self.motor.max_pos == max
-            self.motor.unit == unit
-            self.motor.cube_model == model
+            self.min_pos == min
+            self.max_pos == max
+            self.unit == unit
+            self.cube_model == model
         except Exception:
             raise
 
@@ -94,8 +100,9 @@ class ThorlabsCubes(Service):
         self.get_current_position()
 
     def is_in_motion(self):
+        """Check if the motor is currently moving."""
         return self.motor.is_in_motion()
 
-    if __name__ == '__main__':
-        service = ThorlabsCubes()
-        service.run()
+if __name__ == '__main__':
+    service = ThorlabsCubes()
+    service.run()
