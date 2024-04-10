@@ -16,7 +16,7 @@ class ThorlabsKDC101(Service):
         self.motor = None
 
     def open(self):
-        self.motor = KDC101(serial_number=self.serial_number,serial_port='COM3', home=False)
+        self.motor = KDC101(serial_number=self.serial_number, serial_port='COM3', home=False)
 
     def main(self):
         while not self.should_shut_down:

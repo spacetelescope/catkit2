@@ -14,7 +14,7 @@ class ThorlabsCubes(Service):
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
-        #Initialization of the parameters
+        # Initialization of the parameters
         self.motor = None
         self.cube_model = None
         self.motor_unit = None
@@ -29,7 +29,7 @@ class ThorlabsCubes(Service):
         """
         self.motor = apt.Motor(self.cube_serial_number)
 
-        #Retrieve min, max, unit and model of the motor and cube
+        # Retrieve min, max, unit and model of the motor and cube
         min = self.motor.get_stage_axis_info()[0]
         max = self.motor.get_stage_axis_info()[1]
         unit = ''
@@ -39,14 +39,14 @@ class ThorlabsCubes(Service):
         if self.motor.get_stage_axis_info()[2] == 2:
             unit = 'deg'
 
-        #Config min, max, unit and model of the motor and cube
+        # Config min, max, unit and model of the motor and cube
         self.min_pos = self.config['motor_min_pos']
         self.max_pos = self.config['motor_max_pos']
         self.unit = self.config['motor_unit']
         self.cube_model = self.config['cube_model']
 
-        #Compare
-        try :
+        # Compare
+        try:
             self.min_pos == min
             self.max_pos == max
             self.unit == unit
