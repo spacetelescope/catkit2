@@ -1,13 +1,10 @@
 '''
-This module contains a service for Ocean Optics Sectrometer
-
-This service is a wrapper around the python seabreeze package
-It provides a simple interface to control the spectro and acquire spectras.
+This module contains a service for Ocean Optics Spectrometers.
 '''
 
 import threading
 
-from seabreeze.spectrometers import Spectrometer as spct
+from seabreeze.spectrometers import Spectrometer
 from seabreeze.spectrometers import SeaBreezeError
 
 from catkit2.testbed.service import Service
@@ -17,8 +14,8 @@ class OceanOpticsSpectrometer(Service):
     '''
     Service for Ocean Optics Spectrometer.
 
-    This service is a wrapper around the python seabreeze package
-    It provides a simple interface to control the spectro and acquire spectras.
+    This service is a wrapper around the python seabreeze package.
+    It provides a simple interface to control the spectrometer and acquire spectra.
 
     Attributes
     ----------
@@ -29,13 +26,13 @@ class OceanOpticsSpectrometer(Service):
     model : str
         The model of the spectrometer.
     pixels_number : int
-        number of pix in the spectras
+        number of pix in the spectrum.
     wavelengths : NDArray[numpy.float_]
         A NDArray with the wl of the spectrometer.
-    spectras : DataStream
-        A data stream to submit the spectras from the spectrometer.
+    spectra : DataStream
+        A data stream to submit spectra from the spectrometer.
     should_be_acquiring : threading.Event
-        An event to signal whether the spectra should acquire a spectrum.
+        An event to signal whether the spectrometer should acquire a spectrum.
     NUM_FRAMES : int
         The number of frames to allocate for the data streams.
 
@@ -63,14 +60,14 @@ class OceanOpticsSpectrometer(Service):
 
         '''
         super().__init__('oceanoptics_spectrometer')
-        
+
         self.serial_number = None
         self.spectrometer = None
         self.model = None
         self.pixels_number = None
 
         self.wavelengths = None
-        self.spectras = None
+        self.spectra = None
 
         self._exposure_time = None
 
@@ -87,14 +84,13 @@ class OceanOpticsSpectrometer(Service):
         Raises
         ------
         RuntimeError
-            If the spectro cannot be found.
-
+            If the spectrometer cannot be found.
         '''
 
         # Find the spectrometer
         self.serial_number = str(self.config['serial_number'])
         try:
-            self.spectrometer = spct.from_serial_number(self.serial_number)
+            self.spectrometer = Spectrometer.from_serial_number(self.serial_number)
         except SeaBreezeError:
             raise ImportError(f'OceanOptics: Could not find spectrometer with serial number {self.serial_number}')
 
@@ -109,7 +105,7 @@ class OceanOpticsSpectrometer(Service):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.spectras = self.make_data_stream('spectras', 'float32', [self.pixels_number], self.NUM_FRAMES)
+        self.spectra = self.make_data_stream('spectra', 'float32', [self.pixels_number], self.NUM_FRAMES)
 
     def main(self):
         '''
@@ -120,7 +116,7 @@ class OceanOpticsSpectrometer(Service):
         while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.take_one_spectrum()
-                self.should_be_acquiring.clear()
+                self.end_acquisition()
 
     def start_acquisition(self):
         '''
@@ -128,11 +124,17 @@ class OceanOpticsSpectrometer(Service):
         '''
         self.should_be_acquiring.set()
 
+    def end_acquisition(self):
+        '''
+        End the acquisition loop.
+        '''
+        self.should_be_acquiring.clear()
+
     def take_one_spectrum(self):
         '''
         measure one spectrum and submit it to the data stream.
         '''
-        self.spectras.submit_data(self.spectrometer.intensities(), dtype='float32')
+        self.spectra.submit_data(self.spectrometer.intensities(), dtype='float32')
 
     @property
     def exposure_time(self):
@@ -151,7 +153,7 @@ class OceanOpticsSpectrometer(Service):
         '''
         Set the exposure time in microseconds.
 
-        This property can be used to set the exposure time of the spectr0.
+        This property can be used to set the exposure time of the spectrometer.
 
         Parameters
         ----------
@@ -176,7 +178,7 @@ class OceanOpticsSpectrometer(Service):
         Close the service.
 
         This function is called when the service is closed.
-        It close the spectro and cleans up the data streams.
+        It close the spectrometer and cleans up the data streams.
         '''
         self.spectrometer.close()
         self.spectrometer = None
