@@ -4,7 +4,6 @@ import thorlabs_apt as apt
 import numpy as np
 
 
-@ServiceProxy.register_service_interface('thorlabs_dc_motor')
 class ThorlabsCubes(Service):
 
     def __init__(self):
