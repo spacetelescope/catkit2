@@ -28,7 +28,7 @@ class OceanOpticsSpectrometer(Service):
     pixels_number : int
         number of pix in the spectrum.
     wavelengths : NDArray[numpy.float_]
-        A NDArray with the wl of the spectrometer.
+        A NDArray with the wavelengths of the spectrometer.
     spectra : DataStream
         A data stream to submit spectra from the spectrometer.
     should_be_acquiring : threading.Event
@@ -50,14 +50,12 @@ class OceanOpticsSpectrometer(Service):
         Get a spectrum from the spectrometer.
     exposure_time()
         Set the exposure time of the spectrometer.
-
     '''
     NUM_FRAMES = 20
 
     def __init__(self):
         '''
         Create a new OceanOpticsSpectrometer service.
-
         '''
         super().__init__('oceanoptics_spectrometer')
 
@@ -132,7 +130,7 @@ class OceanOpticsSpectrometer(Service):
 
     def take_one_spectrum(self):
         '''
-        measure one spectrum and submit it to the data stream.
+        Measure one spectrum and submit it to the data stream.
         '''
         self.spectra.submit_data(self.spectrometer.intensities(), dtype='float32')
 
