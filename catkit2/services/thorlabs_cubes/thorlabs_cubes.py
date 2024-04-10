@@ -4,6 +4,7 @@ import thorlabs_apt as apt
 import numpy as np
 
 
+@ServiceProxy.register_service_interface('thorlabs_dc_motor')
 class ThorlabsCubes(Service):
 
     def __init__(self):
@@ -27,7 +28,7 @@ class ThorlabsCubes(Service):
 
             This will also check if the configured characteristics are matching the one the cube have.
         """
-        self.motor = apt.Motor(self.serial_number)
+        self.motor = apt.Motor(self.cube_serial_number)
 
         #Retrieve min, max, unit and model of the motor and cube
         min = self.motor.get_stage_axis_info()[0]
