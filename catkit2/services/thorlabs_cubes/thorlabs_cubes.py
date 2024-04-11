@@ -33,7 +33,7 @@ class ThorlabsCubes(Service):
         min = self.motor.get_stage_axis_info()[0]
         max = self.motor.get_stage_axis_info()[1]
         unit = ''
-        model = self.motor.hardware_info[0]
+        model = self.motor.hardware_info[0][2:-1]
         if self.motor.get_stage_axis_info()[2] == 1:
             unit = 'mm'
         if self.motor.get_stage_axis_info()[2] == 2:
