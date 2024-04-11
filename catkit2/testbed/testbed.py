@@ -161,7 +161,7 @@ class Testbed:
 
         self.startup_services = []
         if 'safety' in self.config['testbed']:
-            self.startup_services.extend(self.config['testbed']['safety']['service_id'])
+            self.startup_services.append(self.config['testbed']['safety']['service_id'])
         else:
             self.log.warning('No safety service specified in the configuration file. The testbed will not be checked for safety.')
 
