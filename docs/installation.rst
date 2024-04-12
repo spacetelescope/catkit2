@@ -1,7 +1,7 @@
 Installation
 ============
 
-Catkit2 consists of a core C++ library and a Python package that wrappes this library. It also requires a number of C++ third party libraries to facilitate JSON encoding and decoding, Python bindings, linear algebra and high-speed communication over sockets. Compilation requires a C++ compiler conforming to the C++20 standard. Catkit2 provides scripts to automate downloading and installation of its dependencies and main library.
+Catkit2 consists of a core C++ library and a Python package that wraps this library. It also requires a number of C++ third party libraries to facilitate JSON encoding and decoding, Python bindings, linear algebra and high-speed communication over sockets. Compilation requires a C++ compiler conforming to the C++20 standard. Catkit2 provides scripts to automate downloading and installation of its dependencies and main library.
 
 The following will download all third-party C++ dependencies:
 
@@ -17,7 +17,6 @@ The following will install all downloaded dependencies and create the Conda envi
 
 .. code-block:: bash
 
-    ./install.sh
     cd ..
     conda env create --file environment.yml
     conda activate catkit2
@@ -29,6 +28,13 @@ At this point, all C++ and Python dependencies of catkit2 should have been downl
     python setup.py develop
 
 This will use the default CMake generator to compile catkit_core and its Python bindings. If the default generator doesn't support 64bit compilation, this step will return an error and you will need to specify a default generator to use by setting the CMAKE_GENERATOR environment variable to your preferred generator. You can list all generators installed on your machine with cmake --help. You will have to restart your terminal after changing your environment variables as usual.
+
+On MacOS a standard way to install a C++ compiler is via XCode, which needs to be started (installation occurs on first launch as well as a required license agreement).
+The newer version of XCode (v15) required for Sonoma and higher has introduced location changes, that require updating the following environment variable:
+
+.. code-block:: bash
+
+    export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 
 You should see the main compilation complete in the terminal output without errors. We installed catkit2 in editable mode to make it easier to apply updates. Any updates to the core library requires recompilation of the bindings, which can be done by simply reinstalling the package:
 
