@@ -2,7 +2,7 @@
 
 # This module is a modified version of the original FWxC_COMMAND_LIB.py file from the Thorlabs FW102C filter wheel SDK v5.0.0
 
-# The Thorlabs FW102C filter wheel SDK is avalaible at https://www.thorlabs.com/software_pages/ViewSoftwarePage.cfm?Code=FW102C
+# The Thorlabs FW102C filter wheel SDK is available at https://www.thorlabs.com/software_pages/ViewSoftwarePage.cfm?Code=FW102C
 # The original FWxC_COMMAND_LIB.py file is located at c://Program Files (x86)//Thorlabs//FWxC//Sample//Thorlabs_FWxC_PythonSDK
 # The original FWxC_COMMAND_LIB.py file loads the FilterWheel102_win32.dll file instead of the FilterWheel102_win64.dll file
 # modified by: Arnaud Sevin <Arnaud.Sevin@obspm.fr>
