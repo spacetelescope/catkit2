@@ -195,7 +195,7 @@ class ThorlabsFW102CDll(Service):
 
     @position.setter
     def position(self, position: int):
-        return self.set_position(position)
+        self.set_position(position)
 
 
 if __name__ == '__main__':
