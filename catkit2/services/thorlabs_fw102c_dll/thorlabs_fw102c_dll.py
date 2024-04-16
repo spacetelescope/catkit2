@@ -1,3 +1,4 @@
+import time
 from catkit2.testbed.service import Service
 
 try:
@@ -11,7 +12,6 @@ try:
         FWxCSetSpeedMode,
         FWxCSetSensorMode
     )
-    import time
 except OSError as ex:
     print("Warning:", ex)
 
