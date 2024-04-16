@@ -4,17 +4,16 @@ import thorlabs_apt as apt
 import numpy as np
 
 
-class ThorlabsCubes(Service):
+class ThorlabsCubeMotor(Service):
 
     def __init__(self):
-        super().__init__('thorlabs_cubes')
+        super().__init__('thorlabs_cube_motor')
 
         self.cube_serial_number = self.config['serial_number']
 
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
-        # Initialization of the parameters
         self.motor = None
         self.cube_model = None
         self.motor_unit = None
@@ -23,36 +22,31 @@ class ThorlabsCubes(Service):
 
     def open(self):
         """
-            Open the motor and cube.
+        Open connexion to the motor.
 
-            This will also check if the configured characteristics are matching the one the cube have.
+        This will also check if the configured characteristics are matching the one the cube have.
         """
         self.motor = apt.Motor(self.cube_serial_number)
 
-        # Retrieve min, max, unit and model of the motor and cube
+        # Retrieve the min, max, unit and model from the connected device.
         min = self.motor.get_stage_axis_info()[0]
         max = self.motor.get_stage_axis_info()[1]
-        unit = ''
+        unit = None
         model = self.motor.hardware_info[0][2:-1]
         if self.motor.get_stage_axis_info()[2] == 1:
             unit = 'mm'
         if self.motor.get_stage_axis_info()[2] == 2:
             unit = 'deg'
 
-        # Config min, max, unit and model of the motor and cube
+        # Read min, max, unit and model from service configuration.
         self.min_pos = self.config['motor_min_pos']
         self.max_pos = self.config['motor_max_pos']
         self.unit = self.config['motor_unit']
         self.cube_model = self.config['cube_model']
 
-        # Compare
-        try:
-            self.min_pos == min
-            self.max_pos == max
-            self.unit == unit
-            self.cube_model == model
-        except Exception:
-            raise
+        # Compare the device parameters to the service configuration.
+        if not (self.min_pos == min and self.max_pos == max and self.unit == unit and self.cube_model == model):
+            ValueError("Device parameters don't match configuration parameters.")
 
     def main(self):
         while not self.should_shut_down:
@@ -68,6 +62,11 @@ class ThorlabsCubes(Service):
         self.motor._cleanup()
 
     def set_current_position(self, position):
+        """
+        Set the motor's current position.
+
+        The unit is given in real-life units (mm if translation, deg if rotation).
+        """
         self.motor.move_to(position, blocking=True)
         # Update the current position data stream.
         self.get_current_position()
@@ -104,5 +103,5 @@ class ThorlabsCubes(Service):
         return self.motor.is_in_motion()
 
 if __name__ == '__main__':
-    service = ThorlabsCubes()
+    service = ThorlabsCubeMotor()
     service.run()
