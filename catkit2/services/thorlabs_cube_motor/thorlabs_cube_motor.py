@@ -51,7 +51,7 @@ class ThorlabsCubeMotor(Service):
 
         # Compare the device parameters to the service configuration.
         if not (self.min_pos == min and self.max_pos == max and self.unit == unit and self.cube_model == model):
-            ValueError("Device parameters don't match configuration parameters.")
+            raise ValueError("Device parameters don't match configuration parameters.")
 
     def main(self):
         while not self.should_shut_down:
