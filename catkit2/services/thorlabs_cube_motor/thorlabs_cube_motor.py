@@ -19,8 +19,10 @@ class ThorlabsCubeMotor(Service):
 
         self.cube_model = None
         self.unit = None
-        self.min_position = None
-        self.max_position = None
+        self.min_position_device = None
+        self.max_position_device = None
+        self.min_position_config = None
+        self.max_position_config = None
 
     def open(self):
         """
@@ -31,8 +33,8 @@ class ThorlabsCubeMotor(Service):
         self.motor = apt.Motor(self.serial_number)
 
         # Retrieve the min, max, unit and model from the connected device.
-        self.min_position = self.motor.get_stage_axis_info()[0]
-        self.max_position = self.motor.get_stage_axis_info()[1]
+        self.min_position_device = self.motor.get_stage_axis_info()[0]
+        self.max_position_device = self.motor.get_stage_axis_info()[1]
 
         self.cube_model = self.motor.hardware_info[0][2:-1]
         if self.motor.get_stage_axis_info()[2] == 1:
@@ -47,7 +49,7 @@ class ThorlabsCubeMotor(Service):
         cube_model_config = self.config['cube_model']
 
         # Compare the device parameters to the service configuration.
-        if not (self.min_position >= self.min_position_config and self.max_pos <= self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
+        if not (self.min_position_device >= self.min_position_config and self.max_pos <= self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
             raise ValueError("Device parameters don't match configuration parameters.")
 
         self.command = self.make_data_stream('command', 'float64', [1], 20)
