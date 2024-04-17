@@ -104,12 +104,23 @@ class HamamatsuCamera(Service):
         ValueError
             If the pixel format is invalid.
         """
-        dcam.Dcamapi.init()
+        if dcam.Dcamapi.init() is False:
+            raise RuntimeError(f'Dcamapi.init() fails with error {dcam.Dcamapi.lasterr()}')
 
         camera_id = self.config.get('camera_id', 0)
         self.cam = dcam.Dcam(camera_id)
         self.log.info('Using camera with ID %s', camera_id)
-        self.cam.dev_open()
+        if self.cam.dev_open() is False:
+            raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
+
+        # Set subarray mode
+        self.cam.prop_setvalue(4202832, 2.0)  # TODO: ? - 2.0 for subarray mode on
+
+        # Set binning
+        self.cam.prop_setvalue(4198672, 1.0)   # TODO: find DCAM keyword for this
+
+        # Set camera mode
+        dcam.prop_setvalue(4194576, 2.0)   # TODO: find DCAM keyword for this - 2.0 for "standard", 1.0 for "ultraquiet"
 
         self.current_pixel_format = self.config.get('pixel_format', 'Mono16')
         if self.current_pixel_format not in self.pixel_formats:
@@ -130,7 +141,7 @@ class HamamatsuCamera(Service):
         self.offset_y = offset_y
 
         self.gain = self.config.get('gain', 0)
-        self.exposure_time = self.config.get('exposure_time', 1000)
+        self.exposure_time = self.config.get('exposure_time', 1)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
 
         # Create datastreams
@@ -203,15 +214,22 @@ class HamamatsuCamera(Service):
             self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
 
         # Start acquisition.
-        self.cam.buf_alloc(self.NUM_FRAMES)
-        self.cam.cap_start()
+        if self.cam.buf_alloc(self.NUM_FRAMES) is False:
+            raise RuntimeError(f'Dcam.buf_alloc() fails with error {self.cam.lasterr()}')
+        if self.cam.cap_start() is False:
+            raise RuntimeError(f'Dcam.cap_start() fails with error {self.cam.lasterr()}')
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
 
+        timeout_millisec = 2000
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
+                if self.cam.lasterr().is_timeout():
+                    sself.log.warning('Timeout while waiting for frame')
+                if self.cam.wait_capevent_frameready(timeout_millisec) is False:
+                    raise RuntimeError(f'Dcam.wait_capevent_frameready() fails with error {self.cam.lasterr()}')
                 img = self.cam.buf_getlastframedata()
+                self.images.submit_data(img)
 
-                # TODO: there might be some image manipulation needed here
         finally:
             # Stop acquisition.
             self.cam.cap_stop()
@@ -263,7 +281,7 @@ class HamamatsuCamera(Service):
     @property
     def exposure_time(self):
         """
-        The exposure time in microseconds.
+        The exposure time in seconds.
 
         This property can be used to get the exposure time of the camera.
 
@@ -277,7 +295,7 @@ class HamamatsuCamera(Service):
     @exposure_time.setter
     def exposure_time(self, exposure_time: float):
         """
-        Set the exposure time in microseconds.
+        Set the exposure time in seconds.
 
         This property can be used to set the exposure time of the camera.
 
@@ -357,6 +375,7 @@ class HamamatsuCamera(Service):
             The width of the sensor in pixels.
         """
         return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH)   # TODO: Is this sensor or image width?
+        # TODO: needs to be 4325904 (sensor width) or 4325920 (sensor height)
 
     @property
     def sensor_height(self):
@@ -371,6 +390,7 @@ class HamamatsuCamera(Service):
             The height of the sensor in pixels.
         """
         return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT)   # TODO: Is this sensor or image height?
+        # TODO: needs to be 4325904 (sensor width) or 4325920 (sensor height)
 
     @property
     def width(self):
@@ -384,7 +404,7 @@ class HamamatsuCamera(Service):
         int:
             The width of the image in pixels.
         """
-        return self.cam.Width.get()   # TODO
+        return self.cam.prop_getvalue(4202784)  # TODO: find DCAM keyword for this
 
     @width.setter
     def width(self, width: int):
@@ -398,7 +418,7 @@ class HamamatsuCamera(Service):
         width : int
             The width of the image in pixels.
         """
-        self.cam.Width.set(width)   # TODO
+        self.cam.prop_setvalue(4202784, width)  # TODO: find DCAM keyword for this
 
     @property
     def height(self):
@@ -412,7 +432,7 @@ class HamamatsuCamera(Service):
         int:
             The height of the image in pixels.
         """
-        return self.cam.Height.get()   # TODO
+        return self.cam.prop_getvalue(4202816)  # TODO: find DCAM keyword for this
 
     @height.setter
     def height(self, height: int):
@@ -426,7 +446,7 @@ class HamamatsuCamera(Service):
         height : int
             The height of the image in pixels.
         """
-        self.cam.Height.set(height)   # TODO
+        self.cam.prop_setvalue(4202816, height)  # TODO: find DCAM keyword for this
 
     @property
     def offset_x(self):
@@ -440,7 +460,7 @@ class HamamatsuCamera(Service):
         int:
             The x offset of the image in pixels.
         """
-        return self.cam.OffsetX.get()   # TODO
+        return self.cam.prop_getvalue(4202800)  # TODO: find DCAM keyword for this
 
     @offset_x.setter
     def offset_x(self, offset_x: int):
@@ -454,7 +474,7 @@ class HamamatsuCamera(Service):
         offset_x : int
             The x offset of the image in pixels.
         """
-        self.cam.OffsetX.set(offset_x)   # TODO
+        self.cam.prop_setvalue(4202800, offset_x)  # TODO: find DCAM keyword for this
 
     @property
     def offset_y(self):
@@ -468,7 +488,7 @@ class HamamatsuCamera(Service):
         int:
             The y offset of the image in pixels.
         """
-        return self.cam.OffsetY.get()   # TODO
+        return self.cam.prop_getvalue(4202768)  # TODO: find DCAM keyword for this
 
     @offset_y.setter
     def offset_y(self, offset_y: int):
@@ -482,7 +502,7 @@ class HamamatsuCamera(Service):
         offset_y : int
             The y offset of the image in pixels.
         """
-        self.cam.OffsetY.set(offset_y)   # TODO
+        self.cam.prop_setvalue(4202768, offset_x)  # TODO: find DCAM keyword for this
 
 
 if __name__ == '__main__':
