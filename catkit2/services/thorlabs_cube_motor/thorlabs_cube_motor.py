@@ -15,11 +15,8 @@ class ThorlabsCubeMotor(Service):
         super().__init__('thorlabs_cube_motor')
 
         self.serial_number = self.config['serial_number']
-
-        self.command = self.make_data_stream('command', 'float64', [1], 20)
-        self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
-
         self.motor = None
+
         self.cube_model = None
         self.unit = None
         self.min_position = None
@@ -52,6 +49,9 @@ class ThorlabsCubeMotor(Service):
         # Compare the device parameters to the service configuration.
         if not (self.min_position >= self.min_position_config and self.max_pos <= self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
             raise ValueError("Device parameters don't match configuration parameters.")
+
+        self.command = self.make_data_stream('command', 'float64', [1], 20)
+        self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
         self.make_command('home', self.home)
         self.make_command('stop', self.stop)
