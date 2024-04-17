@@ -81,7 +81,7 @@ class ThorlabsCubeMotor(Service):
             self.motor.move_to(position, blocking=True)
         else:
             self.log.warning(f'Motor not moving since commanded position is outside of configured range.')
-            self.log.warning(f'Position limits: {self.min_position_config} {self.unit} < position < {self.max_position_config} {self.unit}.')
+            self.log.warning(f'Position limits: {self.min_position_config} {self.unit} <= position <= {self.max_position_config} {self.unit}.')
 
         # Update the current position data stream.
         self.get_current_position()
