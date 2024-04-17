@@ -50,7 +50,7 @@ class ThorlabsCubeMotor(Service):
         cube_model_config = self.config['cube_model']
 
         # Compare the device parameters to the service configuration.
-        if not (self.min_position == self.min_position_config and self.max_pos == self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
+        if not (self.min_position >= self.min_position_config and self.max_pos <= self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
             raise ValueError("Device parameters don't match configuration parameters.")
 
     def main(self):
@@ -73,7 +73,12 @@ class ThorlabsCubeMotor(Service):
 
         The unit is given in real-life units (mm if translation, deg if rotation).
         """
-        self.motor.move_to(position, blocking=True)
+        if position >= self.min_position_config and position <= self.max_position_config:
+            self.motor.move_to(position, blocking=True)
+        else:
+            self.log.warning(f'Motor not moving since commanded position is outside of configured range.')
+            self.log.warning(f'Position limits: {self.min_position_config} {self.unit} < position < {self.max_position_config} {self.unit}.')
+
         # Update the current position data stream.
         self.get_current_position()
 
