@@ -14,7 +14,7 @@ class ThorlabsCubeMotor(Service):
     def __init__(self):
         super().__init__('thorlabs_cube_motor')
 
-        self.cube_serial_number = self.config['serial_number']
+        self.serial_number = self.config['serial_number']
 
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
@@ -31,7 +31,7 @@ class ThorlabsCubeMotor(Service):
 
         This will also check if the configured characteristics are matching the one the cube have.
         """
-        self.motor = apt.Motor(self.cube_serial_number)
+        self.motor = apt.Motor(self.serial_number)
 
         # Retrieve the min, max, unit and model from the connected device.
         self.min_position = self.motor.get_stage_axis_info()[0]
