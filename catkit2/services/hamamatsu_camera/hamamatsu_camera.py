@@ -100,17 +100,15 @@ class HamamatsuCamera(Service):
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)  # TODO: ? - 2.0 for subarray mode on
 
         # Set binning
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.BINNING, 1.0)  # TODO: read from config
+        binning = self.config.get('binning', 1)
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.BINNING, binning)
 
-        # Set camera mode
-        dcam.prop_setvalue(dcam.DCAM_IDPROP.READOUTSPEED, 2.0)   # TODO: read from config - 2.0 for "standard", 1.0 for "ultraquiet"
+        # Set camera mode to "ultraquiet" (1.0) rather than "standard" (2.0)
+        dcam.prop_setvalue(dcam.DCAM_IDPROP.READOUTSPEED, 1.0)
 
         self.current_pixel_format = self.config.get('pixel_format', 'Mono16')
         if self.current_pixel_format not in self.pixel_formats:
-            raise ValueError('Invalid pixel format: ' +
-                             self.current_pixel_format +
-                             ', must be one of ' +
-                             str(list(self.pixel_formats.keys())))
+            raise ValueError(f'Invalid pixel format: {self.current_pixel_format}, must be one of {str(list(self.pixel_formats.keys()))}')
         self.log.info('Using pixel format: %s', self.current_pixel_format)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.IMAGE_PIXELTYPE, self.pixel_formats[self.current_pixel_format])
 
@@ -152,8 +150,6 @@ class HamamatsuCamera(Service):
 
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
-
-        make_property_helper('device_name', read_only=True)
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
@@ -203,7 +199,7 @@ class HamamatsuCamera(Service):
                 if self.cam.lasterr().is_timeout():
                     self.log.warning('Timeout while waiting for frame')
                 if self.cam.wait_capevent_frameready(timeout_millisec) is False:
-                    raise RuntimeError(f'Dcam.wait_capevent_frameready() fails with error {self.cam.lasterr()}')
+                    raise RuntimeError(f'Dcam.wait_capevent_frameready({timeout_millisec}) fails with error {self.cam.lasterr()}')
                 img = self.cam.buf_getlastframedata()
                 self.images.submit_data(img)
 
@@ -295,7 +291,7 @@ class HamamatsuCamera(Service):
         int:
             The gain of the camera.
         """
-        return self.cam.Gain.get()   # TODO
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.CONTRASTGAIN)   # TODO: verify this
 
     @gain.setter
     def gain(self, gain: int):
@@ -309,7 +305,7 @@ class HamamatsuCamera(Service):
         gain : int
             The gain of the camera.
         """
-        self.cam.Gain.set(gain)   # TODO
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.CONTRASTGAIN, gain)   # TODO: verify this
 
     @property
     def brightness(self):
@@ -323,7 +319,7 @@ class HamamatsuCamera(Service):
         int:
             The brightness of the camera.
         """
-        return self.cam.Brightness.get()   # TODO
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.XXX)   # TODO: find correct property
 
     @brightness.setter
     def brightness(self, brightness: int):
@@ -337,7 +333,7 @@ class HamamatsuCamera(Service):
         brightness : int
             The brightness of the camera.
         """
-        self.cam.Brightness.set(brightness)   # TODO
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.XXX, brightness)   # TODO: find correct property
 
     @property
     def sensor_width(self):
