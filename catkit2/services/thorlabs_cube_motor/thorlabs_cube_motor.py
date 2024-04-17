@@ -71,6 +71,7 @@ class ThorlabsCubeMotor(Service):
                 continue
 
     def close(self):
+        self.motor = None
         apt._cleanup()
 
     def set_current_position(self, position):
