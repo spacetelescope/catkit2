@@ -53,6 +53,10 @@ class ThorlabsCubeMotor(Service):
         if not (self.min_position >= self.min_position_config and self.max_pos <= self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
             raise ValueError("Device parameters don't match configuration parameters.")
 
+        self.make_command('home', self.home)
+        self.make_command('stop', self.stop)
+        self.make_command('is_in_motion', self.is_in_motion)
+
     def main(self):
         while not self.should_shut_down:
             try:
