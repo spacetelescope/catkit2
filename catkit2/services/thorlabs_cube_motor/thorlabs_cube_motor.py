@@ -27,7 +27,7 @@ class ThorlabsCubeMotor(Service):
 
     def open(self):
         """
-        Open connexion to the motor.
+        Open connection to the motor.
 
         This will also check if the configured characteristics are matching the one the cube have.
         """
