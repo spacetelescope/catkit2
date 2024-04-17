@@ -3,8 +3,8 @@ from ..service_proxy import ServiceProxy
 import numpy as np
 
 
-@ServiceProxy.register_service_interface('thorlabs_dc_motor')
-class ThorlabsDCMotorProxy(ServiceProxy):
+@ServiceProxy.register_service_interface('thorlabs_ube_motor')
+class ThorlabsCubeMotorProxy(ServiceProxy):
     def move_to(self, position):
         position = self.resolve_position(position)
         self.command.submit_data(np.array([position], dtype='float64'))
