@@ -5,11 +5,11 @@ import numpy as np
 
 @ServiceProxy.register_service_interface('thorlabs_ube_motor')
 class ThorlabsCubeMotorProxy(ServiceProxy):
-    def move_to(self, position):
+    def move_absolute(self, position):
         position = self.resolve_position(position)
         self.command.submit_data(np.array([position], dtype='float64'))
 
-    def move_by(self, distance):
+    def move_relative(self, distance):
         current_position = self.current_position.get()[0]
         new_position = current_position + distance
         self.move_absolute(new_position)
