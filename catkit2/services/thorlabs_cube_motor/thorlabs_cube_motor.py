@@ -59,7 +59,7 @@ class ThorlabsCubeMotor(Service):
             self.set_current_position(frame.data[0])
 
     def close(self):
-        self.motor._cleanup()
+        apt._cleanup()
 
     def set_current_position(self, position):
         """
