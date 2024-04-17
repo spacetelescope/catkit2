@@ -58,10 +58,11 @@ class ThorlabsCubeMotor(Service):
             try:
                 # Get an update for the motor position.
                 frame = self.command.get_next_frame(10)
+                # Set the current position if a new command has arrived.
+                self.set_current_position(frame.data[0])
             except Exception:
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
-            self.set_current_position(frame.data[0])
 
     def close(self):
         apt._cleanup()
