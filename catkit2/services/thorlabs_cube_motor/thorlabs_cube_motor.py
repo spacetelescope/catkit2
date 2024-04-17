@@ -117,6 +117,7 @@ class ThorlabsCubeMotor(Service):
         """Check if the motor is currently moving."""
         return self.motor.is_in_motion()
 
+
 if __name__ == '__main__':
     service = ThorlabsCubeMotor()
     service.run()
