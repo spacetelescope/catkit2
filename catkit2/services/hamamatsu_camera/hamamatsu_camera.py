@@ -48,25 +48,6 @@ class HamamatsuCamera(Service):
         An event to signal whether the camera should be acquiring images.
     NUM_FRAMES : int
         The number of frames to allocate for the data streams.
-
-    Methods
-    -------
-    open()
-        Open the service.
-    main()
-        The main function of the service.
-    close()
-        Close the service.
-    acquisition_loop()
-        The main acquisition loop.
-    monitor_temperature()
-        Monitor the temperature of the camera.
-    start_acquisition()
-        Start the acquisition loop.
-    end_acquisition()
-        End the acquisition loop.
-    get_temperature()
-        Get the temperature of the camera.
     """
     NUM_FRAMES = 20
 
@@ -192,12 +173,6 @@ class HamamatsuCamera(Service):
                 self.acquisition_loop()
 
     def close(self):
-        """
-        Close the service.
-
-        This function is called when the service is closed.
-        It stops the acquisition loop and cleans up the camera and data streams.
-        """
         self.cam.dev_close()
         self.cam = None
 
