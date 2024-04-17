@@ -21,9 +21,9 @@ class ThorlabsCubeMotor(Service):
 
         self.motor = None
         self.cube_model = None
-        self.motor_unit = None
-        self.motor_max = None
-        self.motor_min = None
+        self.unit = None
+        self.min_position = None
+        self.max_position = None
 
     def open(self):
         """
@@ -34,23 +34,23 @@ class ThorlabsCubeMotor(Service):
         self.motor = apt.Motor(self.cube_serial_number)
 
         # Retrieve the min, max, unit and model from the connected device.
-        min = self.motor.get_stage_axis_info()[0]
-        max = self.motor.get_stage_axis_info()[1]
-        unit = None
-        model = self.motor.hardware_info[0][2:-1]
+        self.min_position = self.motor.get_stage_axis_info()[0]
+        self.max_position = self.motor.get_stage_axis_info()[1]
+
+        self.cube_model = self.motor.hardware_info[0][2:-1]
         if self.motor.get_stage_axis_info()[2] == 1:
-            unit = 'mm'
+            self.unit = 'mm'
         if self.motor.get_stage_axis_info()[2] == 2:
-            unit = 'deg'
+            self.unit = 'deg'
 
         # Read min, max, unit and model from service configuration.
-        self.min_pos = self.config['motor_min_pos']
-        self.max_pos = self.config['motor_max_pos']
-        self.unit = self.config['motor_unit']
-        self.cube_model = self.config['cube_model']
+        self.min_position_config = self.config['min_position']
+        self.max_position_config = self.config['max_position']
+        unit_config = self.config['unit']
+        cube_model_config = self.config['cube_model']
 
         # Compare the device parameters to the service configuration.
-        if not (self.min_pos == min and self.max_pos == max and self.unit == unit and self.cube_model == model):
+        if not (self.min_position == self.min_position_config and self.max_pos == self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
             raise ValueError("Device parameters don't match configuration parameters.")
 
     def main(self):
