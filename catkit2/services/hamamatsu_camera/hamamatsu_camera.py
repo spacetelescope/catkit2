@@ -103,6 +103,8 @@ class HamamatsuCamera(Service):
         ------
         ValueError
             If the pixel format is invalid.
+        RuntimeError
+            For a Dcamapi or Dcam error when initializing the library or when opening the camera.
         """
         if dcam.Dcamapi.init() is False:
             raise RuntimeError(f'Dcamapi.init() fails with error {dcam.Dcamapi.lasterr()}')
