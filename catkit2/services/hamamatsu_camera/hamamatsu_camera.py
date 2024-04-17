@@ -114,13 +114,13 @@ class HamamatsuCamera(Service):
             raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
 
         # Set subarray mode
-        self.cam.prop_setvalue(4202832, 2.0)  # TODO: ? - 2.0 for subarray mode on
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)  # TODO: ? - 2.0 for subarray mode on
 
         # Set binning
-        self.cam.prop_setvalue(4198672, 1.0)   # TODO: find DCAM keyword for this
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.BINNING, 1.0)  # TODO: read from config
 
         # Set camera mode
-        dcam.prop_setvalue(4194576, 2.0)   # TODO: find DCAM keyword for this - 2.0 for "standard", 1.0 for "ultraquiet"
+        dcam.prop_setvalue(dcam.DCAM_IDPROP.READOUTSPEED, 2.0)   # TODO: read from config - 2.0 for "standard", 1.0 for "ultraquiet"
 
         self.current_pixel_format = self.config.get('pixel_format', 'Mono16')
         if self.current_pixel_format not in self.pixel_formats:
@@ -224,7 +224,7 @@ class HamamatsuCamera(Service):
         try:
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 if self.cam.lasterr().is_timeout():
-                    sself.log.warning('Timeout while waiting for frame')
+                    self.log.warning('Timeout while waiting for frame')
                 if self.cam.wait_capevent_frameready(timeout_millisec) is False:
                     raise RuntimeError(f'Dcam.wait_capevent_frameready() fails with error {self.cam.lasterr()}')
                 img = self.cam.buf_getlastframedata()
@@ -374,8 +374,7 @@ class HamamatsuCamera(Service):
         int:
             The width of the sensor in pixels.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH)   # TODO: Is this sensor or image width?
-        # TODO: needs to be 4325904 (sensor width) or 4325920 (sensor height)
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH)
 
     @property
     def sensor_height(self):
@@ -389,8 +388,7 @@ class HamamatsuCamera(Service):
         int:
             The height of the sensor in pixels.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT)   # TODO: Is this sensor or image height?
-        # TODO: needs to be 4325904 (sensor width) or 4325920 (sensor height)
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT)
 
     @property
     def width(self):
@@ -404,7 +402,7 @@ class HamamatsuCamera(Service):
         int:
             The width of the image in pixels.
         """
-        return self.cam.prop_getvalue(4202784)  # TODO: find DCAM keyword for this
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYHSIZE)
 
     @width.setter
     def width(self, width: int):
@@ -418,7 +416,7 @@ class HamamatsuCamera(Service):
         width : int
             The width of the image in pixels.
         """
-        self.cam.prop_setvalue(4202784, width)  # TODO: find DCAM keyword for this
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYHSIZE, width)
 
     @property
     def height(self):
@@ -432,7 +430,7 @@ class HamamatsuCamera(Service):
         int:
             The height of the image in pixels.
         """
-        return self.cam.prop_getvalue(4202816)  # TODO: find DCAM keyword for this
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYVSIZE)
 
     @height.setter
     def height(self, height: int):
@@ -446,7 +444,7 @@ class HamamatsuCamera(Service):
         height : int
             The height of the image in pixels.
         """
-        self.cam.prop_setvalue(4202816, height)  # TODO: find DCAM keyword for this
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYVSIZE, height)
 
     @property
     def offset_x(self):
@@ -460,7 +458,7 @@ class HamamatsuCamera(Service):
         int:
             The x offset of the image in pixels.
         """
-        return self.cam.prop_getvalue(4202800)  # TODO: find DCAM keyword for this
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYVPOS)
 
     @offset_x.setter
     def offset_x(self, offset_x: int):
@@ -474,7 +472,7 @@ class HamamatsuCamera(Service):
         offset_x : int
             The x offset of the image in pixels.
         """
-        self.cam.prop_setvalue(4202800, offset_x)  # TODO: find DCAM keyword for this
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYVPOS, offset_x)
 
     @property
     def offset_y(self):
@@ -488,7 +486,7 @@ class HamamatsuCamera(Service):
         int:
             The y offset of the image in pixels.
         """
-        return self.cam.prop_getvalue(4202768)  # TODO: find DCAM keyword for this
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYHPOS)
 
     @offset_y.setter
     def offset_y(self, offset_y: int):
@@ -502,7 +500,7 @@ class HamamatsuCamera(Service):
         offset_y : int
             The y offset of the image in pixels.
         """
-        self.cam.prop_setvalue(4202768, offset_x)  # TODO: find DCAM keyword for this
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYHPOS, offset_y)
 
 
 if __name__ == '__main__':
