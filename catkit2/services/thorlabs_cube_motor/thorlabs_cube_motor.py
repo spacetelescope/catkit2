@@ -5,6 +5,11 @@ import numpy as np
 
 
 class ThorlabsCubeMotor(Service):
+    """
+    Service for controlling a Thorlabs cube motor.
+
+    This service has been tested with the TDC001 and KDC101 cube motor controllers.
+    """
 
     def __init__(self):
         super().__init__('thorlabs_cube_motor')
