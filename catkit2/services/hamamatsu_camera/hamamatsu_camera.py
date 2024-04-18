@@ -291,7 +291,7 @@ class HamamatsuCamera(Service):
         int:
             The gain of the camera.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.CONTRASTGAIN)   # TODO: verify this
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.CONTRASTGAIN)
 
     @gain.setter
     def gain(self, gain: int):
@@ -305,7 +305,7 @@ class HamamatsuCamera(Service):
         gain : int
             The gain of the camera.
         """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.CONTRASTGAIN, gain)   # TODO: verify this
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.CONTRASTGAIN, gain)
 
     @property
     def brightness(self):
@@ -319,7 +319,7 @@ class HamamatsuCamera(Service):
         int:
             The brightness of the camera.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.XXX)   # TODO: find correct property
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSITIVITY)
 
     @brightness.setter
     def brightness(self, brightness: int):
@@ -333,7 +333,7 @@ class HamamatsuCamera(Service):
         brightness : int
             The brightness of the camera.
         """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.XXX, brightness)   # TODO: find correct property
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSITIVITY, brightness)
 
     @property
     def sensor_width(self):
