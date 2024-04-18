@@ -347,7 +347,7 @@ class HamamatsuCamera(Service):
         int:
             The width of the sensor in pixels.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH)
+        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
 
     @property
     def sensor_height(self):
@@ -361,7 +361,7 @@ class HamamatsuCamera(Service):
         int:
             The height of the sensor in pixels.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT)
+        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
 
     @property
     def width(self):
