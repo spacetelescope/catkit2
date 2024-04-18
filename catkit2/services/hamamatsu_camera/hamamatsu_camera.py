@@ -61,8 +61,8 @@ class HamamatsuCamera(Service):
 
         # Dictionary to store the pixel format and the corresponding numpy dtype and dcam pixel format
         self.pixel_formats = {
-            "Mono8": dcam.DCAM_PIXELTYPE.Mono8,
-            "Mono16": dcam.DCAM_PIXELTYPE.Mono16,
+            "Mono8": dcam.DCAM_PIXELTYPE.MONO8,
+            "Mono16": dcam.DCAM_PIXELTYPE.MONO16,
         }
         self.current_pixel_format = None
         self.temperature_thread = None
