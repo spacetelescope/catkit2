@@ -201,7 +201,7 @@ class HamamatsuCamera(Service):
                 if self.cam.wait_capevent_frameready(timeout_millisec) is False:
                     raise RuntimeError(f'Dcam.wait_capevent_frameready({timeout_millisec}) fails with error {self.cam.lasterr()}')
                 img = self.cam.buf_getlastframedata()
-                self.images.submit_data(img)
+                self.images.submit_data(img.astype('float32'))
 
         finally:
             # Stop acquisition.
