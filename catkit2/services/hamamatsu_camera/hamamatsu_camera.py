@@ -375,7 +375,7 @@ class HamamatsuCamera(Service):
         int:
             The width of the image in pixels.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYHSIZE)
+        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYHSIZE))
 
     @width.setter
     def width(self, width: int):
@@ -403,7 +403,7 @@ class HamamatsuCamera(Service):
         int:
             The height of the image in pixels.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYVSIZE)
+        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYVSIZE))
 
     @height.setter
     def height(self, height: int):
