@@ -104,7 +104,7 @@ class HamamatsuCamera(Service):
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.BINNING, binning)
 
         # Set camera mode to "ultraquiet" (1.0) rather than "standard" (2.0)
-        dcam.prop_setvalue(dcam.DCAM_IDPROP.READOUTSPEED, 1.0)
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.READOUTSPEED, 1.0)
 
         self.current_pixel_format = self.config.get('pixel_format', 'Mono16')
         if self.current_pixel_format not in self.pixel_formats:
