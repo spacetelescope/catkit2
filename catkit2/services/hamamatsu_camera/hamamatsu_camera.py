@@ -129,7 +129,7 @@ class HamamatsuCamera(Service):
         self.offset_y = offset_y
 
         self.gain = self.config.get('gain', 0)
-        self.exposure_time = self.config.get('exposure_time', 1)
+        self.exposure_time = self.config.get('exposure_time', 1000)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
 
         # Create datastreams
@@ -268,30 +268,30 @@ class HamamatsuCamera(Service):
     @property
     def exposure_time(self):
         """
-        The exposure time in seconds.
+        The exposure time in microseconds.
 
         This property can be used to get the exposure time of the camera.
 
         Returns:
         --------
         float:
-            The exposure time in seconds.
+            The exposure time in microseconds.
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.EXPOSURETIME)
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.EXPOSURETIME) * 1e6
 
     @exposure_time.setter
     def exposure_time(self, exposure_time: float):
         """
-        Set the exposure time in seconds.
+        Set the exposure time in microseconds.
 
         This property can be used to set the exposure time of the camera.
 
         Parameters
         ----------
         exposure_time : float
-            The exposure time in seconds.
+            The exposure time in microseconds.
         """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.EXPOSURETIME, exposure_time)
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.EXPOSURETIME, exposure_time / 1e6)
 
     @property
     def gain(self):
