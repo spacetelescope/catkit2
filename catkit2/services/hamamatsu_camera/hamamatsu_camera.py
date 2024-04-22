@@ -211,6 +211,7 @@ class HamamatsuCamera(Service):
                 if self.cam.buf_getframedata(-2) is False:
                     # If there is no second to last frame, it means we just acquired the first frame.
                     # In this case, drop the current frame since it always contains systematic errors.
+                    self.log.info('Dropping first camera frame')
                     continue
 
                 img = self.cam.buf_getlastframedata()
