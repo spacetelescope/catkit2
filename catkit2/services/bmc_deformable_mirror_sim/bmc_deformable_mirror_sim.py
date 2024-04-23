@@ -43,7 +43,7 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         super().close()
 
     def send_surface(self, total_surface):
-        # Compute the voltages from the request total surface.
+        # Compute the voltages from the requested total surface.
         voltages = self.flat_map + total_surface * self.gain_map_inv
         voltages /= self.max_volts
         voltages = np.clip(voltages, 0, 1)
