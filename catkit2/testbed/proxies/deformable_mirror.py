@@ -44,8 +44,8 @@ class DeformableMirrorProxy(ServiceProxy):
         # Return summed command (note that this is not a DM map).
         return summed_command
 
-    def dm_maps_to_command(self, dm_shape):
-        command = dm_shape[self.controlled_actuator_mask]
+    def dm_maps_to_command(self, dm_map):
+        command = dm_map[self.controlled_actuator_mask]
 
         return command
 
