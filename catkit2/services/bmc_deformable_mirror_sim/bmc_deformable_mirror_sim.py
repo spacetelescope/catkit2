@@ -1,4 +1,4 @@
-from catkit2.base_services.deformable_mirror_service import DeformableMirrorService
+from catkit2.base_services.deformable_mirror import DeformableMirrorService
 
 import time
 import sys
