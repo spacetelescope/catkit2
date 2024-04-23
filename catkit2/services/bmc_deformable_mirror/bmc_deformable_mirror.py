@@ -44,9 +44,9 @@ class BmcDeformableMirror(DeformableMirrorService):
         if status != bmc.NO_ERR:
             raise RuntimeError(f'Failed to connect: {self.dm.error_string(status)}.')
 
-        command_length = self.device.num_actuators()
-        if self.num_actuators != command_length:
-            raise ValueError(f'Command length from controlled_actuator_mask: {self.num_actuators}. Command length on hardware: {command_length}.')
+        self.device_command_length = self.device.num_actuators()
+        if self.num_actuators != self.device_command_length:  # TODO: this will always return False on HiCAT in the current setup
+            raise ValueError(f'Command length from controlled_actuator_mask: {self.num_actuators}. Command length on hardware: {self.device_command_length}.')
 
         zeros = np.zeros(self.num_actuators, dtype='float64')
         self.send_surface(zeros)
