@@ -17,6 +17,10 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self.gain_map_fname = self.config['gain_map_fname']
         self.max_volts = self.config['max_volts']
 
+        self.flat_map = np.zeros(1024)  # TODO: These hard-coded values will not work for all DMs.
+        self.gain_map = np.zeros(1024)  # TODO: Why do I need to do this in the first place?
+        self.gain_map_inv = np.zeros(1024)  # TODO: Why don't these attributes get initialized in the open() method?
+
         self.lock = threading.Lock()
 
     def open(self):
