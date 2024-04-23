@@ -48,8 +48,11 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         voltages /= self.max_volts
         voltages = np.clip(voltages, 0, 1)
 
+        dac_bit_depth = self.config['dac_bit_depth']
+
         self.discretized_voltages = voltages
         discretized_surface = total_surface
+
         if dac_bit_depth is not None:
             discretized_surface = (self.discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
 
