@@ -1,11 +1,11 @@
 Allied Vision Camera
 ====================
 
-This service controls an Allied Vision camera. It is a wrapper around the Vimba SDK, which requires the installation
-of the Vimba SDK from Allied Vision. The service uses the Python API for Vimba SDK, called ``VimbaPython``.
+This service controls an Allied Vision camera. It is a wrapper around the Vimba SDK, which requires its installation.
+The service uses the Python API for Vimba SDK, called ``VimbaPython``.
 
-Vimba SDK is now superceded by Vimba X SDK, which is the latest version of the SDK. The service might be updated in the
-future to use the Vimba X SDK and its Python API ``VmbPy`` instead.
+Vimba SDK is now superceded by Vimba X SDK. The service might be updated in the future to use the Vimba X SDK and its
+Python API ``VmbPy`` instead.
 
 Vimba SDK and Vimba X SDK: `https://www.alliedvision.com/en/products/software/ <https://www.alliedvision.com/en/products/software/>`_
 ``VimbaPython`` Python API: `https://github.com/alliedvision/VimbaPython <https://github.com/alliedvision/VimbaPython>`_
@@ -60,9 +60,9 @@ Properties
 
 Commands
 --------
-``start_acquisition()``: This
+``start_acquisition()``: This starts the acquisition of images from the camera.
 
-``end_acquisition()``: This
+``end_acquisition()``: This ends the acquisition of images from the camera.
 
 Datastreams
 -----------
