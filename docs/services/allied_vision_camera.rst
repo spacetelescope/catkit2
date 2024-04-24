@@ -2,14 +2,14 @@ Allied Vision Camera
 ====================
 
 This service controls an Allied Vision camera. It is a wrapper around the Vimba SDK, which requires the installation
-of the Vimba SDK from Allied Vision. The service uses the Python API for VImba SDK, called ``VimbaPython``.
+of the Vimba SDK from Allied Vision. The service uses the Python API for Vimba SDK, called ``VimbaPython``.
 
 Vimba SDK is now superceded by Vimba X SDK, which is the latest version of the SDK. The service might be updated in the
 future to use the Vimba X SDK and its Python API ``VmbPy`` instead.
 
 Vimba SDK and Vimba X SDK: `https://www.alliedvision.com/en/products/software/ <https://www.alliedvision.com/en/products/software/>`_
-``VimbaPython`` library: `https://github.com/alliedvision/VimbaPython <https://github.com/alliedvision/VimbaPython>`_
-``VmbPy``: `https://github.com/alliedvision/VmbPy <https://github.com/alliedvision/VmbPy>`_
+``VimbaPython`` Python API: `https://github.com/alliedvision/VimbaPython <https://github.com/alliedvision/VimbaPython>`_
+``VmbPy`` Python API: `https://github.com/alliedvision/VmbPy <https://github.com/alliedvision/VmbPy>`_
 
 The service has been successfully tested with the following camera models:
 - Alvium 1800 U-158m
