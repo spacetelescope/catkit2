@@ -1,5 +1,5 @@
 Thorlabs Picomotor
-===================
+==================
 
 Configuration
 -------------
