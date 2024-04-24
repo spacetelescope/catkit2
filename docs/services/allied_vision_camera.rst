@@ -58,8 +58,6 @@ Properties
 
 ``sensor_height``: The height of the sensor.
 
-``camera_id``: The camera ID.
-
 Commands
 --------
 ``start_acquisition()``: This
