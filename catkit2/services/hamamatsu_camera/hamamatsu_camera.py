@@ -202,20 +202,24 @@ class HamamatsuCamera(Service):
 
         timeout_millisec = 2000
         try:
+            i = 0
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 if self.cam.lasterr().is_timeout():
                     self.log.warning('Timeout while waiting for frame')
                 if self.cam.wait_capevent_frameready(timeout_millisec) is False:
                     raise RuntimeError(f'Dcam.wait_capevent_frameready({timeout_millisec}) fails with error {self.cam.lasterr()}')
 
-                if self.cam.buf_getframedata(-2) is False:
-                    # If there is no second to last frame, it means we just acquired the first frame.
-                    # In this case, drop the current frame since it always contains systematic errors.
+                img = self.cam.buf_getlastframedata()
+
+                if i == 0:
+                    # The first frame often contains systematic errors, so drop it.
                     self.log.info('Dropping first camera frame')
+                    i += 1
                     continue
 
-                img = self.cam.buf_getlastframedata()
                 self.images.submit_data(img.astype('float32'))
+
+                i += 1
 
         finally:
             # Stop acquisition.
