@@ -1,4 +1,4 @@
-from catkit2.simulator.optical_model import OpticalModel
+from catkit2.simulator.optical_model import OpticalModel, with_cached_result
 import hcipy
 
 
