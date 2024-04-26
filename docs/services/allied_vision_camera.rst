@@ -41,7 +41,7 @@ Configuration
 
 Properties
 ----------
-``exposure_time``: Exposure time of the camera.
+``exposure_time``: Exposure time of the camera in microseconds.
 
 ``gain``: Gain of the camera.
 
