@@ -35,7 +35,6 @@ Catkit2
    services/thorlabs_mff101
    services/thorlabspm
    services/thorlabs_tsp01
-   services/thorlabs_tsp01_sim
    services/web_power_switch
    services/zwo_camera
 
