@@ -36,4 +36,4 @@ Datastreams
 -----------
 ``current_setpoint``: The current the laser diode is set to in A.
 
-``current_percent`: The current the laser diode is set to in percent of its maximum current.
+``current_percent``: The current the laser diode is set to in percent of its maximum current.
