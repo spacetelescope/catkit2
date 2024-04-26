@@ -5,6 +5,10 @@ This service connects to an Aim TTi PL-P Series Power Supply. Manufacturer info 
 Note how: "The New PL-P Series is the programmable (remote control) version of the New PL Series [...]", since the above
 website lists both variants (PL and PL-P).
 
+This service requires the installation of a Communications Device Class driver on the
+host PC to provide a virtual COM port instance. It can be downloaded from the manufacturer website under "Data
+and Downloads". It is also shipped with the device on a CD. Installation instructions can be found in the `instrument manual <https://resources.aimtti.com/manuals/New_PL+PL-P_Series_Instruction_Manual-Iss18.pdf>`_ ("USB Interface" on page 24).
+
 The Python API used to control the device is `dcps <https://github.com/sgoadhouse/dcps>`_
 
 Notes:

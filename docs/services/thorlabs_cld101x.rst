@@ -1,7 +1,10 @@
 Thorlabs Compact Laser Diode
 ============================
 
-Controls a Thorlabs Compact Laser Diode (CLD) using ``pyvisa``.
+Controls a Thorlabs Compact Laser Diode (CLD) using ``pyvisa``. This service requires the VXIpnp VISA Instrument Driver to be
+installed on the host system. The driver can be downloaded from the
+`Thorlabs website <https://www.thorlabs.com/software_pages/viewsoftwarepage.cfm?code=4000_Series>`_ and is also included
+on the CD that is shipped with the device.
 
 Successfully tested with the following devices:
 - Thorlabs CLD1010LP
