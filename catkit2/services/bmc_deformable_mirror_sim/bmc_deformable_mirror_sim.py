@@ -16,6 +16,9 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self.flat_map_fname = self.config['flat_map_fname']
         self.gain_map_fname = self.config['gain_map_fname']
         self.max_volts = self.config['max_volts']
+        self.dac_bit_depth = self.config['dac_bit_depth']
+        self._discretized_voltages = None
+        self._discretized_surface = None
 
         self.flat_map = np.zeros(1024)  # TODO: These hard-coded values will not work for all DMs.
         self.gain_map = np.zeros(1024)  # TODO: Why do I need to do this in the first place?
@@ -52,18 +55,37 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         voltages /= self.max_volts
         voltages = np.clip(voltages, 0, 1)
 
-        dac_bit_depth = self.config['dac_bit_depth']
-
         self.discretized_voltages = voltages
-        discretized_surface = total_surface
-
-        if dac_bit_depth is not None:
-            discretized_surface = (self.discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
+        self.discretized_surface = total_surface
 
         with self.lock:
-            self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=discretized_surface)
+            self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=self.discretized_surface)
 
-        super().send_surface(total_surface)
+        # Submit discretized surface and voltages to data streams.
+        self.total_surface.submit_data(self.discretized_surface)
+        self.total_voltage.submit_data(self.discretized_voltages)
+
+    @property
+    def discretized_voltages(self):
+        return self._discretized_voltages
+
+    @discretized_voltages.setter
+    def discretized_voltages(self, voltages):
+        values = voltages
+        if self.dac_bit_depth is not None:
+            values = (np.floor(voltages * (2**self.dac_bit_depth))) / (2**self.dac_bit_depth)
+        self._discretized_voltages = values
+
+    @property
+    def discretized_surface(self):
+        return self._discretized_surface
+
+    @discretized_surface.setter
+    def discretized_surface(self, total_surface):
+        values = total_surface
+        if self.dac_bit_depth is not None:
+            values = (self.discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
+        self._discretized_surface = values
 
 
 if __name__ == '__main__':
