@@ -19,7 +19,7 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
 
         self.flat_map = np.zeros(1024)  # TODO: These hard-coded values will not work for all DMs.
         self.gain_map = np.zeros(1024)  # TODO: Why do I need to do this in the first place?
-        self.gain_map_inv = np.zeros(1024)  # TODO: Why don't these attributes get initialized in the open() method?
+        self.gain_map_inv = np.zeros(1024)  # TODO: Why is this initialization not needed in the hardware service?
 
         self.lock = threading.Lock()
 
