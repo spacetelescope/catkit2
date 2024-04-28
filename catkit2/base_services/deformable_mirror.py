@@ -10,7 +10,6 @@ class DeformableMirrorService(Service):
         super().__init__(service_type)
 
         self.startup_maps = self.config.get('startup_maps', {})
-        self._discretized_voltages = None
 
         dm_shape = tuple(self.config['dm_shape'])
         fname = self.config.get('controlled_actuator_mask_fname', None)
@@ -83,27 +82,10 @@ class DeformableMirrorService(Service):
         # Add up all channels to get the total surface.
         total_surface = 0
         for stream in self.channels.values():
-            total_surface += stream.get()  # TODO: Or: stream.get_latest_frame().data ?
+            total_surface += stream.get_latest_frame().data
 
         # Apply the command on the DM.
         self.send_surface(total_surface)
 
     def send_surface(self, total_surface):
-        # Submit this surface to the total surface data stream.
-        self.total_surface.submit_data(total_surface)
-
-        # Submit the discretized voltages to the total voltage data stream.
-        self.total_voltage.submit_data(self.discretized_voltages)
-
-    @property
-    def discretized_voltages(self):
-        return self._discretized_voltages
-
-    @discretized_voltages.setter
-    def discretized_voltages(self, voltages):
-        dac_bit_depth = self.config['dac_bit_depth']
-
-        value = voltages
-        if dac_bit_depth is not None:
-            value = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
-        self._discretized_voltages = value
+        raise NotImplementedError('send_surface() must be implemented by subclasses.')

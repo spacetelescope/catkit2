@@ -26,6 +26,10 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.gain_map_fname = self.config['gain_map_fname']
         self.max_volts = self.config['max_volts']
 
+        self.dac_bit_depth = self.config['dac_bit_depth']
+        self._discretized_voltages = None
+        self._discretized_surface = None
+
         self.lock = threading.Lock()
 
     def open(self):
@@ -66,6 +70,7 @@ class BmcDeformableMirror(DeformableMirrorService):
         voltages = np.clip(voltages, 0, 1)
 
         self.discretized_voltages = voltages
+        self.discretized_surface = total_surface
 
         # Convert to hardware command format
         device_command = np.zeros(self.device_command_length)
@@ -78,7 +83,31 @@ class BmcDeformableMirror(DeformableMirrorService):
             if status != bmc.NO_ERR:
                 raise RuntimeError(f'Failed to send data: {self.device.error_string(status)}.')
 
-        super().send_surface(total_surface)
+        # Submit discretized surface and voltages to data streams.
+        self.total_surface.submit_data(self.discretized_surface)
+        self.total_voltage.submit_data(self.discretized_voltages)
+
+    @property
+    def discretized_voltages(self):
+        return self._discretized_voltages
+
+    @discretized_voltages.setter
+    def discretized_voltages(self, voltages):
+        values = voltages
+        if self.dac_bit_depth is not None:
+            values = (np.floor(voltages * (2**self.dac_bit_depth))) / (2**self.dac_bit_depth)
+        self._discretized_voltages = values
+
+    @property
+    def discretized_surface(self):
+        return self._discretized_surface
+
+    @discretized_surface.setter
+    def discretized_surface(self, total_surface):
+        values = total_surface
+        if self.dac_bit_depth is not None:
+            values = (self.discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
+        self._discretized_surface = values
 
 
 if __name__ == '__main__':
