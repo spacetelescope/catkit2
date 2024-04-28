@@ -1,6 +1,5 @@
 from catkit2.base_services.deformable_mirror import DeformableMirrorService
 
-import time
 import sys
 import os
 import threading
@@ -75,7 +74,7 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.discretized_surface = total_surface
 
         # Convert to hardware command format
-        device_command = dm_command_to_device_command(self.discretized_voltages)
+        device_command = self.dm_command_to_device_command(self.discretized_voltages)
 
         with self.lock:
             # Send the voltages to the DM.
@@ -122,7 +121,7 @@ class BmcDeformableMirror(DeformableMirrorService):
                 this_dm_command = dm_command[:dm_num_actuators]
                 # Put this DM command into correct array slice of device command
                 device_command[index:] = this_dm_command
-                
+
                 # Remove the DM command that has been applied
                 dm_command = dm_command[dm_num_actuators:]
         else:

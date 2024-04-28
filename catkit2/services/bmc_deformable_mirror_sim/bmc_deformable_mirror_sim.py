@@ -1,8 +1,5 @@
 from catkit2.base_services.deformable_mirror import DeformableMirrorService
 
-import time
-import sys
-import os
 import threading
 import numpy as np
 from astropy.io import fits
