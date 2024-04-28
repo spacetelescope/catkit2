@@ -31,6 +31,15 @@ class BmcDeformableMirror(DeformableMirrorService):
 
         self.device_command_index = self.config.get('device_command_index', 0)
 
+        # Check if this service controls more than one DM and get the number of actuators controlled by each DM
+        if isinstance(self.device_command_index, list):
+            self.dm_num_actuators = []
+            for i, index in enumerate(self.device_command_index):
+                # Get the number of actuators controlled by this DM
+                self.dm_num_actuators.append(np.sum(self.controlled_actuator_mask[i]))  # TODO: Uses assumption that controlled actuator masks are stacked in some way
+        else:
+            self.dm_num_actuators = None
+
         self.lock = threading.Lock()
 
     def open(self):
@@ -115,15 +124,13 @@ class BmcDeformableMirror(DeformableMirrorService):
         # Check if this service controls more than one DM
         if isinstance(self.device_command_index, list):
             for i, index in enumerate(self.device_command_index):
-                # Get the number of actuators controlled by this DM
-                dm_num_actuators = np.sum(self.controlled_actuator_mask[i])  # TODO: Uses assumption that controlled actuator masks are stacked in some way
                 # Extract the DM command for this DM
-                this_dm_command = dm_command[:dm_num_actuators]
+                this_dm_command = dm_command[:self.dm_num_actuators[i]]
                 # Put this DM command into correct array slice of device command
                 device_command[index:] = this_dm_command
 
                 # Remove the DM command that has been applied
-                dm_command = dm_command[dm_num_actuators:]
+                dm_command = dm_command[self.dm_num_actuators[i]:]
         else:
             dm_command_length = dm_command.shape[0]
             try:
