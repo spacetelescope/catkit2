@@ -113,13 +113,24 @@ class BmcDeformableMirror(DeformableMirrorService):
     def dm_command_to_device_command(self, dm_command):
         device_command = np.zeros(self.device_command_length)
 
-        # Check if self.device_command_index is a tuple
+        # Check if this service controls more than one DM
         if isinstance(self.device_command_index, list):
             for i, index in enumerate(self.device_command_index):
-                this_dm_num_actuators = np.sum(self.controlled_actuator_mask[i])
-                device_command[index:] = dm_command[:this_dm_num_actuators]
+                # Get the number of actuators controlled by this DM
+                dm_num_actuators = np.sum(self.controlled_actuator_mask[i])  # TODO: Uses assumption that controlled actuator masks are stacked in some way
+                # Extract the DM command for this DM
+                this_dm_command = dm_command[:dm_num_actuators]
+                # Put this DM command into correct array slice of device command
+                device_command[index:] = this_dm_command
+                
+                # Remove the DM command that has been applied
+                dm_command = dm_command[dm_num_actuators:]
         else:
-            device_command[self.device_command_index:] = dm_command
+            dm_command_length = dm_command.shape[0]
+            try:
+                device_command[self.device_command_index:self.device_command_index + dm_command_length] = dm_command
+            except ValueError:
+                raise ValueError(f'Invalid device command index: {self.device_command_index} for command length: {dm_command_length}.')
 
         return device_command
 
