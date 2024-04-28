@@ -30,6 +30,8 @@ class BmcDeformableMirror(DeformableMirrorService):
         self._discretized_voltages = None
         self._discretized_surface = None
 
+        self.device_command_index = self.config.get('device_command_index', 0)
+
         self.lock = threading.Lock()
 
     def open(self):
@@ -73,8 +75,7 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.discretized_surface = total_surface
 
         # Convert to hardware command format
-        device_command = np.zeros(self.device_command_length)
-        device_command[:self.num_actuators] = voltages
+        device_command = dm_command_to_device_command(self.discretized_voltages)
 
         with self.lock:
             # Send the voltages to the DM.
@@ -108,6 +109,19 @@ class BmcDeformableMirror(DeformableMirrorService):
         if self.dac_bit_depth is not None:
             values = (self.discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
         self._discretized_surface = values
+
+    def dm_command_to_device_command(self, dm_command):
+        device_command = np.zeros(self.device_command_length)
+
+        # Check if self.device_command_index is a tuple
+        if isinstance(self.device_command_index, list):
+            for i, index in enumerate(self.device_command_index):
+                this_dm_num_actuators = np.sum(self.controlled_actuator_mask[i])
+                device_command[index:] = dm_command[:this_dm_num_actuators]
+        else:
+            device_command[self.device_command_index:] = dm_command
+
+        return device_command
 
 
 if __name__ == '__main__':
