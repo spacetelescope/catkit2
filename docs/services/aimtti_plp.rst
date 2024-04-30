@@ -21,7 +21,8 @@ Even after setting the interface lock to ``LOCAL``, this will instantly be overw
 - Only a minimum of the commands listed in the manual are implemented. More commands can easily be added in the future as needed.
 
 The service has been successfully tested with the following device:
-Aim TTi PL303QMD-P
+
+- Aim TTi PL303QMD-P
 
 Configuration
 -------------

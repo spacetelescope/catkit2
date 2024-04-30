@@ -7,6 +7,7 @@ installed on the host system. The driver can be downloaded from the
 on the CD that is shipped with the device.
 
 Successfully tested with the following devices:
+
 - Thorlabs CLD1010LP
 - Thorlabs CLD1011
 - Thorlabs CLD1015

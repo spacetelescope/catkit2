@@ -12,6 +12,7 @@ Vimba SDK and Vimba X SDK: `https://www.alliedvision.com/en/products/software/ <
 ``VmbPy`` Python API: `https://github.com/alliedvision/VmbPy <https://github.com/alliedvision/VmbPy>`_
 
 The service has been successfully tested with the following camera models:
+
 - Alvium 1800 U-158m
 - Alvium 1800 U-500m
 
