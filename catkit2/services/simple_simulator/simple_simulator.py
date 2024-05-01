@@ -1,6 +1,4 @@
-from catkit2.simulator.simulator import Simulator
-from hicat2.simulator import SimpleOpticalModel
-
+from catkit2.simulator import SimpleOpticalModel, Simulator
 import hcipy
 
 
