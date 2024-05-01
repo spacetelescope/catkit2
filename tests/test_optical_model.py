@@ -10,7 +10,11 @@ pupil_grid = model.pupil_grid
 wf_in = hcipy.Wavefront(pupil_grid.ones())
 model.set_wavefronts('pre_pupil', wf_in)
 
-stream = DataStream.create('images', 'mod', 'float64', [12*16, 12*16], 20)
+test_wf = model.get_wavefronts('science_camera')[0]
+size1 = test_wf.intensity.shaped.shape[0]
+size2 = test_wf.intensity.shaped.shape[1]
+
+stream = DataStream.create('images', 'mod', 'float64', [size1, size2], 20)
 print(stream.stream_id)
 time.sleep(1)
 
