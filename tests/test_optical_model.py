@@ -1,7 +1,7 @@
-from hicat2.simulator.simple_optical_model import SimpleOpticalModel
+from catkit2.simulator import SimpleOpticalModel
 import hcipy
 import time
-from catkit2.bindings import DataStream
+from catkit2.catkit_bindings import DataStream
 
 
 model = SimpleOpticalModel()
