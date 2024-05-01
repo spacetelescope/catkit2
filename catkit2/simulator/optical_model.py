@@ -5,6 +5,7 @@ import networkx as nx
 
 import random
 
+
 def hierarchy_pos(G, root=None, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5):
 
     '''
@@ -73,6 +74,7 @@ def hierarchy_pos(G, root=None, width=1., vert_gap = 0.2, vert_loc = 0, xcenter 
 
     return _hierarchy_pos(G, root, width, vert_gap, vert_loc, xcenter)
 
+
 def with_cached_result(getter):
     def new_getter(self):
         try:
@@ -87,6 +89,7 @@ def with_cached_result(getter):
         return res
     return new_getter
 
+
 def property_with_logic(logic_func):
     def getter(self):
         return getattr(self, '_' + logic_func.__name__)
@@ -96,6 +99,7 @@ def property_with_logic(logic_func):
         logic_func(self)
 
     return property(getter, setter)
+
 
 class OpticalModel:
     def __init__(self):
