@@ -81,7 +81,7 @@ class ThorlabsCubeMotor(Service):
 
         The unit is given in real-life units (mm if translation, deg if rotation).
         """
-        if position >= self.min_position_config and position <= self.max_position_config:
+        if self.min_position_config <= position <= self.max_position_config:
             self.motor.move_to(position, blocking=True)
         else:
             self.log.warning(f'Motor not moving since commanded position is outside of configured range.')
