@@ -9,7 +9,6 @@ class ThorlabsCubeMotor(Service):
     """
     Service for controlling a Thorlabs cube motor.
 
-    This service has been tested with the TDC001 and KDC101 cube motor controllers.
     """
 
     def __init__(self):
