@@ -54,8 +54,6 @@ class ThorlabsCubeMotor(Service):
 
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
-        # Submit starting position of motor to data stream
-        self.get_current_position()
 
         self.make_command('home', self.home)
         self.make_command('stop', self.stop)
@@ -92,7 +90,7 @@ class ThorlabsCubeMotor(Service):
         self.get_current_position()
 
     def get_current_position(self):
-        current_position = self.motor.position()
+        current_position = self.motor.position
         self.current_position.submit_data(np.array([current_position], dtype='float64'))
 
     def home(self):
@@ -103,7 +101,7 @@ class ThorlabsCubeMotor(Service):
         """
         self.motor.move_home(blocking=True)
 
-        while not self.motor.has_homing_been_completed():
+        while not self.motor.has_homing_been_completed:
             self.sleep(0.1)
 
         # Update the current position data stream.
@@ -113,14 +111,14 @@ class ThorlabsCubeMotor(Service):
         """Stop any current movement of the motor."""
         self.motor.stop_profiled()
 
-        while self.is_in_motion():
+        while self.is_in_motion:
             self.sleep(0.1)
         # Update the current position data stream.
         self.get_current_position()
 
     def is_in_motion(self):
         """Check if the motor is currently moving."""
-        return self.motor.is_in_motion()
+        return self.motor.is_in_motion
 
 
 if __name__ == '__main__':
