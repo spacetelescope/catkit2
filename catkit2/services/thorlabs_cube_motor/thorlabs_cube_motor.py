@@ -54,6 +54,8 @@ class ThorlabsCubeMotor(Service):
 
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
+        # Submit motor starting position to current_position data stream
+        self.get_current_position()
 
         self.make_command('home', self.home)
         self.make_command('stop', self.stop)
