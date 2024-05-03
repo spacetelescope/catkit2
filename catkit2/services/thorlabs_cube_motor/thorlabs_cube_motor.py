@@ -36,7 +36,7 @@ class ThorlabsCubeMotor(Service):
         self.min_position_device = self.motor.get_stage_axis_info()[0]
         self.max_position_device = self.motor.get_stage_axis_info()[1]
 
-        self.cube_model = self.motor.hardware_info[0][2:-1]
+        self.cube_model = self.motor.hardware_info[0].decode('utf-8')
         if self.motor.get_stage_axis_info()[2] == 1:
             self.unit = 'mm'
         if self.motor.get_stage_axis_info()[2] == 2:
