@@ -1,6 +1,7 @@
 from catkit2.testbed.service import Service
 
 import thorlabs_apt as apt
+import thorlabs_apt.core as apt_core
 import numpy as np
 
 
@@ -72,7 +73,7 @@ class ThorlabsCubeMotor(Service):
 
     def close(self):
         self.motor = None
-        apt._cleanup()
+        apt_core._cleanup()
 
     def set_current_position(self, position):
         """
