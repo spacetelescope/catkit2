@@ -49,7 +49,7 @@ class ThorlabsCubeMotor(Service):
         cube_model_config = self.config['cube_model']
 
         # Compare the device parameters to the service configuration.
-        if not (self.min_position_device >= self.min_position_config and self.max_pos <= self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
+        if not (self.min_position_device >= self.min_position_config and self.max_position_device <= self.max_position_config and self.unit == unit_config and self.cube_model == cube_model_config):
             raise ValueError("Device parameters don't match configuration parameters.")
 
         self.command = self.make_data_stream('command', 'float64', [1], 20)
