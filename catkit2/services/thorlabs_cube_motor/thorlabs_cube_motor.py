@@ -8,7 +8,6 @@ import numpy as np
 class ThorlabsCubeMotor(Service):
     """
     Service for controlling a Thorlabs cube motor.
-
     """
 
     def __init__(self):
@@ -28,7 +27,7 @@ class ThorlabsCubeMotor(Service):
         """
         Open connection to the motor.
 
-        This will also check if the configured characteristics are matching the one the cube have.
+        This will also check if the configured characteristics are matching the one the cube has.
         """
         self.motor = apt.Motor(self.serial_number)
 
