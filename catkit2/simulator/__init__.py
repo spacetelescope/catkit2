@@ -1,5 +1,6 @@
 __all__ = [
     'OpticalModel',
+    'property_with_logic',
     'with_cached_result',
     'Simulator',
     'SimpleOpticalModel'
