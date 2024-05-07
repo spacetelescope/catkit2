@@ -34,7 +34,7 @@ class ThorlabsCubeMotorKinesis(Service):
         self.cube_model = self.config['cube_model']
         self.stage_model = self.config['stage_model']
         self.motor_type = 0
-        self.serial_number = self.config['serial_number'].encode("UTF-8")
+        self.serial_number = str(self.config['serial_number']).encode("UTF-8")
 
         # Load the Thorlabs DLLs.
         default_dll_path = r"C:\Program Files\Thorlabs\Kinesis"
@@ -54,16 +54,12 @@ class ThorlabsCubeMotorKinesis(Service):
 
         self.lib: CDLL = cdll.LoadLibrary(default_dll_path + dll_name)
 
-        self.cube_model = None
         self.unit = None
         self.unit_type = 0
         self.min_position_device = None
         self.max_position_device = None
         self.min_position_config = None
         self.max_position_config = None
-
-        self.command = self.make_data_stream('command', 'float64', [1], 20)
-        self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
     def open(self):
         """
@@ -138,6 +134,8 @@ class ThorlabsCubeMotorKinesis(Service):
                 self.unit == unit_config):
             raise ValueError("Device parameters don't match configuration parameters.")
 
+        self.command = self.make_data_stream('command', 'float64', [1], 20)
+        self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
         # Submit motor starting position to current_position data stream
         self.get_current_position()
 
@@ -198,7 +196,7 @@ class ThorlabsCubeMotorKinesis(Service):
         # Home device
         self.lib.CC_ClearMessageQueue(self.serial_number)
         self.lib.CC_Home(self.serial_number)
-        print("Device %s homing\r\n", self.serial_number)
+        self.log.info("Device %s homing\r\n", self.serial_number)
 
         # wait for completion
         message_type = c_ushort()
@@ -206,9 +204,9 @@ class ThorlabsCubeMotorKinesis(Service):
         message_data = c_ulong()
         while message_id.value != 0 or message_type.value != 2:
             self.lib.CC_WaitForMessage(self.serial_number, byref(message_type), byref(message_id), byref(message_data))
-            print(message_id, message_type)
+            self.log.info(message_id, message_type)
 
-        print("Homed")
+        self.log.info("Homed - motor %s", self.serial_number)
         self.lib.CC_ClearMessageQueue(self.serial_number)
 
         # Update the current position data stream.
@@ -226,8 +224,8 @@ class ThorlabsCubeMotorKinesis(Service):
 
     def is_in_motion(self):
         """Check if the motor is currently moving."""
-        # TODO return self.motor.is_in_motion
-        pass
+        # TODO return self.motor.is_in_motion, return False always for now
+        return False
 
 
 if __name__ == '__main__':
