@@ -99,19 +99,6 @@ class ThorlabsCubeMotorKinesis(Service):
         self.min_position_device = min_position.value
         self.max_position_device = max_position.value
 
-        # # Retrieve the min, max, unit and model from the connected device.
-        # real_unit = c_double()
-        # min_pos = self.lib.CC_GetStageAxisMinPos(self.serial_number)
-        # self.lib.CC_GetRealValueFromDeviceUnit(self.serial_number,
-        #                                        min_pos,
-        #                                        byref(real_unit), 0)
-        # self.min_position_device = real_unit.value
-        # max_pos = self.lib.CC_GetStageAxisMaxPos(self.serial_number)
-        # self.lib.CC_GetRealValueFromDeviceUnit(self.serial_number,
-        #                                        max_pos,
-        #                                        byref(real_unit), 0)
-        # self.max_position_device = real_unit.value
-
         # Get the unit of the motor (mm or deg).
         self.unit_type = self.lib.CC_GetMotorTravelMode(self.serial_number)
         if self.unit_type == 1:
