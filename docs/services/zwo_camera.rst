@@ -55,16 +55,6 @@ Commands
 
 ``end_acquisition()``: This ends the acquisition of images from the camera.
 
-# Additional commands below inherited from the Service Proxy class
-``take_calibrated_exposures(num_exposures, only_use_cache=True)``: This takes a number of calibrated exposures.
-
-``get_exposure_calibration_function(only_use_cache=True)``: This gets a function to calibrate individual exposures.
-
-``take_calibrated_image(num_exposures, upsample_factor=None, alignment_window=None, only_use_cache=True)``: This takes a calibrated 
-image which is background subtracted, exposure time corrected, nd flux calibrated and sub-frame aligned using phase cross correlation method.
-
-``take_dark(num_exposures)``: This takes a dark image for the current exposure time by moving the beam dump.
-
 Datastreams
 -----------
 ``temperature``: The temperature as measured by this sensor in Celsius.
