@@ -65,6 +65,8 @@ class NktSuperkSim(Service):
             self.sleep(1)
 
     def close(self):
+        # Stop emission
+        self.set_emission(0)
         # Join all threads.
         for thread in self.threads.values():
             thread.join()
