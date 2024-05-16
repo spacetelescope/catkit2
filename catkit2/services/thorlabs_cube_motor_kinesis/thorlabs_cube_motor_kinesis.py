@@ -76,6 +76,8 @@ class ThorlabsCubeMotorKinesis(Service):
             steps_per_rev = c_double(512)  # for the MTS50-Z8
             gear_box_ratio = c_double(67.49)  # gearbox ratio
             pitch_mm = c_double(1.0)
+        if self.stage_model == 'Z825B':
+            pass
         else:
             raise ValueError(f"Stage model {self.stage_model} not supported.")
 
