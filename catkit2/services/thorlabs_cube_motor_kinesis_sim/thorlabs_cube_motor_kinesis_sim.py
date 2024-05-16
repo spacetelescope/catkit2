@@ -43,9 +43,6 @@ class ThorlabsCubeMotorKinesisSim(Service):
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
-        # Submit motor starting position to current_position data stream
-        self.get_current_position()
-
         self.make_command('home', self.home)
 
     def main(self):
@@ -76,13 +73,10 @@ class ThorlabsCubeMotorKinesisSim(Service):
             self.log.warning('Position limits: %f %s <= position <= %f %s.',
                              self.min_position_config, self.unit, self.max_position_config, self.unit)
 
-        # Update the current position data stream.
-        self.get_current_position()
-
     def get_current_position(self):
-        # TODO: simulator connection here
-        self.log.debug("Current position: %f %s", real_unit, self.unit)
-        self.current_position.submit_data(np.array([real_unit], dtype='float64'))
+        position = self.current_position.get()[0]
+        self.log.debug("Current position: %f %s", position, self.unit)
+        return position
 
     def wait_for_completion(self):
         # wait for completion
@@ -98,9 +92,6 @@ class ThorlabsCubeMotorKinesisSim(Service):
         self.log.info("Homing motor %s...", self.serial_number)
         self.wait_for_completion()
         self.log.info("Homed - motor %s", self.serial_number)
-
-        # Update the current position data stream.
-        self.get_current_position()
 
 
 if __name__ == '__main__':
