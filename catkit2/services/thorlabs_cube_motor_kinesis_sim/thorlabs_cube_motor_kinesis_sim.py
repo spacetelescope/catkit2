@@ -1,6 +1,4 @@
 import time
-import numpy as np
-
 from catkit2.testbed.service import Service
 
 
