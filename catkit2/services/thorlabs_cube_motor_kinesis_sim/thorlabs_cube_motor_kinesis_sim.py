@@ -1,4 +1,5 @@
 import time
+import numpy as np
 from catkit2.testbed.service import Service
 
 
@@ -42,6 +43,9 @@ class ThorlabsCubeMotorKinesisSim(Service):
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
+        nominal_position = self.resolve_position('nominal')
+        self.current_position.submit_data(np.array([nominal_position], dtype='float64'))
+
         self.make_command('home', self.home)
 
     def main(self):
@@ -77,6 +81,12 @@ class ThorlabsCubeMotorKinesisSim(Service):
         position = self.current_position.get()[0]
         self.log.debug("Current position: %f %s", position, self.unit)
         return position
+
+    def resolve_position(self, position):
+        if not isinstance(position, str):
+            return position
+
+        return self.resolve_position(self.motor_positions[position])
 
     def wait_for_completion(self):
         # wait for completion
