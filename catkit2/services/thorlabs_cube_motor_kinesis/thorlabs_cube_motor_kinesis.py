@@ -123,7 +123,7 @@ class ThorlabsCubeMotorKinesis(Service):
 
         # Submit motor starting position to current_position data stream
         self.get_current_position()
-        
+
         self.make_command('home', self.home)
 
     def main(self):
@@ -153,9 +153,9 @@ class ThorlabsCubeMotorKinesis(Service):
             new_pos_real = c_double(position)  # in real units
             new_pos_dev = c_int()
             self.lib.CC_GetDeviceUnitFromRealValue(self.serial_number,
-                                            new_pos_real,
-                                            byref(new_pos_dev),
-                                            0)
+                                                   new_pos_real,
+                                                   byref(new_pos_dev),
+                                                   0)
             self.lib.CC_MoveToPosition(self.serial_number, new_pos_dev)
         else:
             self.log.warning('Motor not moving since commanded position is outside of configured range.')
