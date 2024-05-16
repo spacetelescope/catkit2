@@ -66,8 +66,9 @@ class ThorlabsCubeMotorKinesisSim(Service):
         The unit is given in real-life units (mm if translation, deg if rotation).
         """
         if self.min_position_config <= position <= self.max_position_config:
-            # TODO: simulator connection here
-            pass
+            self.testbed.simulator.move_stage(stage_id=self.id,
+                                              old_position=self.get_current_position(),
+                                              new_position=position)
         else:
             self.log.warning('Motor not moving since commanded position is outside of configured range.')
             self.log.warning('Position limits: %f %s <= position <= %f %s.',
