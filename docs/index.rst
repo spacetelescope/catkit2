@@ -32,6 +32,7 @@ Catkit2
    services/safety_monitor
    services/snmp_ups
    services/thorlabs_cld101x
+   services/thorlabs_cube_motor
    services/thorlabs_fw102c
    services/thorlabs_mff101
    services/thorlabspm
