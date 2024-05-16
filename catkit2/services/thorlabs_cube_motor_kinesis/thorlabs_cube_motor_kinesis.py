@@ -1,10 +1,8 @@
-from ctypes import c_ulong, c_int, c_ushort, c_double
-from ctypes import cdll, CDLL, byref, create_string_buffer
-
 import os
 import sys
-import time
 
+from ctypes import c_ulong, c_int, c_ushort, c_double
+from ctypes import cdll, CDLL, byref, create_string_buffer
 import numpy as np
 
 from catkit2.testbed.service import Service
@@ -124,12 +122,6 @@ class ThorlabsCubeMotorKinesis(Service):
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
         self.make_command('home', self.home)
-        self.make_command('stop', self.stop)
-        self.make_command('is_in_motion', self.is_in_motion)
-
-        # wait for completion
-        while self.get_led_switches() != 11:
-            time.sleep(0.1)
 
         # Submit motor starting position to current_position data stream
         self.get_current_position()
@@ -202,43 +194,12 @@ class ThorlabsCubeMotorKinesis(Service):
         self.log.info("Device %s homing\r\n", self.serial_number)
 
         # wait for completion
+        self.log.info("Homing motor %s...", self.serial_number)
         self.wait_for_completion()
         self.log.info("Homed - motor %s", self.serial_number)
 
         # Update the current position data stream.
         self.get_current_position()
-
-    def stop(self):
-        """Stop any current movement of the motor."""
-        self.lib.CC_ClearMessageQueue(self.serial_number)
-        self.lib.CC_StopProfiled(self.serial_number)
-
-        while self.is_in_motion:
-            self.sleep(0.1)
-
-        # Update the current position data stream.
-        self.get_current_position()
-
-    def get_led_switches(self):
-        """Get the LED indicator bits on cube.
-
-        Returns
-        -------
-        :class:`int`
-            Sum of: 8 to indicate moving 2 to indicate end of track and 1
-            to flash on identify command.
-        """
-        return self.lib.CC_GetLEDswitches(self.serial_number)
-    
-    def is_in_motion(self):
-        """Check if the motor is currently moving.
-
-        self.sdk.CC_GetLEDswitches(self._serial) returns:
-            Sum of: 8 to indicate moving 2 to indicate end of track and 1
-            to flash on identify command.
-        """
-        # TODO return self.motor.is_in_motion, return False always for now
-        return self.get_led_switches() == 11111111
 
 
 if __name__ == '__main__':
