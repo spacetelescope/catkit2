@@ -121,10 +121,10 @@ class ThorlabsCubeMotorKinesis(Service):
         self.command = self.make_data_stream('command', 'float64', [1], 20)
         self.current_position = self.make_data_stream('current_position', 'float64', [1], 20)
 
-        self.make_command('home', self.home)
-
         # Submit motor starting position to current_position data stream
         self.get_current_position()
+        
+        self.make_command('home', self.home)
 
     def main(self):
         while not self.should_shut_down:
