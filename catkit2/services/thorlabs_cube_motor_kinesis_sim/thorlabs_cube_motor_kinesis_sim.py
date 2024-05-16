@@ -23,9 +23,6 @@ class ThorlabsCubeMotorKinesisSim(Service):
             raise ValueError(f"Motor type {self.motor_type} not supported.")
 
         self.unit = None
-        self.unit_type = 0
-        self.min_position_device = None
-        self.max_position_device = None
         self.min_position_config = None
         self.max_position_config = None
 
