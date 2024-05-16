@@ -23,5 +23,6 @@ class ThorlabsCubeMotorKinesisProxy(ServiceProxy):
         else:
             return position_name
 
+    @property
     def positions(self):
         return self.config['positions']
