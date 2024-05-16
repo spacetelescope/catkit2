@@ -10,6 +10,7 @@ class ThorlabsCubeMotorKinesisSim(Service):
 
         self.cube_model = self.config['cube_model']
         self.stage_model = self.config['stage_model']
+        self.motor_positions = self.config['positions']
         self.motor_type = 0
         self.serial_number = str(self.config['serial_number']).encode("UTF-8")
 
