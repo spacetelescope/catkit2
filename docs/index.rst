@@ -6,6 +6,7 @@ Catkit2
    :caption: Getting Started
 
    installation
+   contribution
    overview
    safety
    services
