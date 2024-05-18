@@ -7,6 +7,7 @@ import numpy as np
 
 from ..testbed.service import Service
 
+
 class Callback(namedtuple('Callback', ['time', 'id', 'func'])):
     '''A scheduled callback for the simulator.
 
@@ -30,6 +31,7 @@ class Callback(namedtuple('Callback', ['time', 'id', 'func'])):
     '''
     def __eq__(self, b):
         return self.time == b.time and self.id == b.id
+
 
 class Simulator(Service):
     def __init__(self, service_type, max_time_factor=1):
