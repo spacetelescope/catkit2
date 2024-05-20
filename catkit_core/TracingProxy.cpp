@@ -3,6 +3,8 @@
 #include "Timing.h"
 #include "Util.h"
 
+#include "proto/tracing.pb.h"
+
 using namespace std;
 
 void AddProcessThreadIds(string &contents)
@@ -13,11 +15,9 @@ void AddProcessThreadIds(string &contents)
 	contents += to_string(GetThreadId());
 }
 
-TracingProxy::TracingProxy(std::shared_ptr<TestbedProxy> testbed)
+TracingProxy::TracingProxy(std::string host, int port)
+	: m_Host(host), m_Port(port)
 {
-	m_Host = testbed->GetHost();
-	m_Port = testbed->GetTracingIngressPort();
-
 	m_MessageLoopThread = std::thread(&TracingProxy::MessageLoop, this);
 }
 
@@ -29,98 +29,86 @@ TracingProxy::~TracingProxy()
 		m_MessageLoopThread.join();
 }
 
-void TracingProxy::TraceBegin(string func, string what)
+void TracingProxy::TraceInterval(string name, string category, uint64_t timestamp, uint64_t duration)
 {
-	auto ts = GetTimeStamp();
+	TraceEventInterval event;
 
-	string contents = "{\"name\":\"";
-	contents += func;
-	contents += "\",\"cat\":\"\",\"ph\":\"B\",\"ts\":";
-	contents += to_string(double(ts) / 1000);
-	AddProcessThreadIds(contents);
-	contents += ",\"args\":{\"what\":\"";
-	contents += what;
-	contents += "\"}}";
+	event.name = name;
+	event.category = category;
+	event.process_id = GetProcessId();
+	event.thread_id = GetThreadId();
+	event.timestamp = timestamp;
+	event.duration = duration;
 
-	SendTraceMessage(contents);
+	AddTraceEvent(event);
 }
 
-void TracingProxy::TraceEnd(string func)
+void TracingProxy::TraceInstant(string name, uint64_t timestamp)
 {
-	auto ts = GetTimeStamp();
+	TraceEventInstant event;
 
-	string contents = "{\"name\":\"";
-	contents += func;
-	contents += "\",\"cat\":\"\",\"ph\":\"E\",\"ts\":";
-	contents += to_string(double(ts) / 1000);
-	AddProcessThreadIds(contents);
-	contents += ",}";
+	event.name = name;
+	event.process_id = GetProcessId();
+	event.thread_id = GetThreadId();
+	event.timestamp = timestamp;
 
-	SendTraceMessage(contents);
+	AddTraceEvent(event);
 }
 
-void TracingProxy::TraceInterval(string func, string what, uint64_t timestamp_start, uint64_t timestamp_end)
+void TracingProxy::TraceCounter(string name, string series, uint64_t timestamp, double counter)
 {
-	string contents = "{\"name\":\"";
-	contents += func;
-	contents += "\",\"cat\":\"\",\"ph\":\"X\",\"ts\":";
-	contents += to_string(double(timestamp_start) / 1000);
-	AddProcessThreadIds(contents);
-	contents += "\"dur\":";
-	contents += to_string(double(timestamp_end - timestamp_start) / 1000);
-	contents += ",\"args\":{\"what\":\"";
-	contents += what;
-	contents += "\"}}";
+	TraceEventCounter event;
 
-	SendTraceMessage(contents);
+	event.name = name;
+	event.series = series;
+	event.process_id = GetProcessId();
+	event.timestamp = timestamp;
+	event.counter = counter;
+
+	AddTraceEvent(event);
 }
 
-void TracingProxy::TraceCounter(string func, string series, double counter)
+struct BuildProtoEvent
 {
-	auto ts = GetTimeStamp();
-	string contents = "{\"name\":\"";
-	contents += func;
-	contents += "\",\"cat\":\"\",\"ph\":\"C\",\"ts\":";
-	contents += to_string(double(ts) / 1000);
-	AddProcessThreadIds(contents);
-	contents += ",\"args\":{\"";
-	contents += series;
-	contents += "\":";
-	contents += to_string(counter);
-	contents += "}}";
+	string operator()(TraceEventInterval &event)
+	{
+		catkit_proto::tracing::TraceEventInterval proto;
 
-	SendTraceMessage(contents);
-}
+		proto.set_name(event.name);
+		proto.set_category(event.category);
+		proto.set_process_id(event.process_id);
+		proto.set_thread_id(event.thread_id);
+		proto.set_timestamp(event.timestamp);
+		proto.set_duration(event.duration);
 
-void TracingProxy::TraceProcessName(string process_name)
-{
-	string contents = "{\"name\":\"process_name\",\"ph\":\"M\"";
-	AddProcessThreadIds(contents);
-	contents += ",\"args\":{\"name\":\"";
-	contents += process_name;
-	contents += "}}";
+		return proto.SerializeAsString();
+	}
 
-	SendTraceMessage(contents);
-}
+	string operator()(TraceEventInstant &event)
+	{
+		catkit_proto::tracing::TraceEventInstant proto;
 
-void TracingProxy::TraceThreadName(string thread_name)
-{
-	string contents = "{\"name\":\"thread_name\",\"ph\":\"M\"";
-	AddProcessThreadIds(contents);
-	contents += ",\"args\":{\"name\":\"";
-	contents += thread_name;
-	contents += "}}";
+		proto.set_name(event.name);
+		proto.set_process_id(event.process_id);
+		proto.set_thread_id(event.thread_id);
+		proto.set_timestamp(event.timestamp);
 
-	SendTraceMessage(contents);
-}
+		return proto.SerializeAsString();
+	}
 
-void TracingProxy::SendTraceMessage(string contents)
-{
-	std::unique_lock<std::mutex> lock(m_Mutex);
-	m_TraceMessages.push(contents);
+	string operator()(TraceEventCounter &event)
+	{
+		catkit_proto::tracing::TraceEventCounter proto;
 
-	m_ConditionVariable.notify_all();
-}
+		proto.set_name(event.name);
+		proto.set_series(event.series);
+		proto.set_process_id(event.process_id);
+		proto.set_timestamp(event.timestamp);
+		proto.set_counter(event.counter);
+
+		return proto.SerializeAsString();
+	}
+};
 
 void TracingProxy::MessageLoop()
 {
@@ -132,7 +120,7 @@ void TracingProxy::MessageLoop()
 
 	socket.connect("tcp://"s + m_Host + ":" + to_string(m_Port));
 
-	std::string message;
+	TraceEvent event;
 
 	while (!m_ShutDown)
 	{
@@ -148,14 +136,18 @@ void TracingProxy::MessageLoop()
 			if (m_ShutDown)
 				break;
 
-			message = m_TraceMessages.front();
+			event = m_TraceMessages.front();
 			m_TraceMessages.pop();
 		}
+
+		// Convert the TraceEvent to a ProtoBuf serialized string.
+		string message = std::visit(BuildProtoEvent{}, event);
 
 		// Construct message.
 		zmq::message_t message_zmq(message.size());
 		memcpy(message_zmq.data(), message.c_str(), message.size());
 
+		// Send message to socket.
 		zmq::send_result_t res;
 		do
 		{
