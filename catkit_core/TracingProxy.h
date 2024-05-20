@@ -8,38 +8,72 @@
 #include <thread>
 #include <queue>
 #include <condition_variable>
+#include <variant>
+
+struct TraceEventInterval
+{
+	std::string name;
+	std::string category;
+	std::uint32_t process_id;
+	std::uint32_t thread_id;
+	std::uint64_t timestamp;
+	std::uint64_t duration;
+};
+
+struct TraceEventInstant
+{
+	std::string name;
+	std::uint32_t process_id;
+	std::uint32_t thread_id;
+	std::uint64_t timestamp;
+};
+
+struct TraceEventCounter
+{
+	std::string name;
+	std::string series;
+	std::uint32_t process_id;
+	std::uint64_t timestamp;
+	double counter;
+};
+
+typedef std::variant<TraceEventInterval, TraceEventInstant, TraceEventCounter> TraceEvent;
 
 class TracingProxy
 {
 public:
-    TracingProxy(std::shared_ptr<TestbedProxy> testbed);
-    ~TracingProxy();
+	TracingProxy(std::string host, int port);
+	~TracingProxy();
 
-    void TraceBegin(std::string func, std::string what);
-    void TraceEnd(std::string func);
+	void TraceInterval(std::string name, std::string category, uint64_t timestamp_start, uint64_t timestamp_end);
+	void TraceInstant(std::string name, uint64_t timestamp);
+	void TraceCounter(std::string name, std::string series, uint64_t timestamp, double counter);
 
-    void TraceInterval(std::string func, std::string what, uint64_t timestamp_start, uint64_t timestamp_end);
-
-    void TraceCounter(std::string func, std::string series, double counter);
-
-    void TraceProcessName(std::string process_name);
-    void TraceThreadName(std::string thread_name);
+	//void SetProcessName(std::string process_name);
+	//void SetThreadName(std::string thread_name);
 
 private:
-    void SendTraceMessage(std::string contents);
+	template<typename T>
+	void AddTraceEvent(T &event)
+	{
+		std::unique_lock<std::mutex> lock(m_Mutex);
+		m_TraceMessages.emplace(event);
 
-    void MessageLoop();
-    void ShutDown();
+		m_ConditionVariable.notify_all();
+	}
 
-    std::thread m_MessageLoopThread;
-    std::atomic_bool m_ShutDown;
+	void MessageLoop();
+	void ShutDown();
 
-    std::queue<std::string> m_TraceMessages;
-    std::mutex m_Mutex;
-    std::condition_variable m_ConditionVariable;
+	std::thread m_MessageLoopThread;
+	std::atomic_bool m_ShutDown;
 
-    std::string m_Host;
-    int m_Port;
+	std::queue<TraceEvent> m_TraceMessages;
+	std::mutex m_Mutex;
+	std::condition_variable m_ConditionVariable;
+
+	std::string m_Host;
+	int m_Port;
 };
 
 #endif // TRACING_PROXY_H
