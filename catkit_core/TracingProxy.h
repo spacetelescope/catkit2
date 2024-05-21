@@ -1,11 +1,8 @@
 #ifndef TRACING_PROXY_H
 #define TRACING_PROXY_H
 
-#include "TestbedProxy.h"
-
-#include <zmq.hpp>
-
 #include <thread>
+#include <atomic>
 #include <queue>
 #include <condition_variable>
 #include <variant>
@@ -49,7 +46,7 @@ public:
 	void Disconnect();
 	bool IsConnected();
 
-	void TraceInterval(std::string name, std::string category, uint64_t timestamp_start, uint64_t timestamp_end);
+	void TraceInterval(std::string name, std::string category, uint64_t timestamp_start, uint64_t duration);
 	void TraceInstant(std::string name, uint64_t timestamp);
 	void TraceCounter(std::string name, std::string series, uint64_t timestamp, double counter);
 
@@ -78,5 +75,7 @@ private:
 	std::string m_Host;
 	int m_Port;
 };
+
+extern TracingProxy tracing_proxy;
 
 #endif // TRACING_PROXY_H

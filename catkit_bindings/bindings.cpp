@@ -669,14 +669,18 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def(py::init<>())
 		.def("connect", &LogForwarder::Connect);
 
-	py::class_<TracingProxy>(m, "TracingProxy")
-		.def(py::init<>())
-		.def("connect", &TracingProxy::Connect)
-		.def("discconnect", &TracingProxy::Disconnect)
-		.def_property_readonly("is_connected", &TracingProxy::IsConnected)
-		.def("trace_interval", &TracingProxy::TraceInterval)
-		.def("trace_instant", &TracingProxy::TraceInstant)
-		.def("trace_counter", &TracingProxy::TraceCounter);
+	m.def("trace_connect", [](std::string host, int port) {
+		tracing_proxy.Connect(host, port);
+	});
+	m.def("trace_interval", [](std::string name, std::string category, uint64_t timestamp_start, uint64_t duration) {
+		tracing_proxy.TraceInterval(name, category, timestamp_start, duration);
+	});
+	m.def("trace_instant", [](std::string name, uint64_t timestamp) {
+		tracing_proxy.TraceInstant(name, timestamp);
+	});
+	m.def("trace_counter", [](std::string name, std::string series, uint64_t timestamp, double counter) {
+		tracing_proxy.TraceCounter(name, series, timestamp, counter);
+	});
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
