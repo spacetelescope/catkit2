@@ -72,39 +72,48 @@ struct BuildProtoEvent
 {
 	string operator()(TraceEventInterval &event)
 	{
-		catkit_proto::tracing::TraceEventInterval proto;
+		auto *interval = new catkit_proto::tracing::TraceEventInterval();
 
-		proto.set_name(event.name);
-		proto.set_category(event.category);
-		proto.set_process_id(event.process_id);
-		proto.set_thread_id(event.thread_id);
-		proto.set_timestamp(event.timestamp);
-		proto.set_duration(event.duration);
+		interval->set_name(event.name);
+		interval->set_category(event.category);
+		interval->set_process_id(event.process_id);
+		interval->set_thread_id(event.thread_id);
+		interval->set_timestamp(event.timestamp);
+		interval->set_duration(event.duration);
+
+		catkit_proto::tracing::TraceEvent proto;
+		proto.set_allocated_interval(interval);
 
 		return proto.SerializeAsString();
 	}
 
 	string operator()(TraceEventInstant &event)
 	{
-		catkit_proto::tracing::TraceEventInstant proto;
+		auto *instant = new catkit_proto::tracing::TraceEventInstant();
 
-		proto.set_name(event.name);
-		proto.set_process_id(event.process_id);
-		proto.set_thread_id(event.thread_id);
-		proto.set_timestamp(event.timestamp);
+		instant->set_name(event.name);
+		instant->set_process_id(event.process_id);
+		instant->set_thread_id(event.thread_id);
+		instant->set_timestamp(event.timestamp);
+
+		catkit_proto::tracing::TraceEvent proto;
+		proto.set_allocated_instant(instant);
 
 		return proto.SerializeAsString();
 	}
 
 	string operator()(TraceEventCounter &event)
 	{
-		catkit_proto::tracing::TraceEventCounter proto;
+		auto *counter = new catkit_proto::tracing::TraceEventCounter();
 
-		proto.set_name(event.name);
-		proto.set_series(event.series);
-		proto.set_process_id(event.process_id);
-		proto.set_timestamp(event.timestamp);
-		proto.set_counter(event.counter);
+		counter->set_name(event.name);
+		counter->set_series(event.series);
+		counter->set_process_id(event.process_id);
+		counter->set_timestamp(event.timestamp);
+		counter->set_counter(event.counter);
+
+		catkit_proto::tracing::TraceEvent proto;
+		proto.set_allocated_counter(counter);
 
 		return proto.SerializeAsString();
 	}
