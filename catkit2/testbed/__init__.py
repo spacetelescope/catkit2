@@ -7,7 +7,9 @@ __all__ = [
     'ServiceProxy',
     'Experiment',
     'TraceWriter',
-    'TracingProxy',
+    'trace_interval',
+    'trace_instant',
+    'trace_counter',
     'ZmqDistributor',
 ]
 

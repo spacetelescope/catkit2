@@ -122,24 +122,23 @@ class TraceWriter:
         self.close()
 
 
-class TracingProxy(catkit_bindings.TracingProxy):
-    @contextlib.contextmanager
-    def trace_interval(self, name, category=''):
-        start = catkit_bindings.get_timestamp()
+@contextlib.contextmanager
+def trace_interval(name, category=''):
+    start = catkit_bindings.get_timestamp()
 
-        try:
-            yield
-        finally:
-            end = catkit_bindings.get_timestamp()
+    try:
+        yield
+    finally:
+        end = catkit_bindings.get_timestamp()
 
-            return super().trace_interval(name, category, start, end - start)
+        return catkit_bindings.trace_interval(name, category, start, end - start)
 
-    def trace_instant(self, name):
-        timestamp = catkit_bindings.get_timestamp()
+def trace_instant(name):
+    timestamp = catkit_bindings.get_timestamp()
 
-        return super().trace_instant(name, timestamp)
+    return catkit_bindings.trace_instant(name, timestamp)
 
-    def trace_counter(self, name, series, counter):
-        timestamp = catkit_bindings.get_timestamp()
+def trace_counter(name, series, counter):
+    timestamp = catkit_bindings.get_timestamp()
 
-        return super().trace_counter(name, series, timestamp, counter)
+    return catkit_bindings.trace_counter(name, series, timestamp, counter)
