@@ -91,10 +91,10 @@ class LogDistributor:
                     else:
                         raise RuntimeError('Error during receive') from e
 
-                log_message = log_message[0].decode('utf-8')
-                log_message = json.loads(log_message)
+                #log_message = log_message[0].decode('utf-8')
+                #log_message = json.loads(log_message)
 
-                print(f'[{log_message["service_id"]}] {log_message["message"]}')
+                #print(f'[{log_message["service_id"]}] {log_message["message"]}')
             except Exception:
                 # Something went wrong during handling of the log message.
                 # Let's ignore this error, but still print the exception.
