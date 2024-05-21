@@ -5,12 +5,15 @@ __all__ = [
     'CatkitLogHandler',
     'TestbedProxy',
     'ServiceProxy',
-    'Experiment'
+    'Experiment',
+    'TraceWriter',
+    'TracingProxy',
 ]
 
 from .testbed import *
 from .experiment import *
 from .service import *
 from .logging import *
+from .tracing import *
 from .testbed_proxy import *
 from .service_proxy import *
