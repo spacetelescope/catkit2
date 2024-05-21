@@ -147,11 +147,13 @@ class Testbed:
         self.config = config
 
         self.services = {}
+        self.launched_processes = []
 
         self.log_distributor = None
         self.log_handler = None
         self.log_forwarder = None
-        self.launched_processes = []
+
+        self.tracing_distributor = None
 
         self.log = logging.getLogger(__name__)
 
@@ -251,6 +253,9 @@ class Testbed:
             self.start_log_distributor()
             self.setup_logging()
 
+            # Start tracing distributor.
+            self.start_tracing_distributor()
+
             heartbeat_thread = threading.Thread(target=self.do_heartbeats)
             heartbeat_thread.start()
 
@@ -295,6 +300,9 @@ class Testbed:
 
                 # Shut down the server.
                 self.server.stop()
+
+                # Stop tracing distributor.
+                self.stop_tracing_distributor()
 
                 # Stop the logging.
                 self.destroy_logging()
@@ -380,6 +388,17 @@ class Testbed:
         if self.log_distributor:
             self.log_distributor.stop()
             self.log_distributor = None
+
+    def start_tracing_distributor(self):
+        '''Start the tracing distributor.
+        '''
+        self.tracing_distributor = LogDistributor(self.context, self.port + 3, self.port + 4)
+        self.tracing_distributor.start()
+
+    def stop_tracing_distributor(self):
+        if self.tracing_distributor:
+            self.tracing_distributor.stop()
+            self.tracing_distributor = None
 
     def on_start_service(self, data):
         request = testbed_proto.StartServiceRequest()
