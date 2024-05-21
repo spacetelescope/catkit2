@@ -42,8 +42,12 @@ typedef std::variant<TraceEventInterval, TraceEventInstant, TraceEventCounter> T
 class TracingProxy
 {
 public:
-	TracingProxy(std::string host, int port);
+	TracingProxy();
 	~TracingProxy();
+
+	void Connect(std::string host, int port);
+	void Disconnect();
+	bool IsConnected();
 
 	void TraceInterval(std::string name, std::string category, uint64_t timestamp_start, uint64_t timestamp_end);
 	void TraceInstant(std::string name, uint64_t timestamp);
@@ -63,7 +67,6 @@ private:
 	}
 
 	void MessageLoop();
-	void ShutDown();
 
 	std::thread m_MessageLoopThread;
 	std::atomic_bool m_ShutDown;
@@ -75,5 +78,7 @@ private:
 	std::string m_Host;
 	int m_Port;
 };
+
+TracingProxy tracing_proxy;
 
 #endif // TRACING_PROXY_H

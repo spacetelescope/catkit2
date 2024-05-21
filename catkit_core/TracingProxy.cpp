@@ -2,31 +2,47 @@
 
 #include "Timing.h"
 #include "Util.h"
+#include "Log.h"
 
 #include "proto/tracing.pb.h"
 
 using namespace std;
 
-void AddProcessThreadIds(string &contents)
+TracingProxy::TracingProxy()
 {
-	contents += ",\"pid\":";
-	contents += to_string(GetProcessId());
-	contents += ",\"tid\":";
-	contents += to_string(GetThreadId());
-}
-
-TracingProxy::TracingProxy(std::string host, int port)
-	: m_Host(host), m_Port(port)
-{
-	m_MessageLoopThread = std::thread(&TracingProxy::MessageLoop, this);
 }
 
 TracingProxy::~TracingProxy()
 {
-	ShutDown();
+	Disconnect();
+}
 
+void TracingProxy::Connect(string host, int port)
+{
+	// Disconnect if we are already running.
+	if (IsConnected())
+		Disconnect();
+
+	m_Host = host;
+	m_Port = port;
+	m_ShutDown = false;
+
+	m_MessageLoopThread = std::thread(&TracingProxy::MessageLoop, this);
+}
+
+void TracingProxy::Disconnect()
+{
+	m_ShutDown = true;
+	m_ConditionVariable.notify_all();
+
+	// Wait for the thread to exit.
 	if (m_MessageLoopThread.joinable())
 		m_MessageLoopThread.join();
+}
+
+bool TracingProxy::IsConnected()
+{
+	return m_MessageLoopThread.joinable();
 }
 
 void TracingProxy::TraceInterval(string name, string category, uint64_t timestamp, uint64_t duration)
@@ -166,10 +182,4 @@ void TracingProxy::MessageLoop()
 	}
 
 	socket.close();
-}
-
-void TracingProxy::ShutDown()
-{
-	m_ShutDown = true;
-	m_ConditionVariable.notify_all();
 }
