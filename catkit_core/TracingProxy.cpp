@@ -21,7 +21,12 @@ void TracingProxy::Connect(string host, int port)
 {
 	// Disconnect if we are already running.
 	if (IsConnected())
+	{
+		if (m_Host == host && m_Port == port)
+			return;
+
 		Disconnect();
+	}
 
 	m_Host = host;
 	m_Port = port;
