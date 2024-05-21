@@ -670,7 +670,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("connect", &LogForwarder::Connect);
 
 	py::class_<TracingProxy>(m, "TracingProxy")
-		.def(py::init<std::string, int>())
+		.def(py::init<>())
+		.def("connect", &TracingProxy::Connect)
+		.def("discconnect", &TracingProxy::Disconnect)
+		.def_property_readonly("is_connected", &TracingProxy::IsConnected)
 		.def("trace_interval", &TracingProxy::TraceInterval)
 		.def("trace_instant", &TracingProxy::TraceInstant)
 		.def("trace_counter", &TracingProxy::TraceCounter);

@@ -79,6 +79,4 @@ private:
 	int m_Port;
 };
 
-TracingProxy tracing_proxy;
-
 #endif // TRACING_PROXY_H
