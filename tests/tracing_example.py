@@ -8,7 +8,8 @@ import numpy as np
 
 def main():
     writer = TraceWriter('127.0.0.1', 5239)
-    proxy = TracingProxy('127.0.0.1', 5238)
+    proxy = TracingProxy()
+    proxy.connect('127.0.0.1', 5238)
 
     time.sleep(0.1)
 
@@ -21,6 +22,8 @@ def main():
 
                 if random.randint(0, 1):
                     proxy.trace_instant('blank')
+
+            proxy.trace_counter('adsf', 'iteration', i)
 
         time.sleep(0.1)
 
