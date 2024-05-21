@@ -101,6 +101,7 @@ class TraceWriter:
                         'name': counter.name,
                         'ph': 'C',
                         'ts': (counter.timestamp - t_0) / 1000,
+                        'pid': counter.process_id,
                         'args': {
                             counter.series: counter.counter
                         }
