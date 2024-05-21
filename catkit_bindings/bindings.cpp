@@ -19,7 +19,7 @@
 #include "Server.h"
 #include "Client.h"
 #include "HostName.h"
-#include "TracingProxy.h"
+#include "Tracing.h"
 
 #include "proto/testbed.pb.h"
 

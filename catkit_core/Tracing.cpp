@@ -1,4 +1,4 @@
-#include "TracingProxy.h"
+#include "Tracing.h"
 
 #include "Timing.h"
 #include "Util.h"
