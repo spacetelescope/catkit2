@@ -13,6 +13,7 @@ import numpy as np
 
 from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state, Client
 from .logging import *
+from .distributor import ZmqDistributor
 
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
@@ -400,9 +401,15 @@ class Testbed:
     def start_log_distributor(self):
         '''Start the log distributor.
         '''
+        def callback(log_message):
+            log_message = log_message[0].decode('utf-8')
+            log_message = json.loads(log_message)
+
+            print(f'[{log_message["service_id"]}] {log_message["message"]}')
+
         self.logging_ingress_port, self.logging_egress_port = get_unused_port(num_ports=2)
 
-        self.log_distributor = LogDistributor(self.context, self.logging_ingress_port, self.logging_egress_port)
+        self.log_distributor = ZmqDistributor(self.context, self.logging_ingress_port, self.logging_egress_port, callback)
         self.log_distributor.start()
 
     def stop_log_distributor(self):
@@ -415,7 +422,7 @@ class Testbed:
     def start_tracing_distributor(self):
         '''Start the tracing distributor.
         '''
-        self.tracing_distributor = LogDistributor(self.context, self.port + 3, self.port + 4)
+        self.tracing_distributor = ZmqDistributor(self.context, self.port + 3, self.port + 4)
         self.tracing_distributor.start()
 
     def stop_tracing_distributor(self):
