@@ -8,6 +8,13 @@ from ..proto import tracing_pb2 as tracing_proto
 from .. import catkit_bindings
 
 
+def write_json(f, data):
+    data = json.dumps(data, indent=None, separators=(',', ':'))
+
+    # Write JSON to file.
+    f.write(data + ',\n')
+
+
 class TraceWriter:
     '''
     '''
@@ -49,6 +56,10 @@ class TraceWriter:
         socket.subscribe('')
         socket.RCVTIMEO = 50
 
+        # Set up cache for process names.
+        process_names = {}
+        thread_names = {}
+
         # Set initial time.
         # Subtracting one second before current time to hopefully never have negative timestamps.
         t_0 = catkit_bindings.get_timestamp() - 1_000_000_000
@@ -76,41 +87,73 @@ class TraceWriter:
                 # Convert event to JSON format.
                 event_type = proto_event.WhichOneof('event')
                 if event_type == 'interval':
-                    interval = proto_event.interval
+                    raw_data = proto_event.interval
                     data = {
-                        'name': interval.name,
-                        'cat': interval.category,
+                        'name': raw_data.name,
+                        'cat': raw_data.category,
                         'ph': 'X',
-                        'ts': (interval.timestamp - t_0) / 1000,
-                        'dur': interval.duration / 1000,
-                        'pid': interval.process_id,
-                        'tid': interval.thread_id
+                        'ts': (raw_data.timestamp - t_0) / 1000,
+                        'dur': raw_data.duration / 1000,
+                        'pid': raw_data.process_id,
+                        'tid': raw_data.thread_id
                     }
                 elif event_type == 'instant':
-                    instant = proto_event.instant
+                    raw_data = proto_event.instant
                     data = {
-                        'name': instant.name,
+                        'name': raw_data.name,
                         'ph': 'i',
-                        'ts': (instant.timestamp - t_0) / 1000,
-                        'pid': instant.process_id,
-                        'tid': instant.thread_id
+                        'ts': (raw_data.timestamp - t_0) / 1000,
+                        'pid': raw_data.process_id,
+                        'tid': raw_data.thread_id
                     }
                 elif event_type == 'counter':
-                    counter = proto_event.counter
+                    raw_data = proto_event.counter
                     data = {
-                        'name': counter.name,
+                        'name': raw_data.name,
                         'ph': 'C',
-                        'ts': (counter.timestamp - t_0) / 1000,
-                        'pid': counter.process_id,
+                        'ts': (raw_data.timestamp - t_0) / 1000,
+                        'pid': raw_data.process_id,
                         'args': {
-                            counter.series: counter.counter
+                            raw_data.series: raw_data.counter
                         }
                     }
 
-                data = json.dumps(data)
+                if hasattr(raw_data, 'process_name') and raw_data.process_name:
+                    # We haven't seen a message from this process before.
+                    # Extract and store process name, and write metadata.
+                    if raw_data.process_id not in process_names:
+                        process_names[raw_data.process_id] = raw_data.process_name
 
-                # Write JSON to file.
-                f.write(data + ',\n')
+                        metadata = {
+                            'name': 'process_name',
+                            'ph': 'M',
+                            'pid': raw_data.process_id,
+                            'args': {
+                                'name': raw_data.process_name
+                            }
+                        }
+
+                        write_json(f, metadata)
+
+                if hasattr(raw_data, 'thread_name') and raw_data.thread_name:
+                    # We haven't seen a message from this process before.
+                    # Extract and store process name, and write metadata.
+                    if raw_data.process_id not in thread_names:
+                        thread_names[raw_data.process_id] = raw_data.thread_name
+
+                        metadata = {
+                            'name': 'thread_name',
+                            'ph': 'M',
+                            'pid': raw_data.process_id,
+                            'tid': raw_data.thread_id,
+                            'args': {
+                                'name': raw_data.thread_name
+                            }
+                        }
+
+                    write_json(f, metadata)
+
+                write_json(f, data)
 
     def __enter__(self):
         '''

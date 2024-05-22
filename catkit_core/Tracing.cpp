@@ -20,7 +20,7 @@ TracingProxy::~TracingProxy()
 	Disconnect();
 }
 
-void TracingProxy::Connect(string host, int port)
+void TracingProxy::Connect(string process_name, string host, int port)
 {
 	// Disconnect if we are already running.
 	if (IsConnected())
@@ -36,6 +36,8 @@ void TracingProxy::Connect(string host, int port)
 	m_ShutDown = false;
 
 	m_MessageLoopThread = std::thread(&TracingProxy::MessageLoop, this);
+
+	SetProcessName(process_name);
 }
 
 void TracingProxy::Disconnect()
@@ -60,7 +62,9 @@ void TracingProxy::TraceInterval(string name, string category, uint64_t timestam
 	event.name = name;
 	event.category = category;
 	event.process_id = GetProcessId();
+	event.process_name = m_ProcessName;
 	event.thread_id = GetThreadId();
+	event.thread_name = m_ThreadName;
 	event.timestamp = timestamp;
 	event.duration = duration;
 
@@ -73,7 +77,9 @@ void TracingProxy::TraceInstant(string name, uint64_t timestamp)
 
 	event.name = name;
 	event.process_id = GetProcessId();
+	event.process_name = m_ProcessName;
 	event.thread_id = GetThreadId();
+	event.thread_name = m_ThreadName;
 	event.timestamp = timestamp;
 
 	AddTraceEvent(event);
@@ -86,6 +92,7 @@ void TracingProxy::TraceCounter(string name, string series, uint64_t timestamp, 
 	event.name = name;
 	event.series = series;
 	event.process_id = GetProcessId();
+	event.process_name = m_ProcessName;
 	event.timestamp = timestamp;
 	event.counter = counter;
 
@@ -101,7 +108,9 @@ struct BuildProtoEvent
 		interval->set_name(event.name);
 		interval->set_category(event.category);
 		interval->set_process_id(event.process_id);
+		interval->set_process_name(event.process_name);
 		interval->set_thread_id(event.thread_id);
+		interval->set_thread_name(event.thread_name);
 		interval->set_timestamp(event.timestamp);
 		interval->set_duration(event.duration);
 
@@ -117,7 +126,9 @@ struct BuildProtoEvent
 
 		instant->set_name(event.name);
 		instant->set_process_id(event.process_id);
+		instant->set_process_name(event.process_name);
 		instant->set_thread_id(event.thread_id);
+		instant->set_thread_name(event.thread_name);
 		instant->set_timestamp(event.timestamp);
 
 		catkit_proto::tracing::TraceEvent proto;
@@ -133,6 +144,7 @@ struct BuildProtoEvent
 		counter->set_name(event.name);
 		counter->set_series(event.series);
 		counter->set_process_id(event.process_id);
+		counter->set_process_name(event.process_name);
 		counter->set_timestamp(event.timestamp);
 		counter->set_counter(event.counter);
 
@@ -190,4 +202,14 @@ void TracingProxy::MessageLoop()
 	}
 
 	socket.close();
+}
+
+void TracingProxy::SetProcessName(string process_name)
+{
+	m_ProcessName = process_name;
+}
+
+void TracingProxy::SetThreadName(string thread_name)
+{
+	m_ThreadName = thread_name;
 }

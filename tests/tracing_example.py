@@ -8,7 +8,7 @@ import numpy as np
 
 def main():
     writer = TraceWriter('127.0.0.1', 5239)
-    trace_connect('127.0.0.1', 5238)
+    trace_connect('test', '127.0.0.1', 5238)
 
     time.sleep(0.1)
 
