@@ -33,16 +33,14 @@ import numpy as np
 from catkit2.testbed.service import Service
 
 
-try:
-    default_dll_path = os.environ.get('THORLABS_KINESIS_DLL_PATH')
-    if default_dll_path is not None:
-        if sys.version_info < (3, 8):
-            os.chdir(default_dll_path)
-        else:
-            os.add_dll_directory(default_dll_path)
-except ImportError:
-    print('To use Thorlabs cube motors, you need to set the THORLABS_KINESIS_DLL_PATH environment variable.')
-    raise
+default_dll_path = os.environ.get('THORLABS_KINESIS_DLL_PATH')
+if default_dll_path is not None:
+    if sys.version_info < (3, 8):
+        os.chdir(default_dll_path)
+    else:
+        os.add_dll_directory(default_dll_path)
+else:
+    raise ValueError('To use Thorlabs cube motors, you need to set the THORLABS_KINESIS_DLL_PATH environment variable.')
 
 
 class ThorlabsCubeMotorKinesis(Service):
