@@ -40,7 +40,7 @@ if default_dll_path is not None:
     else:
         os.add_dll_directory(default_dll_path)
 else:
-    raise ValueError('To use Thorlabs cube motors, you need to set the THORLABS_KINESIS_DLL_PATH environment variable.')
+    raise ValueError('To use Thorlabs cube motors with Kinesis, you need to set the THORLABS_KINESIS_DLL_PATH environment variable.')
 
 
 class ThorlabsCubeMotorKinesis(Service):
