@@ -668,8 +668,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<LogForwarder>(m, "LogForwarder")
 		.def(py::init<std::string, std::string>());
 
-	m.def("trace_connect", [](std::string host, int port) {
-		tracing_proxy.Connect(host, port);
+	m.def("trace_connect", [](std::string process_name, std::string host, int port) {
+		tracing_proxy.Connect(process_name, host, port);
 	});
 	m.def("trace_interval", [](std::string name, std::string category, uint64_t timestamp_start, uint64_t duration) {
 		tracing_proxy.TraceInterval(name, category, timestamp_start, duration);

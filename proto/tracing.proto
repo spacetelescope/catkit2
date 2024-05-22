@@ -7,17 +7,21 @@ message TraceEventInterval
     string name = 1;
     string category = 2;
     uint32 process_id = 3;
-    uint32 thread_id = 4;
-    uint64 timestamp = 5;
-    uint64 duration = 6;
+    string process_name = 4;
+    uint32 thread_id = 5;
+    string thread_name = 6;
+    uint64 timestamp = 7;
+    uint64 duration = 8;
 }
 
 message TraceEventInstant
 {
     string name = 1;
     uint32 process_id = 2;
-    uint32 thread_id = 3;
-    uint64 timestamp = 4;
+    string process_name = 3;
+    uint32 thread_id = 4;
+    string thread_name = 5;
+    uint64 timestamp = 6;
 }
 
 message TraceEventCounter
@@ -25,8 +29,9 @@ message TraceEventCounter
     string name = 1;
     string series = 2;
     uint32 process_id = 3;
-    uint64 timestamp = 4;
-    double counter = 5;
+    string process_name = 4;
+    uint64 timestamp = 5;
+    double counter = 6;
 }
 
 message TraceEvent
