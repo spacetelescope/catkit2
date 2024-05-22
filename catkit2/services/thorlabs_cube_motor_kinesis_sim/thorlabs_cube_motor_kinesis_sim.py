@@ -95,13 +95,17 @@ class ThorlabsCubeMotorKinesisSim(Service):
     def home(self):
         """
         Home the motor.
-
-        This will just sleep for a moment since there is no reason to home a simulated device.
         """
-        # No reason to home simulated motor
+        # Home the motor
+        self.set_current_position(0)
+
+        # Wait for completion
         self.log.info("Homing motor %s...", self.serial_number)
         self.wait_for_completion()
         self.log.info("Homed - motor %s", self.serial_number)
+
+        # Update the current position data stream
+        self.current_position.submit_data(np.array([0], dtype='float64'))
 
 
 if __name__ == '__main__':

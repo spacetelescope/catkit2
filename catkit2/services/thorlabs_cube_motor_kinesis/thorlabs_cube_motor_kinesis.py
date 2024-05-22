@@ -224,7 +224,7 @@ class ThorlabsCubeMotorKinesis(Service):
         self.lib.CC_Home(self.serial_number)
         self.log.info("Device %s homing\r\n", self.serial_number)
 
-        # wait for completion
+        # Wait for completion
         self.log.info("Homing motor %s...", self.serial_number)
         self.wait_for_completion()
         self.log.info("Homed - motor %s", self.serial_number)
