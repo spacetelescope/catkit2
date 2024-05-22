@@ -186,6 +186,7 @@ class ThorlabsCubeMotorKinesis(Service):
                                                    byref(new_pos_dev),
                                                    0)
             self.lib.CC_MoveToPosition(self.serial_number, new_pos_dev)
+            self.wait_for_completion()
         else:
             self.log.warning('Motor not moving since commanded position is outside of configured range.')
             self.log.warning('Position limits: %f %s <= position <= %f %s.',
