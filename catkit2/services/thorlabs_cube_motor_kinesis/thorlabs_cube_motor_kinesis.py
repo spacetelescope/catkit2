@@ -202,7 +202,6 @@ class ThorlabsCubeMotorKinesis(Service):
         self.current_position.submit_data(np.array([real_unit.value], dtype='float64'))
 
     def wait_for_completion(self):
-        # wait for completion
         message_type = c_ushort()
         message_id = c_ushort()
         message_data = c_ulong()

@@ -89,7 +89,6 @@ class ThorlabsCubeMotorKinesisSim(Service):
         return self.resolve_position(self.motor_positions[position])
 
     def wait_for_completion(self):
-        # wait for completion
         time.sleep(1)
 
     def home(self):
