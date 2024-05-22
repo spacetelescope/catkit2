@@ -13,7 +13,7 @@ def main():
     time.sleep(0.1)
 
     with writer.open(f'trace_{get_timestamp()}.json'):
-        for i in range(100):
+        '''for i in range(100):
             with trace_interval('a'):
                 for j in range(random.randint(1, 4)):
                     with trace_interval('b'):
@@ -22,7 +22,8 @@ def main():
                 if random.randint(0, 1):
                     trace_instant('blank')
 
-            trace_counter('adsf', 'iteration', i)
+            trace_counter('adsf', 'iteration', i)'''
+        time.sleep(30)
 
         time.sleep(0.1)
 
