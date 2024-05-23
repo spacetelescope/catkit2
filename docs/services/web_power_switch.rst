@@ -3,10 +3,8 @@ Web Power Switch
 
 This service controls a power switch that is controllable over the internet.
 
-For some examples of commercially available web power switches:
-https://controlbyweb.com/webswitch/
-https://dlidirect.com/products/new-pro-switch
-
+So far catkit2 has been tested on the LPC7-PRO web power switch from TeleDynamics:
+https://www.teledynamics.com/#/productdetails/LPC7-PRO
 
 Configuration
 -------------
