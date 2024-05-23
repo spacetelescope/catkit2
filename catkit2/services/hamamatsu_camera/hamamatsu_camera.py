@@ -1,97 +1,39 @@
-'''
-This module contains a service for Allied Vision cameras.
+"""
+This module contains a service for Hamamatsu digital cameras.
 
-This service is a wrapper around the Vimba SDK.
+This service is a wrapper around the DCAM-SDK4.
 It provides a simple interface to control the camera and acquire images.
-'''
-
-from __future__ import annotations
-import contextlib
+"""
+import os
+import sys
 import threading
-
 import numpy as np
-
-from vimba import (AllocationMode,
-                   Camera, Frame,
-                   FrameStatus,
-                   PixelFormat,
-                   Vimba,
-                   VimbaCameraError
-)
-
 from catkit2.testbed.service import Service
 
+try:
+    sdk_path = os.environ.get('CATKIT_DCAM_SDK_PATH')
+    if sdk_path is not None:
+        sys.path.append(sdk_path)
 
-class FrameHandler:
-    '''
-    This class is a callback handler for the camera.
-
-    It is used to handle incoming frames from the camera.
-    The frames are then submitted to the data stream.
-
-    Attributes
-    ----------
-    av_camera : AlliedVisionCamera
-        The AlliedVisionCamera service object to which the frames should be submitted.
-    shutdown_event : threading.Event
-        An event to signal that the frame handler should shut down.
-    '''
-    def __init__(self, av_camera: AlliedVisionCamera):
-        '''
-        Create a new FrameHandler.
-
-        Parameters
-        ----------
-        av_camera : AlliedVisionCamera
-            The AlliedVisionCamera service object to which the frames should be submitted.
-        '''
-        self.av_camera = av_camera
-        self.shutdown_event = threading.Event()
-
-    def __call__(self, cam: Camera, frame: Frame):
-        '''
-        Handle incoming frames from the camera.
-
-        This function is called when a new frame is received from the camera.
-
-        Parameters
-        ----------
-        cam : Camera
-            The camera that received the frame.
-        frame : Frame
-            The frame that was received.
-        '''
-        if not self.av_camera.should_be_acquiring.is_set() or self.av_camera.should_shut_down:
-            self.shutdown_event.set()
-            return
-
-        elif frame.get_status() == FrameStatus.Complete:
-            if frame.get_pixel_format() == PixelFormat.Mono12Packed:
-                frame.convert_pixel_format(PixelFormat.Mono12)
-            pixels = np.squeeze(frame.as_numpy_ndarray().astype('float32'), 2)
-            self.av_camera.images.submit_data(pixels)
-
-        cam.queue_frame(frame)
+    import dcam
+except ImportError:
+    print('To use Hamamatsu cameras, you need to set the CATKIT_DCAM_SDK_PATH environment variable.')
+    raise
 
 
-class AlliedVisionCamera(Service):
-    '''
-    Service for Allied Vision cameras.
+class HamamatsuCamera(Service):
+    """
+    Service for Hamamatsu cameras.
 
-    This service is a wrapper around the Vimba SDK.
+    This service is a wrapper around the DCAM-SDK4.
     It provides a simple interface to control the camera and acquire images.
 
     Attributes
     ----------
-    vimba : Vimba
-        The Vimba instance to use for the camera.
     cam : Camera
         The camera to control.
-    exit_stack : contextlib.ExitStack
-        The exit stack to which this service should be added.
-        This is used to ensure that resources are properly cleaned up when the service is closed.
     pixel_formats : dict
-        A dictionary to store the pixel format and the corresponding numpy dtype and vimba pixel format.
+        A dictionary to store the pixel format and the corresponding numpy dtype and dcam pixel format.
     current_pixel_format : str
         The current pixel format to use.
     temperature_thread : threading.Thread
@@ -106,51 +48,21 @@ class AlliedVisionCamera(Service):
         An event to signal whether the camera should be acquiring images.
     NUM_FRAMES : int
         The number of frames to allocate for the data streams.
-
-    Methods
-    -------
-    open()
-        Open the service.
-    main()
-        The main function of the service.
-    close()
-        Close the service.
-    acquisition_loop()
-        The main acquisition loop.
-    monitor_temperature()
-        Monitor the temperature of the camera.
-    start_acquisition()
-        Start the acquisition loop.
-    end_acquisition()
-        End the acquisition loop.
-    get_temperature()
-        Get the temperature of the camera.
-    '''
+    """
     NUM_FRAMES = 20
 
-    def __init__(self, exit_stack: contextlib.ExitStack):
-        '''
-        Create a new AlliedVisionCamera service.
+    def __init__(self):
+        """
+        Create a new HamamatsuCamera service.
+        """
+        super().__init__('hamamatsu_camera')
 
-        Parameters
-        ----------
-        exit_stack : contextlib.ExitStack
-            The exit stack to which this service should be added.
-            This is used to ensure that resources are properly cleaned up when the service is closed.
-        '''
-        super().__init__('allied_vision_camera')
-
-        self.vimba = None
         self.cam = None
-        self.exit_stack = exit_stack
 
-        # dictionary to store the pixel format and the corresponding numpy dtype and vimba pixel format
+        # Dictionary to store the pixel format and the corresponding numpy dtype and dcam pixel format
         self.pixel_formats = {
-            "Mono8": PixelFormat.Mono8,
-            "Mono12": PixelFormat.Mono12,
-            "Mono12Packed": PixelFormat.Mono12Packed,
-            "Mono14": PixelFormat.Mono14,
-            "Mono16": PixelFormat.Mono16,
+            "Mono8": dcam.DCAM_PIXELTYPE.MONO8,
+            "Mono16": dcam.DCAM_PIXELTYPE.MONO16,
         }
         self.current_pixel_format = None
         self.temperature_thread = None
@@ -162,7 +74,7 @@ class AlliedVisionCamera(Service):
         self.should_be_acquiring.set()
 
     def open(self):
-        '''
+        """
         Open the service.
 
         This function is called when the service is opened.
@@ -170,38 +82,54 @@ class AlliedVisionCamera(Service):
 
         Raises
         ------
-        RuntimeError
-            If the camera cannot be found.
         ValueError
             If the pixel format is invalid.
-        VimbaCameraError
-            If there is an error with the camera.
-        '''
-        self.vimba = Vimba.get_instance()
-        self.exit_stack.enter_context(self.vimba)
-
-        # convert int to IPv4 address
-        def int_to_ip(int_ip):
-            return '.'.join([str(int_ip >> i & 0xff) for i in [24, 16, 8, 0]])
+        RuntimeError
+            For a Dcamapi or Dcam error when initializing the library or when opening the camera.
+        """
+        if dcam.Dcamapi.init() is False:
+            raise RuntimeError(f'Dcamapi.init() fails with error {dcam.Dcamapi.lasterr()}')
 
         camera_id = self.config.get('camera_id', 0)
+        self.cam = dcam.Dcam(camera_id)
         self.log.info('Using camera with ID %s', camera_id)
+        if self.cam.dev_open() is False:
+            raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
 
-        try:
-            self.cam = self.vimba.get_camera_by_id(camera_id)
-        except VimbaCameraError as e:
-            raise RuntimeError(
-                f'Could not find camera with ID {camera_id}') from e
-        self.exit_stack.enter_context(self.cam)
+        # Set subarray mode to on so that it checks subarray compatibility when picking ROI
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
 
-        self.current_pixel_format = self.config.get('pixel_format', 'Mono8')
+        binning = self.config.get('binning', 1)
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.BINNING, binning)
+
+        detector_correction = 2.0 if self.config.get('detector_correction', True) else 1.0
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.DEFECTCORRECT_MODE, detector_correction)
+
+        self.hot_pixel_correction = self.config.get('hot_pixel_correction', 'standard')
+        if self.hot_pixel_correction == "standard":
+            hot_pixel_correction = 1.0
+        elif self.hot_pixel_correction == "minimum":
+            hot_pixel_correction = 2.0
+        elif self.hot_pixel_correction == "aggressive":
+            hot_pixel_correction = 3.0
+        else:
+            raise ValueError(f'Invalid hot pixel correction: {self.hot_pixel_correction}, must be one of ["standard", "minimum", "aggressive"]')
+        self.cam.prop_setvalue(self.cam.DCAM_IDPROP.HOTPIXELCORRECT_LEVEL, hot_pixel_correction)
+
+        self.camera_mode = self.config.get('camera_mode', "standard")
+        if self.camera_mode == "ultraquiet":
+            camera_mode = 1.0
+        elif self.camera_mode == "standard":
+            camera_mode = 2.0
+        else:
+            raise ValueError(f'Invalid camera mode: {self.camera_mode}, must be one of ["ultraquiet", "standard"]')
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.READOUTSPEED, camera_mode)
+
+        self.current_pixel_format = self.config.get('pixel_format', 'Mono16')
         if self.current_pixel_format not in self.pixel_formats:
-            raise ValueError('Invalid pixel format: ' +
-                             self.current_pixel_format +
-                             ', must be one of ' +
-                             str(list(self.pixel_formats.keys())))
+            raise ValueError(f'Invalid pixel format: {self.current_pixel_format}, must be one of {str(list(self.pixel_formats.keys()))}')
         self.log.info('Using pixel format: %s', self.current_pixel_format)
-        self.cam.set_pixel_format(self.pixel_formats[self.current_pixel_format])
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.IMAGE_PIXELTYPE, self.pixel_formats[self.current_pixel_format])
 
         # Set device values from config file (set width and height before offsets)
         offset_x = self.config.get('offset_x', 0)
@@ -218,8 +146,7 @@ class AlliedVisionCamera(Service):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = self.make_data_stream('images', 'float32',
-                                            [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
+        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
@@ -250,57 +177,75 @@ class AlliedVisionCamera(Service):
         self.temperature_thread.start()
 
     def main(self):
-        '''
+        """
         The main function of the service.
 
         This function is called when the service is started.
         It starts the acquisition loop and waits for incoming frames.
-        '''
+        """
         while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
     def close(self):
-        '''
-        Close the service.
-
-        This function is called when the service is closed.
-        It stops the acquisition loop and cleans up the camera and data streams.
-        '''
-        self.temperature_thread.join()
+        self.cam.dev_close()
         self.cam = None
 
+        dcam.Dcamapi.uninit()
+
     def acquisition_loop(self):
-        '''
+        """
         The main acquisition loop.
 
         This function is the main loop for acquiring images from the camera.
         It starts the acquisition and then waits for incoming frames.
-        '''
-        # Start acquisition.
-        self.is_acquiring.submit_data(np.array([1], dtype='int8'))
+        """
         # Make sure the data stream has the right size and datatype.
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
         if not has_correct_parameters:
             self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
 
-        frame_handler = FrameHandler(self)
+        # Start acquisition.
+        if self.cam.buf_alloc(self.NUM_FRAMES) is False:
+            raise RuntimeError(f'Dcam.buf_alloc() fails with error {self.cam.lasterr()}')
+        if self.cam.cap_start() is False:
+            raise RuntimeError(f'Dcam.cap_start() fails with error {self.cam.lasterr()}')
+        self.is_acquiring.submit_data(np.array([1], dtype='int8'))
+
+        timeout_millisec = 2000
         try:
-            self.cam.start_streaming(handler=frame_handler, buffer_count=self.NUM_FRAMES,
-                                     allocation_mode=AllocationMode.AllocAndAnnounceFrame)
-            frame_handler.shutdown_event.wait()
+            i = 0
+            while self.should_be_acquiring.is_set() and not self.should_shut_down:
+                if self.cam.lasterr().is_timeout():
+                    self.log.warning('Timeout while waiting for frame')
+                if self.cam.wait_capevent_frameready(timeout_millisec) is False:
+                    raise RuntimeError(f'Dcam.wait_capevent_frameready({timeout_millisec}) fails with error {self.cam.lasterr()}')
+
+                img = self.cam.buf_getlastframedata()
+
+                if i == 0:
+                    # The first frame often contains systematic errors, so drop it.
+                    self.log.info('Dropping first camera frame')
+                    i += 1
+                    continue
+
+                self.images.submit_data(img.astype('float32'))
+
+                i += 1
+
         finally:
             # Stop acquisition.
+            self.cam.cap_stop()
+            self.cam.buf_release()
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
-            self.cam.stop_streaming()
 
     def monitor_temperature(self):
-        '''
+        """
         Monitor the temperature of the camera.
 
         This function is a separate thread that monitors the temperature of
         the camera and submits the data to the temperature data stream.
-        '''
+        """
         while not self.should_shut_down:
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
@@ -308,23 +253,23 @@ class AlliedVisionCamera(Service):
             self.sleep(0.1)
 
     def start_acquisition(self):
-        '''
+        """
         Start the acquisition loop.
 
         This function starts the acquisition loop.
-        '''
+        """
         self.should_be_acquiring.set()
 
     def end_acquisition(self):
-        '''
+        """
         End the acquisition loop.
 
         This function ends the acquisition loop.
-        '''
+        """
         self.should_be_acquiring.clear()
 
     def get_temperature(self):
-        '''
+        """
         Get the temperature of the camera.
 
         This function gets the temperature of the camera.
@@ -333,50 +278,40 @@ class AlliedVisionCamera(Service):
         -------
         float:
             The temperature of the camera in degrees Celsius.
-        '''
-        return self.cam.DeviceTemperature.get()
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORTEMPERATURE)
 
     @property
     def exposure_time(self):
-        '''
+        """
         The exposure time in microseconds.
 
         This property can be used to get the exposure time of the camera.
 
         Returns:
         --------
-        int:
+        float:
             The exposure time in microseconds.
-        '''
-        try:
-            # This is the old way of setting the exposure time.
-            return self.cam.ExposureTime.get()
-        except AttributeError:
-            # This is the new way of setting the exposure time.
-            return self.cam.ExposureTimeAbs.get()
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.EXPOSURETIME) * 1e6
 
     @exposure_time.setter
-    def exposure_time(self, exposure_time: int):
-        '''
+    def exposure_time(self, exposure_time: float):
+        """
         Set the exposure time in microseconds.
 
         This property can be used to set the exposure time of the camera.
 
         Parameters
         ----------
-        exposure_time : int
+        exposure_time : float
             The exposure time in microseconds.
-        '''
-        try:
-            # This is the old way of getting the exposure time.
-            self.cam.ExposureTime.set(exposure_time)
-        except AttributeError:
-            # This is the new way of getting the exposure time.
-            self.cam.ExposureTimeAbs.set(exposure_time)
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.EXPOSURETIME, exposure_time / 1e6)
 
     @property
     def gain(self):
-        '''
+        """
         The gain of the camera.
 
         This property can be used to get the gain of the camera.
@@ -385,12 +320,12 @@ class AlliedVisionCamera(Service):
         --------
         int:
             The gain of the camera.
-        '''
-        return self.cam.Gain.get()
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.CONTRASTGAIN)
 
     @gain.setter
     def gain(self, gain: int):
-        '''
+        """
         Set the gain of the camera.
 
         This property can be used to set the gain of the camera.
@@ -399,12 +334,12 @@ class AlliedVisionCamera(Service):
         ----------
         gain : int
             The gain of the camera.
-        '''
-        self.cam.Gain.set(gain)
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.CONTRASTGAIN, gain)
 
     @property
     def brightness(self):
-        '''
+        """
         The brightness of the camera.
 
         This property can be used to get the brightness of the camera.
@@ -413,12 +348,12 @@ class AlliedVisionCamera(Service):
         --------
         int:
             The brightness of the camera.
-        '''
-        return self.cam.Brightness.get()
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSITIVITY)
 
     @brightness.setter
     def brightness(self, brightness: int):
-        '''
+        """
         Set the brightness of the camera.
 
         This property can be used to set the brightness of the camera.
@@ -427,12 +362,12 @@ class AlliedVisionCamera(Service):
         ----------
         brightness : int
             The brightness of the camera.
-        '''
-        self.cam.Brightness.set(brightness)
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSITIVITY, brightness)
 
     @property
     def sensor_width(self):
-        '''
+        """
         The width of the sensor in pixels.
 
         This property can be used to get the width of the sensor in pixels.
@@ -441,12 +376,12 @@ class AlliedVisionCamera(Service):
         --------
         int:
             The width of the sensor in pixels.
-        '''
-        return self.cam.SensorWidth.get()
+        """
+        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
 
     @property
     def sensor_height(self):
-        '''
+        """
         The height of the sensor in pixels.
 
         This property can be used to get the height of the sensor in pixels.
@@ -455,12 +390,12 @@ class AlliedVisionCamera(Service):
         --------
         int:
             The height of the sensor in pixels.
-        '''
-        return self.cam.SensorHeight.get()
+        """
+        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
 
     @property
     def width(self):
-        '''
+        """
         The width of the image in pixels.
 
         This property can be used to get the width of the image in pixels.
@@ -469,12 +404,12 @@ class AlliedVisionCamera(Service):
         --------
         int:
             The width of the image in pixels.
-        '''
-        return self.cam.Width.get()
+        """
+        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYHSIZE))
 
     @width.setter
     def width(self, width: int):
-        '''
+        """
         Set the width of the image in pixels.
 
         This property can be used to set the width of the image in pixels.
@@ -483,12 +418,12 @@ class AlliedVisionCamera(Service):
         ----------
         width : int
             The width of the image in pixels.
-        '''
-        self.cam.Width.set(width)
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYHSIZE, width)
 
     @property
     def height(self):
-        '''
+        """
         The height of the image in pixels.
 
         This property can be used to get the height of the image in pixels.
@@ -497,12 +432,12 @@ class AlliedVisionCamera(Service):
         --------
         int:
             The height of the image in pixels.
-        '''
-        return self.cam.Height.get()
+        """
+        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYVSIZE))
 
     @height.setter
     def height(self, height: int):
-        '''
+        """
         Set the height of the image in pixels.
 
         This property can be used to set the height of the image in pixels.
@@ -511,12 +446,12 @@ class AlliedVisionCamera(Service):
         ----------
         height : int
             The height of the image in pixels.
-        '''
-        self.cam.Height.set(height)
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYVSIZE, height)
 
     @property
     def offset_x(self):
-        '''
+        """
         The x offset of the image in pixels.
 
         This property can be used to get the x offset of the image in pixels.
@@ -525,12 +460,12 @@ class AlliedVisionCamera(Service):
         --------
         int:
             The x offset of the image in pixels.
-        '''
-        return self.cam.OffsetX.get()
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYVPOS)
 
     @offset_x.setter
     def offset_x(self, offset_x: int):
-        '''
+        """
         Set the x offset of the image in pixels.
 
         This property can be used to set the x offset of the image in pixels.
@@ -539,12 +474,12 @@ class AlliedVisionCamera(Service):
         ----------
         offset_x : int
             The x offset of the image in pixels.
-        '''
-        self.cam.OffsetX.set(offset_x)
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYVPOS, offset_x)
 
     @property
     def offset_y(self):
-        '''
+        """
         The y offset of the image in pixels.
 
         This property can be used to get the y offset of the image in pixels.
@@ -553,12 +488,12 @@ class AlliedVisionCamera(Service):
         --------
         int:
             The y offset of the image in pixels.
-        '''
-        return self.cam.OffsetY.get()
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYHPOS)
 
     @offset_y.setter
     def offset_y(self, offset_y: int):
-        '''
+        """
         Set the y offset of the image in pixels.
 
         This property can be used to set the y offset of the image in pixels.
@@ -567,11 +502,10 @@ class AlliedVisionCamera(Service):
         ----------
         offset_y : int
             The y offset of the image in pixels.
-        '''
-        self.cam.OffsetY.set(offset_y)
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYHPOS, offset_y)
 
 
 if __name__ == '__main__':
-    with contextlib.ExitStack() as main_exit_stack:
-        service = AlliedVisionCamera(main_exit_stack)
-        service.run()
+    service = HamamatsuCamera()
+    service.run()

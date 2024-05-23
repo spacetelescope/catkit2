@@ -1,20 +1,14 @@
-Allied Vision Camera
+Hamamatsu Camera
 ====================
 
-This service controls an Allied Vision camera. It is a wrapper around the Vimba SDK, which requires its installation.
-The service uses the Python API for Vimba SDK, called ``VimbaPython``.
+This service controls a Hamamatsu camera. It is a wrapper around the DCAM SDK, which is distributed on the manufacturer
+website together with their Python API ``dcam``: `https://www.hamamatsu.com/eu/en/product/cameras/software/driver-software.html <https://www.hamamatsu.com/eu/en/product/cameras/software/driver-software.html>`_
 
-Vimba SDK is now superceded by Vimba X SDK. The service might be updated in the future to use the Vimba X SDK and its
-Python API ``VmbPy`` instead.
-
-Vimba SDK and Vimba X SDK: `https://www.alliedvision.com/en/products/software/ <https://www.alliedvision.com/en/products/software/>`_
-``VimbaPython`` Python API: `https://github.com/alliedvision/VimbaPython <https://github.com/alliedvision/VimbaPython>`_
-``VmbPy`` Python API: `https://github.com/alliedvision/VmbPy <https://github.com/alliedvision/VmbPy>`_
+The service requires the definition of an environment variable ``CATKIT_DCAM_SDK_PATH`` that points to the
+``python`` directory within the DCAM SDK installation.
 
 The service has been successfully tested with the following camera models:
-
-- Alvium 1800 U-158m
-- Alvium 1800 U-500m
+- Hamamatsu ORCA-Quest C15550-20UP
 
 Configuration
 -------------
@@ -22,21 +16,22 @@ Configuration
 .. code-block:: YAML
 
     camera1:
-      service_type: allied_vision_camera
+      service_type: hamamatsu_camera
       simulated_service_type: camera_sim
       requires_safety: false
 
-      camera_id: "DEV_1AB22C011222"
-      device_name: AV Alvium 1800 U-158m
+      camera_id: 0
+      camera_mode: 'ultraquiet'
+      pixel_format: Mono16
+      binning: 1
 
       offset_x: 0
       offset_y: 0
-      width: 32
-      height: 32
-      sensor_width: 1456
-      sensor_height: 1088
-
-      exposure_time: 200
+      width: 400
+      height: 400
+      sensor_width: 4096
+      sensor_height: 2304
+      exposure_time: 8294.4
       gain: 0
 
 Properties
