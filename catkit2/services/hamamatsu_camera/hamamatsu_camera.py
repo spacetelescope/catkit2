@@ -99,19 +99,31 @@ class HamamatsuCamera(Service):
         # Set subarray mode to on so that it checks subarray compatibility when picking ROI
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
 
-        # Set binning
         binning = self.config.get('binning', 1)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.BINNING, binning)
 
-        # Set camera mode
-        camera_mode = self.config.get('camera_mode', "standard")
-        if camera_mode == "ultraquiet":
-            self.camera_mode = 1.0
-        elif camera_mode == "standard":
-            self.camera_mode = 2.0
+        detector_correction = 2.0 if self.config.get('detector_correction', True) else 1.0
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.DEFECTCORRECT_MODE, detector_correction)
+
+        self.hot_pixel_correction = self.config.get('hot_pixel_correction', 'standard')
+        if self.hot_pixel_correction == "standard":
+            hot_pixel_correction = 1.0
+        elif self.hot_pixel_correction == "minimum":
+            hot_pixel_correction = 2.0
+        elif self.hot_pixel_correction == "aggressive":
+            hot_pixel_correction = 3.0
         else:
-            raise ValueError(f'Invalid camera mode: {camera_mode}, must be one of ["ultraquiet", "standard"]')
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.READOUTSPEED, self.camera_mode)
+            raise ValueError(f'Invalid hot pixel correction: {self.hot_pixel_correction}, must be one of ["standard", "minimum", "aggressive"]')
+        self.cam.prop_setvalue(self.cam.DCAM_IDPROP.HOTPIXELCORRECT_LEVEL, hot_pixel_correction)
+
+        self.camera_mode = self.config.get('camera_mode', "standard")
+        if self.camera_mode == "ultraquiet":
+            camera_mode = 1.0
+        elif self.camera_mode == "standard":
+            camera_mode = 2.0
+        else:
+            raise ValueError(f'Invalid camera mode: {self.camera_mode}, must be one of ["ultraquiet", "standard"]')
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.READOUTSPEED, camera_mode)
 
         self.current_pixel_format = self.config.get('pixel_format', 'Mono16')
         if self.current_pixel_format not in self.pixel_formats:
