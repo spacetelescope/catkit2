@@ -25,6 +25,7 @@ SOFTWARE.
 """
 import os
 import sys
+import threading
 
 from ctypes import c_ulong, c_int, c_ushort, c_double
 from ctypes import cdll, CDLL, byref, create_string_buffer
@@ -56,6 +57,7 @@ class ThorlabsCubeMotorKinesis(Service):
         self.motor_positions = self.config['positions']
         self.motor_type = 0
         self.serial_number = str(self.config['serial_number']).encode("UTF-8")
+        self.update_interval = self.config['update_interval']
 
         if self.cube_model == 'KDC101':
             dll_name = r"\Thorlabs.MotionControl.KCube.DCServo.dll"
@@ -155,7 +157,10 @@ class ThorlabsCubeMotorKinesis(Service):
 
         self.make_command('home', self.home)
 
-    def main(self):
+        self.motor_thread = threading.Thread(target=self.monitor_motor)
+        self.motor_thread.start()
+
+    def monitor_motor(self):
         while not self.should_shut_down:
             try:
                 # Get an update for the motor position.
@@ -166,7 +171,13 @@ class ThorlabsCubeMotorKinesis(Service):
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 
+    def main(self):
+        while not self.should_shut_down:
+            pass
+
     def close(self):
+        self.motor_thread.join()
+
         self.lib.CC_ClearMessageQueue(self.serial_number)
         self.lib.CC_StopPolling(self.serial_number)
         # Close the device
