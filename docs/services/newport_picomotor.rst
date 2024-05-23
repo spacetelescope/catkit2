@@ -1,7 +1,7 @@
 Newport Picomotor
 =================
 
-This service controls a Newport Picomotor Motion Controller.
+This service controls a Newport Picomotor Motion Controller (see link below for an example of one that has been used with catkit2).
 
 https://www.newport.com/f/open-loop-picomotor-motion-controller
 
