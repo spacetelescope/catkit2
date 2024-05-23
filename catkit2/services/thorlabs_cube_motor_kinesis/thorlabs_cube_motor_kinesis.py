@@ -173,7 +173,8 @@ class ThorlabsCubeMotorKinesis(Service):
 
     def main(self):
         while not self.should_shut_down:
-            pass
+            self.get_current_position()
+            self.sleep(self.update_interval)
 
     def close(self):
         self.motor_thread.join()
