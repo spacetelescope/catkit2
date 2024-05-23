@@ -204,13 +204,13 @@ class ThorlabsCubeMotorKinesis(Service):
                              self.min_position_config, self.unit, self.max_position_config, self.unit)
 
         # Update the current position data stream.
+        self.log.info("Setting new position: %f %s", position, self.unit)
         self.get_current_position()
 
     def get_current_position(self):
         current_position = self.lib.CC_GetPosition(self.serial_number)
         real_unit = c_double()
         self.lib.CC_GetRealValueFromDeviceUnit(self.serial_number, current_position, byref(real_unit), 0)
-        self.log.debug("Current position: %f %s", real_unit.value, self.unit)
         self.current_position.submit_data(np.array([real_unit.value], dtype='float64'))
 
     def wait_for_completion(self):

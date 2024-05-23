@@ -79,6 +79,7 @@ class ThorlabsCubeMotorKinesisSim(Service):
         The unit is given in real-life units (mm if translation, deg if rotation).
         """
         if self.min_position_config <= position <= self.max_position_config:
+            self.log.info("Setting new position: %f %s", position, self.unit)
             self.testbed.simulator.move_stage(stage_id=self.id,
                                               old_position=self.get_current_position(),
                                               new_position=position)
@@ -89,7 +90,6 @@ class ThorlabsCubeMotorKinesisSim(Service):
 
     def get_current_position(self):
         position = self.current_position.get()[0]
-        self.log.debug("Current position: %f %s", position, self.unit)
         return position
 
     def resolve_position(self, position):
