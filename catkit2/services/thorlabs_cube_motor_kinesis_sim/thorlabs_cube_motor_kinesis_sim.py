@@ -1,4 +1,5 @@
 import time
+import threading
 import numpy as np
 from catkit2.testbed.service import Service
 
@@ -14,6 +15,7 @@ class ThorlabsCubeMotorKinesisSim(Service):
         self.motor_positions = self.config['positions']
         self.motor_type = 0
         self.serial_number = str(self.config['serial_number']).encode("UTF-8")
+        self.update_interval = self.config['update_interval']
 
         if self.cube_model == 'KDC101':
             self.motor_type = 27
@@ -48,7 +50,10 @@ class ThorlabsCubeMotorKinesisSim(Service):
 
         self.make_command('home', self.home)
 
-    def main(self):
+        self.motor_thread = threading.Thread(target=self.monitor_motor)
+        self.motor_thread.start()
+
+    def monitor_motor(self):
         while not self.should_shut_down:
             try:
                 # Get an update for the motor position.
@@ -59,8 +64,13 @@ class ThorlabsCubeMotorKinesisSim(Service):
                 # Timed out. This is used to periodically check the shutdown flag.
                 continue
 
+    def main(self):
+        while not self.should_shut_down:
+            self.get_current_position()
+            self.sleep(self.update_interval)
+
     def close(self):
-        pass
+        self.motor_thread.join()
 
     def set_current_position(self, position):
         """
