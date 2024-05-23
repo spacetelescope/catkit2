@@ -269,6 +269,7 @@ class AlliedVisionCamera(Service):
         This function is called when the service is closed.
         It stops the acquisition loop and cleans up the camera and data streams.
         '''
+        self.temperature_thread.join()
         self.cam = None
 
     def acquisition_loop(self):
