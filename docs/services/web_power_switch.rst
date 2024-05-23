@@ -43,4 +43,5 @@ None.
 
 Datastreams
 -----------
-``{outlet_name}``: The name of an outlet added by the user using the add_outlet() command.
+``{outlet_name}``: The name of an outlet. These are defined by the config file (see the sample Configuration 
+                    section above where the names of eight example outlets are given).
