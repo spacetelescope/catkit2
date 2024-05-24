@@ -1,13 +1,14 @@
 ZWO Camera
 ==========
 
-This service operates a ZWO camera. There are currently four different types of ZWO cameras that have been tested and used with catkit2 so far:
-- ZWO ASI533MM (https://www.zwoastro.com/product/asi533mm-mc/)
-- ZWO ASI290MM (https://agenaastro.com/zwo-asi290mm-cmos-monochrome-astronomy-imaging-camera.html)
-- ZWO ASI178MM (https://agenaastro.com/zwo-asi178mm-cmos-monochrome-astronomy-imaging-camera.html)
-- ZWO ASI1600MM (https://agenaastro.com/zwo-asi1600mm-p-cmos-monochrome-astronomy-imaging-camera-pro.html)
+This service operates a ZWO camera. The following are the different types of ZWO cameras that have been tested and used with catkit2 so far:
+- `ZWO ASI533MM <https://www.zwoastro.com/product/asi533mm-mc/>`_
+- `ZWO ASI290MM <https://agenaastro.com/zwo-asi290mm-cmos-monochrome-astronomy-imaging-camera.html>`_
+- `ZWO ASI178MM <https://agenaastro.com/zwo-asi178mm-cmos-monochrome-astronomy-imaging-camera.html>`_
+- `ZWO ASI1600MM <https://agenaastro.com/zwo-asi1600mm-p-cmos-monochrome-astronomy-imaging-camera-pro.html>`_
 
 For camera specs, see the website links above.
+Note that to use the ZWO cameras requires additional manual install of driver(s) from <https://astronomy-imaging-camera.com/software-drivers>`_ 
 
 Configuration
 -------------

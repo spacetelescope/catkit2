@@ -3,8 +3,8 @@ Web Power Switch
 
 This service controls a power switch that is controllable over the internet.
 
-So far catkit2 has been tested on the LPC7-PRO web power switch from TeleDynamics:
-https://www.teledynamics.com/#/productdetails/LPC7-PRO
+So far catkit2 has been tested on the following web power switches:
+- `LPC7-PRO from TeleDynamics <https://www.teledynamics.com/#/productdetails/LPC7-PRO>`_
 
 Configuration
 -------------
