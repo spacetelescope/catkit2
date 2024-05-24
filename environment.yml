@@ -38,5 +38,5 @@ dependencies:
   - flake8
   - pip:
     - dcps
-    - zwoasi>=0.0.21 # Requires additional manual install of driver(s) from https://astronomy-imaging-camera.com/software-drivers
+    - zwoasi>=0.0.21
     - git+https://github.com/alliedvision/VimbaPython.git@v1.2.1
