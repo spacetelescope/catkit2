@@ -4,7 +4,7 @@ Newport Picomotor
 This service controls a Newport Picomotor Motion Controller. 
 The following Newport Picomotors have been tested and used with catkit2 so far:
 
-`Newport Picomotor <https://www.newport.com/f/open-loop-picomotor-motion-controller>`_
+`Model 8742 Newport Picomotor <https://www.newport.com/f/open-loop-picomotor-motion-controller>`_
 
 The bottom of the webpage linked above has resources for the user including software downloads, technical notes, and user manuals.
 
@@ -41,9 +41,7 @@ None.
 
 Datastreams
 -----------
-``{axis_name}_command``: A movement command along the axis corresponding to axis_name (where axis_name can be x, y, or z). 
-                         The axis names are defined by the config file.
+``{axis_name}_command``: A movement command along the axis corresponding to axis_name (where axis_name can be x, y, or z). The axis names are defined by the config file.
 
-``{axis_name}_current_position``: The current position of the picomotor along the axis corresponding to axis_name (where axis_name can be x, y, or z).
-                                  The axis names are defined by the config file.
+``{axis_name}_current_position``: The current position of the picomotor along the axis corresponding to axis_name (where axis_name can be x, y, or z). The axis names are defined by the config file.
 

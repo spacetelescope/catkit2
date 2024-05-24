@@ -4,6 +4,7 @@ Web Power Switch
 This service controls a power switch that is controllable over the internet.
 
 So far catkit2 has been tested on the following web power switches:
+
 - `LPC7-PRO from TeleDynamics <https://www.teledynamics.com/#/productdetails/LPC7-PRO>`_
 
 Configuration
@@ -43,5 +44,4 @@ None.
 
 Datastreams
 -----------
-``{outlet_name}``: The name of an outlet. These are defined by the config file (see the sample Configuration 
-                    section above where the names of eight example outlets are given).
+``{outlet_name}``: The name of an outlet. These are defined by the config file (see the sample Configuration section above where the names of eight example outlets are given).
