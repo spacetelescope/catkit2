@@ -4,10 +4,8 @@ Newport Picomotor
 This service controls a Newport Picomotor Motion Controller. 
 The following Newport Picomotors have been tested and used with catkit2 so far:
 
-- `Model 8742 <https://www.newport.com/f/open-loop-picomotor-motion-controller>`_
-
-The Newport Picomotor comes with a USB Flash Drive that contains communication drivers and software necessary for operating the controller 
-(see page 42 of the `user manual <https://www.newport.com/mam/celum/celum_assets/np/resources/8742_User_Manual.pdf?1>`_).
+- `Model 8742 <https://www.newport.com/f/open-loop-picomotor-motion-controller>`_ (comes with a USB Flash Drive that contains communication drivers and software necessary for operating the controller, 
+see page 42 of the `user manual <https://www.newport.com/mam/celum/celum_assets/np/resources/8742_User_Manual.pdf?1>`_)
 
 Configuration
 -------------
