@@ -9,7 +9,7 @@ This service operates a ZWO camera. The following are the different types of ZWO
 - `ZWO ASI1600MM <https://agenaastro.com/zwo-asi1600mm-p-cmos-monochrome-astronomy-imaging-camera-pro.html>`_
 
 For camera specs, see the website links above.
-Note that to use the ZWO cameras requires additional manual install of driver(s) from `zwoastro.com <https://astronomy-imaging-camera.com/software-drivers>`_ 
+Note that using ZWO cameras requires a manual installation of drivers from `zwoastro.com <https://astronomy-imaging-camera.com/software-drivers>`_ 
 
 Configuration
 -------------
@@ -37,13 +37,13 @@ Properties
 
 ``brightness``: Brightness of the camera.
 
-``width``: The width of the camera.
+``width``: The width of the camera frames.
 
-``height``: The height of the camera.
+``height``: The height of the camera frames.
 
-``offset_x``: The x offset of the camera.
+``offset_x``: The x offset of the camera frames on the sensor.
 
-``offset_y``: The y offset of the camera.
+``offset_y``: The y offset of the camera frames on the sensor.
 
 ``sensor_width``: The width of the sensor.
 
@@ -59,7 +59,7 @@ Commands
 
 Datastreams
 -----------
-``temperature``: The temperature as measured by this sensor in Celsius.
+``temperature``: The temperature (in Celsius) as measured by the camera.
 
 ``images``: The images acquired by the camera.
 
