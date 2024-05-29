@@ -42,13 +42,13 @@ Properties
 
 ``brightness``: Brightness of the camera.
 
-``width``: The width of the camera.
+``width``: The width of the camera frames.
 
-``height``: The height of the camera.
+``height``: The height of the camera frames.
 
-``offset_x``: The x offset of the camera.
+``offset_x``: The x offset of the camera frames on the sensor.
 
-``offset_y``: The y offset of the camera.
+``offset_y``: The y offset of the camera frames on the sensor.
 
 ``sensor_width``: The width of the sensor.
 
@@ -62,7 +62,7 @@ Commands
 
 Datastreams
 -----------
-``temperature``: The temperature as measured by this sensor in Celsius.
+``temperature``: The temperature (in Celsius) as measured by the camera.
 
 ``images``: The images acquired by the camera.
 
