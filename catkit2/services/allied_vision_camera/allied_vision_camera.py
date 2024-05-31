@@ -8,6 +8,7 @@ It provides a simple interface to control the camera and acquire images.
 from __future__ import annotations
 import contextlib
 import threading
+import time
 
 import numpy as np
 
@@ -20,6 +21,32 @@ from vimba import (AllocationMode,
 )
 
 from catkit2.testbed.service import Service
+
+
+def _create_property(property_name, read_only=False, stopped_acquisition=True):
+    def getter(self):
+        with self.mutex:
+            return getattr(self.cam, property_name).get()
+
+    if read_only:
+        setter = None
+    else:
+        def setter(self, value):
+            was_running = self.is_acquiring.get()[0] > 0
+
+            if was_running and stopped_acquisition:
+                self.end_acquisition()
+
+                while self.is_acquiring.get()[0]:
+                    time.sleep(0.001)
+
+            with self.mutex:
+                getattr(self.cam, property_name).set(value)
+
+            if was_running and stopped_acquisition:
+                self.start_acquisition()
+
+    return property(getter, setter)
 
 
 class FrameHandler:
@@ -160,6 +187,9 @@ class AlliedVisionCamera(Service):
 
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
+
+        # Create lock for camera access
+        self.mutex = threading.Lock()
 
     def open(self):
         '''
@@ -323,6 +353,18 @@ class AlliedVisionCamera(Service):
         '''
         self.should_be_acquiring.clear()
 
+    exposure_time = _create_property('ExposureTime', stopped_acquisition=False)
+    gain = _create_property('Gain', stopped_acquisition=False)
+    brightness = _create_property('Brightness', stopped_acquisition=False)
+
+    width = _create_property('Width')
+    height = _create_property('Height')
+    offset_x = _create_property('OffsetX')
+    offset_y = _create_property('OffsetY')
+
+    sensor_width = _create_property('SensorWidth', read_only=True)
+    sensor_height = _create_property('SensorHeight', read_only=True)
+
     def get_temperature(self):
         '''
         Get the temperature of the camera.
@@ -335,240 +377,6 @@ class AlliedVisionCamera(Service):
             The temperature of the camera in degrees Celsius.
         '''
         return self.cam.DeviceTemperature.get()
-
-    @property
-    def exposure_time(self):
-        '''
-        The exposure time in microseconds.
-
-        This property can be used to get the exposure time of the camera.
-
-        Returns:
-        --------
-        int:
-            The exposure time in microseconds.
-        '''
-        try:
-            # This is the old way of setting the exposure time.
-            return self.cam.ExposureTime.get()
-        except AttributeError:
-            # This is the new way of setting the exposure time.
-            return self.cam.ExposureTimeAbs.get()
-
-    @exposure_time.setter
-    def exposure_time(self, exposure_time: int):
-        '''
-        Set the exposure time in microseconds.
-
-        This property can be used to set the exposure time of the camera.
-
-        Parameters
-        ----------
-        exposure_time : int
-            The exposure time in microseconds.
-        '''
-        try:
-            # This is the old way of getting the exposure time.
-            self.cam.ExposureTime.set(exposure_time)
-        except AttributeError:
-            # This is the new way of getting the exposure time.
-            self.cam.ExposureTimeAbs.set(exposure_time)
-
-    @property
-    def gain(self):
-        '''
-        The gain of the camera.
-
-        This property can be used to get the gain of the camera.
-
-        Returns:
-        --------
-        int:
-            The gain of the camera.
-        '''
-        return self.cam.Gain.get()
-
-    @gain.setter
-    def gain(self, gain: int):
-        '''
-        Set the gain of the camera.
-
-        This property can be used to set the gain of the camera.
-
-        Parameters
-        ----------
-        gain : int
-            The gain of the camera.
-        '''
-        self.cam.Gain.set(gain)
-
-    @property
-    def brightness(self):
-        '''
-        The brightness of the camera.
-
-        This property can be used to get the brightness of the camera.
-
-        Returns:
-        --------
-        int:
-            The brightness of the camera.
-        '''
-        return self.cam.Brightness.get()
-
-    @brightness.setter
-    def brightness(self, brightness: int):
-        '''
-        Set the brightness of the camera.
-
-        This property can be used to set the brightness of the camera.
-
-        Parameters
-        ----------
-        brightness : int
-            The brightness of the camera.
-        '''
-        self.cam.Brightness.set(brightness)
-
-    @property
-    def sensor_width(self):
-        '''
-        The width of the sensor in pixels.
-
-        This property can be used to get the width of the sensor in pixels.
-
-        Returns:
-        --------
-        int:
-            The width of the sensor in pixels.
-        '''
-        return self.cam.SensorWidth.get()
-
-    @property
-    def sensor_height(self):
-        '''
-        The height of the sensor in pixels.
-
-        This property can be used to get the height of the sensor in pixels.
-
-        Returns:
-        --------
-        int:
-            The height of the sensor in pixels.
-        '''
-        return self.cam.SensorHeight.get()
-
-    @property
-    def width(self):
-        '''
-        The width of the image in pixels.
-
-        This property can be used to get the width of the image in pixels.
-
-        Returns:
-        --------
-        int:
-            The width of the image in pixels.
-        '''
-        return self.cam.Width.get()
-
-    @width.setter
-    def width(self, width: int):
-        '''
-        Set the width of the image in pixels.
-
-        This property can be used to set the width of the image in pixels.
-
-        Parameters
-        ----------
-        width : int
-            The width of the image in pixels.
-        '''
-        self.cam.Width.set(width)
-
-    @property
-    def height(self):
-        '''
-        The height of the image in pixels.
-
-        This property can be used to get the height of the image in pixels.
-
-        Returns:
-        --------
-        int:
-            The height of the image in pixels.
-        '''
-        return self.cam.Height.get()
-
-    @height.setter
-    def height(self, height: int):
-        '''
-        Set the height of the image in pixels.
-
-        This property can be used to set the height of the image in pixels.
-
-        Parameters
-        ----------
-        height : int
-            The height of the image in pixels.
-        '''
-        self.cam.Height.set(height)
-
-    @property
-    def offset_x(self):
-        '''
-        The x offset of the image in pixels.
-
-        This property can be used to get the x offset of the image in pixels.
-
-        Returns:
-        --------
-        int:
-            The x offset of the image in pixels.
-        '''
-        return self.cam.OffsetX.get()
-
-    @offset_x.setter
-    def offset_x(self, offset_x: int):
-        '''
-        Set the x offset of the image in pixels.
-
-        This property can be used to set the x offset of the image in pixels.
-
-        Parameters
-        ----------
-        offset_x : int
-            The x offset of the image in pixels.
-        '''
-        self.cam.OffsetX.set(offset_x)
-
-    @property
-    def offset_y(self):
-        '''
-        The y offset of the image in pixels.
-
-        This property can be used to get the y offset of the image in pixels.
-
-        Returns:
-        --------
-        int:
-            The y offset of the image in pixels.
-        '''
-        return self.cam.OffsetY.get()
-
-    @offset_y.setter
-    def offset_y(self, offset_y: int):
-        '''
-        Set the y offset of the image in pixels.
-
-        This property can be used to set the y offset of the image in pixels.
-
-        Parameters
-        ----------
-        offset_y : int
-            The y offset of the image in pixels.
-        '''
-        self.cam.OffsetY.set(offset_y)
 
 
 if __name__ == '__main__':
