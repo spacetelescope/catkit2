@@ -233,19 +233,6 @@ class AlliedVisionCamera(Service):
         self.log.info('Using pixel format: %s', self.current_pixel_format)
         self.cam.set_pixel_format(self.pixel_formats[self.current_pixel_format])
 
-        # Set device values from config file (set width and height before offsets)
-        offset_x = self.config.get('offset_x', 0)
-        offset_y = self.config.get('offset_y', 0)
-
-        self.width = self.config.get('width', self.sensor_width - offset_x)
-        self.height = self.config.get('height', self.sensor_height - offset_y)
-        self.offset_x = offset_x
-        self.offset_y = offset_y
-
-        self.gain = self.config.get('gain', 0)
-        self.exposure_time = self.config.get('exposure_time', 1000)
-        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
-
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32',
@@ -260,6 +247,19 @@ class AlliedVisionCamera(Service):
                 self.make_property(name, lambda: getattr(self, name))
             else:
                 self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
+
+        # Set device values from config file (set width and height before offsets)
+        offset_x = self.config.get('offset_x', 0)
+        offset_y = self.config.get('offset_y', 0)
+
+        self.width = self.config.get('width', self.sensor_width - offset_x)
+        self.height = self.config.get('height', self.sensor_height - offset_y)
+        self.offset_x = offset_x
+        self.offset_y = offset_y
+
+        self.gain = self.config.get('gain', 0)
+        self.exposure_time = self.config.get('exposure_time', 1000)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
