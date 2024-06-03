@@ -3,6 +3,9 @@ Allied Vision Camera
 
 This service controls an Allied Vision camera. It is a wrapper around the Vimba SDK, which requires its installation.
 The service uses the Python API for Vimba SDK, called ``VimbaPython``.
+In order to be able to run this service, the camera needs to be set up with the right Allied Vision USB driver.
+If the device is also controlled through other interfaces, for example NI MAX, you need to switch back to the right
+driver through that interface.
 
 Vimba SDK is now superceded by Vimba X SDK. The service might be updated in the future to use the Vimba X SDK and its
 Python API ``VmbPy`` instead.
