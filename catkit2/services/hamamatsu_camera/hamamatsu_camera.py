@@ -25,7 +25,10 @@ except ImportError:
 def _create_property(property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
-            return getattr(self.cam, property_name).prop_getvalue(dcam.DCAM_IDPROP.property_name)
+            if property_name != 'EXPOSURETIME':
+                return getattr(self.cam, property_name).prop_getvalue(dcam.DCAM_IDPROP.property_name)
+            else:
+                return getattr(self.cam, property_name).prop_getvalue(dcam.DCAM_IDPROP.property_name) * 1e6
 
     if read_only:
         setter = None
@@ -40,7 +43,10 @@ def _create_property(property_name, read_only=False, stopped_acquisition=True):
                     time.sleep(0.001)
 
             with self.mutex:
-                getattr(self.cam, property_name).prop_setvalue(dcam.DCAM_IDPROP.property_name, value)
+                if property_name != 'EXPOSURETIME':
+                    getattr(self.cam, property_name).prop_setvalue(dcam.DCAM_IDPROP.property_name, value)
+                else:
+                    getattr(self.cam, property_name).prop_setvalue(dcam.DCAM_IDPROP.property_name, value / 1e6)
 
             if was_running and stopped_acquisition:
                 self.start_acquisition()
@@ -298,7 +304,7 @@ class HamamatsuCamera(Service):
         """
         self.should_be_acquiring.clear()
 
-     # exposure_time = _create_property('EXPOSURETIME', stopped_acquisition=False) * 1e6
+    exposure_time = _create_property('EXPOSURETIME', stopped_acquisition=False)
     gain = _create_property('CONTRASTGAIN', stopped_acquisition=False)
     brightness = _create_property('SENSITIVITY', stopped_acquisition=False)
 
@@ -322,34 +328,6 @@ class HamamatsuCamera(Service):
             The temperature of the camera in degrees Celsius.
         """
         return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORTEMPERATURE)
-
-    @property
-    def exposure_time(self):
-        """
-        The exposure time in microseconds.
-
-        This property can be used to get the exposure time of the camera.
-
-        Returns:
-        --------
-        float:
-            The exposure time in microseconds.
-        """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.EXPOSURETIME) * 1e6
-
-    @exposure_time.setter
-    def exposure_time(self, exposure_time: float):
-        """
-        Set the exposure time in microseconds.
-
-        This property can be used to set the exposure time of the camera.
-
-        Parameters
-        ----------
-        exposure_time : float
-            The exposure time in microseconds.
-        """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.EXPOSURETIME, exposure_time / 1e6)
 
 
 if __name__ == '__main__':
