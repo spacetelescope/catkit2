@@ -16,7 +16,14 @@ def write_json(f, data):
 
 
 class TraceWriter:
-    '''
+    '''A writer for performance trace logs.
+
+    Parameters
+    ----------
+    host : str
+        The host which distributes the trace messages.
+    port : int
+        The port on which the host distributes the trace messages.
     '''
     def __init__(self, host, port):
         self.f = None
@@ -30,7 +37,17 @@ class TraceWriter:
         self.thread = None
 
     def open(self, filename):
-        '''
+        '''Open the writer.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the file where to write the performance trace.
+
+        Returns
+        -------
+        TraceWriter
+            The current trace writer. This is for use as a context manager.
         '''
         self.shutdown_flag.clear()
 
@@ -42,7 +59,7 @@ class TraceWriter:
         return self
 
     def close(self):
-        '''
+        '''Close the writer.
         '''
         self.shutdown_flag.set()
 
@@ -156,12 +173,26 @@ class TraceWriter:
                 write_json(f, data)
 
     def __enter__(self):
-        '''
+        '''Enter the context manager.
+
+        Returns
+        -------
+        TraceWriter
+            The current trace writer.
         '''
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        '''
+        '''Exit the context manager.
+
+        Parameters
+        ----------
+        exc_type : class
+            The exception class.
+        exc_val :
+            The value of the exception.
+        exc_tb : traceback
+            The traceback of the exception.
         '''
         self.close()
 
