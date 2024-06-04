@@ -26,9 +26,9 @@ def _create_property(property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
             if property_name != 'EXPOSURETIME':
-                return getattr(self.cam, property_name).prop_getvalue(dcam.DCAM_IDPROP.property_name)
+                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, property_name))
             else:
-                return getattr(self.cam, property_name).prop_getvalue(dcam.DCAM_IDPROP.property_name) * 1e6
+                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, property_name)) * 1e6
 
     if read_only:
         setter = None
@@ -44,9 +44,9 @@ def _create_property(property_name, read_only=False, stopped_acquisition=True):
 
             with self.mutex:
                 if property_name != 'EXPOSURETIME':
-                    getattr(self.cam, property_name).prop_setvalue(dcam.DCAM_IDPROP.property_name, value)
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, property_name), value)
                 else:
-                    getattr(self.cam, property_name).prop_setvalue(dcam.DCAM_IDPROP.property_name, value / 1e6)
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, property_name), value / 1e6)
 
             if was_running and stopped_acquisition:
                 self.start_acquisition()
