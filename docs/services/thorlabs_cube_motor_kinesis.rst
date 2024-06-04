@@ -7,6 +7,7 @@ This service uses bits of the official vendor Python library:
 https://github.com/Thorlabs/Motion_Control_Examples/tree/main/Python
 The service also requires the installation of the Thorlabs Kinesis software:
 https://www.thorlabs.com/software_pages/viewsoftwarepage.cfm?code=Motion_Control#
+Then, to use Thorlabs cube motors with Kinesis, you need to set the THORLABS_KINESIS_DLL_PATH environment variable.
 
 Successfully tested with the following devices:
 
