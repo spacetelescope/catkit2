@@ -19,11 +19,13 @@ Catkit2
    :maxdepth: 1
    :caption: Built-In Services
 
-   service/aimtti_plp
+   services/aimtti_plp
+   services/allied_vision_camera
    services/bmc_dm
    services/camera_sim
    services/empty_service
    services/flir_camera
+   services/hamamatsu_camera
    services/newport_picomotor
    services/newport_xps_q8
    services/ni_daq
@@ -35,7 +37,7 @@ Catkit2
    services/thorlabs_cube_motor_kinesis
    services/thorlabs_fw102c
    services/thorlabs_mff101
-   services/thorlabspm
+   services/thorlabs_pm
    services/thorlabs_tsp01
    services/web_power_switch
    services/zwo_camera
