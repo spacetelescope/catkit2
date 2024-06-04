@@ -22,13 +22,13 @@ except ImportError:
     raise
 
 
-def _create_property(property_name, read_only=False, stopped_acquisition=True):
+def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
-            if property_name != 'EXPOSURETIME':
-                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, property_name))
+            if hamamatsu_property_name != 'EXPOSURETIME':
+                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))
             else:
-                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, property_name)) * 1e6
+                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)) * 1e6
 
     if read_only:
         setter = None
@@ -43,10 +43,10 @@ def _create_property(property_name, read_only=False, stopped_acquisition=True):
                     time.sleep(0.001)
 
             with self.mutex:
-                if property_name != 'EXPOSURETIME':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, property_name), value)
+                if hamamatsu_property_name != 'EXPOSURETIME':
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
                 else:
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, property_name), value / 1e6)
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value / 1e6)
 
             if was_running and stopped_acquisition:
                 self.start_acquisition()
