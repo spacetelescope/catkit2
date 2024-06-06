@@ -100,10 +100,10 @@ class ThorlabsCubeMotorKinesis(Service):
         self.lib.CC_Open(self.serial_number)
         self.lib.CC_StartPolling(self.serial_number, c_int(200))
 
-        if self.stage_model in ['MTS25-Z8', 'MTS50-Z8', 'Z825B']:
+        if self.stage_model in ['MTS25-Z8', 'MTS50-Z8', 'Z825B', 'Z806', 'Z812']:
             # Set up the device to convert real units to device units
-            steps_per_rev = c_double(512)  # for the MTS50-Z8
-            gear_box_ratio = c_double(67.49)  # gearbox ratio
+            steps_per_rev = c_double(512)
+            gear_box_ratio = c_double(67.49)
             pitch_mm = c_double(1.0)
         else:
             raise ValueError(f"Stage model {self.stage_model} not supported.")
