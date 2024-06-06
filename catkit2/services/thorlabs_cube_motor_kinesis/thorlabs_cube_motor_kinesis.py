@@ -86,9 +86,12 @@ class ThorlabsCubeMotorKinesis(Service):
 
         This will also check if the configured characteristics are matching the one the cube has.
         """
-        # Build the device list and verify that the device is connected.
+        # Build the device list and verify that the requested device is connected.
         if self.lib.TLI_BuildDeviceList() == 0:
-            serial_number_list_size = 35  # 4 * 8 (SN size) + 3 for the commas between the serial numbers
+            # The serial_number_list_size is the size of a list that holds the cubes' serial numbers of one motor type.
+            # This allocates a number of Bytes to store the serial numbers.
+            # Number of motors * 8 (size in bytes of one serial number) + Number of motors * 1 (bytes for commas between all serial numbers)
+            serial_number_list_size = 1024    # can hold more than 100 motor serial numbers, as 100 * (8 + 1) = 900
             serial_number_list = create_string_buffer(serial_number_list_size)
             self.lib.TLI_GetDeviceListByTypeExt(serial_number_list, serial_number_list_size, self.motor_type)
             self.log.debug("Serial number: %s", self.serial_number)
