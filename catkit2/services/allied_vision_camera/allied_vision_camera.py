@@ -16,7 +16,7 @@ from vmbpy import (AllocationMode,
                    Camera, Frame,
                    FrameStatus,
                    PixelFormat,
-                   Vimba,
+                   VmbSystem,
                    VimbaCameraError
 )
 
@@ -207,7 +207,7 @@ class AlliedVisionCamera(Service):
         VimbaCameraError
             If there is an error with the camera.
         '''
-        self.vimba = Vimba.get_instance()
+        self.vimba = VmbSystem.get_instance()
         self.exit_stack.enter_context(self.vimba)
 
         # convert int to IPv4 address
