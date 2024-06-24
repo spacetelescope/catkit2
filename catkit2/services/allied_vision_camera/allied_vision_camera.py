@@ -167,7 +167,7 @@ class AlliedVisionCamera(Service):
         '''
         super().__init__('allied_vision_camera')
 
-        self.vimba = None
+        self.vmb = None
         self.cam = None
         self.exit_stack = exit_stack
 
@@ -207,8 +207,8 @@ class AlliedVisionCamera(Service):
         VmbSystemError
             If there is an error with the camera.
         '''
-        self.vimba = VmbSystem.get_instance()
-        self.exit_stack.enter_context(self.vimba)
+        self.vmb = VmbSystem.get_instance()
+        self.exit_stack.enter_context(self.vmb)
 
         # convert int to IPv4 address
         def int_to_ip(int_ip):
@@ -218,7 +218,7 @@ class AlliedVisionCamera(Service):
         self.log.info('Using camera with ID %s', camera_id)
 
         try:
-            self.cam = self.vimba.get_camera_by_id(camera_id)
+            self.cam = self.vmb.get_camera_by_id(camera_id)
         except VmbSystemError as e:
             raise RuntimeError(
                 f'Could not find camera with ID {camera_id}') from e
