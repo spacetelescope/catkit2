@@ -17,7 +17,7 @@ from vmbpy import (AllocationMode,
                    FrameStatus,
                    PixelFormat,
                    VmbSystem,
-                   VimbaCameraError
+                   VmbSystemError
 )
 
 from catkit2.testbed.service import Service
@@ -204,7 +204,7 @@ class AlliedVisionCamera(Service):
             If the camera cannot be found.
         ValueError
             If the pixel format is invalid.
-        VimbaCameraError
+        VmbSystemError
             If there is an error with the camera.
         '''
         self.vimba = VmbSystem.get_instance()
@@ -219,7 +219,7 @@ class AlliedVisionCamera(Service):
 
         try:
             self.cam = self.vimba.get_camera_by_id(camera_id)
-        except VimbaCameraError as e:
+        except VmbSystemError as e:
             raise RuntimeError(
                 f'Could not find camera with ID {camera_id}') from e
         self.exit_stack.enter_context(self.cam)
