@@ -1,7 +1,7 @@
 '''
 This module contains a service for Allied Vision cameras.
 
-This service is a wrapper around the Vimba SDK.
+This service is a wrapper around the Vimba X SDK.
 It provides a simple interface to control the camera and acquire images.
 '''
 
@@ -12,7 +12,7 @@ import time
 
 import numpy as np
 
-from vimba import (AllocationMode,
+from vmbpy import (AllocationMode,
                    Camera, Frame,
                    FrameStatus,
                    PixelFormat,
@@ -105,7 +105,7 @@ class AlliedVisionCamera(Service):
     '''
     Service for Allied Vision cameras.
 
-    This service is a wrapper around the Vimba SDK.
+    This service is a wrapper around the Vimba X SDK.
     It provides a simple interface to control the camera and acquire images.
 
     Attributes
