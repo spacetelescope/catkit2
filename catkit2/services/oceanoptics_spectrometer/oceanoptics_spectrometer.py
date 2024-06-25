@@ -1,7 +1,7 @@
 '''
 This module contains a service for Ocean Optics Spectrometers.
 '''
-
+import numpy as np
 import threading
 
 from seabreeze.spectrometers import Spectrometer
@@ -99,11 +99,15 @@ class OceanOpticsSpectrometer(Service):
 
         # Define and set defaut exposure time
         self._exposure_time = self.config.get('exposure_time', 1000)
-        self.exposure_time(self._exposure_time)
+        self.exposure_time = self._exposure_time
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.spectra = self.make_data_stream('spectra', 'float32', [self.pixels_number], self.NUM_FRAMES)
+
+        self.make_command('start_acquisition', self.start_acquisition)
+        self.make_command('end_acquisition', self.end_acquisition)
+        self.make_command('take_one_spectrum', self.take_one_spectrum)
 
     def main(self):
         '''
@@ -114,7 +118,7 @@ class OceanOpticsSpectrometer(Service):
         while not self.should_shut_down:
             if self.should_be_acquiring.wait(0.05):
                 self.take_one_spectrum()
-                self.end_acquisition()
+                #self.end_acquisition()
 
     def start_acquisition(self):
         '''
@@ -132,7 +136,7 @@ class OceanOpticsSpectrometer(Service):
         '''
         Measure one spectrum and submit it to the data stream.
         '''
-        self.spectra.submit_data(self.spectrometer.intensities(), dtype='float32')
+        self.spectra.submit_data(np.array(self.spectrometer.intensities(), dtype='float32'))
 
     @property
     def exposure_time(self):
