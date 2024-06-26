@@ -16,6 +16,7 @@ except ImportError:
     print('To use Boston DMs, you need to set the CATKIT_BOSTON_SDK_PATH environment variable.')
     raise
 
+
 class BmcDeformableMirror(DeformableMirrorService):
     def __init__(self):
         super().__init__('bmc_deformable_mirror')
@@ -36,7 +37,7 @@ class BmcDeformableMirror(DeformableMirrorService):
             self.dm_num_actuators = []
             for i, index in enumerate(self.device_command_index):
                 # Get the number of actuators controlled by this DM
-                self.dm_num_actuators.append(np.sum(self.controlled_actuator_mask[i]))  # TODO: Uses assumption that controlled actuator masks are stacked in some way
+                self.dm_num_actuators.append(np.sum(self.device_actuator_mask[i]))  # TODO: Uses assumption that device actuator masks are stacked in some way
         else:
             self.dm_num_actuators = None
 

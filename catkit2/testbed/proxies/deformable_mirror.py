@@ -7,26 +7,26 @@ import hcipy
 @ServiceProxy.register_service_interface('deformable_mirror')
 class DeformableMirrorProxy(ServiceProxy):
     @property
-    def controlled_actuator_mask(self):
-        if not hasattr(self, '_controlled_actuator_mask'):
-            fname = self.config['controlled_actuator_mask_fname']
+    def device_actuator_mask(self):
+        if not hasattr(self, '_device_actuator_mask'):
+            fname = self.config['device_actuator_mask_fname']
 
-            self._controlled_actuator_mask = fits.getdata(fname).astype('bool')
+            self._device_actuator_mask = fits.getdata(fname).astype('bool')
 
-        return self._controlled_actuator_mask
+        return self._device_actuator_mask
 
     @property
     def dm_shape(self):
-        return self.controlled_actuator_mask.shape
+        return self.device_actuator_mask.shape
 
     @property
     def num_actuators(self):
-        return np.sum(self.controlled_actuator_mask)
+        return np.sum(self.device_actuator_mask)
 
     @property
     def actuator_grid(self):
         # Get the last two dimensions in reverse order.
-        dims = self.controlled_actuator_mask.shape[:-2:-1]
+        dims = self.device_actuator_mask.shape[:-2:-1]
 
         return hcipy.make_uniform_grid(dims, dims)
 
@@ -45,14 +45,14 @@ class DeformableMirrorProxy(ServiceProxy):
         return summed_command
 
     def dm_maps_to_command(self, dm_map):
-        command = dm_map[self.controlled_actuator_mask]
+        command = dm_map[self.device_actuator_mask]
 
         return command
 
     def command_to_dm_maps(self, command):
-        dm_maps = np.empty_like(self.controlled_actuator_mask, dtype='float')
+        dm_maps = np.empty_like(self.device_actuator_mask, dtype='float')
 
-        dm_maps[self.controlled_actuator_mask] = command
+        dm_maps[self.device_actuator_mask] = command
 
         return dm_maps
 
