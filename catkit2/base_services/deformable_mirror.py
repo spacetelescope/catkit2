@@ -12,17 +12,17 @@ class DeformableMirrorService(Service):
         self.startup_maps = self.config.get('startup_maps', {})
 
         dm_shape = tuple(self.config['dm_shape'])
-        fname = self.config.get('controlled_actuator_mask_fname', None)
+        fname = self.config.get('device_actuator_mask_fname', None)
 
         if fname is not None:
-            self.controlled_actuator_mask = fits.getdata(fname).astype('bool')
+            self.device_actuator_mask = fits.getdata(fname).astype('bool')
         else:
-            self.controlled_actuator_mask = np.ones(dm_shape, dtype='bool')
+            self.device_actuator_mask = np.ones(dm_shape, dtype='bool')
 
         # Check if shapes from mask and DM shape from config match.
-        assert np.allclose(self.controlled_actuator_mask.shape, dm_shape)
+        assert np.allclose(self.device_actuator_mask.shape, dm_shape)
 
-        self.num_actuators = np.sum(self.controlled_actuator_mask)
+        self.num_actuators = np.sum(self.device_actuator_mask)
 
         self.lock = threading.Lock()
 
