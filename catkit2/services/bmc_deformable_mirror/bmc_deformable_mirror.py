@@ -33,13 +33,13 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.device_command_index = self.config.get('device_command_index', 0)
 
         # Check if this service controls more than one DM and get the number of actuators controlled by each DM
-        if isinstance(self.device_command_index, list):
-            self.dm_num_actuators = []
-            for i, index in enumerate(self.device_command_index):
-                # Get the number of actuators controlled by this DM
-                self.dm_num_actuators.append(np.sum(self.device_actuator_mask[i]))  # TODO: Isn't the assumption that all devices controlled by one service have same number of actuators?
-        else:
-            self.dm_num_actuators = None
+        # if isinstance(self.device_command_index, list):
+        #     self.dm_num_actuators = []
+        #     for i, index in enumerate(self.device_command_index):
+        #         # Get the number of actuators controlled by this DM
+        #         self.dm_num_actuators.append(np.sum(self.device_actuator_mask[i]))  # TODO: Isn't the assumption that all devices controlled by one service have same number of actuators?
+        # else:
+        #     self.dm_num_actuators = None
 
         self.lock = threading.Lock()
 
@@ -124,13 +124,13 @@ class BmcDeformableMirror(DeformableMirrorService):
 
         # Check if this service controls more than one DM
         if isinstance(self.device_command_index, list):
-            for i, index in enumerate(self.device_command_index):
+            for index in self.device_command_index:
                 # Extract the DM command for this DM
                 # and put into correct array slice of device command
-                device_command[index:] = dm_command[:self.dm_num_actuators[i]]  # TODO: isn't the assumption that all devices controlled by one service have same number of actuators?
+                device_command[index:] = dm_command[:self.num_actuators]
 
                 # Remove the DM command that has been applied
-                dm_command = dm_command[self.dm_num_actuators[i]:]  # TODO: See above.
+                dm_command = dm_command[self.num_actuators:]
         else:
             dm_command_length = dm_command.shape[0]
             try:
