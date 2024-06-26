@@ -45,14 +45,40 @@ class DeformableMirrorProxy(ServiceProxy):
         return summed_command
 
     def dm_maps_to_command(self, dm_map):
+        """Convert a cube of 2D DM maps to a DM command.  # TODO: Use same language like in catkit2 issue.
+
+        Parameters
+        ----------
+        dm_map : array
+            A 3D array with its first dimension giving the number of devices controlled with this service. Second and
+            third dimension are 2D DM maps.
+
+        Returns
+        -------
+        array
+            A 1D array containing the DM command.
+        """
         command = dm_map[self.device_actuator_mask]
 
         return command
 
     def command_to_dm_maps(self, command):
+        """TODO: fill in docstring
+
+        Parameters
+        ----------
+        command : array
+            A 1D array containing the DM command.
+
+        Returns
+        -------
+        array
+            A 3D array with its first dimension giving the number of devices controlled with this service. Second and
+            third dimension are 2D DM maps.
+        """
         dm_maps = np.empty_like(self.device_actuator_mask, dtype='float')
 
-        dm_maps[self.device_actuator_mask] = command
+        dm_maps[self.device_actuator_mask] = command  # TODO: Is this going to work?
 
         return dm_maps
 
@@ -60,7 +86,7 @@ class DeformableMirrorProxy(ServiceProxy):
         command = np.array(command, copy=False)
 
         # Convert DM maps to command if it's not already a command.
-        if command.ndim != 1:
+        if command.ndim >= 1:
             command = self.dm_maps_to_command(command)
 
         getattr(self, channel).submit_data(command)
