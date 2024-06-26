@@ -17,20 +17,21 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self._discretized_voltages = None
         self._discretized_surface = None
 
-        self.flat_map = np.zeros(1024)  # TODO: These hard-coded values will not work for all DMs.
-        self.gain_map = np.zeros(1024)  # TODO: Why do I need to do this in the first place?
-        self.gain_map_inv = np.zeros(1024)  # TODO: Why is this initialization not needed in the hardware service?
+        device_actuators = np.count(self.device_actuator_mask)  # TODO: is np.count() correct here?
+        self.flat_map = np.zeros(device_actuators)
+        self.gain_map = np.zeros(device_actuators)
+        self.gain_map_inv = np.zeros(device_actuators)  # TODO: Why is these initializations not needed in the hardware service?
 
         self.lock = threading.Lock()
 
     def open(self):
         super().open()
 
-        self.flat_map = fits.getdata(self.flat_map_fname)
-        self.gain_map = fits.getdata(self.gain_map_fname)
+        self.flat_map = fits.getdata(self.flat_map_fname)  # TODO: concatenate into a single 1D array here; later will need to ravel when we make them a cube
+        self.gain_map = fits.getdata(self.gain_map_fname)  # TODO: see above
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self.gain_map_inv = 1 / self.gain_map
+            self.gain_map_inv = 1 / self.gain_map  # TODO: will this remain true with concatenated gain maps?
             self.gain_map_inv[np.abs(self.gain_map) < 1e-10] = 0
 
         zeros = np.zeros(self.num_actuators, dtype='float64')
