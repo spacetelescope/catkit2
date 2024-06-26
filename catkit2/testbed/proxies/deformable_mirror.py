@@ -17,11 +17,11 @@ class DeformableMirrorProxy(ServiceProxy):
 
     @property
     def dm_shape(self):
-        return self.device_actuator_mask.shape
+        return self.device_actuator_mask[0].shape
 
     @property
     def num_actuators(self):
-        return np.sum(self.device_actuator_mask)
+        return np.sum(self.device_actuator_mask[0])
 
     @property
     def actuator_grid(self):

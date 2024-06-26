@@ -46,11 +46,11 @@ class BmcDeformableMirror(DeformableMirrorService):
     def open(self):
         super().open()
 
-        self.flat_map = fits.getdata(self.flat_map_fname)
-        self.gain_map = fits.getdata(self.gain_map_fname)
+        self.flat_map = fits.getdata(self.flat_map_fname)  # TODO: concatenate into a single 1D array here; later will need to ravel when we make them a cube
+        self.gain_map = fits.getdata(self.gain_map_fname)  # TODO: as above
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self.gain_map_inv = 1 / self.gain_map
+            self.gain_map_inv = 1 / self.gain_map  # TODO: will this remain true with concatenated gain maps?
             self.gain_map_inv[np.abs(self.gain_map) < 1e-10] = 0
 
         self.device = bmc.BmcDm()
