@@ -136,7 +136,7 @@ class BmcDeformableMirror(DeformableMirrorService):
             try:
                 device_command[self.device_command_index:self.device_command_index + dm_command_length] = dm_command
             except ValueError:
-                raise ValueError(f'Invalid device command index: {self.device_command_index} for command length: {dm_command_length}.')
+                raise ValueError(f'Invalid device command index: {self.device_command_index} for command length: {dm_command_length} with device command length: {self.device_command_length}.')
 
         return device_command
 
