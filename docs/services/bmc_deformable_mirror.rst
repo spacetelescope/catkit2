@@ -1,4 +1,4 @@
-Boston Deformable Mirror (old)
+Boston Deformable Mirror (new)
 ==============================
 
 Configuration
