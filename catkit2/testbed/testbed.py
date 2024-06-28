@@ -12,6 +12,7 @@ import numpy as np
 
 from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state, Client
 from .logging import *
+from .distributor import ZmqDistributor
 
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
@@ -147,11 +148,13 @@ class Testbed:
         self.config = config
 
         self.services = {}
+        self.launched_processes = []
 
         self.log_distributor = None
         self.log_handler = None
         self.log_forwarder = None
-        self.launched_processes = []
+
+        self.tracing_distributor = None
 
         self.log = logging.getLogger(__name__)
 
@@ -251,6 +254,9 @@ class Testbed:
             self.start_log_distributor()
             self.setup_logging()
 
+            # Start tracing distributor.
+            self.start_tracing_distributor()
+
             heartbeat_thread = threading.Thread(target=self.do_heartbeats)
             heartbeat_thread.start()
 
@@ -295,6 +301,9 @@ class Testbed:
 
                 # Shut down the server.
                 self.server.stop()
+
+                # Stop tracing distributor.
+                self.stop_tracing_distributor()
 
                 # Stop the logging.
                 self.destroy_logging()
@@ -371,7 +380,13 @@ class Testbed:
     def start_log_distributor(self):
         '''Start the log distributor.
         '''
-        self.log_distributor = LogDistributor(self.context, self.port + 1, self.port + 2)
+        def callback(log_message):
+            log_message = log_message[0].decode('utf-8')
+            log_message = json.loads(log_message)
+
+            print(f'[{log_message["service_id"]}] {log_message["message"]}')
+        self.log_distributor = ZmqDistributor(self.context, self.port + 1, self.port + 2, callback)
+
         self.log_distributor.start()
 
     def stop_log_distributor(self):
@@ -380,6 +395,17 @@ class Testbed:
         if self.log_distributor:
             self.log_distributor.stop()
             self.log_distributor = None
+
+    def start_tracing_distributor(self):
+        '''Start the tracing distributor.
+        '''
+        self.tracing_distributor = ZmqDistributor(self.context, self.port + 3, self.port + 4)
+        self.tracing_distributor.start()
+
+    def stop_tracing_distributor(self):
+        if self.tracing_distributor:
+            self.tracing_distributor.stop()
+            self.tracing_distributor = None
 
     def on_start_service(self, data):
         request = testbed_proto.StartServiceRequest()
