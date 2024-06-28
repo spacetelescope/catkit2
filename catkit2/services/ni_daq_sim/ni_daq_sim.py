@@ -77,9 +77,6 @@ class NiDaqSim(Service):
         # Apply the command on the DAQ.
         self.write_multichannel(total_voltage)
 
-        # Submit these voltages to the total voltage data stream.
-        self.total_voltage.submit_data(total_voltage)
-
     def read_multichannel(self):
         '''Read voltages from all configured input channels.
 
@@ -114,6 +111,10 @@ class NiDaqSim(Service):
         values = np.clip(values, self.volt_limit_min, self.volt_limit_max)
 
         self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=values)
+
+        # Submit these voltages to the total voltage data stream.
+        self.total_voltage.submit_data(values)
+
 
 if __name__ == '__main__':
     service = NiDaqSim()
