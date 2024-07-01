@@ -131,10 +131,15 @@ class ZwoCamera(Service):
         self.exposure_time_base_step = self.config.get('exposure_time_base_step', 1)
         self.exposure_time = self.config.get('exposure_time', 1000)
 
+        self.is_cooler_cam = self.camera.get_camera_property()['IsCoolerCam']
+
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
+
+        if self.is_cooler_cam:
+            self.cooling_power = self.make_data_stream('cooling_power', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
@@ -168,11 +173,18 @@ class ZwoCamera(Service):
 
         make_property_helper('device_name', read_only=True)
 
+        make_property_helper('temperature_setpoint', read_only=False)
+        make_property_helper('is_cooler_on', read_only=False)
+
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
 
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
+
+        if self.is_cooler_cam:
+            self.cooling_power_thread = threading.Thread(target=self.monitor_cooling_power)
+            self.cooling_power_thread.start()
 
     def main(self):
         while not self.should_shut_down:
@@ -181,6 +193,9 @@ class ZwoCamera(Service):
 
     def close(self):
         self.temperature_thread.join()
+
+        if self.is_cooler_cam:
+            self.cooling_power_thread.join()
 
         self.camera.close()
 
@@ -215,6 +230,13 @@ class ZwoCamera(Service):
         while not self.should_shut_down:
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
+
+            self.sleep(1)
+
+    def monitor_cooling_power(self):
+        while not self.should_shut_down:
+            cooling_power = self.get_cooling_power()
+            self.cooling_power.submit_data(np.array([cooling_power], dtype='float64'))
 
             self.sleep(1)
 
@@ -256,6 +278,14 @@ class ZwoCamera(Service):
         self.camera.set_control_value(zwoasi.ASI_TARGET_TEMP, int(temperature_setpoint))
 
     @property
+    def is_cooler_on(self):
+        return self.camera.get_control_value(zwoasi.ASI_COOLER_ON)
+
+    @is_cooler_on.setter
+    def is_cooler_on(self, cooler_bool):
+        self.camera.set_control_value(zwoasi.ASI_COOLER_ON, cooler_bool)
+
+    @property
     def brightness(self):
         brightness, auto = self.camera.get_control_value(zwoasi.ASI_BRIGHTNESS)
         return brightness
@@ -267,6 +297,10 @@ class ZwoCamera(Service):
     def get_temperature(self):
         temperature_times_ten, auto = self.camera.get_control_value(zwoasi.ASI_TEMPERATURE)
         return temperature_times_ten / 10
+
+    def get_cooling_power(self):
+        cooling_power_perc, auto = self.camera.get_control_value(zwoasi.ASI_COOLER_POWER_PERC)
+        return cooling_power_perc
 
     @property
     def sensor_width(self):
