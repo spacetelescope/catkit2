@@ -248,6 +248,14 @@ class ZwoCamera(Service):
         self.camera.set_control_value(zwoasi.ASI_GAIN, int(gain))
 
     @property
+    def temperature_setpoint(self):
+        return self.camera.get_control_value(zwoasi.ASI_TARGET_TEMP)
+
+    @temperature_setpoint.setter
+    def temperature_setpoint(self, temperature_setpoint):
+        self.camera.set_control_value(zwoasi.ASI_TARGET_TEMP, int(temperature_setpoint))
+
+    @property
     def brightness(self):
         brightness, auto = self.camera.get_control_value(zwoasi.ASI_BRIGHTNESS)
         return brightness
