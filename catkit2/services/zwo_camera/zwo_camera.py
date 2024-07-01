@@ -94,7 +94,8 @@ class ZwoCamera(Service):
 
         # Restore all controls to default values, in case any other application modified them.
         for c in controls:
-            self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
+            if c != 'CoolPowerPerc':  # Otherwise it throws an error
+                self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
 
         print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
 
