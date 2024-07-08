@@ -17,10 +17,9 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self._discretized_voltages = None
         self._discretized_surface = None
 
-        device_actuators = np.count(self.device_actuator_mask)  # TODO: np.count() does not exist
-        self.flat_map = np.zeros(device_actuators)
-        self.gain_map = np.zeros(device_actuators)
-        self.gain_map_inv = np.zeros(device_actuators)  # TODO: Why is these initializations not needed in the hardware service?
+        self.flat_map = np.zeros_like(self.device_actuator_mask)
+        self.gain_map = np.zeros_like(self.device_actuator_mask)
+        self.gain_map_inv = np.zeros_like(self.device_actuator_mask)  # TODO: Why are these initializations not needed in the hardware service?
 
         self.lock = threading.Lock()
 
