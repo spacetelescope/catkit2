@@ -21,6 +21,7 @@ class DeformableMirrorService(Service):
         else:
             raise ValueError(f'Need to provide device actuator mask for {self.service_id}')
 
+        self.num_dms = self.device_actuator_mask.shape[0]
         self.dm_shape = self.device_actuator_mask[0].shape
         self.num_actuators = np.sum(self.device_actuator_mask[0])
 
@@ -34,17 +35,17 @@ class DeformableMirrorService(Service):
         channel_names = list(channel.lower() for channel in self.config['channels'])
         self.make_property('channels', lambda: channel_names)
 
-        self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.num_actuators], 20)
-        self.total_surface = self.make_data_stream('total_surface', 'float64', [self.num_actuators], 20)
+        self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.num_actuators * self.num_dms], 20)
+        self.total_surface = self.make_data_stream('total_surface', 'float64', [self.num_actuators * self.num_dms], 20)
 
     def add_channel(self, channel_name):
-        self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.num_actuators], 20)
+        self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.num_actuators * self.num_dms], 20)
 
         # Get the right default flat map.
         if channel_name in self.startup_maps:
             startup_map = fits.getdata(self.startup_maps[channel_name]).astype('float64')
         else:
-            startup_map = np.zeros(self.num_actuators)
+            startup_map = np.zeros(self.num_actuators * self.num_dms)
 
         self.channels[channel_name].submit_data(startup_map)
 

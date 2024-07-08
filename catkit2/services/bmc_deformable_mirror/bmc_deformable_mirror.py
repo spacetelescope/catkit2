@@ -52,28 +52,21 @@ class BmcDeformableMirror(DeformableMirrorService):
             raise ValueError(f'The provided flat map for {self.service_id} needs to be at least a 2D array.')
         elif self.flat_map == 2:
             self.flat_map = np.expand_dims(self.flat_map, axis=0)
-        # Now ravel each flat map in the cube individually   # TODO: this can probably be coded more efficiently
-        flats = []
-        for i in range(self.flatmap.shape[0]):
-            flats.append(np.ravel(self.flat_map[i]))
-        self.flat_map = np.array(flats)
+        # Convert to DM command
+        self.flat_map_command = np.squeeze(np.reshape(self.flat_map, (1, -1)))
 
         self.gain_map = fits.getdata(self.gain_map_fname)
         if self.gain_map.ndim <= 1:
             raise ValueError(f'The provided gain map for {self.service_id} needs to be at least a 2D array.')
         elif self.gain_map == 2:
             self.gain_map = np.expand_dims(self.gain_map, axis=0)
-        # Now ravel each gain map in the cube individually   # TODO: this can probably be coded more efficiently
-        gains = []
-        for i in range(self.gain_map.shape[0]):
-            gains.append(np.ravel(self.gain_map[i]))
-        self.gain_map = np.array(gains)
+        # Convert to DM command
+        self.gain_map_command = np.squeeze(np.reshape(self.gain_map, (1, -1)))
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self.gain_map_inv = np.ones_like(self.gain_map)
-            for i in range(self.gain_map.shape[0]):   # TODO: this can probably be coded more efficiently
-                self.gain_map_inv[i] = 1 / self.gain_map[i]
-                self.gain_map_inv[i][np.abs(self.gain_map) < 1e-10] = 0
+            self.gain_map_inv_command = np.ones_like(self.gain_map_command)
+            self.gain_map_inv_command = 1 / self.gain_map_command    # TODO: Is this still correct?
+            self.gain_map_inv_command[np.abs(self.gain_map_command) < 1e-10] = 0
 
         self.device = bmc.BmcDm()
         status = self.device.open_dm(self.serial_number)
@@ -83,12 +76,12 @@ class BmcDeformableMirror(DeformableMirrorService):
 
         self.device_command_length = self.device.num_actuators()
 
-        zeros = np.zeros(self.num_actuators, dtype='float64')
+        zeros = np.zeros(self.num_actuators * self.num_dms, dtype='float64')
         self.send_surface(zeros)
 
     def close(self):
         try:
-            zeros = np.zeros(self.num_actuators, dtype='float64')
+            zeros = np.zeros(self.num_actuators * self.num_dms, dtype='float64')
             self.send_surface(zeros)
         finally:
             self.device.close_dm()
@@ -98,7 +91,7 @@ class BmcDeformableMirror(DeformableMirrorService):
 
     def send_surface(self, total_surface):
         # Compute the voltages from the requested total surface.
-        voltages = self.flat_map + total_surface * self.gain_map_inv
+        voltages = self.flat_map_command + total_surface * self.gain_map_inv_command
         voltages /= self.max_volts
         voltages = np.clip(voltages, 0, 1)
 
@@ -138,7 +131,7 @@ class BmcDeformableMirror(DeformableMirrorService):
     def discretized_surface(self, total_surface):
         values = total_surface
         if self.dac_bit_depth is not None:
-            values = (self.discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
+            values = (self.discretized_voltages * self.max_volts - self.flat_map_command) * self.gain_map_command
         self._discretized_surface = values
 
     def dm_command_to_device_command(self, dm_command):
