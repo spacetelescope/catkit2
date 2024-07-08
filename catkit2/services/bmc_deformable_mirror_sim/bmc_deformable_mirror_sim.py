@@ -17,7 +17,7 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self._discretized_voltages = None
         self._discretized_surface = None
 
-        device_actuators = np.count(self.device_actuator_mask)  # TODO: is np.count() correct here?
+        device_actuators = np.count(self.device_actuator_mask)  # TODO: np.count() does not exist
         self.flat_map = np.zeros(device_actuators)
         self.gain_map = np.zeros(device_actuators)
         self.gain_map_inv = np.zeros(device_actuators)  # TODO: Why is these initializations not needed in the hardware service?
@@ -27,11 +27,30 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
     def open(self):
         super().open()
 
-        self.flat_map = fits.getdata(self.flat_map_fname)  # TODO: concatenate into a single 1D array here; later will need to ravel when we make them a cube
-        self.gain_map = fits.getdata(self.gain_map_fname)  # TODO: see above
+        self.flat_map = fits.getdata(self.flat_map_fname)
+        if self.flat_map.ndim <= 1:
+            raise ValueError(f'The provided flat map for {self.service_id} needs to be at least a 2D array.')
+        elif self.flat_map == 2:
+            self.flat_map = np.expand_dims(self.flat_map, axis=0)
+        # Now ravel each flat map in the cube individually   # TODO: this can probably be coded more efficiently
+        flats = []
+        for i in range(self.flatmap.shape[0]):
+            flats.append(np.ravel(self.flat_map[i]))
+        self.flat_map = np.array(flats)
+
+        self.gain_map = fits.getdata(self.gain_map_fname)
+        if self.gain_map.ndim <= 1:
+            raise ValueError(f'The provided gain map for {self.service_id} needs to be at least a 2D array.')
+        elif self.gain_map == 2:
+            self.gain_map = np.expand_dims(self.gain_map, axis=0)
+        # Now ravel each gain map in the cube individually   # TODO: this can probably be coded more efficiently
+        gains = []
+        for i in range(self.gain_map.shape[0]):
+            gains.append(np.ravel(self.gain_map[i]))
+        self.gain_map = np.array(gains)
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self.gain_map_inv = 1 / self.gain_map  # TODO: will this remain true with concatenated gain maps?
+            self.gain_map_inv = 1 / self.gain_map  # TODO: How to make this math work with a cube of 1D gain maps?
             self.gain_map_inv[np.abs(self.gain_map) < 1e-10] = 0
 
         zeros = np.zeros(self.num_actuators, dtype='float64')

@@ -14,6 +14,10 @@ class DeformableMirrorService(Service):
 
         if fname is not None:
             self.device_actuator_mask = fits.getdata(fname).astype('bool')
+            if self.device_actuator_mask.ndim <= 1:
+                raise ValueError(f'The provided device actuator mask needs for {self.service_id} to be at least a 2D array.')
+            elif self.device_actuator_mask == 2:
+                self.device_actuator_mask = np.expand_dims(self.device_actuator_mask, axis=0)
         else:
             raise ValueError(f'Need to provide device actuator mask for {self.service_id}')
 
