@@ -49,8 +49,10 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self.gain_map = np.array(gains)
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self.gain_map_inv = 1 / self.gain_map  # TODO: How to make this math work with a cube of 1D gain maps?
-            self.gain_map_inv[np.abs(self.gain_map) < 1e-10] = 0
+            self.gain_map_inv = np.ones_like(self.gain_map)
+            for i in range(self.gain_map.shape[0]):   # TODO: this can probably be coded more efficiently
+                self.gain_map_inv[i] = 1 / self.gain_map[i]
+                self.gain_map_inv[i][np.abs(self.gain_map) < 1e-10] = 0
 
         zeros = np.zeros(self.num_actuators, dtype='float64')
         self.send_surface(zeros)
