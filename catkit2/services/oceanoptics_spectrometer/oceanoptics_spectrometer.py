@@ -27,12 +27,10 @@ class OceanOpticsSpectrometer(Service):
         The model of the spectrometer.
     pixels_number : int
         number of pix in the spectrum.
-    wavelengths : NDArray[numpy.float_]
-        A NDArray with the wavelengths of the spectrometer.
     spectra : DataStream
         A data stream to submit spectra from the spectrometer.
-    should_be_acquiring : threading.Event
-        An event to signal whether the spectrometer should acquire a spectrum.
+    is_saturating : DataStream
+        A data stream to submit whether the spectrometer is currently saturating.
     NUM_FRAMES : int
         The number of frames to allocate for the data streams.
 
@@ -44,14 +42,10 @@ class OceanOpticsSpectrometer(Service):
         The main function of the service.
     close()
         Close the service.
-    start_acquisition()
-        Start the acquisition.
     take_one_spectrum()
         Get a spectrum from the spectrometer.
-    exposure_time()
-        Set the exposure time of the spectrometer.
     '''
-    NUM_FRAMES = 20
+    NUM_FRAMES = 3
 
     def __init__(self):
         '''
@@ -64,13 +58,10 @@ class OceanOpticsSpectrometer(Service):
         self.model = None
         self.pixels_number = None
 
-        self.wavelengths = None
         self.spectra = None
+        self.is_saturating = None
 
         self._exposure_time = None
-
-        self.should_be_acquiring = threading.Event()
-        self.should_be_acquiring.set()
 
     def open(self):
         '''
@@ -95,19 +86,28 @@ class OceanOpticsSpectrometer(Service):
         # exctract attributes
         self.model = self.spectrometer.model
         self.pixels_number = self.spectrometer.pixels
-        self.wavelengths = self.spectrometer.wavelengths()
 
         # Define and set defaut exposure time
         self._exposure_time = self.config.get('exposure_time', 1000)
         self.exposure_time = self._exposure_time
 
         # Create datastreams
-        # Use the full sensor size here to always allocate enough shared memory.
         self.spectra = self.make_data_stream('spectra', 'float32', [self.pixels_number], self.NUM_FRAMES)
 
-        self.make_command('start_acquisition', self.start_acquisition)
-        self.make_command('end_acquisition', self.end_acquisition)
+        self.is_saturating = self.make_data_stream('is_saturating', 'int8', [1], self.NUM_FRAMES)
+        self.is_saturating.submit_data(np.array([0], dtype='int8'))
+
         self.make_command('take_one_spectrum', self.take_one_spectrum)
+
+        # Create properties
+        def make_property_helper(name, read_only=False):
+            if read_only:
+                self.make_property(name, lambda: getattr(self, name))
+            else:
+                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
+
+        make_property_helper('exposure_time')
+        make_property_helper('wavelengths', read_only=True)
 
     def main(self):
         '''
@@ -116,27 +116,32 @@ class OceanOpticsSpectrometer(Service):
         This function is called when the service is started.
         '''
         while not self.should_shut_down:
-            if self.should_be_acquiring.wait(0.05):
-                self.take_one_spectrum()
-                #self.end_acquisition()
-
-    def start_acquisition(self):
-        '''
-        Start the acquisition loop.
-        '''
-        self.should_be_acquiring.set()
-
-    def end_acquisition(self):
-        '''
-        End the acquisition loop.
-        '''
-        self.should_be_acquiring.clear()
+            self.take_one_spectrum()
 
     def take_one_spectrum(self):
         '''
         Measure one spectrum and submit it to the data stream.
         '''
-        self.spectra.submit_data(np.array(self.spectrometer.intensities(), dtype='float32'))
+        intensities = self.spectrometer.intensities()
+
+        self.spectra.submit_data(np.array(intensities, dtype='float32'))
+
+        if np.max(intensities) ==  self.spectrometer.max_intensity:
+            self.is_saturating.submit_data(np.array([1], dtype='int8'))
+        else:
+            self.is_saturating.submit_data(np.array([0], dtype='int8'))
+
+    @property
+    def wavelengths(self):
+        '''
+        The wavelengths of the spectrometer.
+
+        Returns:
+        --------
+        ndarray of float:
+            wavelengths of the spectrometer.
+        '''
+        return self.spectrometer.wavelengths()
 
     @property
     def exposure_time(self):
@@ -156,6 +161,8 @@ class OceanOpticsSpectrometer(Service):
         Set the exposure time in microseconds.
 
         This property can be used to set the exposure time of the spectrometer.
+        if exposure_time < min allowed exp time: exposure_time =  min allowed exp time
+        if exposure_time > max allowed exp time: exposure_time =  max allowed exp time
 
         Parameters
         ----------
@@ -168,9 +175,10 @@ class OceanOpticsSpectrometer(Service):
             If the exposure time is not in the range of the accepted spectrometer values.
         '''
         int_time_range = self.spectrometer.integration_time_micros_limits
-        if exposure_time < int_time_range[0] or exposure_time > int_time_range[1]:
-            raise ValueError(
-                f"OceanOptics: integration time need to be in [{int_time_range[0]}, {int_time_range[1]}] range (ms)")
+        if exposure_time < int_time_range[0]:
+            exposure_time = int_time_range[0]
+        if exposure_time > int_time_range[1]:
+            exposure_time = int_time_range[1]
 
         self._exposure_time = exposure_time
         self.spectrometer.integration_time_micros(exposure_time)
