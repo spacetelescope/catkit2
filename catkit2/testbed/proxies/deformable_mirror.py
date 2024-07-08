@@ -12,6 +12,10 @@ class DeformableMirrorProxy(ServiceProxy):
             fname = self.config['device_actuator_mask_fname']
 
             self._device_actuator_mask = fits.getdata(fname).astype('bool')
+            if self._device_actuator_mask.ndim <= 1:
+                raise ValueError(f'The provided device actuator mask needs for {self.service_id} to be at least a 2D array.')
+            elif self._device_actuator_mask == 2:
+                self._device_actuator_mask = np.expand_dims(self._device_actuator_mask, axis=0)
 
         return self._device_actuator_mask
 
@@ -20,13 +24,17 @@ class DeformableMirrorProxy(ServiceProxy):
         return self.device_actuator_mask[0].shape
 
     @property
+    def num_dms(self):
+        return self.device_actuator_mask.shape[0]
+
+    @property
     def num_actuators(self):
         return np.sum(self.device_actuator_mask[0])
 
     @property
     def actuator_grid(self):
         # Get the last two dimensions in reverse order.
-        dims = self.device_actuator_mask.shape[:-2:-1]
+        dims = self.device_actuator_mask.shape[:-2:-1]   # TODO: Check if this is correct.
 
         return hcipy.make_uniform_grid(dims, dims)
 
@@ -39,13 +47,13 @@ class DeformableMirrorProxy(ServiceProxy):
         # Get commands from channels, zero each channel, and sum commands.
         for channel_name in channel_names:
             summed_command += getattr(self, channel_name).get()
-            self.apply_shape(channel_name, np.zeros(self.num_actuators))
+            self.apply_shape(channel_name, np.zeros(self.num_actuators * self.num_dms))
 
         # Return summed command (note that this is not a DM map).
         return summed_command
 
     def dm_maps_to_command(self, dm_map):
-        """Convert a cube of 2D DM maps to a DM command.  # TODO: Use same language like in catkit2 issue.
+        """Convert a cube of 2D DM maps to a DM command.
 
         Parameters
         ----------
@@ -63,7 +71,7 @@ class DeformableMirrorProxy(ServiceProxy):
         return command
 
     def command_to_dm_maps(self, command):
-        """TODO: fill in docstring
+        """Convert a 1D DM command into a 3D cube of 2D DM maps.
 
         Parameters
         ----------
@@ -85,8 +93,18 @@ class DeformableMirrorProxy(ServiceProxy):
     def apply_shape(self, channel, command):
         command = np.array(command, copy=False)
 
-        # Convert DM maps to command if it's not already a command.
-        if command.ndim >= 1:
+        # TODO: with how many potential cases do we want to deal here?
+        # Could be a (N) array, in which case it is already a DM command.
+        # Could be a (M, M) array, in which case it is a DM map, but it needs to be converted to a DM command.
+        # Could be a (1, N) array, in which case it is already a DM command, but it needs to be squeezed.
+        # Could be a (1, M, M) array, in which case it is a DM map, but it needs to be converted to a DM command (and squeezed).
+        # Could be a (X, N) array, in which case it is a DM command for multiple DMs, but it needs to be converted to a DM command (just concatenated).
+        # Could be a (X, M, M) array, in which case it is DM maps for multiple DMs, but it needs to be converted to a DM command (reshaped and concatenated).
+
+        if command.shape[0] == 1:
+            command.squeeze()
+            # TODO: ???
+        if command.ndim > 1:
             command = self.dm_maps_to_command(command)
 
         getattr(self, channel).submit_data(command)
