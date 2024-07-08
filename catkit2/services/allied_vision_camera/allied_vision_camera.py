@@ -13,7 +13,7 @@ import time
 import numpy as np
 
 from vmbpy import (AllocationMode,
-                   Camera, Frame,
+                   Camera, Frame, Stream,
                    FrameStatus,
                    PixelFormat,
                    VmbSystem,
@@ -75,7 +75,7 @@ class FrameHandler:
         self.av_camera = av_camera
         self.shutdown_event = threading.Event()
 
-    def __call__(self, cam: Camera, frame: Frame):
+    def __call__(self, cam: Camera, stream: Stream, frame: Frame):
         '''
         Handle incoming frames from the camera.
 
