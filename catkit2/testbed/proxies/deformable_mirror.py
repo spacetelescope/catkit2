@@ -113,8 +113,8 @@ class DeformableMirrorProxy(ServiceProxy):
             command = self.dm_maps_to_command(command)
         elif command.ndim > 2 and command.shape[0] == self.num_dms:
             map_to_command = np.zeros_like(command)
-            for i in command:
-                map_to_command[i] = self.dm_maps_to_command(command)    # TODO: I don't think this will work since the func needs to be called with a 3D array.
+            for i, slice in enumerate(command):
+                map_to_command[i] = self.dm_maps_to_command(np.expand_dims(slice, axis=0))
             command = np.concatenate(map_to_command)
 
         getattr(self, channel).submit_data(command)
