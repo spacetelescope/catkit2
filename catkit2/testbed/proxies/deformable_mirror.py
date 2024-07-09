@@ -86,7 +86,7 @@ class DeformableMirrorProxy(ServiceProxy):
         """
         dm_maps = np.empty_like(self.device_actuator_mask, dtype='float')
 
-        dm_maps[self.device_actuator_mask] = command  # TODO: Is this going to work?
+        dm_maps[self.device_actuator_mask] = command.reshape(self.dm_shape)  # TODO: Is this going to work?
 
         return dm_maps
 
