@@ -95,16 +95,26 @@ class DeformableMirrorProxy(ServiceProxy):
 
         # TODO: with how many potential cases do we want to deal here?
         # Could be a (N) array, in which case it is already a DM command.
-        # Could be a (M, M) array, in which case it is a DM map, but it needs to be converted to a DM command.
         # Could be a (1, N) array, in which case it is already a DM command, but it needs to be squeezed.
-        # Could be a (1, M, M) array, in which case it is a DM map, but it needs to be converted to a DM command (and squeezed).
         # Could be a (X, N) array, in which case it is a DM command for multiple DMs, but it needs to be converted to a DM command (just concatenated).
+        # Could be a (M, M) array, in which case it is a DM map, but it needs to be converted to a DM command.
+        # Could be a (1, M, M) array, in which case it is a DM map, but it needs to be converted to a DM command (and squeezed).
         # Could be a (X, M, M) array, in which case it is DM maps for multiple DMs, but it needs to be converted to a DM command (reshaped and concatenated).
 
-        if command.shape[0] == 1:
+        if command.ndim == 1:
+            pass
+        elif command.ndim == 2 and command.shape[0] == 1:
             command.squeeze()
-            # TODO: ???
-        if command.ndim > 1:
+        elif command.ndim == 2 and command.shape[0] == self.num_dms:
+            command = np.concatenate(command)
+        elif command.shape == self.dm_shape:
             command = self.dm_maps_to_command(command)
+        elif command.ndim > 2 and command.shape[0] == 1:
+            command = self.dm_maps_to_command(np.squeeze(command))
+        elif command.ndim > 2 and command.shape[0] == self.num_dms:
+            map_to_command = np.zeros((command.shape[0], self.num_actuators))
+            for i in range(command.shape[0]):
+                map_to_command[i] = self.dm_maps_to_command(command[i])
+            command = np.concatenate(map_to_command)
 
         getattr(self, channel).submit_data(command)
