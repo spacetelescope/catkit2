@@ -32,16 +32,6 @@ class BmcDeformableMirror(DeformableMirrorService):
 
         self.device_command_index = self.config.get('device_command_index', 0)
 
-        # Check if this service controls more than one DM and get the number of actuators controlled by each DM
-        # TODO: Isn't the assumption that all devices controlled by one service have same number of actuators?
-        # if isinstance(self.device_command_index, list):
-        #     self.dm_num_actuators = []
-        #     for i, index in enumerate(self.device_command_index):
-        #         # Get the number of actuators controlled by this DM
-        #         self.dm_num_actuators.append(np.sum(self.device_actuator_mask[i]))
-        # else:
-        #     self.dm_num_actuators = None
-
         self.lock = threading.Lock()
 
     def open(self):
