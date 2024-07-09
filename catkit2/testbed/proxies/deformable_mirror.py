@@ -101,20 +101,20 @@ class DeformableMirrorProxy(ServiceProxy):
         # Could be a (1, M, M) array, in which case it is a DM map, but it needs to be converted to a DM command (and squeezed).
         # Could be a (X, M, M) array, in which case it is DM maps for multiple DMs, but it needs to be converted to a DM command (reshaped and concatenated).
 
-        if command.ndim == 1:
+        if command.ndim == 1:    # TODO: 1/6 TESTED AND WORKS
             pass
         elif command.ndim == 2 and command.shape[0] == 1:
             command.squeeze()
         elif command.ndim == 2 and command.shape[0] == self.num_dms:
             command = np.concatenate(command)
-        elif command.shape == self.dm_shape:
+        elif command.shape == self.dm_shape:    # TODO: 4/6 TESTED AND WORKS
+            command = self.dm_maps_to_command(np.expand_dims(command, axis=0))
+        elif command.ndim > 2 and command.shape[0] == 1:    # TODO: 5/6 TESTED AND WORKS
             command = self.dm_maps_to_command(command)
-        elif command.ndim > 2 and command.shape[0] == 1:
-            command = self.dm_maps_to_command(np.squeeze(command))
         elif command.ndim > 2 and command.shape[0] == self.num_dms:
-            map_to_command = np.zeros((command.shape[0], self.num_actuators))
-            for i in range(command.shape[0]):
-                map_to_command[i] = self.dm_maps_to_command(command[i])
+            map_to_command = np.zeros_like(command)
+            for i in command:
+                map_to_command[i] = self.dm_maps_to_command(command)    # TODO: I don't think this will work since the func needs to be called with a 3D array.
             command = np.concatenate(map_to_command)
 
         getattr(self, channel).submit_data(command)
