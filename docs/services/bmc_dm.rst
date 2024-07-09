@@ -1,5 +1,8 @@
 Boston Deformable Mirror
 ========================
+This service operates a Boston Micromachines MEMS DM. The following Boston DMs have been tested with catkit2 thus far:
+
+- `BMC DM Kilo-C-1.5 <https://bostonmicromachines.com/products/deformable-mirrors/standard-deformable-mirrors/>`_
 
 Configuration
 -------------
@@ -22,7 +25,7 @@ Configuration
         dm_mask_fname: !path ../dm_mask.fits
 
     startup_maps:
-        flat: !path ../data/flat.fits
+        flat: !path ../flat_data.fits
 
     channels:
         - correction_howfs
@@ -37,9 +40,16 @@ Configuration
 
 Properties
 ----------
+``channels``: List of command channel names (strings).
 
 Commands
 --------
 
 Datastreams
 -----------
+``total_voltage``: Map of the total voltage applied to each actuator of the DM.
+
+``total_surface``: Map of the total amplitude of each DM actuator (meters).
+
+``channel_name``: Name of the DM channel being commanded.
+
