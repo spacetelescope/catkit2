@@ -32,7 +32,7 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         elif self.flat_map.ndim == 2:
             self.flat_map = np.expand_dims(self.flat_map, axis=0)
         # Convert to DM command
-        self.flat_map_command = np.squeeze(np.reshape(self.flat_map, (1, -1)))
+        self.flat_map_command = self.flat_map[self.device_actuator_mask]
 
         self.gain_map = fits.getdata(self.gain_map_fname)
         if self.gain_map.ndim <= 1:
@@ -40,7 +40,7 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         elif self.gain_map.ndim == 2:
             self.gain_map = np.expand_dims(self.gain_map, axis=0)
         # Convert to DM command
-        self.gain_map_command = np.squeeze(np.reshape(self.gain_map, (1, -1)))
+        self.gain_map_command = self.gain_map[self.device_actuator_mask]
 
         with np.errstate(divide='ignore', invalid='ignore'):
             self.gain_map_inv_command = np.ones_like(self.gain_map_command)
