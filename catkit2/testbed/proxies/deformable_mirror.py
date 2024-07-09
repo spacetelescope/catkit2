@@ -14,7 +14,7 @@ class DeformableMirrorProxy(ServiceProxy):
             self._device_actuator_mask = fits.getdata(fname).astype('bool')
             if self._device_actuator_mask.ndim <= 1:
                 raise ValueError(f'The provided device actuator mask needs for {self.service_id} to be at least a 2D array.')
-            elif self._device_actuator_mask == 2:
+            elif self._device_actuator_mask.ndim == 2:
                 self._device_actuator_mask = np.expand_dims(self._device_actuator_mask, axis=0)
 
         return self._device_actuator_mask

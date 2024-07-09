@@ -29,7 +29,7 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self.flat_map = fits.getdata(self.flat_map_fname)
         if self.flat_map.ndim <= 1:
             raise ValueError(f'The provided flat map for {self.service_id} needs to be at least a 2D array.')
-        elif self.flat_map == 2:
+        elif self.flat_map.ndim == 2:
             self.flat_map = np.expand_dims(self.flat_map, axis=0)
         # Convert to DM command
         self.flat_map_command = np.squeeze(np.reshape(self.flat_map, (1, -1)))
@@ -37,7 +37,7 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self.gain_map = fits.getdata(self.gain_map_fname)
         if self.gain_map.ndim <= 1:
             raise ValueError(f'The provided gain map for {self.service_id} needs to be at least a 2D array.')
-        elif self.gain_map == 2:
+        elif self.gain_map.ndim == 2:
             self.gain_map = np.expand_dims(self.gain_map, axis=0)
         # Convert to DM command
         self.gain_map_command = np.squeeze(np.reshape(self.gain_map, (1, -1)))
