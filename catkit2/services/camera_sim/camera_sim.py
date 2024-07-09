@@ -4,40 +4,6 @@ import threading
 import numpy as np
 
 class CameraSim(Service):
-    '''
-    Service for simulated cameras.
-
-    It provides a simple interface to simulate the controlling of a camera and
-    the acquisition of images.
-
-    Attributes
-    ----------
-    temperature : DataStream
-        A data stream to submit the temperature of the camera.
-    images : DataStream
-        A data stream to submit the images from the camera.
-    is_acquiring : DataStream
-        A data stream to submit whether the camera is currently acquiring images.
-    should_be_acquiring : threading.Event
-        An event to signal whether the camera should be acquiring images.
-    NUM_FRAMES_IN_BUFFER : int
-        The number of frames to allocate for the data streams.
-
-    Methods
-    -------
-    open()
-        Open the service.
-    main()
-        The main function of the service.
-    acquisition_loop()
-        The main acquisition loop.
-    start_acquisition()
-        Start the acquisition loop.
-    end_acquisition()
-        End the acquisition loop.
-    restart_acquisition_if_acquiring()
-        If already acquiring, restarts the acquisition.
-    '''
     NUM_FRAMES_IN_BUFFER = 20
 
     def __init__(self):
