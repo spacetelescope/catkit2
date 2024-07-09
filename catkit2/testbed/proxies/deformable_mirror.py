@@ -94,24 +94,24 @@ class DeformableMirrorProxy(ServiceProxy):
         command = np.array(command, copy=False)
 
         # TODO: with how many potential cases do we want to deal here?
-        # Could be a (N) array, in which case it is already a DM command.
-        # Could be a (1, N) array, in which case it is already a DM command, but it needs to be squeezed.
-        # Could be a (X, N) array, in which case it is a DM command for multiple DMs, but it needs to be converted to a DM command (just concatenated).
-        # Could be a (M, M) array, in which case it is a DM map, but it needs to be converted to a DM command.
-        # Could be a (1, M, M) array, in which case it is a DM map, but it needs to be converted to a DM command (and squeezed).
-        # Could be a (X, M, M) array, in which case it is DM maps for multiple DMs, but it needs to be converted to a DM command (reshaped and concatenated).
+        # 1. Could be a (N) array, in which case it is already a DM command.
+        # 2. Could be a (1, N) array, in which case it is already a DM command, but it needs to be squeezed.
+        # 3. Could be a (X, N) array, in which case it is a DM command for multiple DMs, but it needs to be converted to a DM command (just concatenated).
+        # 4. Could be a (M, M) array, in which case it is a DM map, but it needs to be converted to a DM command.
+        # 5. Could be a (1, M, M) array, in which case it is a DM map, but it needs to be converted to a DM command (and squeezed).
+        # 6. Could be a (X, M, M) array, in which case it is DM maps for multiple DMs, but it needs to be converted to a DM command (reshaped and concatenated).
 
-        if command.ndim == 1:    # TODO: 1/6 TESTED AND WORKS
+        if command.ndim == 1:
             pass
-        elif command.ndim == 2 and command.shape[0] == 1:
+        elif command.ndim == 2 and command.shape[0] == 1:    # TODO: 2. Untested
             command.squeeze()
-        elif command.ndim == 2 and command.shape[0] == self.num_dms:
+        elif command.ndim == 2 and command.shape[0] == self.num_dms:    # TODO: 3. Untested
             command = np.concatenate(command)
-        elif command.shape == self.dm_shape:    # TODO: 4/6 TESTED AND WORKS
+        elif command.shape == self.dm_shape:
             command = self.dm_maps_to_command(np.expand_dims(command, axis=0))
-        elif command.ndim > 2 and command.shape[0] == 1:    # TODO: 5/6 TESTED AND WORKS
+        elif command.ndim > 2 and command.shape[0] == 1:
             command = self.dm_maps_to_command(command)
-        elif command.ndim > 2 and command.shape[0] == self.num_dms:
+        elif command.ndim > 2 and command.shape[0] == self.num_dms:    # TODO: 6.Untested
             map_to_command = np.zeros_like(command)
             for i, slice in enumerate(command):
                 map_to_command[i] = self.dm_maps_to_command(np.expand_dims(slice, axis=0))
