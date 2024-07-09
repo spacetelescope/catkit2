@@ -1,7 +1,7 @@
 '''
 This module contains a service for Allied Vision cameras.
 
-This service is a wrapper around the Vimba SDK.
+This service is a wrapper around the Vimba X SDK.
 It provides a simple interface to control the camera and acquire images.
 '''
 
@@ -12,12 +12,12 @@ import time
 
 import numpy as np
 
-from vimba import (AllocationMode,
-                   Camera, Frame,
+from vmbpy import (AllocationMode,
+                   Camera, Frame, Stream,
                    FrameStatus,
                    PixelFormat,
-                   Vimba,
-                   VimbaCameraError
+                   VmbSystem,
+                   VmbCameraError
 )
 
 from catkit2.testbed.service import Service
@@ -75,7 +75,7 @@ class FrameHandler:
         self.av_camera = av_camera
         self.shutdown_event = threading.Event()
 
-    def __call__(self, cam: Camera, frame: Frame):
+    def __call__(self, cam: Camera, stream: Stream, frame: Frame):
         '''
         Handle incoming frames from the camera.
 
@@ -105,7 +105,7 @@ class AlliedVisionCamera(Service):
     '''
     Service for Allied Vision cameras.
 
-    This service is a wrapper around the Vimba SDK.
+    This service is a wrapper around the Vimba X SDK.
     It provides a simple interface to control the camera and acquire images.
 
     Attributes
@@ -167,7 +167,7 @@ class AlliedVisionCamera(Service):
         '''
         super().__init__('allied_vision_camera')
 
-        self.vimba = None
+        self.vmb = None
         self.cam = None
         self.exit_stack = exit_stack
 
@@ -204,11 +204,11 @@ class AlliedVisionCamera(Service):
             If the camera cannot be found.
         ValueError
             If the pixel format is invalid.
-        VimbaCameraError
+        VmbCameraError
             If there is an error with the camera.
         '''
-        self.vimba = Vimba.get_instance()
-        self.exit_stack.enter_context(self.vimba)
+        self.vmb = VmbSystem.get_instance()
+        self.exit_stack.enter_context(self.vmb)
 
         # convert int to IPv4 address
         def int_to_ip(int_ip):
@@ -218,8 +218,8 @@ class AlliedVisionCamera(Service):
         self.log.info('Using camera with ID %s', camera_id)
 
         try:
-            self.cam = self.vimba.get_camera_by_id(camera_id)
-        except VimbaCameraError as e:
+            self.cam = self.vmb.get_camera_by_id(camera_id)
+        except VmbCameraError as e:
             raise RuntimeError(
                 f'Could not find camera with ID {camera_id}') from e
         self.exit_stack.enter_context(self.cam)
