@@ -2,7 +2,6 @@
 This module contains a service for Ocean Optics Spectrometers.
 '''
 import numpy as np
-import threading
 
 from seabreeze.spectrometers import Spectrometer
 from seabreeze.spectrometers import SeaBreezeError
