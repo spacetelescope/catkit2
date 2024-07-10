@@ -6,7 +6,7 @@ from ..service_proxy import ServiceProxy
 
 
 MAX_TIMEOUT_FOR_CHECKING = 1000  # ms
-
+MAX_TIMEOUT_HITS = 3
 
 @ServiceProxy.register_service_interface('newport_picomotor')
 class NewportPicomotorProxy(ServiceProxy):
@@ -30,10 +30,11 @@ class NewportPicomotorProxy(ServiceProxy):
         # Get current position.
         stream = getattr(self, axis_name.lower() + '_current_position')
 
+        num_timeout_hits = 0
         # Wait until actuator reaches new position.
         waiting_start = time.time()
 
-        exception_text = 'Moving the picomotor timed out.'
+        stalling_exception_text = 'Moving the picomotor timed out.'
         if timeout is None or timeout > 0:
             while True:
                 try:
@@ -46,19 +47,23 @@ class NewportPicomotorProxy(ServiceProxy):
 
                     if wait_time_ms is not None and wait_time_ms <= 0:
                         # The final timeout was reached. Raise an exception.
-                        raise RuntimeError(exception_text)
+                        raise RuntimeError(stalling_exception_text)
 
                     # Check if we are at our final position, within absolute tolerance.
                     current_position = stream.get_next_frame(wait_time_ms).data[0]
                     if abs(current_position - position) < self.atol:
                         break
                 except RuntimeError as e:
-                    if str(e) == exception_text:
+                    if str(e) == stalling_exception_text:
                         # The final timeout was reached, so reraise the exception.
+                        self.log.info('From timeout', str(e))
                         raise
                     else:
                         # Datastream read timed out. This is to facilitate wait time checking, so this is normal.
-                        raise TimeoutError('Picomotor motion timed out.')
+                        self.log.warning(str(e))
+                        num_timeout_hits += 1
+                        if num_timeout_hits >= MAX_TIMEOUT_HITS:
+                            raise TimeoutError(stalling_exception_text)
 
                 # Send a log message to indicate we are still waiting.
                 current_position = stream.get()[0]
