@@ -1,6 +1,6 @@
 Boston Deformable Mirror
 ========================
-This service operates a Boston Micromachines MEMS DM. The following Boston DMs have been tested with catkit2 thus far:
+This service operates a pair of identical Boston Micromachines MEMS DMs controlled by the same driver. The following Boston DMs have been tested with catkit2 thus far:
 
 - `BMC DM Kilo-C-1.5 <https://bostonmicromachines.com/products/deformable-mirrors/standard-deformable-mirrors/>`_
 
