@@ -8,6 +8,8 @@ For further documentation, see:
 
 - `image format control <http://softwareservices.flir.com/BFS-U3-200S6/latest/Model/public/ImageFormatControl.html>`_
 
+Note that using FLIR cameras requires a manual installation of drivers from `flir.custhelp.com <https://flir.custhelp.com/app/answers/detail/a_id/47/~/flir-cameras---drivers>`_
+
 Configuration
 -------------
 .. code-block:: YAML
