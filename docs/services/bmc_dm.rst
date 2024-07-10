@@ -40,7 +40,7 @@ Configuration
 
 Properties
 ----------
-``channels``: List of command channel names (strings).
+``channels``: List of command channel names (dict).
 
 Commands
 --------
@@ -53,5 +53,4 @@ Datastreams
 
 ``total_surface``: Map of the total amplitude of each DM actuator (meters).
 
-``channel_name``: Name of the DM channel being commanded.
-
+``channels[channel_name]``: The command per virtual channel, identified by channel name.
