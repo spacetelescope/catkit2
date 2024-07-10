@@ -4,7 +4,7 @@ The NKT Super K service contains software for controlling both the `NKT SuperK E
 and the `NKT SuperK VARIA Variable Bandpass Filter <https://contentnktphotonics.s3.eu-central-1.amazonaws.com/SuperK-VARIA/SuperK%20VARIA%20Product%20Guide-%2020231016%20R1.3.pdf>`_.
 This is done because a single open port to the device is needed that cannot be shared between multiple services.
 
-Associated drivers for both the EVO and VARIA (found in the lined manuals) also need to be installed.
+Associated drivers for both the EVO and VARIA (found in the linked manuals) also need to be installed.
 
 Configuration
 -------------
