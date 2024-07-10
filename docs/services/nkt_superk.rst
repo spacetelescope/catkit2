@@ -30,8 +30,12 @@ Configuration
 Properties
 ----------
 
+None.
+
 Commands
 --------
+
+None.
 
 Datastreams
 -----------

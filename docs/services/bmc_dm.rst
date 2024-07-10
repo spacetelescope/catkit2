@@ -45,6 +45,8 @@ Properties
 Commands
 --------
 
+None.
+
 Datastreams
 -----------
 ``total_voltage``: Map of the total voltage applied to each actuator of the DM.
