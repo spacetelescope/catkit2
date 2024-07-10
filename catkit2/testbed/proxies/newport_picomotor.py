@@ -58,7 +58,7 @@ class NewportPicomotorProxy(ServiceProxy):
                         raise
                     else:
                         # Datastream read timed out. This is to facilitate wait time checking, so this is normal.
-                        pass
+                        raise TimeoutError('Picomotor motion timed out.')
 
                 # Send a log message to indicate we are still waiting.
                 current_position = stream.get()[0]
