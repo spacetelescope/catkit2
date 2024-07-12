@@ -27,25 +27,8 @@ actuator mask.
 
 Configuration
 -------------
-
-.. code-block:: YAML
-
-    deformable_mirror:
-      service_type: bmc_deformable_mirror
-      simulated_service_type: bmc_deformable_mirror_sim
-      interface: deformable_mirror
-      requires_safety: false
-
-      device_actuator_mask_fname: !path ../data/dms/DM_2Dmask.fits
-      channels:
-        - correction_howfs
-        - correction_lowfs
-        - probe
-        - poke
-        - aberration
-        - atmosphere
-        - astrogrid
-        - resume
+This service cannot be used as-is since it lacks an implementation of the ``send_surface()`` method. It is meant to be
+subclassed by the specific DM implementation, both for hardware and software devices.
 
 Properties
 ----------
