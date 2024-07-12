@@ -91,30 +91,25 @@ class DeformableMirrorProxy(ServiceProxy):
         return dm_maps
 
     def apply_shape(self, channel, command):
+        """
+        Apply a shape to a DM channel.
+
+        Parameters
+        ----------
+        channel : str
+            The channel to apply the shape to.
+        command : array
+            The command to apply to the channel. Can be either a 1D array (DM command) with all actuators of all DMs
+            controlled by this driver in sequence. Or a 2D array (cube of 2D arrays) representing all 2D DM maps of all
+            DMs controlled by this driver.
+        """
         command = np.array(command, copy=False)
 
-        # TODO: with how many potential cases do we want to deal here?
-        # 1. Could be a (N) array, in which case it is already a DM command.
-        # 2. Could be a (1, N) array, in which case it is already a DM command, but it needs to be squeezed.
-        # 3. Could be a (X, N) array, in which case it is a DM command for multiple DMs, but it needs to be converted to a DM command (just concatenated).
-        # 4. Could be a (M, M) array, in which case it is a DM map, but it needs to be converted to a DM command.
-        # 5. Could be a (1, M, M) array, in which case it is a DM map, but it needs to be converted to a DM command (and squeezed).
-        # 6. Could be a (X, M, M) array, in which case it is DM maps for multiple DMs, but it needs to be converted to a DM command (reshaped and concatenated).
-
-        if command.ndim == 1:
+        if command.ndim == 1:  # Input is already a (N) array, in which case it is already a DM command.
             pass
-        elif command.ndim == 2 and command.shape[0] == 1:    # TODO: 2. Untested
-            command.squeeze()
-        elif command.ndim == 2 and command.shape[0] == self.num_dms:    # TODO: 3. Untested
-            command = np.concatenate(command)
-        elif command.shape == self.dm_shape:
-            command = self.dm_maps_to_command(np.expand_dims(command, axis=0))
-        elif command.ndim > 2 and command.shape[0] == 1:
+        elif 1 < command.ndim <= 3:  # Input is a 2D map or a 3D cube of maps.
             command = self.dm_maps_to_command(command)
-        elif command.ndim > 2 and command.shape[0] == self.num_dms:    # TODO: 6.Untested
-            map_to_command = np.zeros_like(command)
-            for i, slice in enumerate(command):
-                map_to_command[i] = self.dm_maps_to_command(np.expand_dims(slice, axis=0))
-            command = np.concatenate(map_to_command)
+        else:
+            raise ValueError(f'Invalid shape for command: {command.shape}')
 
         getattr(self, channel).submit_data(command)
