@@ -53,19 +53,21 @@ class DeformableMirrorProxy(ServiceProxy):
         return summed_command
 
     def dm_maps_to_command(self, dm_map):
-        """Convert a cube of 2D DM maps to a DM command.
+        """Convert a 2D Dm map or cube of 2D DM maps to a DM command.
 
         Parameters
         ----------
         dm_map : array
             A 3D array with its first dimension giving the number of devices controlled with this service. Second and
-            third dimension are 2D DM maps.
+            third dimension are 2D DM maps. Can also just be a 2D DM map.
 
         Returns
         -------
         array
             A 1D array containing the DM command.
         """
+        if dm_map.ndim == 2:
+            dm_map = np.expand_dims(dm_map, axis=0)
         command = dm_map[self.device_actuator_mask]
 
         return command
