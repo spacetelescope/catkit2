@@ -50,12 +50,8 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self.send_surface(zeros)
 
     def close(self):
-        try:
-            zeros = np.zeros(self.num_actuators * self.num_dms, dtype='float64')
-            self.send_surface(zeros)
-        finally:
-            self.device.close_dm()
-            self.device = None
+        zeros = np.zeros(self.num_actuators * self.num_dms, dtype='float64')
+        self.send_surface(zeros)
 
         super().close()
 
