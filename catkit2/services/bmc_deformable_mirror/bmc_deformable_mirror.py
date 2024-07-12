@@ -25,7 +25,6 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.flat_map_fname = self.config['flat_map_fname']
         self.gain_map_fname = self.config['gain_map_fname']
         self.max_volts = self.config['max_volts']
-
         self.dac_bit_depth = self.config['dac_bit_depth']
         self._discretized_voltages = None
         self._discretized_surface = None
@@ -54,7 +53,6 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.gain_map_command = self.gain_map[self.device_actuator_mask]
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self.gain_map_inv_command = np.ones_like(self.gain_map_command)
             self.gain_map_inv_command = 1 / self.gain_map_command    # TODO: Is this still correct?
             self.gain_map_inv_command[np.abs(self.gain_map_command) < 1e-10] = 0
 

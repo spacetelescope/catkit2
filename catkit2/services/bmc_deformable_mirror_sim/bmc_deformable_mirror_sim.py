@@ -43,7 +43,6 @@ class BmcDeformableMirrorSim(DeformableMirrorService):
         self.gain_map_command = self.gain_map[self.device_actuator_mask]
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self.gain_map_inv_command = np.ones_like(self.gain_map_command)
             self.gain_map_inv_command = 1 / self.gain_map_command    # TODO: Is this still correct?
             self.gain_map_inv_command[np.abs(self.gain_map_command) < 1e-10] = 0
 
