@@ -17,9 +17,9 @@ except ImportError:
     raise
 
 
-class BmcDeformableMirror(DeformableMirrorService):
+class BmcDeformableMirrorHardware(DeformableMirrorService):
     def __init__(self):
-        super().__init__('bmc_deformable_mirror')
+        super().__init__('bmc_deformable_mirror_hardware')
 
         self.serial_number = self.config['serial_number']
         self.flat_map_fname = self.config['flat_map_fname']
@@ -145,5 +145,5 @@ class BmcDeformableMirror(DeformableMirrorService):
 
 
 if __name__ == '__main__':
-    service = BmcDeformableMirror()
+    service = BmcDeformableMirrorHardware()
     service.run()
