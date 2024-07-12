@@ -84,9 +84,9 @@ class DeformableMirrorProxy(ServiceProxy):
             A 3D array with its first dimension giving the number of devices controlled with this service. Second and
             third dimension are 2D DM maps.
         """
-        dm_maps = np.empty_like(self.device_actuator_mask, dtype='float')
+        dm_maps = np.zeros_like(self.device_actuator_mask, dtype='float')
 
-        dm_maps[self.device_actuator_mask] = command.reshape(self.dm_shape)  # TODO: Is this going to work?
+        dm_maps[self.device_actuator_mask] = command
 
         return dm_maps
 
