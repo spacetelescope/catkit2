@@ -57,8 +57,8 @@ None.
 
 Datastreams
 -----------
-``total_voltage``: Map of the total voltage applied to each actuator of the DM.
+``total_voltage``: Array of the total voltage applied to each actuator of the DM.
 
-``total_surface``: Map of the total amplitude of each DM actuator (meters).
+``total_surface``: Array of the total amplitude of each DM actuator (nm).
 
-``channels[channel_name]``: The command per virtual channel, identified by channel name.
+``channels[channel_name]``: The command per virtual channel, identified by channel name, in nm surface.
