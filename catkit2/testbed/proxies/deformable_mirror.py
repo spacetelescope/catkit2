@@ -34,7 +34,7 @@ class DeformableMirrorProxy(ServiceProxy):
     @property
     def actuator_grid(self):
         # Get the last two dimensions in reverse order.
-        dims = self.device_actuator_mask.shape[:-2:-1]
+        dims = self.device_actuator_mask.shape[:-3:-1]
 
         return hcipy.make_uniform_grid(dims, dims)
 
