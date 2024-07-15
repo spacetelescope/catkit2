@@ -1,5 +1,5 @@
 '''
-This module contains a service for Ocean Optics Spectrometers.
+This module contains a service for simulation Ocean Optics Spectrometers.
 '''
 import numpy as np
 
@@ -9,7 +9,7 @@ from seabreeze.spectrometers import SeaBreezeError
 from catkit2.testbed.service import Service
 
 
-class OceanOpticsSpectrometer(Service):
+class OceanOpticsSpectrometerSim(Service):
     '''
     Service for Ocean Optics Spectrometer.
 
@@ -50,15 +50,12 @@ class OceanOpticsSpectrometer(Service):
         '''
         Create a new OceanOpticsSpectrometer service.
         '''
-        super().__init__('oceanoptics_spectrometer')
+        super().__init__('oceanoptics_spectrometer)sim')
 
-        self.serial_number = str(self.config['serial_number'])
         self.interval = self.config.get('interval', 1)
         self._exposure_time = self.config.get('exposure_time', 1000)
-
-        self.spectrometer = None
-        self.model = None
-        self.pixels_number = None
+        
+        self.pixels_number = 3000
 
         self.spectra = None
         self.is_saturating = None
@@ -75,16 +72,6 @@ class OceanOpticsSpectrometer(Service):
         RuntimeError
             If the spectrometer cannot be found.
         '''
-
-        # Find the spectrometer
-        try:
-            self.spectrometer = Spectrometer.from_serial_number(self.serial_number)
-        except SeaBreezeError:
-            raise ImportError(f'OceanOptics: Could not find spectrometer with serial number {self.serial_number}')
-
-        # exctract attributes
-        self.model = self.spectrometer.model
-        self.pixels_number = self.spectrometer.pixels
 
         # Define and set defaut exposure time
         self.exposure_time = self._exposure_time
@@ -112,7 +99,7 @@ class OceanOpticsSpectrometer(Service):
         This function is called when the service is started.
         '''
         while not self.should_shut_down:
-            intensities = self.take_one_spectrum()
+            intensities = self.take_one_spectrum(self.pixels_number)
             self.spectra.submit_data(np.array(intensities, dtype='float32'))
             self.sleep(self.interval)
 
@@ -120,12 +107,9 @@ class OceanOpticsSpectrometer(Service):
         '''
         Measure one spectrum and submit it to the data stream.
         '''
-        intensities = self.spectrometer.intensities()
+        intensities = np.random.random(self.pixels_number)
 
-        if np.max(intensities) ==  self.spectrometer.max_intensity:
-            self.is_saturating.submit_data(np.array([1], dtype='int8'))
-        else:
-            self.is_saturating.submit_data(np.array([0], dtype='int8'))
+        self.is_saturating.submit_data(np.array([0], dtype='int8'))
 
         return intensities
 
@@ -139,7 +123,7 @@ class OceanOpticsSpectrometer(Service):
         ndarray of float:
             wavelengths of the spectrometer.
         '''
-        return self.spectrometer.wavelengths()
+        return np.linspace(350, 1000, num = self.pixels_number)
 
     @property
     def exposure_time(self):
@@ -167,19 +151,8 @@ class OceanOpticsSpectrometer(Service):
         exposure_time : int
             The exposure time in microseconds.
 
-        Raises
-        ------
-        ValueError
-            If the exposure time is not in the range of the accepted spectrometer values.
         '''
-        int_time_range = self.spectrometer.integration_time_micros_limits
-        if exposure_time < int_time_range[0]:
-            exposure_time = int_time_range[0]
-        if exposure_time > int_time_range[1]:
-            exposure_time = int_time_range[1]
-
         self._exposure_time = exposure_time
-        self.spectrometer.integration_time_micros(exposure_time)
 
     def close(self):
         '''
@@ -193,5 +166,5 @@ class OceanOpticsSpectrometer(Service):
 
 
 if __name__ == '__main__':
-    service = OceanOpticsSpectrometer()
+    service = OceanOpticsSpectrometerSim()
     service.run()
