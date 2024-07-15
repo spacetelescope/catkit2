@@ -2,10 +2,6 @@
 This module contains a service for simulation Ocean Optics Spectrometers.
 '''
 import numpy as np
-
-from seabreeze.spectrometers import Spectrometer
-from seabreeze.spectrometers import SeaBreezeError
-
 from catkit2.testbed.service import Service
 
 
@@ -50,7 +46,7 @@ class OceanOpticsSpectrometerSim(Service):
         '''
         Create a new OceanOpticsSpectrometer service.
         '''
-        super().__init__('oceanoptics_spectrometer)sim')
+        super().__init__('oceanoptics_spectrometer_sim')
 
         self.interval = self.config.get('interval', 1)
         self._exposure_time = self.config.get('exposure_time', 1000)
