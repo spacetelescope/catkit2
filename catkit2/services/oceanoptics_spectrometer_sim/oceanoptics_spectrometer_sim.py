@@ -50,7 +50,7 @@ class OceanOpticsSpectrometerSim(Service):
 
         self.interval = self.config.get('interval', 1)
         self._exposure_time = self.config.get('exposure_time', 1000)
-        
+
         self.pixels_number = 3000
 
         self.spectra = None
