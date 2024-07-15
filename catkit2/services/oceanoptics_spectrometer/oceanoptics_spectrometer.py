@@ -25,7 +25,7 @@ class OceanOpticsSpectrometer(Service):
     model : str
         The model of the spectrometer.
     pixels_number : int
-        number of pix in the spectrum.
+        number of pixels in the spectrum.
     spectra : DataStream
         A data stream to submit spectra from the spectrometer.
     is_saturating : DataStream
@@ -60,9 +60,6 @@ class OceanOpticsSpectrometer(Service):
         self.model = None
         self.pixels_number = None
 
-        self.spectra = None
-        self.is_saturating = None
-
     def open(self):
         '''
         Open the service.
@@ -72,7 +69,7 @@ class OceanOpticsSpectrometer(Service):
 
         Raises
         ------
-        RuntimeError
+        ImportError
             If the spectrometer cannot be found.
         '''
 
@@ -86,7 +83,7 @@ class OceanOpticsSpectrometer(Service):
         self.model = self.spectrometer.model
         self.pixels_number = self.spectrometer.pixels
 
-        # Define and set defaut exposure time
+        # Define and set default exposure time.
         self.exposure_time = self._exposure_time
 
         # Create datastreams
@@ -158,7 +155,6 @@ class OceanOpticsSpectrometer(Service):
         '''
         Set the exposure time in microseconds.
 
-        This property can be used to set the exposure time of the spectrometer.
         if exposure_time < min allowed exp time: exposure_time =  min allowed exp time
         if exposure_time > max allowed exp time: exposure_time =  max allowed exp time
 
@@ -167,10 +163,6 @@ class OceanOpticsSpectrometer(Service):
         exposure_time : int
             The exposure time in microseconds.
 
-        Raises
-        ------
-        ValueError
-            If the exposure time is not in the range of the accepted spectrometer values.
         '''
         int_time_range = self.spectrometer.integration_time_micros_limits
         if exposure_time < int_time_range[0]:
@@ -186,7 +178,7 @@ class OceanOpticsSpectrometer(Service):
         Close the service.
 
         This function is called when the service is closed.
-        It close the spectrometer and cleans up the data streams.
+        It closes the spectrometer.
         '''
         self.spectrometer.close()
         self.spectrometer = None

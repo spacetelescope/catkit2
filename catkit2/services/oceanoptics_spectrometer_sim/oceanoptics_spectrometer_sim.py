@@ -150,16 +150,6 @@ class OceanOpticsSpectrometerSim(Service):
         '''
         self._exposure_time = exposure_time
 
-    def close(self):
-        '''
-        Close the service.
-
-        This function is called when the service is closed.
-        It close the spectrometer and cleans up the data streams.
-        '''
-        self.spectrometer.close()
-        self.spectrometer = None
-
 
 if __name__ == '__main__':
     service = OceanOpticsSpectrometerSim()

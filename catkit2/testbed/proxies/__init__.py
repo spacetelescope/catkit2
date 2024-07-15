@@ -7,7 +7,7 @@ __all__ = [
     'NiDaqProxy',
     'NktSuperkProxy',
     'ThorlabsCubeMotorKinesisProxy',
-    'WebPowerSwitchProxy', 
+    'WebPowerSwitchProxy',
     'OceanopticsSpectroProxy'
 ]
 
