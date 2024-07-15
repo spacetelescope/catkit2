@@ -44,7 +44,7 @@ class OceanOpticsSpectrometer(Service):
     take_one_spectrum()
         Get a spectrum from the spectrometer.
     '''
-    NUM_FRAMES = 3
+    NUM_FRAMES = 20
 
     def __init__(self):
         '''
@@ -59,6 +59,8 @@ class OceanOpticsSpectrometer(Service):
 
         self.spectra = None
         self.is_saturating = None
+
+        self.interval = self.config.get('interval', 1)
 
         self._exposure_time = None
 
@@ -96,8 +98,6 @@ class OceanOpticsSpectrometer(Service):
         self.is_saturating = self.make_data_stream('is_saturating', 'int8', [1], self.NUM_FRAMES)
         self.is_saturating.submit_data(np.array([0], dtype='int8'))
 
-        self.make_command('take_one_spectrum', self.take_one_spectrum)
-
         # Create properties
         def make_property_helper(name, read_only=False):
             if read_only:
@@ -115,7 +115,9 @@ class OceanOpticsSpectrometer(Service):
         This function is called when the service is started.
         '''
         while not self.should_shut_down:
-            self.take_one_spectrum()
+            intensities = self.take_one_spectrum()
+            self.spectra.submit_data(np.array(intensities, dtype='float32'))
+            self.sleep(self.interval)
 
     def take_one_spectrum(self):
         '''
@@ -123,12 +125,12 @@ class OceanOpticsSpectrometer(Service):
         '''
         intensities = self.spectrometer.intensities()
 
-        self.spectra.submit_data(np.array(intensities, dtype='float32'))
-
         if np.max(intensities) ==  self.spectrometer.max_intensity:
             self.is_saturating.submit_data(np.array([1], dtype='int8'))
         else:
             self.is_saturating.submit_data(np.array([0], dtype='int8'))
+
+        return intensities
 
     @property
     def wavelengths(self):
