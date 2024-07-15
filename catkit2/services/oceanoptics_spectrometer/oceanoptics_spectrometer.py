@@ -52,17 +52,19 @@ class OceanOpticsSpectrometer(Service):
         '''
         super().__init__('oceanoptics_spectrometer')
 
+        # self.serial_number = str(self.config['serial_number'])
+        # self.interval = self.config.get('interval', 1)
+        # self._exposure_time = self.config.get('exposure_time', 1000)
         self.serial_number = None
+        self.interval = None
+        self._exposure_time = None
+
         self.spectrometer = None
         self.model = None
         self.pixels_number = None
 
         self.spectra = None
         self.is_saturating = None
-
-        self.interval = self.config.get('interval', 1)
-
-        self._exposure_time = None
 
     def open(self):
         '''
@@ -77,8 +79,12 @@ class OceanOpticsSpectrometer(Service):
             If the spectrometer cannot be found.
         '''
 
-        # Find the spectrometer
         self.serial_number = str(self.config['serial_number'])
+        self.interval = self.config.get('interval', 1)
+        self._exposure_time = self.config.get('exposure_time', 1000)
+
+        # Find the spectrometer
+        
         try:
             self.spectrometer = Spectrometer.from_serial_number(self.serial_number)
         except SeaBreezeError:
@@ -89,7 +95,6 @@ class OceanOpticsSpectrometer(Service):
         self.pixels_number = self.spectrometer.pixels
 
         # Define and set defaut exposure time
-        self._exposure_time = self.config.get('exposure_time', 1000)
         self.exposure_time = self._exposure_time
 
         # Create datastreams
