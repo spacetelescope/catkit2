@@ -1,0 +1,22 @@
+simulator:
+  service_type: simple_simulator
+  requires_safety: false
+
+example_camera:
+  service_type: allied_vision_camera
+  simulated_service_type: camera_sim
+  interface: camera
+  requires_safety: false
+
+  camera_id: "DEV_1AB22C04845E"
+  device_name: AV Alvium 1800 U-158m
+
+  offset_x: 0
+  offset_y: 0
+  width: 400
+  height: 400
+  sensor_width: 1456
+  sensor_height: 1088
+  exposure_time: 200
+  gain: 0
+  flux: 100000000
