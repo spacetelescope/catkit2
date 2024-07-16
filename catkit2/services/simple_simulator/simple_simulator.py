@@ -20,7 +20,7 @@ class SimpleSimulator(Simulator):
 
         self.images = self.make_data_stream('images', 'float64', self.model.focal_grid.shape, 20)
 
-        self.update_atmosphere()
+        self.update_atmosphere
 
     def actuate_dm(self, at_time, dm_name, new_actuators):
         def callback():
