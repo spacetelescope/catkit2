@@ -42,6 +42,6 @@ dependencies:
   - pip:
     - dcps
     - zwoasi>=0.0.21
-    - git+https://github.com/alliedvision/VmbPy.git@v1.0.4
+    - git+https://github.com/alliedvision/VimbaPython.git@v1.2.1
     - qtvscodestyle
     - qdarkstyle
