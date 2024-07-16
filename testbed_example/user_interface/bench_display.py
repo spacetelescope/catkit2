@@ -217,6 +217,3 @@ class BenchDisplay(QtGui.QWidget):
             pos = button.relative_position
             button.move(pos[0] * self.schematic_size.width() * scaling, pos[1] * self.schematic_size.height() * scaling)
             button.resize(scaling * 70, scaling * 70)
-
-
-

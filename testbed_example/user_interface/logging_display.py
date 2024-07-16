@@ -250,6 +250,7 @@ class LoggingDisplay(QtGui.QWidget):
         if i >= 0:
             self.threshold_dropdown.setCurrentIndex(i)
 
+
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api=os.environ['PYQTGRAPH_QT_LIB']))

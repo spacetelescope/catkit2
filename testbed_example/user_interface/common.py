@@ -82,6 +82,7 @@ class Toggle(QtWidgets.QCheckBox):
         self._handle_position = pos
         self.update()
 
+
 if __name__ == '__main__':
     import qtvscodestyle as qtvsc
     from qtvscodestyle.base import _load_stylesheet, _RESOURCES_BASE_DIR
