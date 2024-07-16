@@ -55,6 +55,7 @@ class SimpleSimulator(Simulator):
         wavefronts = self.model.get_wavefronts(camera_name)
         return sum(wf.power for wf in wavefronts)
 
+
 if __name__ == '__main__':
     service = SimpleSimulator()
     service.run()

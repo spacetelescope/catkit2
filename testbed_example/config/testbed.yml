@@ -3,9 +3,9 @@ simulator:
   service_id: simple_simulator
 startup_services: []
 base_data_path:
-  default: !path "~/example_data"
+  default: !path "~/catkit2_example_data"
 support_data_path:
-  default: !path "~/example_support_data"
+  default: !path "~/catkit2_example_support_data"
 
 base_experiment_path: "{simulator_or_hardware}/{date_and_time}_{experiment_name}/"
 sub_experiment_path: "{experiment_id:03d}_{experiment_name}/"

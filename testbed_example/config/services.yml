@@ -19,4 +19,3 @@ science_camera:
   sensor_height: 1088
   exposure_time: 200
   gain: 0
-  flux: 100000000

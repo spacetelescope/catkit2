@@ -8,7 +8,7 @@ Usage:
   catkit --version
 
 Options:
-  -p, --port PORT_ID         The port number on which the testbed server operates.
+  -p, --port PORT_ID      The port number on which the testbed server operates.
                           Defaults to the port specified in the config file.
   --simulated             Whether the testbed server should be run in simulated mode or not.
   -c, --config_path PATH  A path were additional config files can be found. By default,
