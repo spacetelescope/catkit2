@@ -5,7 +5,6 @@ import yaml
 from xml.dom import minidom
 
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets, QtSvg
-import numpy as np
 
 from .camera_viewer import CameraViewer
 

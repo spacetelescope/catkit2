@@ -1,5 +1,4 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
-import numpy as np
 
 
 class Toggle(QtWidgets.QCheckBox):
@@ -92,8 +91,6 @@ if __name__ == '__main__':
             super().__init__()
 
             toggle = Toggle()
-
-            toggle.clicked.connect(randomize_status)
 
             container = QtWidgets.QWidget()
             layout = QtWidgets.QHBoxLayout()
