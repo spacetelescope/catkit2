@@ -22,7 +22,7 @@ class MainWindow(QtGui.QMainWindow):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.setWindowIcon(QtGui.QIcon(os.path.join(script_dir, 'assets', 'icon.jpg')))
         # Set window title and size.
-        self.setWindowTitle(u'THD2 \u2013 Overview')
+        self.setWindowTitle(u'Testbed \u2013 Overview')
         self.resize(1350, 900)
 
         # Create and set central widget.

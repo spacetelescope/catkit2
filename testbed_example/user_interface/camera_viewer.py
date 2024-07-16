@@ -27,7 +27,7 @@ class CameraViewer(QtGui.QMainWindow):
         self.grid = hcipy.make_uniform_grid((self.camera.width, self.camera.height), (self.camera.width, self.camera.height))
         self.last_frame_count = -1
 
-        self.setWindowTitle(f'THD2 \u2013 Camera Viewer \u2013 {camera.id}')
+        self.setWindowTitle(f'Testbed \u2013 Camera Viewer \u2013 {camera.id}')
         self.resize(800, 700)
 
         widget_inner = QtGui.QSplitter(self)
