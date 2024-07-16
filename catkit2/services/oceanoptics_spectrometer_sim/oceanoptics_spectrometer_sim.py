@@ -18,10 +18,10 @@ class OceanOpticsSpectrometerSim(Service):
         The spectrometer to control.
     serial_number : str
         The serial number of the spectrometer.
-    model : str
-        The model of the spectrometer.
     pixels_number : int
-        number of pix in the spectrum.
+        Number of pixels in the spectrum.
+    interval : float
+        The interval between spectrum acquisitions in seconds.
     spectra : DataStream
         A data stream to submit spectra from the spectrometer.
     is_saturating : DataStream
@@ -48,8 +48,10 @@ class OceanOpticsSpectrometerSim(Service):
         '''
         super().__init__('oceanoptics_spectrometer_sim')
 
+        self.serial_number = str(self.config['serial_number'])
         self.interval = self.config.get('interval', 1)
         self._exposure_time = self.config.get('exposure_time', 1000)
+
 
         self.pixels_number = 3000
 
@@ -95,31 +97,30 @@ class OceanOpticsSpectrometerSim(Service):
         This function is called when the service is started.
         '''
         while not self.should_shut_down:
-            intensities = self.take_one_spectrum()
+            intensities = self.take_one_spectrum(self.pixels_number)
+            self.is_saturating.submit_data(np.array([0], dtype='int8'))
             self.spectra.submit_data(np.array(intensities, dtype='float32'))
             self.sleep(self.interval)
 
     def take_one_spectrum(self):
         '''
-        Measure one spectrum and submit it to the data stream.
+        Measure and return one spectrum.
+        Simulated service: random numpy array.
         '''
-        intensities = np.random.random(self.pixels_number) + 1000
-
-        self.is_saturating.submit_data(np.array([0], dtype='int8'))
-
-        return intensities
+        return np.random.random(self.pixels_number)
 
     @property
     def wavelengths(self):
         '''
-        The wavelengths of the spectrometer.
+        The wavelengths of the spectrometer in nm.
+        Simulated service: linear vector evenly spaced bewtween 350 and 1000 nm.
 
         Returns:
         --------
         ndarray of float:
             wavelengths of the spectrometer.
         '''
-        return np.linspace(350, 1000, num = self.pixels_number)
+        return np.linspace(350, 1000, num=self.pixels_number)
 
     @property
     def exposure_time(self):
@@ -137,10 +138,6 @@ class OceanOpticsSpectrometerSim(Service):
     def exposure_time(self, exposure_time: int):
         '''
         Set the exposure time in microseconds.
-
-        This property can be used to set the exposure time of the spectrometer.
-        if exposure_time < min allowed exp time: exposure_time =  min allowed exp time
-        if exposure_time > max allowed exp time: exposure_time =  max allowed exp time
 
         Parameters
         ----------

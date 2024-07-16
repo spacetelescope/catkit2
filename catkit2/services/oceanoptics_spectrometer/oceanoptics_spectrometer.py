@@ -26,6 +26,8 @@ class OceanOpticsSpectrometer(Service):
         The model of the spectrometer.
     pixels_number : int
         number of pixels in the spectrum.
+    interval : float
+        The interval between spectrum acquisitions in seconds.
     spectra : DataStream
         A data stream to submit spectra from the spectrometer.
     is_saturating : DataStream
@@ -111,25 +113,24 @@ class OceanOpticsSpectrometer(Service):
         while not self.should_shut_down:
             intensities = self.take_one_spectrum()
             self.spectra.submit_data(np.array(intensities, dtype='float32'))
+
+            if np.max(intensities) == self.spectrometer.max_intensity:
+                self.is_saturating.submit_data(np.array([1], dtype='int8'))
+            else:
+                self.is_saturating.submit_data(np.array([0], dtype='int8'))
+
             self.sleep(self.interval)
 
     def take_one_spectrum(self):
         '''
-        Measure one spectrum and submit it to the data stream.
+        Measure and return one spectrum.
         '''
-        intensities = self.spectrometer.intensities()
-
-        if np.max(intensities) ==  self.spectrometer.max_intensity:
-            self.is_saturating.submit_data(np.array([1], dtype='int8'))
-        else:
-            self.is_saturating.submit_data(np.array([0], dtype='int8'))
-
-        return intensities
+        return self.spectrometer.intensities()
 
     @property
     def wavelengths(self):
         '''
-        The wavelengths of the spectrometer.
+        The wavelengths of the spectrometer in nm.
 
         Returns:
         --------
@@ -155,14 +156,17 @@ class OceanOpticsSpectrometer(Service):
         '''
         Set the exposure time in microseconds.
 
-        if exposure_time < min allowed exp time: exposure_time =  min allowed exp time
-        if exposure_time > max allowed exp time: exposure_time =  max allowed exp time
+        This property can be used to set the exposure time of the spectrometer.
+
+        If exposure_time parameter is inferior to the minimum allowed exposure time for this
+        spectrometer (set by ocean optics), it is set to the minimum allowed exposure time.
+        If exposure_time is larger to the maximum allowed exposure time, it is set to the
+        minimum allowed exposure time.
 
         Parameters
         ----------
         exposure_time : int
             The exposure time in microseconds.
-
         '''
         int_time_range = self.spectrometer.integration_time_micros_limits
         if exposure_time < int_time_range[0]:
