@@ -37,8 +37,11 @@ dependencies:
   - conda-forge::sphinx_rtd_theme
   - networkx
   - pytest
+  - pyqtgraph
   - flake8
   - pip:
     - dcps
     - zwoasi>=0.0.21
     - git+https://github.com/alliedvision/VimbaPython.git@v1.2.1
+    - qtvscodestyle
+    - qdarkstyle

@@ -16,12 +16,12 @@ Options:
   -h, --help              Show this help message and exit.
   --version               Show version and exit.
 '''
-# import sys
+import sys
 
 from docopt import docopt
 from catkit2.testbed.testbed import Testbed
 
-# from .user_interface.main_window import start_user_interface
+from .user_interface.main_window import start_user_interface
 from . import config
 
 def get_port(arguments, config):
@@ -41,8 +41,6 @@ def main():
     if arguments['start']:
         configuration = config.read_config(arguments['--config_path'])
         port = get_port(arguments, configuration)
-        print(type(port))
-        print(port)
 
         if arguments['server']:
             print(f'Starting the example testbed on port {port}...')
@@ -50,6 +48,6 @@ def main():
 
             print('Use Ctrl-C to terminate the server and close all modules.')
             server.run()
-        # elif arguments['gui']:
-        #     print(f'Starting the example GUI on port {port}...')
-        #     sys.exit(start_user_interface(port))
+        elif arguments['gui']:
+            print(f'Starting the example GUI on port {port}...')
+            sys.exit(start_user_interface(port))

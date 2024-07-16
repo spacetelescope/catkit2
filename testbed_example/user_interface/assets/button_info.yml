@@ -1,0 +1,5 @@
+- id: C1
+  icon: camera
+  opens: camera_viewer
+  device_name: science_camera
+  tooltip: Science camera
