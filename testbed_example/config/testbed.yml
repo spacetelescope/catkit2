@@ -2,7 +2,7 @@ default_port: 1234
 simulator:
   service_id: simple_simulator
 startup_services:
-  - example_camera
+  - science_camera
 base_data_path:
   default: !path "~/example_data"
 support_data_path:

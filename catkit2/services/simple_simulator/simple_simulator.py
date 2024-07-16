@@ -37,7 +37,7 @@ class SimpleSimulator(Simulator):
         self.model.atmosphere.t = t
         self.model.purge_plane('pre_coro')
 
-        self.add_callback(t + 0.01, self.update_atmosphere)
+        self.add_callback(self.update_atmosphere, t + 0.01)
 
     def camera_readout(self, camera_name, power):
         image = power.shaped
@@ -50,6 +50,10 @@ class SimpleSimulator(Simulator):
             self.testbed.science_camera.images.submit_data(image)
         except Exception as e:
             self.log.error(str(e))
+
+    def get_camera_power(self, camera_name):
+        wavefronts = self.model.get_wavefronts(camera_name)
+        return sum(wf.power for wf in wavefronts)
 
 if __name__ == '__main__':
     service = SimpleSimulator()

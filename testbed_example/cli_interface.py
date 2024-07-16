@@ -37,7 +37,6 @@ def get_port(arguments, config):
 
 def main():
     arguments = docopt(__doc__, version='0.1')
-    print(arguments)
 
     if arguments['start']:
         configuration = config.read_config(arguments['--config_path'])
