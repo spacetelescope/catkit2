@@ -152,6 +152,7 @@ class BenchDisplay(QtGui.QWidget):
 
     def make_context_menu(self):
         # self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        #
         # self.poking_action = QtWidgets.QAction('&Poking action', self)
         # self.poking_action.triggered.connect(self.open_poking_viewer)
         # self.addAction(self.poking_action)
