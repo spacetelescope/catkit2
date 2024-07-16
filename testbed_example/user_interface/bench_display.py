@@ -152,27 +152,9 @@ class BenchDisplay(QtGui.QWidget):
 
     def make_context_menu(self):
         # self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        #
-        # self.efc_controller_action = QtWidgets.QAction('&EFC controller', self)
-        # self.broadband_efc_controller_action = QtWidgets.QAction('&Broadband EFC controller', self)
-        # self.dotf_action = QtWidgets.QAction('&dOTF', self)
         # self.poking_action = QtWidgets.QAction('&Poking action', self)
-        # self.apply_bostons_flat_maps_action = QtWidgets.QAction('&Apply Bostons flat maps', self)
-        # self.drift_action = QtWidgets.QAction('&Drift viewer', self)
-        #
-        # self.efc_controller_action.triggered.connect(self.open_high_order_control_viewer)
-        # self.broadband_efc_controller_action.triggered.connect(self.open_broadband_high_order_control_viewer)
-        # self.dotf_action.triggered.connect(self.open_dotf_viewer)
         # self.poking_action.triggered.connect(self.open_poking_viewer)
-        # self.apply_bostons_flat_maps_action.triggered.connect(self.send_bostons_flat_maps_command)
-        # self.drift_action.triggered.connect(self.open_drift_viewer)
-        #
-        # self.addAction(self.efc_controller_action)
-        # self.addAction(self.broadband_efc_controller_action)
-        # self.addAction(self.dotf_action)
         # self.addAction(self.poking_action)
-        # self.addAction(self.apply_bostons_flat_maps_action)
-        # self.addAction(self.drift_action)
 
         pass
 
