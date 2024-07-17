@@ -27,7 +27,7 @@ class SimpleSimulator(Simulator):
             self.model.dm.actuators = new_actuators
             self.model.purge_plane('pre_turbulence')
 
-        self.add_callback(at_time, callback)
+        self.add_callback(callback, at_time)
 
     def update_atmosphere(self):
         self.log.info('Updating atmosphere.')
