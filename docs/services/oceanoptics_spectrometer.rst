@@ -1,5 +1,5 @@
 Ocean Optics Spectrometer
-====================
+=========================
 
 This service controls an Ocean Optics Spectrometer. It is a wrapper around the python-seabreeze package.
 The python-seabreeze package needs to be installed first, and the page also explain how to install the
@@ -19,8 +19,8 @@ Configuration
   spectrometer:
     service_type: oceanoptics_spectrometer
     simulated_service_type: oceanoptics_spectrometer_sim
-    requires_safety: false
     interface: oceanoptics_spectrometer
+    requires_safety: false
 
     serial_number: USB4C01580 # Serial number of the spectrometer.
     exposure_time: 1000       # Exposure time of the spectrometer in microseconds.
@@ -39,4 +39,4 @@ Datastreams
 -----------
 ``spectra``: Spectra acquired by the camera.
 
-``is_saturating``: If the intensity as reach the maximum value of the spectrometer.
+``is_saturating``: If the intensity as reached the maximum value of the spectrometer.

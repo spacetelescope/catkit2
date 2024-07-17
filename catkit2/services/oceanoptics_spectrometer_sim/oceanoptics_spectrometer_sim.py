@@ -7,10 +7,7 @@ from catkit2.testbed.service import Service
 
 class OceanOpticsSpectrometerSim(Service):
     '''
-    Service for Ocean Optics Spectrometer.
-
-    This service is a wrapper around the python seabreeze package.
-    It provides a simple interface to control the spectrometer and acquire spectra.
+    Service for simulated Ocean Optics Spectrometer.
 
     Attributes
     ----------
@@ -98,8 +95,9 @@ class OceanOpticsSpectrometerSim(Service):
         '''
         while not self.should_shut_down:
             intensities = self.take_one_spectrum(self.pixels_number)
-            self.is_saturating.submit_data(np.array([0], dtype='int8'))
             self.spectra.submit_data(np.array(intensities, dtype='float32'))
+            self.is_saturating.submit_data(np.array([0], dtype='int8'))
+
             self.sleep(self.interval)
 
     def take_one_spectrum(self):
@@ -107,7 +105,7 @@ class OceanOpticsSpectrometerSim(Service):
         Measure and return one spectrum.
         Simulated service: random numpy array.
         '''
-        return np.random.random(self.pixels_number)
+        return np.random.random(self.pixels_number) + 1000
 
     @property
     def wavelengths(self):
@@ -143,7 +141,6 @@ class OceanOpticsSpectrometerSim(Service):
         ----------
         exposure_time : int
             The exposure time in microseconds.
-
         '''
         self._exposure_time = exposure_time
 

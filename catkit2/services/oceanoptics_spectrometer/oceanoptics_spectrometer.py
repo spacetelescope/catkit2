@@ -158,10 +158,10 @@ class OceanOpticsSpectrometer(Service):
 
         This property can be used to set the exposure time of the spectrometer.
 
-        If exposure_time parameter is inferior to the minimum allowed exposure time for this
-        spectrometer (set by ocean optics), it is set to the minimum allowed exposure time.
-        If exposure_time is larger to the maximum allowed exposure time, it is set to the
-        minimum allowed exposure time.
+        If the `exposure_time` parameter is inferior to the minimum allowed exposure time for this
+        spectrometer (set by Ocean Optics), it is set to the minimum allowed exposure time.
+        If the `exposure_time` is larger than the maximum allowed exposure time, it is set to the
+        maximum allowed exposure time.
 
         Parameters
         ----------
