@@ -16,6 +16,7 @@ dependencies:
   - conda-forge::pyvisa>=1.10
   - conda-forge::pyvisa-py
   - conda-forge::nidaqmx-python
+  - conda-forge::seabreeze
   - pyserial
   - pysnmp
   - requests
