@@ -1,5 +1,5 @@
 simulator:
-  service_type: simple_simulator
+  service_type: example_simulator
   requires_safety: false
 
 detector:

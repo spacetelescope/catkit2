@@ -1,6 +1,6 @@
 default_port: 1234
 simulator:
-  service_id: simple_simulator
+  service_id: example_simulator
 startup_services: []
 base_data_path:
   default: !path "~/catkit2_example_data"
