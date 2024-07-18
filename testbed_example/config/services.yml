@@ -2,7 +2,7 @@ simulator:
   service_type: simple_simulator
   requires_safety: false
 
-science_camera:
+detector:
   service_type: allied_vision_camera
   simulated_service_type: camera_sim
   interface: camera
