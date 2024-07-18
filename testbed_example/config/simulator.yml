@@ -1,0 +1,7 @@
+pupil_mask:
+  diameter: 1
+  grid_size: 1.1
+
+detector:
+  pixel_size: 6.5e-6
+  roi: 400
