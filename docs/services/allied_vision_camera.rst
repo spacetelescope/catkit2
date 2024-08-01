@@ -10,6 +10,11 @@ driver through that interface.
 Vimba X SDK: `https://www.alliedvision.com/en/products/software/ <https://www.alliedvision.com/en/products/software/>`_
 ``VmbPy`` Python API: `https://github.com/alliedvision/VmbPy <https://github.com/alliedvision/VmbPy>`_
 
+.. note::
+   The current catkit2 environment file installs the legacy VimbaPython package instead of the required VmbPy package.
+   This is because the VmbPy package is not available on any conda channel or PyPI. To install the VmbPy package, you
+   need to install it from source as described under the link above.
+
 The service has been successfully tested with the following camera models:
 
 - Alvium 1800 U-158m
