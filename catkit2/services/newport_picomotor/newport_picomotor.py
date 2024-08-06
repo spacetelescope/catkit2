@@ -72,7 +72,7 @@ class NewportPicomotor(Service):
         self.log.info(f'Done. Position is now {position_after}.')
 
         if position_after != position:
-            raise RuntimeError('Newport picomotor failed to move to {position}; currently at {position_after}. Try increasing sleep_per_step.')
+            raise RuntimeError(f'Newport picomotor failed to move axis {axis_name} to {position}; currently at {position_after}. Try increasing sleep_per_step.')
 
     def get_current_position(self, axis_name):
         axis = self.axes[axis_name]
