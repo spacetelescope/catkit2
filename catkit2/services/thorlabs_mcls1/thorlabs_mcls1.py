@@ -54,13 +54,12 @@ class MCLS1(Service):
 
     def open(self):
         # Make datastreams
-        self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
-        self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
-        self.external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
-
-        self.emission = self.make_data_stream('emission', 'float32', [1], 20)
-        self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
         self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
+        self.emission = self.make_data_stream('enable', 'uint8', [1], 1)
+        self.channel = self.make_data_stream('channel', 'uint8', [1], 20)
+        self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
+        self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
+        self.power = self.make_data_stream('power', 'float32', [1], 20)
 
         self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
 
