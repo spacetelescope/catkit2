@@ -64,8 +64,66 @@ class MCLS1(Service):
         self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
 
         self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
-        self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
         self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
+        self.channel.submit_data(np.array([self.config['channel']], dtype='float32'))
+
+        response_buffer = ctypes.create_string_buffer(self.BUFFER_SIZE)
+        self.instrument_lib.fnUART_LIBRARY_list(response_buffer, self.BUFFER_SIZE)
+        response_buffer = response_buffer.value.decode()
+        split = response_buffer.split(",")
+        for i, thing in enumerate(split):
+            # The list has a format of "Port, Device, Port, Device". Once we find device named VCPO, minus 1 for port.
+            if self.device_id in thing:
+                self.port = split[i - 1]
+
+        self.instrument_handle = self.instrument_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
+
+        funcs = {
+            'emission': self.monitor_func(self.emission, self.create_setter(MCLS1_COM.SET_ENABLE)),
+            'current_setpoint': self.monitor_func(self.current_setpoint, self.create_setter(MCLS1_COM.SET_CURRENT)),
+            'channel': self.monitor_func(self.channel, self.create_setter(MCLS1_COM.SET_CHANNEL)),
+            'target_temperature': self.monitor_func(self.target_temperature,
+                                                    self.create_setter(MCLS1_COM.SET_TARGET_TEMP)),
+        }
+
+        # Start all threads.
+        for key, func in funcs.items():
+            thread = threading.Thread(target=func)
+            thread.start()
+
+            self.threads[key] = thread
+
+    def main(self):
+        while not self.should_shut_down:
+            self.sleep(1)
+
+    def close(self):
+        # Turn off the source
+        self.set_emission(0)
+
+        # Join all threads.
+        for thread in self.threads.values():
+            thread.join()
+
+    def create_setter(self, command):
+        command_prefix = f"{command.value}"
+        def setter(value):
+            command_str = command_prefix + f"{value}{MCLS1_COM.TERM_CHAR.value}"
+            self.instrument_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
+
+        return setter
+
+    def create_getter(self, command):
+        command_prefix = f"{command.value}"
+
+        def getter():
+            command_str = command.value + MCLS1_COM.TERM_CHAR.value
+            response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
+            self.instrument_lib.fnUART_LIBRARY_Get(self.instrument_handle, command.encode(), response_buffer)
+            response_buffer = response_buffer.value
+            return response_buffer.rstrip(b"\x00").decode()
+
+        return getter
 
     def monitor_func(self, stream, setter):
         def func():
