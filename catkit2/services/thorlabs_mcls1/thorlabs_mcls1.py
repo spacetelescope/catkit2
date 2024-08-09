@@ -16,7 +16,11 @@ try:
 except ImportError as error:
     raise error
 
-class MCLS1_com(Enum):
+
+class MCLS1_COM(Enum):
+    BUFFER_SIZE = 255
+    BAUD_RATE = 115200
+
     TERM_CHAR = "\r"
     GET_CURRENT = "current?"  # float (mA)
     SET_CURRENT = "current="
