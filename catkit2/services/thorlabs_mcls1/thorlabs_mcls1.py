@@ -67,8 +67,8 @@ class MCLS1(Service):
         self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
         self.channel.submit_data(np.array([self.config['channel']], dtype='float32'))
 
-        response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE)
-        self.instrument_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE)
+        response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
+        self.instrument_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
         response_buffer = response_buffer.value.decode()
         split = response_buffer.split(",")
         for i, thing in enumerate(split):
