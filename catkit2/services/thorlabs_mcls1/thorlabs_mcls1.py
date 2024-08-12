@@ -102,6 +102,10 @@ class ThorlabsMcls1(Service):
 
             self.threads[key] = thread
 
+        thread = threading.Thread(target=self.update_status)
+        thread.start()
+        self.threads['status'] = thread
+
     def main(self):
         while not self.should_shut_down:
             self.sleep(1)
