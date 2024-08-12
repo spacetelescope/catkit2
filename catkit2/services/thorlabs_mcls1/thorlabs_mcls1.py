@@ -56,7 +56,7 @@ class ThorlabsMcls1(Service):
     def open(self):
         # Make datastreams
         self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
-        self.emission = self.make_data_stream('emission', 'uint8', [1], 1)
+        self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
         self.power = self.make_data_stream('power', 'float32', [1], 20)
