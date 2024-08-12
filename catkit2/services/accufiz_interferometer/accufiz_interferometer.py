@@ -103,10 +103,3 @@ class Accufiz(Service):
         self.images.submit_data(image0)
 
         return maskinh5, image0
-
-    def __get_mask_path(self, mask):
-        calibration_data_package = self.calibration_data_package
-        calibration_data_path = os.path.join(catkit.util.find_package_location(calibration_data_package),
-                                             "hardware",
-                                             "FourDTechnology")
-        return os.path.join(calibration_data_path, mask)
