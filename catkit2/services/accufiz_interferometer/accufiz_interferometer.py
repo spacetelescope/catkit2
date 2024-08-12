@@ -37,8 +37,6 @@ class Accufiz(Service):
         self.detector_masks = self.make_data_stream('detector_masks', 'float32', [self.image_height, self.image_width], self.NUM_FRAMES_IN_BUFFER)
         self.images = self.make_data_stream('images', 'float32', [self.image_height, self.image_width], self.NUM_FRAMES_IN_BUFFER)
 
-    instrument_lib = requests
-
     def open(self):
         # Set the Mask. This mask has to be local to the 4D computer in this directory.
         filemask = os.path.join("c:\\4Sight_masks", self.mask)
@@ -49,19 +47,6 @@ class Accufiz(Service):
         requests.post(set_mask_string, data=parammask)
 
         return True
-
-    def get(self, url, params=None, **kwargs):
-        resp = self.instrument_lib.get(url, params=params, **kwargs)
-        if resp.status_code != 200:
-            raise RuntimeError(f"{self.config_id} GET error: {resp.status_code}: {resp.text}")
-        return resp
-
-    def post(self, url, data=None, json=None, **kwargs):
-        resp = self.instrument_lib.post(url, data=data, json=json, **kwargs)
-        if resp.status_code != 200:
-            raise RuntimeError(f"{self.config_id} POST error: {resp.status_code}: {resp.text}")
-        time.sleep(self.post_save_sleep)
-        return resp
 
     def take_measurement(self, num_frames=2):
         # Send request to take data.
