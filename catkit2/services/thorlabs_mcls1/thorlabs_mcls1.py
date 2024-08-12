@@ -66,7 +66,7 @@ class ThorlabsMcls1(Service):
         self.channel.submit_data(np.array([self.config['channel']], dtype='uint8'))
 
         response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-        self.instrument_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
+        UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
         response_buffer = response_buffer.value.decode()
         split = response_buffer.split(",")
         for i, thing in enumerate(split):
@@ -74,7 +74,14 @@ class ThorlabsMcls1(Service):
             if self.device_id in thing:
                 self.port = split[i - 1]
 
-        self.instrument_handle = self.instrument_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
+        self.instrument_handle = UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
+
+        self.setters = {
+            'emission': self.create_setter(MCLS1_COM.SET_ENABLE),
+            'current_setpoint': self.create_setter(MCLS1_COM.SET_CURRENT),
+            'channel': self.create_setter(MCLS1_COM.SET_CHANNEL),
+            'target_temperature': self.create_setter(MCLS1_COM.SET_TARGET_TEMP),
+        }
 
         funcs = {
             'emission': self.monitor_func(self.emission, self.create_setter(MCLS1_COM.SET_ENABLE)),
@@ -107,7 +114,7 @@ class ThorlabsMcls1(Service):
         command_prefix = f"{command.value}"
         def setter(value):
             command_str = command_prefix + f"{value}{MCLS1_COM.TERM_CHAR.value}"
-            self.instrument_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
+            UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
 
         return setter
 
@@ -117,7 +124,7 @@ class ThorlabsMcls1(Service):
         def getter():
             command_str = command.value + MCLS1_COM.TERM_CHAR.value
             response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-            self.instrument_lib.fnUART_LIBRARY_Get(self.instrument_handle, command.encode(), response_buffer)
+            UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command.encode(), response_buffer)
             response_buffer = response_buffer.value
             return response_buffer.rstrip(b"\x00").decode()
 
