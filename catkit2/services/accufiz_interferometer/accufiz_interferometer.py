@@ -7,9 +7,6 @@ import numpy as np
 from glob import glob
 from catkit2.testbed.service import Service
 
-LOCAL_PATH = ""
-SERVER_PATH = ""
-
 
 class Accufiz(Service):
     NUM_FRAMES_IN_BUFFER = 20
@@ -17,17 +14,22 @@ class Accufiz(Service):
     def __init__(self):
         super().__init__('accufiz_interferometer')
 
-        self.ip = self.config.get('ip_address', 0)
+        self.ip = self.config['ip_address']
+        self.calibration_data_package = self.config['calibration_data_package']
+        self.mask = self.config['mask']
+        self.server_path = self.config['server_path']
+        self.local_path = self.config['local_path']
+
         self.timeout = self.config.get('timeout', 60)
-        self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
-        self.mask = self.config.get('mask', "dm2_detector.mask")
         self.post_save_sleep = self.config.get('post_save_sleep', 1)
+
         self.file_mode = self.config.get('file_mode', True)
-        self.calibration_data_package = self.config.get('calibration_data_package', "")
+
         self.image_height = self.config.get('height', 509)
         self.image_width = self.config.get('width', 509)
 
         # Set the 4D timeout.
+        self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
         set_timeout_string = f"{self.html_prefix}/SetTimeout?timeOut={self.timeout}"
         self.get(set_timeout_string)
 
