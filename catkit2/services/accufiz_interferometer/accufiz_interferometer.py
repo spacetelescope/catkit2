@@ -38,16 +38,6 @@ class Accufiz(Service):
     instrument_lib = requests
 
     def open(self):
-        """
-        :param ip: str, IP of 4D machine.
-        :param local_path: str, The local path accessible from Python.
-        :param server_path: str, The path accessible from the 4D server.
-        :param: timeout: int, Timeout for communicating with 4D (seconds).
-        :param mask: str, ?
-        :param post_save_sleep: int, float, Seconds to sleep between saving and checking for success.
-        :param file_mode: bool, whether to save images to disk.
-        """
-
         # Set the Mask. This mask has to be local to the 4D computer in this directory.
         filemask = os.path.join("c:\\4Sight_masks", self.mask)
         typeofmask = "Detector"
@@ -56,7 +46,7 @@ class Accufiz(Service):
 
         requests.post(set_mask_string, data=parammask)
 
-        return True  # We're "open".
+        return True
 
     def get(self, url, params=None, **kwargs):
         resp = self.instrument_lib.get(url, params=params, **kwargs)
@@ -71,8 +61,7 @@ class Accufiz(Service):
         time.sleep(self.post_save_sleep)
         return resp
 
-    def take_measurement(self, num_frames=2, filepath=None, rotate=0, fliplr=False, exposure_set=""):
-
+    def take_measurement(self, num_frames=2):
         # Send request to take data.
         resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(num_frames)})
         if "success" not in resp.text:
