@@ -83,6 +83,11 @@ class ThorlabsMcls1(Service):
             'target_temperature': self.create_setter(MCLS1_COM.SET_TARGET_TEMP),
         }
 
+        self.status_funcs = {
+            'temperature': (self.temperature, self.create_getter(MCLS1_COM.GET_TEMP)),
+            'power': (self.power, self.create_getter(MCLS1_COM.GET_POWER))
+        }
+
         funcs = {
             'emission': self.monitor_func(self.emission, self.setters['emission']),
             'current_setpoint': self.monitor_func(self.current_setpoint, self.setters['current_setpoint']),
