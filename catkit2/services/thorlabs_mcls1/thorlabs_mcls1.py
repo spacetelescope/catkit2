@@ -118,6 +118,8 @@ class ThorlabsMcls1(Service):
         for thread in self.threads.values():
             thread.join()
 
+        UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
+
     def create_setter(self, command):
         command_prefix = f"{command.value}"
         def setter(value):
