@@ -1,7 +1,7 @@
 import os
 import h5py
+import time
 import requests
-import shutil
 import uuid
 import numpy as np
 from glob import glob
