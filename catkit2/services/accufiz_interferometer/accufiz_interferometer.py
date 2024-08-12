@@ -68,7 +68,7 @@ class Accufiz(Service):
         resp = self.instrument_lib.post(url, data=data, json=json, **kwargs)
         if resp.status_code != 200:
             raise RuntimeError(f"{self.config_id} POST error: {resp.status_code}: {resp.text}")
-        catkit.util.sleep(self.post_save_sleep)
+        time.sleep(self.post_save_sleep)
         return resp
 
     def take_measurement(self, num_frames=2, filepath=None, rotate=0, fliplr=False, exposure_set=""):
