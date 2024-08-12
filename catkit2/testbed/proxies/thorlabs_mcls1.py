@@ -1,7 +1,7 @@
 from ..service_proxy import ServiceProxy
 
 @ServiceProxy.register_service_interface('thorlabs_mcls1')
-class ThorlabsMCLS1(ServiceProxy):
+class ThorlabsMcls1(ServiceProxy):
     @property
     def center_wavelength(self):
         pass
