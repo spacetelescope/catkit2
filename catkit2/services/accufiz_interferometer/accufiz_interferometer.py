@@ -10,6 +10,7 @@ from catkit2.testbed.service import Service
 LOCAL_PATH = ""
 SERVER_PATH = ""
 
+
 class Accufiz(Service):
     NUM_FRAMES_IN_BUFFER = 20
 
@@ -23,14 +24,16 @@ class Accufiz(Service):
         self.post_save_sleep = self.config.get('post_save_sleep', 1)
         self.file_mode = self.config.get('file_mode', True)
         self.calibration_data_package = self.config.get('calibration_data_package', "")
+        self.image_height = self.config.get('height', 509)
+        self.image_width = self.config.get('width', 509)
 
         # Set the 4D timeout.
         set_timeout_string = f"{self.html_prefix}/SetTimeout?timeOut={self.timeout}"
         self.get(set_timeout_string)
 
-        # TODO add create data streams
-        self.detector_masks = self.make_data_stream('detector_masks', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
-        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
+        # Create data streams.
+        self.detector_masks = self.make_data_stream('detector_masks', 'float32', [self.image_height, self.image_width], self.NUM_FRAMES_IN_BUFFER)
+        self.images = self.make_data_stream('images', 'float32', [self.image_height, self.image_width], self.NUM_FRAMES_IN_BUFFER)
 
     instrument_lib = requests
 
