@@ -118,7 +118,6 @@ class ThorlabsMcls1(Service):
         return setter
 
     def create_getter(self, command):
-        command_prefix = f"{command.value}"
 
         def getter():
             command_str = command.value + MCLS1_COM.TERM_CHAR.value
