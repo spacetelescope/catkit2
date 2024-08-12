@@ -4,6 +4,7 @@ from catkit2.testbed.service import Service
 
 import os
 import ctypes
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import threading
@@ -77,6 +78,9 @@ class ThorlabsMcls1(Service):
 
         self.instrument_handle = UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
+        # Create a pool with a single worker to perform communication with the device.
+        self.pool = ThreadPoolExecutor(max_workers=1)
+
         self.setters = {
             'emission': self.create_setter(MCLS1_COM.SET_ENABLE),
             'current_setpoint': self.create_setter(MCLS1_COM.SET_CURRENT),
@@ -117,7 +121,9 @@ class ThorlabsMcls1(Service):
         for thread in self.threads.values():
             thread.join()
 
+        self.pool.shutdown()
         UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
+
 
     def create_setter(self, command):
         command_prefix = f"{command.value}"
@@ -144,8 +150,8 @@ class ThorlabsMcls1(Service):
                     frame = stream.get_next_frame(1)
                 except Exception:
                     continue
-
-                setter(frame.data[0])
+                future = self.pool.submit(setter, frame.data[0])
+                result = future.result()
 
         return func
 
@@ -153,9 +159,11 @@ class ThorlabsMcls1(Service):
         while not self.should_shut_down:
 
             for stream, getter in self.status_funcs.values():
-                new_data = getter()
+                future = self.pool.submit(getter)
+                result, value = future.result()
+
                 try:
-                    stream.submit_data(np.array([new_data]).astype(stream.dtype))
+                    stream.submit_data(np.array([value]).astype(stream.dtype))
                 except Exception as e:
                     print(e)
             time.sleep(1)
