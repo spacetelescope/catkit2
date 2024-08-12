@@ -71,7 +71,7 @@ class ThorlabsMcls1(Service):
         split = response_buffer.split(",")
         for i, thing in enumerate(split):
             # The list has a format of "Port, Device, Port, Device". Once we find device named VCPO, minus 1 for port.
-            if self.device_id in thing:
+            if 'VCPO' in thing:
                 self.port = split[i - 1]
 
         self.instrument_handle = UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
