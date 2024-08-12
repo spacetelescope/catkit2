@@ -74,6 +74,9 @@ class ThorlabsMcls1(Service):
             # The list has a format of "Port, Device, Port, Device". Once we find device named VCPO, minus 1 for port.
             if 'VCP0' in thing:
                 self.port = split[i - 1]
+                break
+        else:
+            raise Exception('Device VCP0 not found')
 
         self.instrument_handle = UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
