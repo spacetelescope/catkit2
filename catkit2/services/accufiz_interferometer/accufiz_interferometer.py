@@ -88,7 +88,7 @@ class Accufiz(Service):
         maskinh5 = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('Detectormask'))
         image0 = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * maskinh5
 
-        self.detector_masks.submit_data(maskinh5)
-        self.images.submit_data(image0)
+        self.detector_masks.submit_data(maskinh5, dtype='float32')
+        self.images.submit_data(image0, dtype='float32')
 
         return maskinh5, image0
