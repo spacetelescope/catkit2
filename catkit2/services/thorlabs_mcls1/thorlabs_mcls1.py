@@ -129,13 +129,12 @@ class ThorlabsMcls1(Service):
         return setter
 
     def create_getter(self, command):
-
         def getter():
             command_str = command.value + MCLS1_COM.TERM_CHAR.value
             response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-            UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command.encode(), response_buffer)
+            UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
             response_buffer = response_buffer.value
-            return response_buffer.rstrip(b"\x00").decode()
+            return response_buffer.rstrip(b"\x00").decode().lstrip(command.value).strip('\r').rstrip('\r> ')
 
         return getter
 
