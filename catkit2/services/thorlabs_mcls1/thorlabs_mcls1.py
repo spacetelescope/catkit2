@@ -84,11 +84,10 @@ class ThorlabsMcls1(Service):
         }
 
         funcs = {
-            'emission': self.monitor_func(self.emission, self.create_setter(MCLS1_COM.SET_ENABLE)),
-            'current_setpoint': self.monitor_func(self.current_setpoint, self.create_setter(MCLS1_COM.SET_CURRENT)),
-            'channel': self.monitor_func(self.channel, self.create_setter(MCLS1_COM.SET_CHANNEL)),
-            'target_temperature': self.monitor_func(self.target_temperature,
-                                                    self.create_setter(MCLS1_COM.SET_TARGET_TEMP)),
+            'emission': self.monitor_func(self.emission, self.setters['emission']),
+            'current_setpoint': self.monitor_func(self.current_setpoint, self.setters['current_setpoint']),
+            'channel': self.monitor_func(self.channel, self.setters['channel']),
+            'target_temperature': self.monitor_func(self.target_temperature, self.setters['target_temperature']),
         }
 
         # Start all threads.
