@@ -44,10 +44,10 @@ class MCLS1_COM(Enum):
     SAVE = "save"
     GET_STATUS = "statword"
 
-class MCLS1(Service):
+class ThorlabsMcls1(Service):
 
     def __init__(self):
-        super().__init__('mcls1')
+        super().__init__('thorlabs_mcls1')
 
         self.threads = {}
         self.port = self.config['port']
@@ -145,3 +145,8 @@ class MCLS1(Service):
                 self.sleep(1)
 
         return func
+
+
+if __name__ == '__main__':
+    service = ThorlabsMcls1()
+    service.run()
