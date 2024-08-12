@@ -50,9 +50,6 @@ class ThorlabsMcls1(Service):
         super().__init__('thorlabs_mcls1')
 
         self.threads = {}
-        self.make_property('channel', lambda: self.config['channel'])
-        self.make_property('wavelength', lambda: self.config['channels'][self.channel])
-        self.make_property('bandwidth', lambda: self.config['bandwidth'])
 
 
     def open(self):
