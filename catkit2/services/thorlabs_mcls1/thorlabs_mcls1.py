@@ -159,11 +159,10 @@ class ThorlabsMcls1(Service):
         while not self.should_shut_down:
 
             for stream, getter in self.status_funcs.values():
-                future = self.pool.submit(getter)
-                result, value = future.result()
-
                 try:
-                    stream.submit_data(np.array([value]).astype(stream.dtype))
+                    future = self.pool.submit(getter)
+                    result = future.result()
+                    stream.submit_data(np.array([result]).astype(stream.dtype))
                 except Exception as e:
                     print(e)
             time.sleep(1)
