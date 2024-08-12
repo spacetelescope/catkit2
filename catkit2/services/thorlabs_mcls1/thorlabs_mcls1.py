@@ -61,9 +61,7 @@ class ThorlabsMcls1(Service):
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
         self.power = self.make_data_stream('power', 'float32', [1], 20)
 
-        self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
-
-        self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
+        self.emission.submit_data(np.array([int(self.config['emission'])], dtype='uint8'))
         self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
         self.channel.submit_data(np.array([self.config['channel']], dtype='float32'))
 
