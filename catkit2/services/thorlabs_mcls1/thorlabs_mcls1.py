@@ -1,3 +1,5 @@
+import time
+
 from catkit2.testbed.service import Service
 
 import os
