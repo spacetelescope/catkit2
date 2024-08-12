@@ -153,9 +153,13 @@ class ThorlabsMcls1(Service):
     def update_status(self):
         while not self.should_shut_down:
 
-                self.sleep(1)
-
-        return func
+            for stream, getter in self.status_funcs.values():
+                new_data = getter()
+                try:
+                    stream.submit_data(np.array([new_data]).astype(stream.dtype))
+                except Exception as e:
+                    print(e)
+            time.sleep(1)
 
 
 if __name__ == '__main__':
