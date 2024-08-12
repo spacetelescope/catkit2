@@ -53,13 +53,10 @@ class Accufiz(Service):
         typeofmask = "Detector"
         parammask = {"maskType": typeofmask, "fileName": filemask}
         set_mask_string = "http://{}/WebService4D/WebService4D.asmx/SetMask".format(self.ip)
-        resmask = requests.post(set_mask_string, data=parammask)
+
+        requests.post(set_mask_string, data=parammask)
 
         return True  # We're "open".
-
-    def _close(self):
-        """Close interferometer connection?"""
-        pass
 
     def get(self, url, params=None, **kwargs):
         resp = self.instrument_lib.get(url, params=params, **kwargs)
