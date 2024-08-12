@@ -60,7 +60,6 @@ class ThorlabsMcls1(Service):
         # Make datastreams
         self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
         self.emission = self.make_data_stream('emission', 'uint8', [1], 1)
-        self.channel = self.make_data_stream('channel', 'uint8', [1], 20)
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
         self.power = self.make_data_stream('power', 'float32', [1], 20)
@@ -83,7 +82,6 @@ class ThorlabsMcls1(Service):
         self.setters = {
             'emission': self.create_setter(MCLS1_COM.SET_ENABLE),
             'current_setpoint': self.create_setter(MCLS1_COM.SET_CURRENT),
-            'channel': self.create_setter(MCLS1_COM.SET_CHANNEL),
             'target_temperature': self.create_setter(MCLS1_COM.SET_TARGET_TEMP),
         }
 
@@ -95,7 +93,6 @@ class ThorlabsMcls1(Service):
         funcs = {
             'emission': self.monitor_func(self.emission, self.setters['emission']),
             'current_setpoint': self.monitor_func(self.current_setpoint, self.setters['current_setpoint']),
-            'channel': self.monitor_func(self.channel, self.setters['channel']),
             'target_temperature': self.monitor_func(self.target_temperature, self.setters['target_temperature']),
         }
 
