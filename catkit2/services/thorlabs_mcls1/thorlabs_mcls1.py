@@ -150,10 +150,8 @@ class ThorlabsMcls1(Service):
 
         return func
 
-    def update_func(self, updater):
-        def func():
-            while not self.should_shut_down:
-                updater()
+    def update_status(self):
+        while not self.should_shut_down:
 
                 self.sleep(1)
 
