@@ -4,10 +4,8 @@ import os
 import ctypes
 
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
 import threading
 from enum import Enum
-import sys
 
 
 try:
