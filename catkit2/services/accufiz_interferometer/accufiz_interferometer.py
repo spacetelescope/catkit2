@@ -96,10 +96,8 @@ class Accufiz(Service):
 
         self.log.info(f"{self.config_id}: Succeeded to save measurement data to '{local_file_path}'")
 
-        filepath = filepath if filepath.endswith(".h5") else f"{filepath}.h5"
-
-        maskinh5 = np.array(h5py.File(filepath, 'r').get('measurement0').get('Detectormask'))
-        image0 = np.array(h5py.File(filepath, 'r').get('measurement0').get('genraw').get('data')) * maskinh5
+        maskinh5 = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('Detectormask'))
+        image0 = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * maskinh5
 
         self.detector_masks.submit_data(maskinh5)
         self.images.submit_data(image0)
