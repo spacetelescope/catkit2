@@ -103,7 +103,7 @@ class ThorlabsMcls1(Service):
 
     def close(self):
         # Turn off the source
-        self.set_emission(0)
+        self.setters['emission'](0)
 
         # Join all threads.
         for thread in self.threads.values():
