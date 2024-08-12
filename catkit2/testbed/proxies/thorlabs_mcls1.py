@@ -4,8 +4,8 @@ from ..service_proxy import ServiceProxy
 class ThorlabsMcls1(ServiceProxy):
     @property
     def center_wavelength(self):
-        pass
+        return self.wavelength
 
     @property
     def bandwidth(self):
-        pass
+        return self.bandwidth
