@@ -108,11 +108,11 @@ class ThorlabsMcls1(Service):
     def main(self):
         while not self.should_shut_down:
             try:
-                task, args = self.queue.get(timeout=1)
+                task, args = self.communication_queue.get(timeout=1)
                 task(*args)
             except queue.Empty:
                 pass
-        self.queue.task_done()
+        self.communication_queue.task_done()
 
     def close(self):
         # Turn off the source
@@ -122,7 +122,7 @@ class ThorlabsMcls1(Service):
         for thread in self.threads.values():
             thread.join()
 
-        self.queue.join()
+        self.communication_queue.join()
         self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
 
     def create_setter(self, command):
@@ -151,7 +151,7 @@ class ThorlabsMcls1(Service):
                     frame = stream.get_next_frame(1)
                 except Exception:
                     continue
-                self.queue.put({setter: [frame.data[0]]})
+                self.communication_queue.put((setter, [frame.data[0]]))
 
         return func
 
@@ -164,7 +164,7 @@ class ThorlabsMcls1(Service):
     def update_status(self):
         while not self.should_shut_down:
             for stream, getter in self.status_funcs.values():
-                self.queue.put({self.update_status_func(getter, stream): []})
+                self.communication_queue.put((self.update_status_func(getter, stream), []))
 
             time.sleep(1)
 
