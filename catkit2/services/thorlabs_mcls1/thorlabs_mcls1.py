@@ -11,13 +11,6 @@ import threading
 from enum import Enum
 
 
-try:
-    uart_lib_path = os.path.join(os.environ.get('CATKIT_THORLABS_UART_LIB_PATH'))
-    UART_lib = ctypes.cdll.LoadLibrary(uart_lib_path)
-except ImportError as error:
-    raise error
-
-
 class MCLS1_COM(Enum):
     BUFFER_SIZE = 255
     BAUD_RATE = 115200
@@ -49,9 +42,13 @@ class ThorlabsMcls1(Service):
 
     def __init__(self):
         super().__init__('thorlabs_mcls1')
-
         self.threads = {}
 
+        try:
+            uart_lib_path = os.path.join(os.environ.get('CATKIT_THORLABS_UART_LIB_PATH'))
+            self.UART_lib = ctypes.cdll.LoadLibrary(uart_lib_path)
+        except ImportError as error:
+            raise error
 
     def open(self):
         # Make datastreams
@@ -65,9 +62,10 @@ class ThorlabsMcls1(Service):
         self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
 
         response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-        UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
+        self.UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
         response_buffer = response_buffer.value.decode()
         split = response_buffer.split(",")
+
         for i, thing in enumerate(split):
             # The list has a format of "Port, Device, Port, Device". Once we find device named VCPO, minus 1 for port.
             if 'VCP0' in thing:
@@ -76,7 +74,7 @@ class ThorlabsMcls1(Service):
         else:
             raise Exception('Device VCP0 not found')
 
-        self.instrument_handle = UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
+        self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
         # Create a pool with a single worker to perform communication with the device.
         self.pool = ThreadPoolExecutor(max_workers=1)
@@ -122,14 +120,14 @@ class ThorlabsMcls1(Service):
             thread.join()
 
         self.pool.shutdown()
-        UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
-
+        self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
 
     def create_setter(self, command):
         command_prefix = f"{command.value}"
+
         def setter(value):
             command_str = command_prefix + f"{value}{MCLS1_COM.TERM_CHAR.value}"
-            UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
+            self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
 
         return setter
 
@@ -137,7 +135,7 @@ class ThorlabsMcls1(Service):
         def getter():
             command_str = command.value + MCLS1_COM.TERM_CHAR.value
             response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-            UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
+            self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
             response_buffer = response_buffer.value
             return response_buffer.rstrip(b"\x00").decode().lstrip(command.value).strip('\r').rstrip('\r> ')
 
