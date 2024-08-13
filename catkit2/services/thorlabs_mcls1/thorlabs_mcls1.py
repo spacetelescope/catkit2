@@ -4,7 +4,7 @@ from catkit2.testbed.service import Service
 
 import os
 import ctypes
-from concurrent.futures import ThreadPoolExecutor
+import queue
 
 import numpy as np
 import threading
@@ -43,6 +43,7 @@ class ThorlabsMcls1(Service):
     def __init__(self):
         super().__init__('thorlabs_mcls1')
         self.threads = {}
+        self.communication_queue = queue.Queue()
 
         try:
             uart_lib_path = os.path.join(os.environ.get('CATKIT_THORLABS_UART_LIB_PATH'))
@@ -76,9 +77,6 @@ class ThorlabsMcls1(Service):
 
         self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
-        # Create a pool with a single worker to perform communication with the device.
-        self.pool = ThreadPoolExecutor(max_workers=1)
-
         self.setters = {
             'emission': self.create_setter(MCLS1_COM.SET_ENABLE),
             'current_setpoint': self.create_setter(MCLS1_COM.SET_CURRENT),
@@ -109,7 +107,12 @@ class ThorlabsMcls1(Service):
 
     def main(self):
         while not self.should_shut_down:
-            self.sleep(1)
+            try:
+                task, args = self.queue.get(timeout=1)
+                task(*args)
+            except queue.Empty:
+                pass
+        self.queue.task_done()
 
     def close(self):
         # Turn off the source
@@ -119,7 +122,7 @@ class ThorlabsMcls1(Service):
         for thread in self.threads.values():
             thread.join()
 
-        self.pool.shutdown()
+        self.queue.join()
         self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
 
     def create_setter(self, command):
@@ -148,21 +151,21 @@ class ThorlabsMcls1(Service):
                     frame = stream.get_next_frame(1)
                 except Exception:
                     continue
-                future = self.pool.submit(setter, frame.data[0])
-                result = future.result()
+                self.queue.put({setter: [frame.data[0]]})
 
+        return func
+
+    def update_status_func(self, getter, stream):
+        def func():
+            result = getter()
+            stream.submit_data(np.array([result]).astype(stream.dtype))
         return func
 
     def update_status(self):
         while not self.should_shut_down:
-
             for stream, getter in self.status_funcs.values():
-                try:
-                    future = self.pool.submit(getter)
-                    result = future.result()
-                    stream.submit_data(np.array([result]).astype(stream.dtype))
-                except Exception as e:
-                    print(e)
+                self.queue.put({self.update_status_func(getter, stream): []})
+
             time.sleep(1)
 
 
