@@ -108,15 +108,17 @@ class ThorlabsMcls1(Service):
     def main(self):
         while not self.should_shut_down:
             try:
+                time.sleep(1)
+                print(time.time())
                 task, args = self.communication_queue.get(timeout=1)
-                task(*args)
+                task(self, *args)
             except queue.Empty:
                 pass
         self.communication_queue.task_done()
 
     def close(self):
         # Turn off the source
-        self.setters['emission'](0)
+        self.setters['emission'](self, 0)
 
         # Join all threads.
         for thread in self.threads.values():
@@ -128,14 +130,14 @@ class ThorlabsMcls1(Service):
     def create_setter(self, command):
         command_prefix = f"{command.value}"
 
-        def setter(value):
+        def setter(self, value):
             command_str = command_prefix + f"{value}{MCLS1_COM.TERM_CHAR.value}"
             self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
 
         return setter
 
     def create_getter(self, command):
-        def getter():
+        def getter(self):
             command_str = command.value + MCLS1_COM.TERM_CHAR.value
             response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
             self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
@@ -156,8 +158,8 @@ class ThorlabsMcls1(Service):
         return func
 
     def update_status_func(self, getter, stream):
-        def func():
-            result = getter()
+        def func(self):
+            result = getter(self)
             stream.submit_data(np.array([result]).astype(stream.dtype))
         return func
 
