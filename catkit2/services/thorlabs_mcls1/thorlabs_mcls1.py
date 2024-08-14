@@ -111,7 +111,6 @@ class ThorlabsMcls1(Service):
     def main(self):
         while not self.should_shut_down:
             try:
-                print(time.time())
                 task, args = self.communication_queue.get(timeout=1)
                 task(self, *args)
                 self.communication_queue.task_done()
