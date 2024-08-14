@@ -112,6 +112,7 @@ class ThorlabsMcls1(Service):
                 print(time.time())
                 task, args = self.communication_queue.get(timeout=1)
                 task(self, *args)
+                self.communication_queue.task_done()
             except queue.Empty:
                 pass
         self.communication_queue.task_done()
