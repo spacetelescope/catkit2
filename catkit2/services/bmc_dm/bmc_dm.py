@@ -28,6 +28,7 @@ class BmcDm(Service):
         self.max_volts = self.config['max_volts']
 
         self.startup_maps = self.config.get('startup_maps', {})
+
         self.lock = threading.Lock()
 
         self.channels = {}
