@@ -46,7 +46,7 @@ class ThorlabsMcls1(Service):
         self.communication_queue = queue.Queue()
 
         try:
-            uart_lib_path = os.path.join(os.environ.get('CATKIT_THORLABS_UART_LIB_PATH'))
+            uart_lib_path = os.environ.get('CATKIT_THORLABS_UART_LIB_PATH')
             self.UART_lib = ctypes.cdll.LoadLibrary(uart_lib_path)
         except ImportError as error:
             raise error
