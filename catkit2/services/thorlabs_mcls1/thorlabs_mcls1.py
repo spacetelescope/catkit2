@@ -59,9 +59,7 @@ class ThorlabsMcls1(Service):
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
         self.power = self.make_data_stream('power', 'float32', [1], 20)
 
-        self.emission.submit_data(np.array([int(self.config['emission'])], dtype='uint8'))
-        self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
-
+        # Open connection to device
         response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
         self.UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
         response_buffer = response_buffer.value.decode()
@@ -104,6 +102,11 @@ class ThorlabsMcls1(Service):
         thread = threading.Thread(target=self.update_status)
         thread.start()
         self.threads['status'] = thread
+
+        # Submit initial values
+        self.emission.submit_data(np.array([int(self.config['emission'])], dtype='uint8'))
+        self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
+        self.target_temperature.submit_data(np.array([self.config['target_temperature']], dtype='float32'))
 
     def main(self):
         while not self.should_shut_down:
