@@ -124,7 +124,6 @@ class ThorlabsMcls1(Service):
         for thread in self.threads.values():
             thread.join()
 
-        self.communication_queue.join()
         self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
 
     def create_setter(self, command):
