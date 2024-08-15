@@ -54,7 +54,7 @@ target_link_libraries(catkit_core PUBLIC libzmq)
 if (WIN32)
   target_link_libraries(catkit_core PUBLIC wsock32 ws2_32 Iphlpapi)
 else()
-  target_link_libraries(catkit_core PUBLIC pthread)
+  target_link_libraries(catkit_core PUBLIC pthread rt)
 endif (WIN32)
 
 # Add includes for cppzmq
