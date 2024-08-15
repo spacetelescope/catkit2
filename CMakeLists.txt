@@ -12,3 +12,4 @@ list(APPEND CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}/Library")
 
 add_subdirectory(catkit_core)
 add_subdirectory(catkit_bindings)
+add_subdirectory(benchmarks)
