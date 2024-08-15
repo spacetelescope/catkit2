@@ -5,6 +5,9 @@ project(catkit2)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
 
+set(CMAKE_MACOSX_RPATH ON)
+list(APPEND CMAKE_INSTALL_RPATH $ENV{CONDA_PREFIX}/lib)
+
 # Ensure that conda-installed libraries take precedence over
 # system installed libraries.
 list(APPEND CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
