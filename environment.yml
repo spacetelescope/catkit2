@@ -6,7 +6,7 @@
 
 name: catkit2
 dependencies:
-  - python=3.7.17
+  - python=3.7.16
   - numpy
   - scipy
   - matplotlib
