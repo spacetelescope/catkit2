@@ -13,7 +13,7 @@ void benchmark(size_t N, bool with_data)
 	auto stream_name = std::to_string(GetTimeStamp());
 	auto stream = DataStream::Create(stream_name, "benchmark", DataType::DT_FLOAT64, {N, N}, NUM_FRAMES_IN_BUFFER);
 
-	unsigned char *data = new unsigned char[N*N];
+	char *data = new char[N * N * 8];
 
 	auto start = GetTimeStamp();
 
