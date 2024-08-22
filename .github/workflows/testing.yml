@@ -25,8 +25,8 @@ jobs:
           miniconda-version: "latest"
           auto-update-conda: true
           auto-activate-base: false
-    - name: Switch to gcc-11 on linux
-      if: matrix.os == 'ubuntu-22.04'
+    - name: Switch to gcc-10 on linux
+      if: runner.os == 'Linux'
       run: |
         sudo apt install gcc-10 g++-10 cpp-10
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
