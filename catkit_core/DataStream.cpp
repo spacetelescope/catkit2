@@ -218,8 +218,7 @@ void DataStream::SubmitData(const void *data)
 
 	DataFrame frame = RequestNewFrame();
 
-	char *source = (char *) data;
-	std::copy(source, source + frame.GetSizeInBytes(), frame.m_Data);
+	std::memcpy(frame.m_Data, data, frame.GetSizeInBytes());
 
 	SubmitFrame(frame.m_Id);
 
