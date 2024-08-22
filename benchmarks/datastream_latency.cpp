@@ -5,11 +5,23 @@
 #include <chrono>
 #include <numeric>
 #include <fstream>
+#include <atomic>
 
 #include "DataStream.h"
 #include "Timing.h"
 
 const size_t NUM_ITERATIONS = 1000000;
+
+void sleep(std::uint64_t ns)
+{
+	auto start = GetTimeStamp();
+
+	while (GetTimeStamp() - start < ns)
+	{
+	}
+}
+
+std::atomic_bool ready = false;
 
 void submit(std::string stream_id)
 {
@@ -19,7 +31,13 @@ void submit(std::string stream_id)
 
 	for (size_t i = 0; i < NUM_ITERATIONS; ++i)
 	{
-		std::this_thread::sleep_for(std::chrono::microseconds(100));
+		while (!ready)
+		{
+		}
+
+		ready = false;
+
+		sleep(1000);
 
 		auto frame = stream->RequestNewFrame();
 		stream->SubmitFrame(frame.m_Id);
@@ -41,6 +59,8 @@ void receive(std::string stream_id)
 
 	for (size_t i = 0; i < NUM_ITERATIONS; ++i)
 	{
+		ready = true;
+
 		auto frame = stream->GetNextFrame(1000);
 		auto time = GetTimeStamp();
 
