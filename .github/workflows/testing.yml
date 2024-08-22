@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-latest, macos-latest]
+        os: [ubuntu-22.04, windows-latest, macos-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -26,10 +26,8 @@ jobs:
           auto-update-conda: true
           auto-activate-base: false
     - name: Switch to gcc-11 on linux
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-22.04'
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install g++-11
         sudo update-alternatives --set g++ /usr/bin/g++-11
     - name: Install dependencies
       run: |
