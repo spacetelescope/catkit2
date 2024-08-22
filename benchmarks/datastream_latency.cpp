@@ -12,7 +12,7 @@
 
 const size_t NUM_ITERATIONS = 1000000;
 
-void sleep(std::uint64_t ns)
+void fast_sleep(std::uint64_t ns)
 {
 	auto start = GetTimeStamp();
 
@@ -37,7 +37,7 @@ void submit(std::string stream_id)
 
 		ready = false;
 
-		sleep(1000);
+		fast_sleep(1000);
 
 		auto frame = stream->RequestNewFrame();
 		stream->SubmitFrame(frame.m_Id);
