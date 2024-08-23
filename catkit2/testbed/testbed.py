@@ -362,7 +362,8 @@ class Testbed:
         logging.getLogger().addHandler(self.log_handler)
         logging.getLogger().setLevel(logging.DEBUG)
 
-        self.log_forwarder = LogForwarder('testbed', f'tcp://localhost:{self.port + 1}')
+        self.log_forwarder = LogForwarder()
+        self.log_forwarder.connect('testbed', f'tcp://localhost:{self.logging_ingress_port}')
 
     def destroy_logging(self):
         '''Shut down all logging.
