@@ -28,11 +28,15 @@ class ZmqDistributor:
         self.shutdown_flag = threading.Event()
         self.thread = None
 
+        self.is_running = threading.Event()
+
     def start(self):
         '''Start the proxy thread.
         '''
         self.thread = threading.Thread(target=self._forwarder)
         self.thread.start()
+
+        self.is_running.wait()
 
     def stop(self):
         '''Stop the proxy thread.
@@ -43,6 +47,8 @@ class ZmqDistributor:
 
         if self.thread:
             self.thread.join()
+
+        self.is_running.clear()
 
     def _forwarder(self):
         '''Create sockets and republish all received log messages.
@@ -57,6 +63,8 @@ class ZmqDistributor:
 
         publicist = self.context.socket(zmq.PUB)
         publicist.bind(f'tcp://*:{self.output_port}')
+
+        self.is_running.set()
 
         while not self.shutdown_flag.is_set():
             try:
