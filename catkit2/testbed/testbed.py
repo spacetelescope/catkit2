@@ -143,6 +143,13 @@ class Testbed:
         self.host = '127.0.0.1'
         self.port = port
 
+        self.logging_ingress_port = 0
+        self.logging_egress_port = 0
+        self.data_logging_ingress_port = 0
+        self.data_logging_egress_port = 0
+        self.tracing_ingress_port = 0
+        self.tracing_egress_port = 0
+
         self.is_simulated = is_simulated
         self.config = config
 
@@ -371,7 +378,10 @@ class Testbed:
     def start_log_distributor(self):
         '''Start the log distributor.
         '''
-        self.log_distributor = LogDistributor(self.context, self.port + 1, self.port + 2)
+        self.logging_ingress_port = get_unused_port()
+        self.logging_egress_port = get_unused_port()
+
+        self.log_distributor = LogDistributor(self.context, self.logging_ingress_port, self.logging_egress_port)
         self.log_distributor.start()
 
     def stop_log_distributor(self):
@@ -433,10 +443,12 @@ class Testbed:
         reply.config = json.dumps(self.config)
         reply.is_simulated = self.is_simulated
         reply.heartbeat_stream_id = self.heartbeat_stream.stream_id
-        reply.logging_ingress_port = self.port + 1
-        reply.logging_egress_port = self.port + 2
-        reply.data_logging_ingress_port = 0
-        reply.tracing_ingress_port = 0
+        reply.logging_ingress_port = self.logging_ingress_port
+        reply.logging_egress_port = self.logging_egress_port
+        reply.data_logging_ingress_port = self.data_logging_ingress_port
+        reply.data_logging_egress_port = self.data_logging_egress_port
+        reply.tracing_ingress_port = self.tracing_ingress_port
+        reply.tracing_egress_port = self.tracing_egress_port
 
         return reply.SerializeToString()
 
