@@ -1,5 +1,5 @@
 from catkit2 import TraceWriter, trace_interval, trace_instant, trace_counter, ZmqDistributor
-from catkit2.catkit_bindings import trace_connect
+from catkit2.catkit_bindings import trace_connect, trace_disconnect
 
 import time
 import zmq
@@ -43,6 +43,8 @@ def test_trace_writer(unused_port):
             time.sleep(0.1)
 
     finally:
+        trace_disconnect()
+
         tracing_distributor.stop()
 
     # Check the written JSON file.

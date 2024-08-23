@@ -672,6 +672,9 @@ PYBIND11_MODULE(catkit_bindings, m)
 	m.def("trace_connect", [](std::string process_name, std::string host, int port) {
 		tracing_proxy.Connect(process_name, host, port);
 	});
+	m.def("trace_disconnect", []() {
+		tracing_proxy.Disconnect();
+	});
 	m.def("trace_interval", [](std::string name, std::string category, uint64_t timestamp_start, uint64_t duration) {
 		tracing_proxy.TraceInterval(name, category, timestamp_start, duration);
 	});

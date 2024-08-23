@@ -59,10 +59,13 @@ private:
 	template<typename T>
 	void AddTraceEvent(T &event)
 	{
-		std::unique_lock<std::mutex> lock(m_Mutex);
-		m_TraceMessages.emplace(event);
+		if (IsConnected())
+		{
+			std::unique_lock<std::mutex> lock(m_Mutex);
+			m_TraceMessages.emplace(event);
 
-		m_ConditionVariable.notify_all();
+			m_ConditionVariable.notify_all();
+		}
 	}
 
 	void MessageLoop();
