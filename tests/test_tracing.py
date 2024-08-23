@@ -27,7 +27,7 @@ def test_trace_writer(unused_port):
     tracing_distributor.start()
 
     # Wait for slow-joiner of ZMQ sockets.
-    time.sleep(0.1)
+    time.sleep(0.3)
 
     try:
         with writer.open(FNAME):
@@ -43,7 +43,7 @@ def test_trace_writer(unused_port):
                     trace_instant(INSTANT_NAME)
 
             # Wait for all messages to pass through the system and be written out.
-            time.sleep(0.1)
+            time.sleep(0.3)
 
     finally:
         trace_disconnect()
