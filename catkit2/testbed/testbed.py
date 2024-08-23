@@ -5,6 +5,7 @@ import time
 import subprocess
 import socket
 import threading
+import contextlib
 
 import psutil
 import zmq
@@ -18,10 +19,22 @@ from ..proto import service_pb2 as service_proto
 
 SERVICE_LIVELINESS = 5
 
-def get_unused_port():
-    with socket.socket() as sock:
-        sock.bind(('', 0))
-        return sock.getsockname()[1]
+def get_unused_port(num_ports=1):
+    ports = []
+
+    with contextlib.ExitStack() as stack:
+        for i in range(num_ports):
+            sock = socket.socket()
+            stack.enter_context(sock)
+
+            sock.bind(('', 0))
+            ports.append(sock.getsockname()[1])
+
+    if num_ports == 1:
+        return ports[0]
+
+    return ports
+
 
 class ServiceReference:
     '''A reference to a service running on another process.
@@ -379,8 +392,7 @@ class Testbed:
     def start_log_distributor(self):
         '''Start the log distributor.
         '''
-        self.logging_ingress_port = get_unused_port()
-        self.logging_egress_port = get_unused_port()
+        self.logging_ingress_port, self.logging_egress_port = get_unused_port(num_ports=2)
 
         self.log_distributor = LogDistributor(self.context, self.logging_ingress_port, self.logging_egress_port)
         self.log_distributor.start()
