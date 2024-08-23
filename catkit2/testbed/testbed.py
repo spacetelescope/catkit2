@@ -422,7 +422,9 @@ class Testbed:
     def start_tracing_distributor(self):
         '''Start the tracing distributor.
         '''
-        self.tracing_distributor = ZmqDistributor(self.context, self.port + 3, self.port + 4)
+        self.tracing_ingress_port, self.tracing_egress_port = get_unused_port(num_ports=2)
+
+        self.tracing_distributor = ZmqDistributor(self.context, self.tracing_ingress_port, self.tracing_egress_port)
         self.tracing_distributor.start()
 
     def stop_tracing_distributor(self):
