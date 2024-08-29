@@ -40,10 +40,10 @@ class ThorlabsMcls1Sim(Service):
             'target_temperature': self.set_target_temperature,
         }
 
-        self.status_funcs = {
-            'temperature': (self.temperature, self.get_temperature),
-            'power': (self.power, self.get_power)
-        }
+        self.getters = [
+            self.get_temperature,
+            self.get_power
+        ]
 
         for key, setter in self.setters.items():
             func = make_monitor_func(getattr(self, key), setter)
@@ -64,12 +64,7 @@ class ThorlabsMcls1Sim(Service):
 
     def main(self):
         while not self.should_shut_down:
-            try:
-                task, args = self.communication_queue.get(timeout=1)
-                task(*args)
-                self.communication_queue.task_done()
-            except queue.Empty:
-                pass
+            self.sleep(1)
 
     def close(self):
         # Turn off the source
@@ -111,10 +106,7 @@ class ThorlabsMcls1Sim(Service):
         pass
 
     def get_power(self):
-        try:
-            return self.testbed.simulator.light_source_data[self.id + '_power']
-        except KeyError:
-            return 0
+        return self.testbed.simulator.light_source_data[self.id + '_power']
 
     def get_temperature(self):
         return self.config['target_temperature']
