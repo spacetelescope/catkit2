@@ -117,7 +117,11 @@ class ThorlabsMcls1Sim(Service):
         pass
 
     def get_power(self):
-        return self.testbed.simulator.light_source_data[self.id + '_power']
+        try:
+            return self.testbed.simulator.light_source_data[self.id + '_power']
+        except KeyError:
+            return 0
+
     def get_temperature(self):
         return self.config['target_temperature']
 
