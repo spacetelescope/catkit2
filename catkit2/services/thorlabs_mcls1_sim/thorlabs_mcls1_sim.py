@@ -30,7 +30,7 @@ class ThorlabsMcls1Sim(Service):
         }
 
         self.status_funcs = {
-            'temperature': (self.temperature, lambda: self.config['temperature']),
+            'temperature': (self.temperature, self.get_temperature),
             'power': (self.power, self.get_power)
         }
 
@@ -118,6 +118,8 @@ class ThorlabsMcls1Sim(Service):
 
     def get_power(self):
         return self.testbed.simulator.light_source_data[self.id + '_power']
+    def get_temperature(self):
+        return self.config['target_temperature']
 
 
 if __name__ == '__main__':
