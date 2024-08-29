@@ -5,6 +5,7 @@ from PySpin import PySpin
 import numpy as np
 
 from catkit2.testbed.service import Service
+from catkit2.testbed.tracing import trace_interval
 
 def _create_property(flir_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
@@ -209,17 +210,18 @@ class FlirCamera(Service):
                         break
                     raise
 
-                try:
-                    if image_result.IsIncomplete():
-                        continue
+                with trace_interval('processing frame'):
+                    try:
+                        if image_result.IsIncomplete():
+                            continue
 
-                    img = image_result.Convert(pixel_format).GetNDArray().astype(pixel_dtype, copy=False)
+                        img = image_result.Convert(pixel_format).GetNDArray().astype(pixel_dtype, copy=False)
 
-                    # Submit image to datastream.
-                    self.images.submit_data(img)
+                        # Submit image to datastream.
+                        self.images.submit_data(img)
 
-                finally:
-                    image_result.Release()
+                    finally:
+                        image_result.Release()
         finally:
             self.cam.EndAcquisition()
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
