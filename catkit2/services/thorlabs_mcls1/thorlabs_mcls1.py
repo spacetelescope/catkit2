@@ -45,7 +45,13 @@ def make_setter(command):
     def setter(self, value):
         command_str = command_prefix + f"{value}{MCLS1_COM.TERM_CHAR.value}"
 
+        # Lock first to ensure the next two statements are uninterrupted.
         with self.lock:
+            # Set the channel.
+            if command not in [MCLS1_COM.SET_CHANNEL, MCLS1_COM.SET_SYSTEM]:
+                self.set_active_channel(self.channel)
+
+            # Execute command.
             self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
 
     return setter
@@ -57,8 +63,13 @@ def make_getter(command, stream_name):
         command_str = command.value + MCLS1_COM.TERM_CHAR.value
         response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
 
-        # Execute command.
+        # Lock first to ensure the next two statements are uninterrupted.
         with self.lock:
+            # Set the channel.
+            if command not in [MCLS1_COM.GET_CHANNEL]:
+                self.set_active_channel(self.channel)
+
+            # Execute command.
             self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
 
         # Decode result.
@@ -94,7 +105,8 @@ class ThorlabsMcls1(Service):
         self.threads = {}
         self.communication_queue = queue.Queue()
 
-        self.lock = threading.Lock()
+        # Use a reentrant lock to avoid deadlock when setting the channel.
+        self.lock = threading.RLock()
 
         try:
             uart_lib_path = os.environ.get('CATKIT_THORLABS_UART_LIB_PATH')
@@ -183,11 +195,14 @@ class ThorlabsMcls1(Service):
             for getter in self.getters.values():
                 self.communication_queue.put(getter)
 
-            time.sleep(1)
+    @property
+    def channel(self):
+        return self.config['channel']
 
-    set_emission = make_setter(make_setter(MCLS1_COM.SET_ENABLE))
+    set_emission = make_setter(MCLS1_COM.SET_ENABLE)
     set_current_setpoint = make_setter(MCLS1_COM.SET_CURRENT)
     set_target_temperature = make_setter(MCLS1_COM.SET_TARGET_TEMP)
+    set_active_channel = make_setter(MCLS1_COM.SET_CHANNEL)
 
     get_temperature = make_getter(MCLS1_COM.GET_TEMP, 'temperature')
     get_power = make_getter(MCLS1_COM.GET_POWER, 'power')
