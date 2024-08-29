@@ -9,7 +9,7 @@ from catkit2.testbed.service import Service
 class ThorlabsMcls1Sim(Service):
 
     def __init__(self):
-        super().__init__('thorlabs_mcls1')
+        super().__init__('thorlabs_mcls1_sim')
         self.threads = {}
         self.communication_queue = queue.Queue()
 
