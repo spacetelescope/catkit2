@@ -93,7 +93,7 @@ def make_monitor_func(stream, setter):
             except Exception:
                 continue
 
-            self.communication_queue.put((setter, [frame.data[0]]))
+            setter(frame.data[0])
 
     return func
 
@@ -103,7 +103,6 @@ class ThorlabsMcls1(Service):
         super().__init__('thorlabs_mcls1')
 
         self.threads = {}
-        self.communication_queue = queue.Queue()
 
         # Use a reentrant lock to avoid deadlock when setting the channel.
         self.lock = threading.RLock()
@@ -139,15 +138,15 @@ class ThorlabsMcls1(Service):
         self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
         self.setters = {
-            'emission': ThorlabsMcls1.set_emission,
-            'current_setpoint': ThorlabsMcls1.set_current_setpoint,
-            'target_temperature': ThorlabsMcls1.set_target_temperature
+            'emission': self.set_emission,
+            'current_setpoint': self.set_current_setpoint,
+            'target_temperature': self.set_target_temperature
         }
 
-        self.getters = {
-            'temperature': (self.temperature, ThorlabsMcls1.get_temperature),
-            'power': (self.power, ThorlabsMcls1.get_power)
-        }
+        self.getters = [
+            self.get_temperature,
+            self.get_power
+        ]
 
         # Start all monitoring threads.
         for key, setter in self.setters.items():
@@ -170,14 +169,7 @@ class ThorlabsMcls1(Service):
 
     def main(self):
         while not self.should_shut_down:
-            try:
-                task, args = self.communication_queue.get(timeout=1)
-
-                task(self, *args)
-
-                self.communication_queue.task_done()
-            except queue.Empty:
-                pass
+            self.sleep(1)
 
     def close(self):
         # Turn off the source.
@@ -192,8 +184,10 @@ class ThorlabsMcls1(Service):
 
     def update_status(self):
         while not self.should_shut_down:
-            for getter in self.getters.values():
-                self.communication_queue.put(getter)
+            for getter in self.getters:
+                getter()
+
+            self.sleep(1)
 
     @property
     def channel(self):
