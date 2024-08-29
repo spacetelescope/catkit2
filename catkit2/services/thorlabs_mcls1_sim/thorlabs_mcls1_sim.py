@@ -61,7 +61,7 @@ class ThorlabsMcls1Sim(Service):
         while not self.should_shut_down:
             try:
                 task, args = self.communication_queue.get(timeout=1)
-                task(self, *args)
+                task(*args)
                 self.communication_queue.task_done()
             except queue.Empty:
                 pass
@@ -86,8 +86,8 @@ class ThorlabsMcls1Sim(Service):
         return func
 
     def update_status_func(self, getter, stream):
-        def func(self):
-            result = getter(self)
+        def func():
+            result = getter()
             stream.submit_data(np.array([result]).astype(stream.dtype))
         return func
 
