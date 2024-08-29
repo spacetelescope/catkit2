@@ -38,12 +38,63 @@ class MCLS1_COM(Enum):
     SAVE = "save"
     GET_STATUS = "statword"
 
-class ThorlabsMcls1(Service):
 
+def make_setter(command):
+    command_prefix = f"{command.value}"
+
+    def setter(self, value):
+        command_str = command_prefix + f"{value}{MCLS1_COM.TERM_CHAR.value}"
+
+        with self.lock:
+            self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
+
+    return setter
+
+
+def make_getter(command, stream_name):
+    def getter(self):
+        # Form command.
+        command_str = command.value + MCLS1_COM.TERM_CHAR.value
+        response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
+
+        # Execute command.
+        with self.lock:
+            self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
+
+        # Decode result.
+        response_buffer = response_buffer.value
+        value = response_buffer.rstrip(b"\x00").decode().lstrip(command.value).strip('\r').rstrip('\r> ')
+
+        # Submit retrieved value to stream.
+        stream = getattr(self, stream_name)
+        stream.submit_data(np.array([value]).astype(stream.dtype))
+
+        return value
+
+    return getter
+
+
+def make_monitor_func(stream, setter):
+    def func(self):
+        while not self.should_shut_down:
+            try:
+                frame = stream.get_next_frame(1)
+            except Exception:
+                continue
+
+            self.communication_queue.put((setter, [frame.data[0]]))
+
+    return func
+
+
+class ThorlabsMcls1(Service):
     def __init__(self):
         super().__init__('thorlabs_mcls1')
+
         self.threads = {}
         self.communication_queue = queue.Queue()
+
+        self.lock = threading.Lock()
 
         try:
             uart_lib_path = os.environ.get('CATKIT_THORLABS_UART_LIB_PATH')
@@ -76,24 +127,20 @@ class ThorlabsMcls1(Service):
         self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
         self.setters = {
-            'emission': self.create_setter(MCLS1_COM.SET_ENABLE),
-            'current_setpoint': self.create_setter(MCLS1_COM.SET_CURRENT),
-            'target_temperature': self.create_setter(MCLS1_COM.SET_TARGET_TEMP),
+            'emission': ThorlabsMcls1.set_emission,
+            'current_setpoint': ThorlabsMcls1.set_current_setpoint,
+            'target_temperature': ThorlabsMcls1.set_target_temperature
         }
 
-        self.status_funcs = {
-            'temperature': (self.temperature, self.create_getter(MCLS1_COM.GET_TEMP)),
-            'power': (self.power, self.create_getter(MCLS1_COM.GET_POWER))
+        self.getters = {
+            'temperature': (self.temperature, ThorlabsMcls1.get_temperature),
+            'power': (self.power, ThorlabsMcls1.get_power)
         }
 
-        funcs = {
-            'emission': self.monitor_func(self.emission, self.setters['emission']),
-            'current_setpoint': self.monitor_func(self.current_setpoint, self.setters['current_setpoint']),
-            'target_temperature': self.monitor_func(self.target_temperature, self.setters['target_temperature']),
-        }
+        # Start all monitoring threads.
+        for key, setter in self.setters.items():
+            func = make_monitor_func(getattr(self, key), setter)
 
-        # Start all threads.
-        for key, func in funcs.items():
             thread = threading.Thread(target=func)
             thread.start()
 
@@ -101,6 +148,7 @@ class ThorlabsMcls1(Service):
 
         thread = threading.Thread(target=self.update_status)
         thread.start()
+
         self.threads['status'] = thread
 
         # Submit initial values
@@ -112,64 +160,37 @@ class ThorlabsMcls1(Service):
         while not self.should_shut_down:
             try:
                 task, args = self.communication_queue.get(timeout=1)
+
                 task(self, *args)
+
                 self.communication_queue.task_done()
             except queue.Empty:
                 pass
 
-
     def close(self):
-        # Turn off the source
-        self.setters['emission'](self, 0)
+        # Turn off the source.
+        self.set_emission(0)
 
         # Join all threads.
         for thread in self.threads.values():
             thread.join()
 
+        # Close the instrument.
         self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
-
-    def create_setter(self, command):
-        command_prefix = f"{command.value}"
-
-        def setter(self, value):
-            command_str = command_prefix + f"{value}{MCLS1_COM.TERM_CHAR.value}"
-            self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
-
-        return setter
-
-    def create_getter(self, command):
-        def getter(self):
-            command_str = command.value + MCLS1_COM.TERM_CHAR.value
-            response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-            self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
-            response_buffer = response_buffer.value
-            return response_buffer.rstrip(b"\x00").decode().lstrip(command.value).strip('\r').rstrip('\r> ')
-
-        return getter
-
-    def monitor_func(self, stream, setter):
-        def func():
-            while not self.should_shut_down:
-                try:
-                    frame = stream.get_next_frame(1)
-                except Exception:
-                    continue
-                self.communication_queue.put((setter, [frame.data[0]]))
-
-        return func
-
-    def update_status_func(self, getter, stream):
-        def func(self):
-            result = getter(self)
-            stream.submit_data(np.array([result]).astype(stream.dtype))
-        return func
 
     def update_status(self):
         while not self.should_shut_down:
-            for stream, getter in self.status_funcs.values():
-                self.communication_queue.put((self.update_status_func(getter, stream), []))
+            for getter in self.getters.values():
+                self.communication_queue.put(getter)
 
             time.sleep(1)
+
+    set_emission = make_setter(make_setter(MCLS1_COM.SET_ENABLE))
+    set_current_setpoint = make_setter(MCLS1_COM.SET_CURRENT)
+    set_target_temperature = make_setter(MCLS1_COM.SET_TARGET_TEMP)
+
+    get_temperature = make_getter(MCLS1_COM.GET_TEMP, 'temperature')
+    get_power = make_getter(MCLS1_COM.GET_POWER, 'power')
 
 
 if __name__ == '__main__':
