@@ -85,6 +85,8 @@ class Simulator(Service):
         self.make_command('switch_power', self.switch_power)
         self.make_command('set_source_power', self.set_source_power)
 
+        self.make_property('light_source_data', lambda: self.light_source_data)
+
         self.integrating_cameras = {}
         self.camera_integrated_power = {}
         self.camera_callbacks = {}
