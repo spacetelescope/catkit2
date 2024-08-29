@@ -40,10 +40,10 @@ class ThorlabsMcls1Sim(Service):
             'target_temperature': self.set_target_temperature,
         }
 
-        self.getters = [
-            self.get_temperature,
-            self.get_power
-        ]
+        self.status_funcs = {
+            'temperature': (self.temperature, self.get_temperature),
+            'power': (self.power, self.get_power)
+        }
 
         for key, setter in self.setters.items():
             func = make_monitor_func(getattr(self, key), setter)
@@ -107,6 +107,8 @@ class ThorlabsMcls1Sim(Service):
 
     def get_power(self):
         return self.testbed.simulator.light_source_data[self.id + '_power']
+    def get_temperature(self):
+        return self.config['target_temperature']
 
     def get_temperature(self):
         return self.config['target_temperature']
