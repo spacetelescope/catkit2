@@ -1,10 +1,7 @@
-import time
-
 from catkit2.testbed.service import Service
 
 import os
 import ctypes
-import queue
 
 import numpy as np
 import threading
@@ -152,7 +149,7 @@ class ThorlabsMcls1(Service):
         for key, setter in self.setters.items():
             func = make_monitor_func(getattr(self, key), setter)
 
-            thread = threading.Thread(target=func)
+            thread = threading.Thread(target=func, args=(self,))
             thread.start()
 
             self.threads[key] = thread
