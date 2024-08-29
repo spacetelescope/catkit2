@@ -15,8 +15,10 @@
 class LogForwarder : LogListener
 {
 public:
-	LogForwarder(std::string service_id, std::string host);
+	LogForwarder();
 	~LogForwarder();
+
+	void Connect(std::string service_id, std::string host);
 
     void AddLogEntry(const LogEntry &entry);
 
