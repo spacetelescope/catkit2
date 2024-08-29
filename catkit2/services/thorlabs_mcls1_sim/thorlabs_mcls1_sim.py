@@ -64,7 +64,12 @@ class ThorlabsMcls1Sim(Service):
 
     def main(self):
         while not self.should_shut_down:
-            self.sleep(1)
+            try:
+                task, args = self.communication_queue.get(timeout=1)
+                task(*args)
+                self.communication_queue.task_done()
+            except queue.Empty:
+                pass
 
     def close(self):
         # Turn off the source
