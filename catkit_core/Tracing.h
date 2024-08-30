@@ -74,6 +74,8 @@ private:
 	void SetThreadName(std::string thread_name);
 
 	std::thread m_MessageLoopThread;
+
+	std::atomic_bool m_IsConnected;
 	std::atomic_bool m_ShutDown;
 
 	std::queue<TraceEvent> m_TraceMessages;

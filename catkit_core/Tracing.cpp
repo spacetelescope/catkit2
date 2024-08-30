@@ -12,6 +12,7 @@ using namespace std;
 TracingProxy tracing_proxy;
 
 TracingProxy::TracingProxy()
+	: m_IsConnected(false)
 {
 }
 
@@ -49,11 +50,13 @@ void TracingProxy::Disconnect()
 	// Wait for the thread to exit.
 	if (m_MessageLoopThread.joinable())
 		m_MessageLoopThread.join();
+
+	m_IsConnected = false;
 }
 
 bool TracingProxy::IsConnected()
 {
-	return m_MessageLoopThread.joinable();
+	return m_IsConnected;
 }
 
 void TracingProxy::TraceInterval(string name, string category, uint64_t timestamp, uint64_t duration)
