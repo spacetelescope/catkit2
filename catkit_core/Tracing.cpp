@@ -31,13 +31,14 @@ void TracingProxy::Connect(string process_name, string host, int port)
 		Disconnect();
 	}
 
+	SetProcessName(process_name);
+
 	m_Host = host;
 	m_Port = port;
 	m_ShutDown = false;
 
 	m_MessageLoopThread = std::thread(&TracingProxy::MessageLoop, this);
 
-	SetProcessName(process_name);
 }
 
 void TracingProxy::Disconnect()
