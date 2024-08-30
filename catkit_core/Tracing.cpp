@@ -39,7 +39,7 @@ void TracingProxy::Connect(string process_name, string host, int port)
 	m_ShutDown = false;
 
 	m_MessageLoopThread = std::thread(&TracingProxy::MessageLoop, this);
-
+	m_IsConnected = true;
 }
 
 void TracingProxy::Disconnect()
