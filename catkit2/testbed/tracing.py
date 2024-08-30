@@ -17,6 +17,10 @@ def write_json(f, data):
 class TraceWriter:
     '''A writer for performance trace logs.
 
+    This writer writes the trace log in Google JSON format, described by
+    https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU
+    This file can be read in by a number of trace log viewers for inspection.
+
     Parameters
     ----------
     host : str
@@ -101,6 +105,8 @@ class TraceWriter:
                 proto_event.ParseFromString(message[0])
 
                 # Convert event to JSON format.
+                # All JSON timestamps are in us, our timestamps are in ns, so
+                # divide all times by 1000.
                 event_type = proto_event.WhichOneof('event')
                 if event_type == 'interval':
                     raw_data = proto_event.interval
@@ -198,6 +204,19 @@ class TraceWriter:
 
 @contextlib.contextmanager
 def trace_interval(name, category=''):
+    '''Trace an interval event.
+
+    Both the start and end time will be logged and
+    the event will be shown as a bar in the trace log viewer.
+
+    Parameters
+    ----------
+    name : str
+        The name of the event.
+    category : str, optional
+        The category of interval. Events with the same category will be
+        colored the same in the log viewer. The default is empty.
+    '''
     start = catkit_bindings.get_timestamp()
 
     try:
@@ -205,14 +224,40 @@ def trace_interval(name, category=''):
     finally:
         end = catkit_bindings.get_timestamp()
 
-        return catkit_bindings.trace_interval(name, category, start, end - start)
+        catkit_bindings.trace_interval(name, category, start, end - start)
 
 def trace_instant(name):
+    '''Trace an instant event.
+
+    The time at which this function is called will be logged and
+    the event will be shown as a single arrow or line in the trace
+    log viewer.
+
+    Parameters
+    ----------
+    name : str
+        The name of the event.
+    '''
     timestamp = catkit_bindings.get_timestamp()
 
-    return catkit_bindings.trace_instant(name, timestamp)
+    catkit_bindings.trace_instant(name, timestamp)
 
 def trace_counter(name, series, counter):
+    '''Trace a counter event.
+
+    The time at which this function is called is logged, in addition
+    to a scalar that we want to keep track of. The event will be shown
+    as a line graph.
+
+    Parameters
+    ----------
+    name : str
+        The name of the event.
+    series : str
+        The series of the event, e.g. "contrast", "iteration".
+    counter : float, int
+        The contents of this event, i.e. what changes over time.
+    '''
     timestamp = catkit_bindings.get_timestamp()
 
-    return catkit_bindings.trace_counter(name, series, timestamp, counter)
+    catkit_bindings.trace_counter(name, series, timestamp, counter)
