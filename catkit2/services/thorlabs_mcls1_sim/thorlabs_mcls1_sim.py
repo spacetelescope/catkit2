@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import threading
 
@@ -79,7 +78,7 @@ class ThorlabsMcls1Sim(Service):
             for getter in self.getters:
                 getter()
 
-            time.sleep(1)
+            self.sleep(1)
 
     def set_emission(self, emission):
         self.testbed.simulator.set_source_power(
