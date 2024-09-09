@@ -104,9 +104,6 @@ class ThorlabsMcls1Sim(Service):
     def get_temperature(self):
         return self.config['target_temperature']
 
-    def get_temperature(self):
-        return self.config['target_temperature']
-
 
 if __name__ == '__main__':
     service = ThorlabsMcls1Sim()
