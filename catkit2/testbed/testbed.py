@@ -21,6 +21,19 @@ from ..proto import service_pb2 as service_proto
 SERVICE_LIVELINESS = 5
 
 def get_unused_port(num_ports=1):
+    '''Get port numbers that are unused.
+
+    Parameters
+    ----------
+    num_ports : int, optional
+        The number of port numbers to return. By default 1.
+
+    Returns
+    -------
+    int or list of ints
+        The port numbers. If only a single port was requested, an
+        integer will be returned. Otherwise a list of integers.
+    '''
     ports = []
 
     with contextlib.ExitStack() as stack:
