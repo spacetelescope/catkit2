@@ -30,7 +30,7 @@ add_library(catkit_core STATIC
     ServiceProxy.cpp
     ServiceState.cpp
     Tensor.cpp
-    TracingProxy.cpp
+    Tracing.cpp
     Types.cpp
     Util.cpp
     proto/core.pb.cc

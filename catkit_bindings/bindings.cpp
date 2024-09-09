@@ -19,6 +19,7 @@
 #include "Server.h"
 #include "Client.h"
 #include "HostName.h"
+#include "Tracing.h"
 
 #include "proto/testbed.pb.h"
 
@@ -667,6 +668,22 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<LogForwarder>(m, "LogForwarder")
 		.def(py::init<>())
 		.def("connect", &LogForwarder::Connect);
+
+	m.def("trace_connect", [](std::string process_name, std::string host, int port) {
+		tracing_proxy.Connect(process_name, host, port);
+	});
+	m.def("trace_disconnect", []() {
+		tracing_proxy.Disconnect();
+	});
+	m.def("trace_interval", [](std::string name, std::string category, uint64_t timestamp_start, uint64_t duration) {
+		tracing_proxy.TraceInterval(name, category, timestamp_start, duration);
+	});
+	m.def("trace_instant", [](std::string name, uint64_t timestamp) {
+		tracing_proxy.TraceInstant(name, timestamp);
+	});
+	m.def("trace_counter", [](std::string name, std::string series, uint64_t timestamp, double counter) {
+		tracing_proxy.TraceCounter(name, series, timestamp, counter);
+	});
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

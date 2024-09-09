@@ -3,6 +3,7 @@
 //#include "Log.h"
 #include "Timing.h"
 #include "Util.h"
+#include "Tracing.h"
 
 #include <algorithm>
 #include <iostream>
@@ -160,6 +161,9 @@ DataFrame DataStream::RequestNewFrame()
 
 	frame.Set(m_Header->m_DataType, m_Header->m_NumDimensions, m_Header->m_Dimensions, m_Buffer + offset, false);
 
+	auto ts = GetTimeStamp();
+	tracing_proxy.TraceInterval("DataStream::RequestNewFrame", GetStreamName(), ts, 0);
+
 	return frame;
 }
 
@@ -203,16 +207,24 @@ void DataStream::SubmitFrame(size_t id)
 	m_Header->m_FrameRateCounter =
 		m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta)
 		+ FRAMERATE_DECAY;
+
+	auto ts = GetTimeStamp();
+	tracing_proxy.TraceInterval("DataStream::SubmitFrame", GetStreamName(), ts, 0);
 }
 
 void DataStream::SubmitData(const void *data)
 {
+	auto start = GetTimeStamp();
+
 	DataFrame frame = RequestNewFrame();
 
 	char *source = (char *) data;
 	std::copy(source, source + frame.GetSizeInBytes(), frame.m_Data);
 
 	SubmitFrame(frame.m_Id);
+
+	auto end = GetTimeStamp();
+	tracing_proxy.TraceInterval("DataStream::SubmitData", GetStreamName(), start, end - start);
 }
 
 std::vector<size_t> DataStream::GetDimensions()
