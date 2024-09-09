@@ -74,12 +74,6 @@ class ThorlabsMcls1Sim(Service):
         for thread in self.threads.values():
             thread.join()
 
-    def update_status_func(self, getter, stream):
-        def func():
-            result = getter()
-            stream.submit_data(np.array([result]).astype(stream.dtype))
-        return func
-
     def update_status(self):
         while not self.should_shut_down:
             for getter in self.getters:
