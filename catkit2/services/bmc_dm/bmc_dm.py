@@ -1,4 +1,5 @@
 from catkit2.testbed.service import Service
+from catkit2.testbed.tracing import trace_interval
 
 import time
 import sys
@@ -81,37 +82,42 @@ class BmcDm(Service):
             self.update_dm()
 
     def update_dm(self):
-        # Add up all channels to get the total surface.
-        total_surface = 0
-        for stream in self.channels.values():
-            total_surface += stream.get_latest_frame().data
+        with trace_interval('update dm surface'):
+            with trace_interval('compute total surface'):
+                # Add up all channels to get the total surface.
+                total_surface = 0
+                for stream in self.channels.values():
+                    total_surface += stream.get_latest_frame().data
 
-        # Apply the command on the DM.
-        self.send_surface(total_surface)
+            # Apply the command on the DM.
+            self.send_surface(total_surface)
 
     def send_surface(self, total_surface):
-        # Submit this surface to the total surface data stream.
-        self.total_surface.submit_data(total_surface)
+        with trace_interval('send surface'):
+            # Submit this surface to the total surface data stream.
+            self.total_surface.submit_data(total_surface)
 
-        # Compute the voltages from the request total surface.
-        voltages = self.flat_map + total_surface * self.gain_map_inv
-        voltages /= self.max_volts
-        voltages = np.clip(voltages, 0, 1)
+            with trace_interval('compute voltages'):
+                # Compute the voltages from the request total surface.
+                voltages = self.flat_map + total_surface * self.gain_map_inv
+                voltages /= self.max_volts
+                voltages = np.clip(voltages, 0, 1)
 
-        dac_bit_depth = self.config['dac_bit_depth']
+                dac_bit_depth = self.config['dac_bit_depth']
 
-        discretized_voltages = voltages
-        if dac_bit_depth is not None:
-            discretized_voltages = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
+                discretized_voltages = voltages
+                if dac_bit_depth is not None:
+                    discretized_voltages = (np.floor(voltages * (2**dac_bit_depth))) / (2**dac_bit_depth)
 
-        with self.lock:
-            status = self.device.send_data(voltages)
+            with trace_interval('send data'):
+                with self.lock:
+                    status = self.device.send_data(voltages)
 
-            if status != bmc.NO_ERR:
-                raise RuntimeError(f'Failed to send data: {self.device.error_string(status)}.')
+                if status != bmc.NO_ERR:
+                    raise RuntimeError(f'Failed to send data: {self.device.error_string(status)}.')
 
-        # Submit these voltages to the total voltage data stream.
-        self.total_voltage.submit_data(discretized_voltages)
+            # Submit these voltages to the total voltage data stream.
+            self.total_voltage.submit_data(discretized_voltages)
 
     def open(self):
         self.flat_map = fits.getdata(self.flat_map_fname)
