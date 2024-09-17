@@ -5,6 +5,7 @@ import time
 import subprocess
 import socket
 import threading
+import contextlib
 
 import psutil
 import zmq
@@ -18,10 +19,22 @@ from ..proto import service_pb2 as service_proto
 
 SERVICE_LIVELINESS = 5
 
-def get_unused_port():
-    with socket.socket() as sock:
-        sock.bind(('', 0))
-        return sock.getsockname()[1]
+def get_unused_port(num_ports=1):
+    ports = []
+
+    with contextlib.ExitStack() as stack:
+        for i in range(num_ports):
+            sock = socket.socket()
+            stack.enter_context(sock)
+
+            sock.bind(('', 0))
+            ports.append(sock.getsockname()[1])
+
+    if num_ports == 1:
+        return ports[0]
+
+    return ports
+
 
 class ServiceReference:
     '''A reference to a service running on another process.
@@ -142,6 +155,13 @@ class Testbed:
     def __init__(self, port, is_simulated, config):
         self.host = '127.0.0.1'
         self.port = port
+
+        self.logging_ingress_port = 0
+        self.logging_egress_port = 0
+        self.data_logging_ingress_port = 0
+        self.data_logging_egress_port = 0
+        self.tracing_ingress_port = 0
+        self.tracing_egress_port = 0
 
         self.is_simulated = is_simulated
         self.config = config
@@ -355,7 +375,8 @@ class Testbed:
         logging.getLogger().addHandler(self.log_handler)
         logging.getLogger().setLevel(logging.DEBUG)
 
-        self.log_forwarder = LogForwarder('testbed', f'tcp://localhost:{self.port + 1}')
+        self.log_forwarder = LogForwarder()
+        self.log_forwarder.connect('testbed', f'tcp://localhost:{self.logging_ingress_port}')
 
     def destroy_logging(self):
         '''Shut down all logging.
@@ -371,7 +392,9 @@ class Testbed:
     def start_log_distributor(self):
         '''Start the log distributor.
         '''
-        self.log_distributor = LogDistributor(self.context, self.port + 1, self.port + 2)
+        self.logging_ingress_port, self.logging_egress_port = get_unused_port(num_ports=2)
+
+        self.log_distributor = LogDistributor(self.context, self.logging_ingress_port, self.logging_egress_port)
         self.log_distributor.start()
 
     def stop_log_distributor(self):
@@ -433,10 +456,12 @@ class Testbed:
         reply.config = json.dumps(self.config)
         reply.is_simulated = self.is_simulated
         reply.heartbeat_stream_id = self.heartbeat_stream.stream_id
-        reply.logging_ingress_port = self.port + 1
-        reply.logging_egress_port = self.port + 2
-        reply.data_logging_ingress_port = 0
-        reply.tracing_ingress_port = 0
+        reply.logging_ingress_port = self.logging_ingress_port
+        reply.logging_egress_port = self.logging_egress_port
+        reply.data_logging_ingress_port = self.data_logging_ingress_port
+        reply.data_logging_egress_port = self.data_logging_egress_port
+        reply.tracing_ingress_port = self.tracing_ingress_port
+        reply.tracing_egress_port = self.tracing_egress_port
 
         return reply.SerializeToString()
 

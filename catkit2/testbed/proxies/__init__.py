@@ -7,6 +7,7 @@ __all__ = [
     'NiDaqProxy',
     'NktSuperkProxy',
     'ThorlabsCubeMotorKinesisProxy',
+    'ThorlabsMcls1',
     'WebPowerSwitchProxy',
     'OceanopticsSpectroProxy'
 ]
@@ -20,4 +21,5 @@ from .ni_daq import *
 from .nkt_superk import *
 from .oceanoptics_spectrometer import *
 from .thorlabs_cube_motor_kinesis import *
+from .thorlabs_mcls1 import *
 from .web_power_switch import *

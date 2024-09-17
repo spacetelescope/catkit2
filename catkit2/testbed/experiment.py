@@ -71,7 +71,8 @@ class Experiment:
                 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
                 # Set up log forwarder.
-                log_forwarder = LogForwarder('experiment', f'tcp://{self.testbed.host}:{self.testbed.logging_ingress_port}')
+                log_forwarder = LogForwarder()
+                log_forwarder.connect('experiment', f'tcp://{self.testbed.host}:{self.testbed.logging_ingress_port}')
 
                 # Set up log writer.
                 self._log_writer = LogWriter(self.testbed.host, self.testbed.logging_egress_port)

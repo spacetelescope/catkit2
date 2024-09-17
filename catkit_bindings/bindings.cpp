@@ -665,7 +665,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 			py::arg("print_context") = true);
 
 	py::class_<LogForwarder>(m, "LogForwarder")
-		.def(py::init<std::string, std::string>());
+		.def(py::init<>())
+		.def("connect", &LogForwarder::Connect);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
