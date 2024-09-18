@@ -15,7 +15,7 @@ on:
 jobs:
   build_docs:
     name: Build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v4
@@ -23,6 +23,11 @@ jobs:
       with:
           auto-update-conda: true
           auto-activate-base: false
+    - name: Switch to gcc-10 on linux
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt install gcc-10 g++-10 cpp-10
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
     - name: Install dependencies
       run: |
         cd extern/

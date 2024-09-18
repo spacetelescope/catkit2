@@ -3,6 +3,7 @@
 #include "Finally.h"
 #include "Timing.h"
 #include "TestbedProxy.h"
+#include "Tracing.h"
 #include "proto/service.pb.h"
 
 #include <chrono>
@@ -32,6 +33,8 @@ Service::Service(string service_type, string service_id, int service_port, int t
 	m_LoggerPublish.Connect(service_id, "tcp://127.0.0.1:"s + to_string(m_Testbed->GetLoggingIngressPort()));
 
 	m_Heartbeat = DataStream::Create("heartbeat", service_id, DataType::DT_UINT64, {1}, 20);
+
+	tracing_proxy.Connect(service_id, "127.0.0.1", m_Testbed->GetTracingIngressPort());
 
 	string state_stream_id = m_Testbed->RegisterService(
 		service_id,

@@ -1,17 +1,27 @@
-import time
-import queue
 import numpy as np
 import threading
 
 from catkit2.testbed.service import Service
 
 
+def make_monitor_func(stream, setter):
+    def func(self):
+        while not self.should_shut_down:
+            try:
+                frame = stream.get_next_frame(1)
+            except Exception:
+                continue
+
+            setter(frame.data[0])
+
+    return func
+
+
 class ThorlabsMcls1Sim(Service):
 
     def __init__(self):
-        super().__init__('thorlabs_mcls1')
+        super().__init__('thorlabs_mcls1_sim')
         self.threads = {}
-        self.communication_queue = queue.Queue()
 
     def open(self):
         # Make datastreams
@@ -29,20 +39,14 @@ class ThorlabsMcls1Sim(Service):
             'target_temperature': self.set_target_temperature,
         }
 
-        self.status_funcs = {
-            'temperature': (self.temperature, lambda: self.config['temperature']),
-            'power': (self.power, self.get_power)
-        }
+        self.getters = [
+            self.get_temperature,
+            self.get_power
+        ]
 
-        funcs = {
-            'emission': self.monitor_func(self.emission, self.setters['emission']),
-            'current_setpoint': self.monitor_func(self.current_setpoint, self.setters['current_setpoint']),
-            'target_temperature': self.monitor_func(self.target_temperature, self.setters['target_temperature']),
-        }
-
-        # Start all threads.
-        for key, func in funcs.items():
-            thread = threading.Thread(target=func)
+        for key, setter in self.setters.items():
+            func = make_monitor_func(getattr(self, key), setter)
+            thread = threading.Thread(target=func, args=(self,))
             thread.start()
 
             self.threads[key] = thread
@@ -59,44 +63,22 @@ class ThorlabsMcls1Sim(Service):
 
     def main(self):
         while not self.should_shut_down:
-            try:
-                task, args = self.communication_queue.get(timeout=1)
-                task(self, *args)
-                self.communication_queue.task_done()
-            except queue.Empty:
-                pass
+            self.sleep(1)
 
     def close(self):
         # Turn off the source
-        self.setters['emission'](self, 0)
+        self.set_emission(0)
 
         # Join all threads.
         for thread in self.threads.values():
             thread.join()
 
-    def monitor_func(self, stream, setter):
-        def func():
-            while not self.should_shut_down:
-                try:
-                    frame = stream.get_next_frame(1)
-                except Exception:
-                    continue
-                self.communication_queue.put((setter, [frame.data[0]]))
-
-        return func
-
-    def update_status_func(self, getter, stream):
-        def func(self):
-            result = getter(self)
-            stream.submit_data(np.array([result]).astype(stream.dtype))
-        return func
-
     def update_status(self):
         while not self.should_shut_down:
-            for stream, getter in self.status_funcs.values():
-                self.communication_queue.put((self.update_status_func(getter, stream), []))
+            for getter in self.getters:
+                getter()
 
-            time.sleep(1)
+            self.sleep(1)
 
     def set_emission(self, emission):
         self.testbed.simulator.set_source_power(
@@ -118,6 +100,9 @@ class ThorlabsMcls1Sim(Service):
 
     def get_power(self):
         return self.testbed.simulator.light_source_data[self.id + '_power']
+
+    def get_temperature(self):
+        return self.config['target_temperature']
 
 
 if __name__ == '__main__':

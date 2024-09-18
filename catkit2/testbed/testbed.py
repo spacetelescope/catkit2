@@ -11,15 +11,49 @@ import psutil
 import zmq
 import numpy as np
 
-from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state, Client
+from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state, Client, get_host_name
 from .logging import *
+from .distributor import ZmqDistributor
 
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
 
+
 SERVICE_LIVELINESS = 5
 
+
+if sys.platform == 'win32':
+    NICE_VALUES = {
+        'idle': psutil.IDLE_PRIORITY_CLASS,
+        'below_normal': psutil.BELOW_NORMAL_PRIORITY_CLASS,
+        'normal': psutil.NORMAL_PRIORITY_CLASS,
+        'above_normal': psutil.ABOVE_NORMAL_PRIORITY_CLASS,
+        'high': psutil.HIGH_PRIORITY_CLASS
+    }
+else:
+    NICE_VALUES = {
+        'idle': 20,
+        'below_normal': 10,
+        'normal': 0,
+        'above_normal': -10,
+        'high': -20
+    }
+
+
 def get_unused_port(num_ports=1):
+    '''Get port numbers that are unused.
+
+    Parameters
+    ----------
+    num_ports : int, optional
+        The number of port numbers to return. By default 1.
+
+    Returns
+    -------
+    int or list of ints
+        The port numbers. If only a single port was requested, an
+        integer will be returned. Otherwise a list of integers.
+    '''
     ports = []
 
     with contextlib.ExitStack() as stack:
@@ -156,6 +190,8 @@ class Testbed:
         self.host = '127.0.0.1'
         self.port = port
 
+        self.host_name = get_host_name()
+
         self.logging_ingress_port = 0
         self.logging_egress_port = 0
         self.data_logging_ingress_port = 0
@@ -167,11 +203,13 @@ class Testbed:
         self.config = config
 
         self.services = {}
+        self.launched_processes = []
 
         self.log_distributor = None
         self.log_handler = None
         self.log_forwarder = None
-        self.launched_processes = []
+
+        self.tracing_distributor = None
 
         self.log = logging.getLogger(__name__)
 
@@ -271,6 +309,9 @@ class Testbed:
             self.start_log_distributor()
             self.setup_logging()
 
+            # Start tracing distributor.
+            self.start_tracing_distributor()
+
             heartbeat_thread = threading.Thread(target=self.do_heartbeats)
             heartbeat_thread.start()
 
@@ -315,6 +356,9 @@ class Testbed:
 
                 # Shut down the server.
                 self.server.stop()
+
+                # Stop tracing distributor.
+                self.stop_tracing_distributor()
 
                 # Stop the logging.
                 self.destroy_logging()
@@ -392,9 +436,15 @@ class Testbed:
     def start_log_distributor(self):
         '''Start the log distributor.
         '''
+        def callback(log_message):
+            log_message = log_message[0].decode('utf-8')
+            log_message = json.loads(log_message)
+
+            print(f'[{log_message["service_id"]}] {log_message["message"]}')
+
         self.logging_ingress_port, self.logging_egress_port = get_unused_port(num_ports=2)
 
-        self.log_distributor = LogDistributor(self.context, self.logging_ingress_port, self.logging_egress_port)
+        self.log_distributor = ZmqDistributor(self.context, self.logging_ingress_port, self.logging_egress_port, callback)
         self.log_distributor.start()
 
     def stop_log_distributor(self):
@@ -403,6 +453,19 @@ class Testbed:
         if self.log_distributor:
             self.log_distributor.stop()
             self.log_distributor = None
+
+    def start_tracing_distributor(self):
+        '''Start the tracing distributor.
+        '''
+        self.tracing_ingress_port, self.tracing_egress_port = get_unused_port(num_ports=2)
+
+        self.tracing_distributor = ZmqDistributor(self.context, self.tracing_ingress_port, self.tracing_egress_port)
+        self.tracing_distributor.start()
+
+    def stop_tracing_distributor(self):
+        if self.tracing_distributor:
+            self.tracing_distributor.stop()
+            self.tracing_distributor = None
 
     def on_start_service(self, data):
         request = testbed_proto.StartServiceRequest()
@@ -606,6 +669,38 @@ class Testbed:
         self.services[service_id].port = port
 
         self.launched_processes.append(process)
+
+        # Set CPU affinity
+        if 'cpu_affinity' in self.config['testbed']:
+            affinity_config = self.config['testbed']['cpu_affinity']
+
+            # Only use affinity if there is an entry for our host name.
+            if self.host_name in affinity_config:
+                default_affinity = affinity_config[self.host_name].get('default')
+
+                affinity = affinity_config[self.host_name].get(service_id, default_affinity)
+
+                # Only set affinity if there was one for this service or if there was a default.
+                if affinity:
+                    self.services[service_id].process.cpu_affinity(affinity)
+
+                    self.log.debug(f'with CPU affinity to {affinity}.')
+
+        # Set process priority
+        if 'process_priority' in self.config['testbed']:
+            priority_config = self.config['testbed']['process_priority']
+
+            # Only use priority if there is an entry for our host name.
+            if self.host_name in priority_config:
+                default_priority = priority_config[self.host_name].get('default', None)
+
+                priority = priority_config[self.host_name].get(service_id, default_priority)
+
+                # Only set priority if there was one for this service or if there was a default.
+                if priority:
+                    self.services[service_id].process.nice(NICE_VALUES[priority])
+
+                    self.log.debug(f'with priority {priority}.')
 
         self.log.info(f'Started service "{service_id}" with type "{service_type}".')
 
