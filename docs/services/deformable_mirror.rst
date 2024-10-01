@@ -5,25 +5,24 @@ This is the deformable mirror base class. It abstracts away the virtual channels
 streams. It is meant to be subclassed by the specific DM implementation, both for hardware and software devices.
 
 This service controls any number of DMs as long as they are all controlled by the same driver, and they all use the same
-device actuator mask.
+shape (optionally zero-padded).
 
 This service and all its subclasses allow for exactly two types of commands:
-1. "DM command": A 1D device actuator command, which is a 1D array of all individual DM actuator commands concatenated together.
-2. "DM map": A 3D cube of DM actuator maps, where the first dimension is the DM index. This is allowed to be a 2D array if there
-   is only one DM.
+1. "DM command". A 1D array containing all individual DM actuator commands concatenated together.
+2. "DM map". A multidimensional stack of DM actuator maps, where the first dimension is the DM index.
 
-DM commands get extensively used in various experiments and they are easier to create, while DM maps are used and
-required for plotting purposes. This division makes it easier to distinguish between them since one is a 1D array and
-the other one is a 2/3D array. Any conversion to a device-specific hardware command should be done in the subclass, as
+DM commands are used extensively in various experiments and are easier to create, while DM maps are used for plotting purposes.
+This division makes it easier to distinguish between them since one is a 1D array and
+the other one is not. Any conversion to a device-specific hardware command should be done in the subclass, as
 it would only be used for communicating with the hardware devices.
 
-The device actuator mask file needs to be 2D FITS file with the actuator map. The actual device actuators are identified
+The device actuator mask file needs to be a FITS file in DM map format. The actual device actuators are identified
 by the non-zero pixels in the mask. The mask is used to determine the number of actuators and their positions on the
 device.
 
 The data streams hold exclusively 1D DM commands, where all device actuators from all DMs are concatenated in sequence.
-This means their length is ``self.num_actuators * self.num_dms``, both of which are determined by the device
-actuator mask.
+
+At startup, each channel will have an optional startup map applied.
 
 Configuration
 -------------
