@@ -22,25 +22,15 @@ class BmcDeformableMirror(DeformableMirrorService):
     def open(self):
         super().open()
 
-        self.flat_map = fits.getdata(self.flat_map_fname)
-        if self.flat_map.ndim <= 1:
-            raise ValueError(f'The provided flat map for {self.service_id} needs to be at least a 2D array.')
-        elif self.flat_map.ndim == 2:
-            self.flat_map = np.expand_dims(self.flat_map, axis=0)
-        # Convert to DM command
-        self.flat_map_command = self.flat_map[self.device_actuator_mask]
+        with fits.open(self.flat_map_fname) as f:
+            self.flat_map = f['COMMAND'].data.astype('float64')
 
-        self.gain_map = fits.getdata(self.gain_map_fname)
-        if self.gain_map.ndim <= 1:
-            raise ValueError(f'The provided gain map for {self.service_id} needs to be at least a 2D array.')
-        elif self.gain_map.ndim == 2:
-            self.gain_map = np.expand_dims(self.gain_map, axis=0)
-        # Convert to DM command
-        self.gain_map_command = self.gain_map[self.device_actuator_mask]
+        with fits.open(self.gain_map_fname) as f:
+            self.gain_map = f['COMMAND'].data.astype('float64')
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self.gain_map_inv_command = 1 / self.gain_map_command    # TODO: Is this still correct?
-            self.gain_map_inv_command[np.abs(self.gain_map_command) < 1e-10] = 0
+            self.gain_map_inv = 1 / self.gain_map
+            self.gain_map_inv[np.abs(self.gain_map) < 1e-10] = 0
 
         self.send_surface(np.zeros(self.num_actuators * self.num_dms, dtype='float64'))
 
