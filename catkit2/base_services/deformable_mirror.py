@@ -37,19 +37,14 @@ class DeformableMirrorService(Service):
         self.total_surface = self.make_data_stream('total_surface', 'float64', [self.num_actuators * self.num_dms], 20)
 
     def add_channel(self, channel_name):
-        self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.num_actuators * self.num_dms], 20)
+        self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.dm_command_length], 20)
 
         # Get the right default flat map.
         if channel_name in self.startup_maps:
-            startup_map = fits.getdata(self.startup_maps[channel_name]).astype('float64')
-            if startup_map.ndim <= 1:
-                raise ValueError(f'The provided startup map for {self.service_id} needs to be at least a 2D array.')
-            elif startup_map.ndim == 2:
-                startup_map = np.expand_dims(startup_map, axis=0)
-            # Convert to DM command
-            startup_map_command = startup_map[self.device_actuator_mask]
+            with fits.open(self.startup_maps[channel_name]) as f:
+                startup_map_command = f['COMMAND'].data.astype('float64')
         else:
-            startup_map_command = np.zeros(self.num_actuators * self.num_dms)
+            startup_map_command = np.zeros(self.dm_command_length)
 
         self.channels[channel_name].submit_data(startup_map_command)
 
