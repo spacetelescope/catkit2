@@ -1,5 +1,6 @@
 from catkit2.base_services.bmc_deformable_mirror import BmcDeformableMirror
 
+import threading
 import sys
 import os
 import numpy as np
@@ -20,6 +21,8 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
         super().__init__('bmc_deformable_mirror_hardware')
 
         self.device_command_index = self.config.get('device_command_index', 0)
+
+        self.lock = threading.Lock()
 
     def open(self):
         super().open()

@@ -1,6 +1,5 @@
 from catkit2.base_services.deformable_mirror import DeformableMirrorService
 
-import threading
 import numpy as np
 from astropy.io import fits
 
@@ -50,7 +49,7 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.surface = surface
 
         # Send voltages to the device.
-        self.send_voltages(self.voltages)
+        self.send_voltages()
 
         # Submit discretized surface and voltages to data streams.
         self.total_surface.submit_data(self.discretized_surface)

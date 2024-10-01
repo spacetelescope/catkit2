@@ -25,8 +25,6 @@ class DeformableMirrorService(Service):
         self.dm_shape = self.device_actuator_mask[0].shape
         self.num_actuators = np.sum(self.device_actuator_mask[0])
 
-        self.lock = threading.Lock()
-
         self.channels = {}
         self.channel_threads = {}
         for channel in self.config['channels']:
