@@ -14,10 +14,11 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.gain_map_fname = self.config['gain_map_fname']
         self.max_volts = self.config['max_volts']
         self.dac_bit_depth = self.config['dac_bit_depth']
+
+        self._surface = None
+        self._voltages = None
         self._discretized_voltages = None
         self._discretized_surface = None
-
-        self.lock = threading.Lock()
 
     def open(self):
         super().open()
@@ -45,37 +46,57 @@ class BmcDeformableMirror(DeformableMirrorService):
     def close(self):
         super().close()
 
-    def send_surface(self, total_surface):
-        # Compute the voltages from the requested total surface.
-        voltages = self.flat_map_command + total_surface * self.gain_map_inv_command
-        voltages /= self.max_volts
-        voltages = np.clip(voltages, 0, 1)
+    def send_surface(self, surface):
+        self.surface = surface
 
-        self.discretized_voltages = voltages
-        self.discretized_surface = total_surface
+        # Send voltages to the device.
+        self.send_voltages(self.voltages)
 
         # Submit discretized surface and voltages to data streams.
         self.total_surface.submit_data(self.discretized_surface)
         self.total_voltage.submit_data(self.discretized_voltages)
 
+    def send_voltages(self, voltages):
+        raise NotImplementedError('send_voltages() should be implemented by subclasses.')
+
+    @property
+    def surface(self):
+        return self._surface
+
+    @surface.setter
+    def surface(self, surface):
+        self._surface = surface
+
+        self._voltages = None
+        self._discretized_surface = None
+        self._discretized_voltages = None
+
+    @property
+    def voltages(self):
+        if self._voltages is None:
+            # Compute the voltages from the requested total surface.
+            voltages = self.flat_map_command + self.surface * self.gain_map_inv_command
+            voltages /= self.max_volts
+            self._voltages = np.clip(voltages, 0, 1)
+
+        return self._voltages
+
     @property
     def discretized_voltages(self):
-        return self._discretized_voltages
+        if self._discretized_voltages is None:
+            self._discretized_voltages = self.voltages
 
-    @discretized_voltages.setter
-    def discretized_voltages(self, voltages):
-        values = voltages
-        if self.dac_bit_depth is not None:
-            values = (np.floor(voltages * (2**self.dac_bit_depth))) / (2**self.dac_bit_depth)
-        self._discretized_voltages = values
+            if self.dac_bit_depth is not None:
+                self._discretized_voltages = (np.floor(self.voltages * (2**self.dac_bit_depth))) / (2**self.dac_bit_depth)
+
+        return self._discretized_voltages
 
     @property
     def discretized_surface(self):
-        return self._discretized_surface
+        if self._discretized_surface is None:
+            self._discretized_surface = self.surface
 
-    @discretized_surface.setter
-    def discretized_surface(self, total_surface):
-        values = total_surface
-        if self.dac_bit_depth is not None:
-            values = (self.discretized_voltages * self.max_volts - self.flat_map_command) * self.gain_map_command
-        self._discretized_surface = values
+            if self.dac_bit_depth is not None:
+                self._discretized_surface = (self.discretized_voltages * self.max_volts - self.flat_map_command) * self.gain_map_command
+
+        return self._discretized_surface
