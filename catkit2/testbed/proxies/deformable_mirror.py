@@ -10,14 +10,16 @@ class DeformableMirrorProxy(ServiceProxy):
     def device_actuator_mask(self):
         if not hasattr(self, '_device_actuator_mask'):
             fname = self.config['device_actuator_mask_fname']
-
             self._device_actuator_mask = fits.getdata(fname).astype('bool')
+
             if self._device_actuator_mask.ndim <= 1:
                 raise ValueError(f'The provided device actuator mask needs for {self.service_id} to be at least a 2D array.')
-            elif self._device_actuator_mask.ndim == 2:
-                self._device_actuator_mask = np.expand_dims(self._device_actuator_mask, axis=0)
 
         return self._device_actuator_mask
+
+    @property
+    def command_length(self):
+        return np.sum(self.device_actuator_mask)
 
     @property
     def dm_shape(self):
@@ -33,8 +35,8 @@ class DeformableMirrorProxy(ServiceProxy):
 
     @property
     def actuator_grid(self):
-        # Get the last two dimensions in reverse order.
-        dims = self.device_actuator_mask.shape[:-3:-1]
+        # Get the last dimensions in reverse order.
+        dims = self.device_actuator_mask.shape[1:][::-1]
 
         return hcipy.make_uniform_grid(dims, dims)
 
@@ -66,8 +68,11 @@ class DeformableMirrorProxy(ServiceProxy):
         array
             A 1D array containing the DM command.
         """
-        if dm_map.ndim == 2:
-            dm_map = np.expand_dims(dm_map, axis=0)
+        try:
+            dm_map = np.broadcast_to(dm_map, self.device_actuator_mask.shape)
+        except ValueError:
+            raise ValueError(f'Invalid shape for dm map: {dm_map.shape}. Expected shape: {self.device_actuator_mask.shape}.')
+
         command = dm_map[self.device_actuator_mask]
 
         return command
@@ -87,33 +92,30 @@ class DeformableMirrorProxy(ServiceProxy):
             third dimension are 2D DM maps.
         """
         dm_maps = np.zeros_like(self.device_actuator_mask, dtype='float')
-
         dm_maps[self.device_actuator_mask] = command
 
         return dm_maps
 
-    def apply_shape(self, channel, command):
-        """
-        Apply a shape to a DM channel.
+    def apply_shape(self, channel, dm_shape):
+        """Apply a shape to a DM channel.
 
         Parameters
         ----------
         channel : str
             The channel to apply the shape to.
-        command : array
-            The command to apply to the channel. Can be either a 1D array (DM command) with all actuators of all DMs
-            controlled by this driver in sequence. Or a 2D array (cube of 2D arrays) representing all 2D DM maps of all
-            DMs controlled by this driver.
+        dm_shape : array
+            The DM shape to apply to the channel. Can be either a DM command with all actuators of
+            all DMs controlled by this driver in sequence. Or a DM map representing the DM maps of
+            all DMs controlled by this driver.
         """
-        command = np.array(command, copy=False)
+        # Make sure the command is a Numpy array.
+        command = np.array(dm_shape, copy=False)
 
-        if command.ndim == 1:  # Input is already a (N) array, in which case it is already a DM command.
-            pass
-        elif 1 < command.ndim <= 3:  # Input is a 2D map or a 3D cube of maps.
+        # If we're given a DM map, convert it to a command.
+        if command.shape != (self.command_length,):
             command = self.dm_maps_to_command(command)
-        else:
-            raise ValueError(f'Invalid shape for command: {command.shape}')
 
+        # Submit the command to the channel.
         getattr(self, channel).submit_data(command)
 
     def write_dm_shape(self, fname, dm_shape):
