@@ -49,14 +49,14 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.surface = surface
 
         # Send voltages to the device.
-        self.send_voltages()
+        self.send_to_device()
 
         # Submit discretized surface and voltages to data streams.
         self.total_surface.submit_data(self.discretized_surface)
         self.total_voltage.submit_data(self.discretized_voltages)
 
-    def send_voltages(self, voltages):
-        raise NotImplementedError('send_voltages() should be implemented by subclasses.')
+    def send_to_device(self):
+        raise NotImplementedError('send_to_device() should be implemented by subclasses.')
 
     @property
     def surface(self):

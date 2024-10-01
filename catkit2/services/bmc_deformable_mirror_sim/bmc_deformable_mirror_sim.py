@@ -25,9 +25,7 @@ class BmcDeformableMirrorSim(BmcDeformableMirror):
 
         super().close()
 
-    def send_surface(self, total_surface):
-        super().send_surface(total_surface)
-
+    def send_to_device(self):
         with self.lock:
             self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=self.discretized_surface)
 

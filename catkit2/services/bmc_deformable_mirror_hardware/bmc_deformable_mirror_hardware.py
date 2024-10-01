@@ -48,11 +48,9 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
 
         super().close()
 
-    def send_surface(self, total_surface):
-        super().send_surface(total_surface)
-
+    def send_to_device(self):
         # Convert to hardware command format
-        device_command = self.dm_command_to_device_command(self.discretized_voltages)
+        device_command = self.dm_command_to_device_command(self.voltages)
 
         with self.lock:
             # Send the voltages to the DM.
