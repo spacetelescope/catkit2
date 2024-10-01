@@ -42,8 +42,12 @@ class BmcDeformableMirror(DeformableMirrorService):
             self.gain_map_inv_command = 1 / self.gain_map_command    # TODO: Is this still correct?
             self.gain_map_inv_command[np.abs(self.gain_map_command) < 1e-10] = 0
 
+        self.send_surface(np.zeros(self.num_actuators * self.num_dms, dtype='float64'))
+
     def close(self):
         super().close()
+
+        self.send_surface(np.zeros(self.num_actuators * self.num_dms, dtype='float64'))
 
     def send_surface(self, surface):
         self.surface = surface

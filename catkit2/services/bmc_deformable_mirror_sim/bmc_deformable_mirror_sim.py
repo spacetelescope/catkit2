@@ -13,18 +13,6 @@ class BmcDeformableMirrorSim(BmcDeformableMirror):
 
         self.lock = threading.Lock()
 
-    def open(self):
-        super().open()
-
-        zeros = np.zeros(self.num_actuators * self.num_dms, dtype='float64')
-        self.send_surface(zeros)
-
-    def close(self):
-        zeros = np.zeros(self.num_actuators * self.num_dms, dtype='float64')
-        self.send_surface(zeros)
-
-        super().close()
-
     def send_to_device(self):
         with self.lock:
             self.testbed.simulator.actuate_dm(dm_name=self.id, new_actuators=self.discretized_surface)

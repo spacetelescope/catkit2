@@ -25,8 +25,6 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
         self.lock = threading.Lock()
 
     def open(self):
-        super().open()
-
         self.device = bmc.BmcDm()
         status = self.device.open_dm(self.serial_number)
 
@@ -35,18 +33,14 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
 
         self.device_command_length = self.device.num_actuators()
 
-        zeros = np.zeros(self.num_actuators * self.num_dms, dtype='float64')
-        self.send_surface(zeros)
+        super().open()
 
     def close(self):
         try:
-            zeros = np.zeros(self.num_actuators * self.num_dms, dtype='float64')
-            self.send_surface(zeros)
+            super.close()
         finally:
             self.device.close_dm()
             self.device = None
-
-        super().close()
 
     def send_to_device(self):
         # Convert to hardware command format
