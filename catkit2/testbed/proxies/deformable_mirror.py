@@ -115,3 +115,30 @@ class DeformableMirrorProxy(ServiceProxy):
             raise ValueError(f'Invalid shape for command: {command.shape}')
 
         getattr(self, channel).submit_data(command)
+
+    def write_dm_shape(self, fname, dm_shape):
+        '''Write a DM shape to a file.
+
+        Parameters
+        ----------
+        fname : str
+            The path where to write the DM shape.
+        dm_shape : _type_
+            _description_
+        '''
+        # If we're given a DM map, convert it to a command.
+        if dm_shape.shape != (self.command_length,):
+            command = self.dm_maps_to_command(dm_shape)
+            dm_map = dm_shape
+        else:
+            command = dm_shape
+            dm_map = self.command_to_dm_maps(dm_shape)
+
+        hdus = [
+            fits.ImageHDU(dm_map, name='DM_MAP'),
+            fits.ImageHDU(command, name='COMMAND')
+        ]
+
+        hdu_list = fits.HDUList(hdus)
+
+        hdu_list.writeto(fname)
