@@ -22,6 +22,9 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
 
         self.device_command_index = self.config.get('device_command_index', 0)
 
+        if isinstance(self.device_command_index, list):
+            self.device_command_index = [self.device_command_index]
+
         self.lock = threading.Lock()
 
     def open(self):
@@ -57,20 +60,10 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
         device_command = np.zeros(self.device_command_length)
 
         # Check if this service controls more than one DM
-        if isinstance(self.device_command_index, list):
-            for index in self.device_command_index:
-                # Extract the DM command for this DM
-                # and put into correct array slice of device command
-                device_command[index:] = dm_command[:self.num_actuators]
-
-                # Remove the DM command that has been applied
-                dm_command = dm_command[self.num_actuators:]
-        else:
-            dm_command_length = dm_command.shape[0]
-            try:
-                device_command[self.device_command_index:self.device_command_index + dm_command_length] = dm_command
-            except ValueError:
-                raise ValueError(f'Invalid device command index: {self.device_command_index} for command length: {dm_command_length} with device command length: {self.device_command_length}.')
+        for i, index in enumerate(self.device_command_index):
+            # Extract the DM command for this DM
+            # and put into correct array slice of device command
+            device_command[index:index + self.num_actuators] = dm_command[i * self.num_actuators:(i + 1) * self.num_actuators]
 
         return device_command
 
