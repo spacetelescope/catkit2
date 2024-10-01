@@ -50,6 +50,13 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.send_surface(np.zeros(self.num_actuators * self.num_dms, dtype='float64'))
 
     def send_surface(self, surface):
+        '''Send a surface map to the DM(s).
+
+        Parameters
+        ----------
+        surface : ndarray
+            The requested surface of the DM(s).
+        '''
         self.surface = surface
 
         # Send voltages to the device.
@@ -60,6 +67,10 @@ class BmcDeformableMirror(DeformableMirrorService):
         self.total_voltage.submit_data(self.discretized_voltages)
 
     def send_to_device(self):
+        '''Send the surface to the simulated/real hardware.
+
+        This can be either self.surface or self.voltages.
+        '''
         raise NotImplementedError('send_to_device() should be implemented by subclasses.')
 
     @property

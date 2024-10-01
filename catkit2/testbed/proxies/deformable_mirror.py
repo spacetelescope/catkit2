@@ -8,6 +8,8 @@ import hcipy
 class DeformableMirrorProxy(ServiceProxy):
     @property
     def device_actuator_mask(self):
+        '''A mask describing the physical actuators on all DMs.
+        '''
         if not hasattr(self, '_device_actuator_mask'):
             fname = self.config['device_actuator_mask_fname']
             self._device_actuator_mask = fits.getdata(fname).astype('bool')
@@ -19,28 +21,50 @@ class DeformableMirrorProxy(ServiceProxy):
 
     @property
     def command_length(self):
+        '''The length of a DM command.
+        '''
         return np.sum(self.device_actuator_mask)
 
     @property
     def dm_shape(self):
+        '''The shape of the DM.
+        '''
         return self.device_actuator_mask[0].shape
 
     @property
     def num_dms(self):
+        '''The number of DMs.
+        '''
         return self.device_actuator_mask.shape[0]
 
     @property
     def num_actuators(self):
+        '''The number of device actuators per DM.
+        '''
         return np.sum(self.device_actuator_mask[0])
 
     @property
     def actuator_grid(self):
+        '''The positions of the actuators of the DM(s).
+        '''
         # Get the last dimensions in reverse order.
         dims = self.device_actuator_mask.shape[1:][::-1]
 
         return hcipy.make_uniform_grid(dims, dims)
 
     def flatten_channels(self, channel_names):
+        '''Flatten the designated channels.
+
+        Parameters
+        ----------
+        channel_names : list of str, or str
+            The channel name(s) which to flatten.
+
+        Returns
+        -------
+        ndarray
+            The summed DM command of the flattened channels.
+        '''
         summed_command = 0
 
         if isinstance(channel_names, str):
@@ -60,8 +84,7 @@ class DeformableMirrorProxy(ServiceProxy):
         Parameters
         ----------
         dm_map : array
-            A 3D array with its first dimension giving the number of devices controlled with this service. Second and
-            third dimension are 2D DM maps. Can also just be a 2D DM map.
+            The DM map for each device.
 
         Returns
         -------
@@ -78,18 +101,17 @@ class DeformableMirrorProxy(ServiceProxy):
         return command
 
     def command_to_dm_maps(self, command):
-        """Convert a 1D DM command into a 3D cube of 2D DM maps.
+        """Convert a DM command into DM maps.
 
         Parameters
         ----------
-        command : array
+        command : ndarray
             A 1D array containing the DM command.
 
         Returns
         -------
-        array
-            A 3D array with its first dimension giving the number of devices controlled with this service. Second and
-            third dimension are 2D DM maps.
+        ndarray
+            The DM maps for each device.
         """
         dm_maps = np.zeros_like(self.device_actuator_mask, dtype='float')
         dm_maps[self.device_actuator_mask] = command
@@ -103,10 +125,8 @@ class DeformableMirrorProxy(ServiceProxy):
         ----------
         channel : str
             The channel to apply the shape to.
-        dm_shape : array
-            The DM shape to apply to the channel. Can be either a DM command with all actuators of
-            all DMs controlled by this driver in sequence. Or a DM map representing the DM maps of
-            all DMs controlled by this driver.
+        dm_shape : ndarray
+            Either a DM command or DM maps.
         """
         # Make sure the command is a Numpy array.
         command = np.array(dm_shape, copy=False)
@@ -125,8 +145,8 @@ class DeformableMirrorProxy(ServiceProxy):
         ----------
         fname : str
             The path where to write the DM shape.
-        dm_shape : _type_
-            _description_
+        dm_shape : ndarray
+            Either a DM command or DM maps.
         '''
         # If we're given a DM map, convert it to a command.
         if dm_shape.shape != (self.command_length,):

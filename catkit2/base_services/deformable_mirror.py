@@ -33,10 +33,30 @@ class DeformableMirrorService(Service):
         channel_names = list(channel.lower() for channel in self.config['channels'])
         self.make_property('channels', lambda: channel_names)
 
-        self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.num_actuators * self.num_dms], 20)
-        self.total_surface = self.make_data_stream('total_surface', 'float64', [self.num_actuators * self.num_dms], 20)
+        self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.dm_command_length], 20)
+        self.total_surface = self.make_data_stream('total_surface', 'float64', [self.dm_command_length], 20)
+
+    @property
+    def dm_command_length(self):
+        '''The command length of the DM(s).
+        '''
+        return self.num_actuators * self.num_dms
 
     def add_channel(self, channel_name):
+        '''Add a channel for this DM.
+
+        This creates the data stream and applies a startup map to the channel.
+
+        Parameters
+        ----------
+        channel_name : str
+            The name of the channel.
+
+        Raises
+        ------
+        ValueError
+            When the provided startup map has the wrong shape.
+        '''
         self.channels[channel_name] = self.make_data_stream(channel_name.lower(), 'float64', [self.dm_command_length], 20)
 
         # Get the right default flat map.
@@ -49,6 +69,8 @@ class DeformableMirrorService(Service):
         self.channels[channel_name].submit_data(startup_map_command)
 
     def open(self):
+        '''Open the DM.
+        '''
         self.channel_threads = {}
 
         # Start channel monitoring threads
@@ -59,16 +81,27 @@ class DeformableMirrorService(Service):
             self.channel_threads[channel_name] = thread
 
     def main(self):
+        '''Main loop.
+        '''
         while not self.should_shut_down:
             self.sleep(0.1)
 
     def close(self):
+        '''Close the DM.
+        '''
         for thread in self.channel_threads.values():
             thread.join()
 
         self.channel_threads = {}
 
     def monitor_channel(self, channel_name):
+        '''Monitors and applies DM commands submitted to a DM channel datastream.
+
+        Parameters
+        ----------
+        channel_name : str
+            The name of the channel.
+        '''
         while not self.should_shut_down:
             try:
                 self.channels[channel_name].get_next_frame(10)
@@ -79,6 +112,10 @@ class DeformableMirrorService(Service):
             self.update_dm()
 
     def update_dm(self):
+        '''Update the surface of the DM.
+
+        This co-adds all the DM commands from each channel and applies it to the DM.
+        '''
         # Add up all channels to get the total surface.
         total_surface = 0
         for stream in self.channels.values():
@@ -87,5 +124,12 @@ class DeformableMirrorService(Service):
         # Apply the command on the DM.
         self.send_surface(total_surface)
 
-    def send_surface(self, total_surface):
+    def send_surface(self, surface):
+        '''Send a surface map to the DM(s).
+
+        Parameters
+        ----------
+        surface : ndarray
+            The requested surface of the DM(s).
+        '''
         raise NotImplementedError('send_surface() must be implemented by subclasses.')
