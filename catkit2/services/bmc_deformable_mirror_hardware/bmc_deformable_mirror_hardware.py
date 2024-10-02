@@ -22,7 +22,7 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
 
         self.device_command_index = self.config.get('device_command_index', 0)
 
-        if isinstance(self.device_command_index, list):
+        if not isinstance(self.device_command_index, list):
             self.device_command_index = [self.device_command_index]
 
         self.lock = threading.Lock()
