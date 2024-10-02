@@ -20,8 +20,6 @@ class BmcDeformableMirror(DeformableMirrorService):
         self._discretized_surface = None
 
     def open(self):
-        super().open()
-
         with fits.open(self.flat_map_fname) as f:
             self.flat_map = f['COMMAND'].data.astype('float64')
 
@@ -33,6 +31,8 @@ class BmcDeformableMirror(DeformableMirrorService):
             self.gain_map_inv[np.abs(self.gain_map) < 1e-10] = 0
 
         self.send_surface(np.zeros(self.num_actuators * self.num_dms, dtype='float64'))
+
+        super().open()
 
     def close(self):
         super().close()
