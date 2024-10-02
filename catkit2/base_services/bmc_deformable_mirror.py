@@ -79,7 +79,7 @@ class BmcDeformableMirror(DeformableMirrorService):
     def voltages(self):
         if self._voltages is None:
             # Compute the voltages from the requested total surface.
-            voltages = self.flat_map_command + self.surface * self.gain_map_inv_command
+            voltages = self.flat_map + self.surface * self.gain_map_inv
             voltages /= self.max_volts
             self._voltages = np.clip(voltages, 0, 1)
 
@@ -101,6 +101,6 @@ class BmcDeformableMirror(DeformableMirrorService):
             self._discretized_surface = self.surface
 
             if self.dac_bit_depth is not None:
-                self._discretized_surface = (self.discretized_voltages * self.max_volts - self.flat_map_command) * self.gain_map_command
+                self._discretized_surface = (self.discretized_voltages * self.max_volts - self.flat_map) * self.gain_map
 
         return self._discretized_surface
