@@ -40,7 +40,7 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
 
     def close(self):
         try:
-            super.close()
+            super().close()
         finally:
             self.device.close_dm()
             self.device = None
