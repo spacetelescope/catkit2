@@ -157,6 +157,7 @@ class DeformableMirrorProxy(ServiceProxy):
             dm_map = self.command_to_dm_maps(dm_shape)
 
         hdus = [
+            fits.PrimaryHDU(),
             fits.ImageHDU(dm_map, name='DM_MAP'),
             fits.ImageHDU(command, name='COMMAND')
         ]
