@@ -23,7 +23,7 @@ class DeformableMirrorService(Service):
 
         self.num_dms = self.device_actuator_mask.shape[0]
         self.dm_shape = self.device_actuator_mask[0].shape
-        self.num_actuators = np.sum(self.device_actuator_mask[0])
+        self.num_actuators = int(np.sum(self.device_actuator_mask[0]))
 
         self.channels = {}
         self.channel_threads = {}
