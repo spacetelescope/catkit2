@@ -3,6 +3,7 @@ __all__ = [
     'NewportXpsQ8Proxy',
     'FlipMountProxy',
     'BmcDmProxy',
+    'DeformableMirrorProxy',
     'NewportPicomotorProxy',
     'NiDaqProxy',
     'NktSuperkProxy',
@@ -14,6 +15,7 @@ __all__ = [
 
 from .bmc_dm import *
 from .camera import *
+from .deformable_mirror import *
 from .newport_xps import *
 from .flip_mount import *
 from .newport_picomotor import *

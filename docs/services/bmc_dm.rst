@@ -4,6 +4,8 @@ This service operates a pair of identical Boston Micromachines MEMS DMs controll
 
 - `BMC DM Kilo-C-1.5 <https://bostonmicromachines.com/products/deformable-mirrors/standard-deformable-mirrors/>`_
 
+This service is been superseded by the :ref:`here <bmc_deformable_mirror>`.
+
 Configuration
 -------------
 .. code-block:: YAML
