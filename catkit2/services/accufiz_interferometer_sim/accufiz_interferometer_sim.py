@@ -12,12 +12,15 @@ from catkit2.testbed.service import Service
 from catkit2.testbed.service_proxy import ServiceProxy
 from catkit2.utils import rotate_and_flip_image
 
-@ServiceProxy.register_service_interface('accufiz_interferometer')
-class AccufizInterferometer(Service):
+class sim_response:
+    text = 'success'
+
+@ServiceProxy.register_service_interface('accufiz_interferometer_sim')
+class AccufizInterferometerSim(Service):
     NUM_FRAMES_IN_BUFFER = 20
 
     def __init__(self):
-        super().__init__('accufiz_interferometer')
+        super().__init__('accufiz_interferometer_sim')
 
         self.ip = self.config.get('ip_address', 'localhost:8080')
         self.calibration_data_package = self.config.get('calibration_data_package', '')
@@ -61,29 +64,25 @@ class AccufizInterferometer(Service):
 
         return True
 
+
+    # TODO: could store a realistic list of POST/GET response expectations. But need to store the commands as retreived from the hardware.
     def get(self, url, params=None, **kwargs):
-        resp = self.instrument_lib.get(url, params=params, **kwargs)
-        if resp.status_code != 200:
-            raise RuntimeError(f"{self.config_id} GET error: {resp.status_code}: {resp.text}")
-        return resp
+        return sim_response()
 
     def post(self, url, data=None, json=None, **kwargs):
-        resp = self.instrument_lib.post(url, data=data, json=json, **kwargs)
-        if resp.status_code != 200:
-            raise RuntimeError(f"{self.config_id} POST error: {resp.status_code}: {resp.text}")
         time.sleep(self.post_save_sleep)
-        return resp
+        return sim_response()
+
 
     def take_measurement(self, num_frames=2):
         # Send request to take data.
         resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(num_frames)})
-
         if "success" not in resp.text:
             raise RuntimeError(f"{self.config_id}: Failed to take data - {resp.text}.")
 
         filename = str(uuid.uuid4())
         server_file_path = os.path.join(self.server_path, filename)
-        local_file_path = os.path.join(self.local_path, filename)
+        local_file_path = "C:/Users/lameier/Documents/HWO/catkit2/tests/data/de210c3d-41a2-40e8-be83-5911ace24367"
 
         #  This line is here because when sent through webservice slashes tend
         #  to disappear. If we sent in parameter a path with only one slash,
@@ -145,5 +144,5 @@ class AccufizInterferometer(Service):
 
 
 if __name__ == '__main__':
-    service = AccufizInterferometer()
+    service = AccufizInterferometerSim()
     service.run()
