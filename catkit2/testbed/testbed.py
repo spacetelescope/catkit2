@@ -282,7 +282,7 @@ class Testbed:
             module = entry_point.module
             spec = importlib.util.find_spec(module)
             path = os.path.abspath(spec.origin)
-            self.service_type_paths[entry_point.name] = path
+            self.register_service_type(entry_point.name, path)
 
         # Create server instance and register request handlers.
         self.server = Server(port)
@@ -584,6 +584,18 @@ class Testbed:
 
         reply = testbed_proto.ShutDownReply()
         return reply.SerializeToString()
+
+    def register_service_type(self, service_type, path):
+        '''Register a service type.
+
+        Parameters
+        ----------
+        service_type : str
+            The service type.
+        path : str
+            The path to the Python file to run for this service.
+        '''
+        self.service_type_paths[service_type] = path
 
     def start_service(self, service_id):
         '''Start a service.
