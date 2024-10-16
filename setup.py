@@ -190,6 +190,20 @@ setup(
             'web_power_switch = catkit2.services.web_power_switch.web_power_switch',
             'web_power_switch_sim = catkit2.services.web_power_switch_sim.web_power_switch_sim',
             'zwo_camera = catkit2.services.zwo_camera.zwo_camera',
+        ],
+        'catkit2.proxies': [
+            'bmc_dm = catkit2.testbed.proxies.bmc_dm:BmcDmProxy',
+            'camera = catkit2.testbed.proxies.camera:CameraProxy',
+            'deformable_mirror = catkit2.testbed.proxies.deformable_mirror:DeformableMirrorProxy',
+            'flip_mount = catkit2.testbed.proxies.flip_mount.FlipMountProxy',
+            'newport_picomotor = catkit2.testbed.proxies.newport_picomotor:NewportPicomotorProxy',
+            'newport_xps_q8 = catkit2.testbed.proxies.newport_xps:NewportXpsQ8Proxy',
+            'ni_daq = catkit2.testbed.proxies.ni_daq:NiDaqProxy',
+            'nkt_superk = catkit2.testbed.proxies.nkt_superk:NktSuperkProxy',
+            'oceanoptics_spectrometer = catkit2.testbed.proxies.oceanoptics_spectrometer:OceanopticsSpectroProxy',
+            'thorlabs_cube_motor_kinesis = catkit2.testbed.proxies.thorlabs_cube_motor_kinesis:ThorlabsCubeMotorKinesisProxy',
+            'thorlabs_mcls1 = catkit2.testbed.proxies.thorlabs_mcls1:ThorlabsMcls1',
+            'web_power_switch = catkit2.testbed.proxies.web_power_switch:WebPowerSwitchProxy'
         ]
     }
 )
