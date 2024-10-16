@@ -6,6 +6,7 @@ import subprocess
 import socket
 import threading
 import contextlib
+import importlib
 
 import psutil
 import zmq
@@ -273,6 +274,14 @@ class Testbed:
 
             for service_id in shut_down_list:
                 services_to_shut_down.remove(service_id)
+
+        # Read in service types.
+        self.service_type_paths = {}
+        for entry_point in importlib.metadata.entry_points(group="catkit2.services"):
+            module = entry_point.module
+            spec = importlib.util.find_spec(module)
+            path = os.path.abspath(spec.origin)
+            self.service_type_paths[entry_point.name] = path
 
         # Create server instance and register request handlers.
         self.server = Server(port)
@@ -607,19 +616,11 @@ class Testbed:
         service_type = self.services[service_id].service_type
 
         # Resolve service type;
-        dirname = self.resolve_service_type(service_type)
+        path = self.resolve_service_type(service_type)
+        dirname = os.path.dirname(path)
 
-        # Find if Python or C++.
-        if os.path.exists(os.path.join(dirname, service_type + '.py')):
-            executable = [sys.executable, os.path.join(dirname, service_type + '.py')]
-        elif os.path.exists(os.path.join(dirname, service_type + '.exe')):
-            executable = [os.path.join(dirname, service_type + '.exe')]
-        elif os.path.exists(os.path.join(dirname, service_type)):
-            executable = [os.path.join(dirname, service_type)]
-        else:
-            self.log.warning(f"Could not find the script/executable for service type \"{service_type}\".")
-
-            raise RuntimeError(f"Service '{service_id}' is not Python or C++.")
+        # Build Python executable command.
+        executable = [sys.executable, path]
 
         # Get unused port for this service.
         port = get_unused_port()
@@ -743,17 +744,12 @@ class Testbed:
         Returns
         -------
         string
-            The path to where the Python script or executable for the
-            service can be found.
+            The path to the Python script of the service.
         '''
-        for base_path in self.service_paths:
-            dirname = os.path.join(base_path, service_type)
-            if os.path.exists(dirname):
-                break
-        else:
+        if service_type not in self.service_type_paths:
             raise ValueError(f"Service type '{service_type}' not recognized.")
 
-        return dirname
+        return self.service_type_paths[service_type]
 
     def shut_down_all_services(self):
         '''Shut down all running services.
