@@ -214,10 +214,6 @@ class Testbed:
 
         self.log = logging.getLogger(__name__)
 
-        self.service_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'services'))]
-        if 'service_paths' in self.config['testbed']:
-            self.service_paths.extend(self.config['testbed']['service_paths'])
-
         self.startup_services = []
         if 'safety' in self.config['testbed']:
             self.startup_services.append(self.config['testbed']['safety']['service_id'])
