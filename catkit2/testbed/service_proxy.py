@@ -107,9 +107,9 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         if interface_name is None:
             return ServiceProxy
 
-        entry_point = importlib_metadata.entry_points(group='catkit2.proxies', name=interface_name)
-
-        if not entry_point:
+        entry_points = importlib_metadata.entry_points(group='catkit2.proxies')
+        for entry_point in entry_points:
+            if entry_point.name == interface_name:
+                return entry_point.load()
+        else:
             raise AttributeError(f"Service proxy class with interface name '{interface_name}' not found. Did you set it as an entry point?")
-
-        return entry_point[0].load()
