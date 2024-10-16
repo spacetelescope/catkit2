@@ -19,6 +19,11 @@ from .distributor import ZmqDistributor
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
 
+try:
+    import importlib.metadata as importlib_metadata
+except ImportError:
+    import importlib_metadata
+
 
 SERVICE_LIVELINESS = 5
 
@@ -273,7 +278,7 @@ class Testbed:
 
         # Read in service types.
         self.service_type_paths = {}
-        for entry_point in importlib.metadata.entry_points(group="catkit2.services"):
+        for entry_point in importlib_metadata.entry_points(group="catkit2.services"):
             module = entry_point.module
             spec = importlib.util.find_spec(module)
             path = os.path.abspath(spec.origin)
