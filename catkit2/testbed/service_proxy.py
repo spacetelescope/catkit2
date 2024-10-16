@@ -1,6 +1,10 @@
 from .. import catkit_bindings
 
-import importlib.metadata
+try:
+    import importlib.metadata as importlib_metadata
+except ImportError:
+    import importlib_metadata
+
 
 class ServiceProxy(catkit_bindings.ServiceProxy):
     '''A proxy for a service connected to a server.
@@ -103,7 +107,7 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         if interface_name is None:
             return ServiceProxy
 
-        entry_point = importlib.metadata.entry_points(group='catkit2.proxies', name=interface_name)
+        entry_point = importlib_metadata.entry_points(group='catkit2.proxies', name=interface_name)
 
         if not entry_point:
             raise AttributeError(f"Service proxy class with interface name '{interface_name}' not found. Did you set it as an entry point?")
