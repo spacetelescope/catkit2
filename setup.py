@@ -195,7 +195,7 @@ setup(
             'bmc_dm = catkit2.testbed.proxies.bmc_dm:BmcDmProxy',
             'camera = catkit2.testbed.proxies.camera:CameraProxy',
             'deformable_mirror = catkit2.testbed.proxies.deformable_mirror:DeformableMirrorProxy',
-            'flip_mount = catkit2.testbed.proxies.flip_mount.FlipMountProxy',
+            'flip_mount = catkit2.testbed.proxies.flip_mount:FlipMountProxy',
             'newport_picomotor = catkit2.testbed.proxies.newport_picomotor:NewportPicomotorProxy',
             'newport_xps_q8 = catkit2.testbed.proxies.newport_xps:NewportXpsQ8Proxy',
             'ni_daq = catkit2.testbed.proxies.ni_daq:NiDaqProxy',
