@@ -1,5 +1,11 @@
 from .. import catkit_bindings
 
+try:
+    import importlib.metadata as importlib_metadata
+except ImportError:
+    import importlib_metadata
+
+
 class ServiceProxy(catkit_bindings.ServiceProxy):
     '''A proxy for a service connected to a server.
 
@@ -90,7 +96,7 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
 
         Parameters
         ----------
-        interface_name : string
+        interface_name : string or None
             The name of the interface.
 
         Returns
@@ -98,30 +104,12 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         derived class of ServiceProxy or ServiceProxy
             The class belonging to the interface name.
         '''
-        if interface_name in cls._service_interfaces:
-            return cls._service_interfaces[interface_name]
-        elif interface_name is None:
-            return cls
+        if interface_name is None:
+            return ServiceProxy
+
+        entry_points = importlib_metadata.entry_points(group='catkit2.proxies')
+        for entry_point in entry_points:
+            if entry_point.name == interface_name:
+                return entry_point.load()
         else:
-            raise AttributeError(f"Service proxy class with interface name '{interface_name}' not found. Did you import it?")
-
-    @classmethod
-    def register_service_interface(cls, interface_name):
-        '''Register a ServiceProxy derived class.
-
-        Parameters
-        ----------
-        interface_name : string
-            The name of the interface.
-
-        Returns
-        -------
-        class decorator
-            For decorating your ServiceProxy derived class with.
-        '''
-        def decorator(interface_class):
-            cls._service_interfaces[interface_name] = interface_class
-
-            return interface_class
-
-        return decorator
+            raise AttributeError(f"Service proxy class with interface name '{interface_name}' not found. Did you set it as an entry point?")

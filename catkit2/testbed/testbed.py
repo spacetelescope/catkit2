@@ -6,6 +6,7 @@ import subprocess
 import socket
 import threading
 import contextlib
+import importlib
 
 import psutil
 import zmq
@@ -17,6 +18,11 @@ from .distributor import ZmqDistributor
 
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
+
+try:
+    import importlib.metadata as importlib_metadata
+except ImportError:
+    import importlib_metadata
 
 
 SERVICE_LIVELINESS = 5
@@ -213,10 +219,6 @@ class Testbed:
 
         self.log = logging.getLogger(__name__)
 
-        self.service_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'services'))]
-        if 'service_paths' in self.config['testbed']:
-            self.service_paths.extend(self.config['testbed']['service_paths'])
-
         self.startup_services = []
         if 'safety' in self.config['testbed']:
             self.startup_services.append(self.config['testbed']['safety']['service_id'])
@@ -273,6 +275,14 @@ class Testbed:
 
             for service_id in shut_down_list:
                 services_to_shut_down.remove(service_id)
+
+        # Read in service types.
+        self.service_type_paths = {}
+        for entry_point in importlib_metadata.entry_points(group="catkit2.services"):
+            module = entry_point.module
+            spec = importlib.util.find_spec(module)
+            path = os.path.abspath(spec.origin)
+            self.register_service_type(entry_point.name, path)
 
         # Create server instance and register request handlers.
         self.server = Server(port)
@@ -575,6 +585,18 @@ class Testbed:
         reply = testbed_proto.ShutDownReply()
         return reply.SerializeToString()
 
+    def register_service_type(self, service_type, path):
+        '''Register a service type.
+
+        Parameters
+        ----------
+        service_type : str
+            The service type.
+        path : str
+            The path to the Python file to run for this service.
+        '''
+        self.service_type_paths[service_type] = path
+
     def start_service(self, service_id):
         '''Start a service.
 
@@ -607,19 +629,11 @@ class Testbed:
         service_type = self.services[service_id].service_type
 
         # Resolve service type;
-        dirname = self.resolve_service_type(service_type)
+        path = self.resolve_service_type(service_type)
+        dirname = os.path.dirname(path)
 
-        # Find if Python or C++.
-        if os.path.exists(os.path.join(dirname, service_type + '.py')):
-            executable = [sys.executable, os.path.join(dirname, service_type + '.py')]
-        elif os.path.exists(os.path.join(dirname, service_type + '.exe')):
-            executable = [os.path.join(dirname, service_type + '.exe')]
-        elif os.path.exists(os.path.join(dirname, service_type)):
-            executable = [os.path.join(dirname, service_type)]
-        else:
-            self.log.warning(f"Could not find the script/executable for service type \"{service_type}\".")
-
-            raise RuntimeError(f"Service '{service_id}' is not Python or C++.")
+        # Build Python executable command.
+        executable = [sys.executable, path]
 
         # Get unused port for this service.
         port = get_unused_port()
@@ -743,17 +757,12 @@ class Testbed:
         Returns
         -------
         string
-            The path to where the Python script or executable for the
-            service can be found.
+            The path to the Python script of the service.
         '''
-        for base_path in self.service_paths:
-            dirname = os.path.join(base_path, service_type)
-            if os.path.exists(dirname):
-                break
-        else:
+        if service_type not in self.service_type_paths:
             raise ValueError(f"Service type '{service_type}' not recognized.")
 
-        return dirname
+        return self.service_type_paths[service_type]
 
     def shut_down_all_services(self):
         '''Shut down all running services.

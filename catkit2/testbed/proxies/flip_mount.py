@@ -2,7 +2,7 @@ from ..service_proxy import ServiceProxy
 
 import numpy as np
 
-@ServiceProxy.register_service_interface('flip_mount')
+
 class FlipMountProxy(ServiceProxy):
     def move_to(self, position, wait=True):
         position = self.resolve_position(position)

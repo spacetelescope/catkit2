@@ -2,7 +2,7 @@ from ..service_proxy import ServiceProxy
 
 import numpy as np
 
-@ServiceProxy.register_service_interface('web_power_switch')
+
 class WebPowerSwitchProxy(ServiceProxy):
     def switch(self, outlet_name, on):
         if outlet_name.lower() not in self.outlets:

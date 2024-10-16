@@ -1,6 +1,6 @@
 from ..service_proxy import ServiceProxy
 
-@ServiceProxy.register_service_interface('thorlabs_mcls1')
+
 class ThorlabsMcls1(ServiceProxy):
     @property
     def channel(self):

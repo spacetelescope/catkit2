@@ -37,6 +37,7 @@ dependencies:
   - networkx
   - pytest
   - flake8
+  - importlib_metadata
   - pip:
     - dcps
     - zwoasi>=0.0.21
