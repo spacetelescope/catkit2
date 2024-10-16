@@ -92,7 +92,7 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
 
         Parameters
         ----------
-        interface_name : string
+        interface_name : string or None
             The name of the interface.
 
         Returns
@@ -100,9 +100,12 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         derived class of ServiceProxy or ServiceProxy
             The class belonging to the interface name.
         '''
+        if interface_name is None:
+            return ServiceProxy
+
         entry_point = importlib.metadata.entry_points(group='catkit2.proxies', name=interface_name)
 
         if not entry_point:
             raise AttributeError(f"Service proxy class with interface name '{interface_name}' not found. Did you set it as an entry point?")
 
-        return entry_point.load()
+        return entry_point[0].load()
