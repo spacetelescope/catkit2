@@ -2,7 +2,7 @@ from ..service_proxy import ServiceProxy
 
 import warnings
 
-@ServiceProxy.register_service_interface('camera')
+
 class CameraProxy(ServiceProxy):
     def take_raw_exposures(self, num_exposures):
         was_acquiring = self.is_acquiring.get()[0]

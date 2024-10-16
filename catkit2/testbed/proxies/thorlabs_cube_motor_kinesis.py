@@ -3,7 +3,6 @@ from ..service_proxy import ServiceProxy
 import numpy as np
 
 
-@ServiceProxy.register_service_interface('thorlabs_cube_motor_kinesis')
 class ThorlabsCubeMotorKinesisProxy(ServiceProxy):
     def move_absolute(self, position):
         position = self.resolve_position(position)

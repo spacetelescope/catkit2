@@ -1,6 +1,6 @@
 from ..service_proxy import ServiceProxy
 
-@ServiceProxy.register_service_interface('oceanoptics_spectrometer')
+
 class OceanopticsSpectroProxy(ServiceProxy):
 
     def take_raw_exposures(self, num_exposures):
