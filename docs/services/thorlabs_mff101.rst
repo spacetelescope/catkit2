@@ -1,7 +1,8 @@
 Thorlabs Motorized Flip Mount
 =============================
 
-This service operates a Thorlabs MFF101 motorized flip mount.
+This service operates a `Thorlabs MFF101 <https://www.thorlabs.com/thorproduct.cfm?partnumber=MFF101>`_
+motorized flip mount.
 
 Configuration
 -------------
@@ -29,4 +30,5 @@ Commands
 
 Datastreams
 -----------
-``position``: the current (commanded) position of the flip mount. This can be set to either 1 or 2, indication position 1 or 2. Other values will be silently ignored.
+``current_position``: the current position of the flip mount. This can be set to either 1 or 2, indication position 1 or 2. Other values will be silently ignored.
+``commanded_position``: the commanded position of the flip mount. This can be set to either 1 or 2, indication position 1 or 2. Other values will be silently ignored.
