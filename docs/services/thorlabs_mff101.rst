@@ -31,4 +31,5 @@ Commands
 Datastreams
 -----------
 ``current_position``: the current position of the flip mount. This can be set to either 1 or 2, indication position 1 or 2. Other values will be silently ignored.
+
 ``commanded_position``: the commanded position of the flip mount. This can be set to either 1 or 2, indication position 1 or 2. Other values will be silently ignored.
