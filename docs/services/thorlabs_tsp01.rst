@@ -1,8 +1,11 @@
 Thorlabs Temperature Sensor
 ===========================
 
-This service retrieves data from a `Thorlabs TSP01 <https://www.thorlabs.com/thorproduct.cfm?partnumber=TSP01>`_
-temperature and humidity sensor.
+This service retrieves data from a Thorlabs temperature and humidity sensor.
+
+Successfully tested with the following devices:
+
+- `Thorlabs TSP01 <https://www.thorlabs.com/thorproduct.cfm?partnumber=TSP01>`_
 
 Configuration
 -------------
