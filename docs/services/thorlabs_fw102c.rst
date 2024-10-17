@@ -1,7 +1,10 @@
 Thorlabs Filter Wheel
 =====================
-This service operates a `ThorLabs FW 102C <https://www.thorlabs.com/thorproduct.cfm?partnumber=FW102C#ad-image-0>`_
-filter wheel.
+This service operates a Thorlabs filter wheel.
+
+Successfully tested with the following devices:
+
+- `ThorLabs FW 102C <https://www.thorlabs.com/thorproduct.cfm?partnumber=FW102C#ad-image-0>`_
 
 Configuration
 -------------
@@ -30,6 +33,6 @@ None.
 
 Datastreams
 -----------
-``position``: The requested position of the filter wheel.
+``position``: The commanded position of the filter wheel. This can have value 1, 2, 3, 4, 5, 6 indicating those respective positions.
 
-``current_position``: The current position of the filter wheel.
+``current_position``: The current position of the filter wheel. This can have value 1, 2, 3, 4, 5, 6 indicating those respective positions.
