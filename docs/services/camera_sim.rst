@@ -3,22 +3,24 @@ Camera Simulator
 This service operates a simulated camera. This service is meant to mimic, but does not actually
 control, a hardware camera.
 
-When applicable, all services have a corresponding simulated service to be able to test control
-software before commanding actual hardware devices.
+This service can be used to simulate any hardware camera service since they are all written consistently.
 
 Configuration
 -------------
 .. code-block:: YAML
 
-    camera:
-      service_type: zwo_camera
+    camera1:
+      service_type: my_camera
       simulated_service_type: camera_sim
-      interface: hicat_camera
+      interface: camera
       requires_safety: false
 
+      # Keys used only by hardware service.
       device_name: ZWO ASI178MM
       device_id: 4
       well_depth_percentage_target: 0.65
+
+      # Keys used by simulated and hardware service.
       exposure_time: 1000
       width: 1680
       height: 1680
