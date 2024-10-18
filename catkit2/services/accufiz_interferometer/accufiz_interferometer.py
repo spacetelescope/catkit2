@@ -117,11 +117,15 @@ class AccufizInterferometer(Service):
         self.detector_masks.submit_data(mask.astype(np.uint8))
 
         image = self.convert_h5_to_fits(local_file_path, rotate=0, fliplr=True, mask=mask, img=img, create_fits=self.save_fits)
+        # remove h5 file if configuration was not set
+        if (not self.save_h5) and os.path.exists(local_file_path):
+            os.remove(local_file_path)
+
         return image
 
 
     @staticmethod
-    def convert_h5_to_fits(filepath, rotate, fliplr, img, mask, wavelength=632.8):
+    def convert_h5_to_fits(filepath, rotate, fliplr, img, mask, wavelength=632.8, create_fits=False):
 
         filepath = filepath if filepath.endswith(".h5") else f"{filepath}.h5"
 

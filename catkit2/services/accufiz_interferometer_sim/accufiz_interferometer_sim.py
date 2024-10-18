@@ -149,7 +149,6 @@ class AccufizInterferometerSim(Service):
         img = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * mask
 
         self.detector_masks.submit_data(mask.astype(np.uint8))
-        #self.images.submit_data(img.astype(np.float32))
 
         image = self.convert_h5_to_fits(local_file_path, rotate=0, fliplr=True, mask=mask, img=img, create_fits=self.save_fits)
         if temp_file:
