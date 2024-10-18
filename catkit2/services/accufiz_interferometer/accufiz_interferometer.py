@@ -18,13 +18,15 @@ class AccufizInterferometer(Service):
 
     def __init__(self):
         super().__init__('accufiz_interferometer')
-
-        self.ip = self.config.get('ip_address', 'localhost:8080')
-        self.calibration_data_package = self.config.get('calibration_data_package', '')
+        
+        # mask, server path, local path are required
         self.mask = self.config['mask']
         self.server_path = self.config['server_path']
         self.local_path = self.config['local_path']
 
+        # these are the optional configurations and will automatically default to something for convenience
+        self.ip = self.config.get('ip_address', 'localhost:8080')
+        self.calibration_data_package = self.config.get('calibration_data_package', '')
         self.timeout = self.config.get('timeout', 10000)
         self.post_save_sleep = self.config.get('post_save_sleep', 1)
 
@@ -107,8 +109,8 @@ class AccufizInterferometer(Service):
         self.detector_masks.submit_data(mask.astype(np.uint8))
         self.images.submit_data(img.astype(np.float32))
 
-        fits_local_file_path, fits_hdu = self.convert_h5_to_fits(local_file_path, rotate=0, fliplr=True, mask=mask, img=img)
-        return mask, img
+        image = self.convert_h5_to_fits(local_file_path, rotate=0, fliplr=True, mask=mask, img=img)
+        return image
 
 
     @staticmethod
@@ -137,7 +139,7 @@ class AccufizInterferometer(Service):
 
         fits_hdu = fits.PrimaryHDU(image)
         fits_hdu.writeto(fits_filepath, overwrite=True)
-        return fits_filepath, fits_hdu
+        return image
 
     def main(self):
         while not self.should_shut_down:

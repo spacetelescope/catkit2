@@ -11,9 +11,31 @@ from glob import glob
 from catkit2.testbed.service import Service
 from catkit2.testbed.service_proxy import ServiceProxy
 from catkit2.utils import rotate_and_flip_image
+import tempfile
+import os
 
 class sim_response:
     text = 'success'
+
+    import numpy as np
+
+def generate_circle_array(radius=1, h=256, w=256):
+    # radius is the proportion of the circle (0.5 is half the size)
+    # grid_size is number of pixels
+
+    # Create a grid of points with shape (grid_size, grid_size)
+    x = np.linspace(-1, 1, w)
+    y = np.linspace(-1, 1, h)
+    xx, yy = np.meshgrid(x, y)
+
+    # Calculate the distance from the origin (0,0) for each point in the grid
+    distances = np.sqrt(xx**2 + yy**2)
+
+    # Create the array: 1 inside the circle, 0 outside
+    circle_array = np.where(distances <= radius, 1, 0)
+
+    return circle_array.astype('uint8')
+
 
 @ServiceProxy.register_service_interface('accufiz_interferometer_sim')
 class AccufizInterferometerSim(Service):
@@ -21,18 +43,19 @@ class AccufizInterferometerSim(Service):
 
     def __init__(self):
         super().__init__('accufiz_interferometer_sim')
-
-        self.ip = self.config.get('ip_address', 'localhost:8080')
-        self.calibration_data_package = self.config.get('calibration_data_package', '')
+        
+        # mask, server path, local path are required
         self.mask = self.config['mask']
         self.server_path = self.config['server_path']
         self.local_path = self.config['local_path']
 
+        # these are the optional configurations and will automatically default to something for convenience
+        self.ip = self.config.get('ip_address', 'localhost:8080')
+        self.calibration_data_package = self.config.get('calibration_data_package', '')
+        self.sim_data = self.config.get('sim_data', None)
         self.timeout = self.config.get('timeout', 10000)
         self.post_save_sleep = self.config.get('post_save_sleep', 1)
-
         self.file_mode = self.config.get('file_mode', True)
-
         self.image_height = self.config.get('height', 1967)
         self.image_width = self.config.get('width', 1970)
         self.config_id = self.config.get('config_id', 'accufiz')
@@ -82,7 +105,20 @@ class AccufizInterferometerSim(Service):
 
         filename = str(uuid.uuid4())
         server_file_path = os.path.join(self.server_path, filename)
-        local_file_path = "C:/Users/lameier/Documents/HWO/catkit2/tests/data/de210c3d-41a2-40e8-be83-5911ace24367"
+        temp_file = None
+        if self.sim_data is None:
+            # Create a temporary file with fake data
+            # this way we don't need to store data in the catkit repo
+            temp_file = tempfile.mkdtemp()
+            local_file_path = temp_file
+            fname = local_file_path + '.h5'
+            tmph5f = h5py.File(fname, 'w')
+            tmph5f['measurement0/Detectormask'] = generate_circle_array(radius=1, h=self.image_height, w=self.image_width)
+            tmph5f['measurement0/genraw/data'] = np.random.rand(self.image_height, self.image_width)
+            tmph5f.close()                
+
+        else:
+            local_file_path = self.sim_data.replace('.h5', '')
 
         #  This line is here because when sent through webservice slashes tend
         #  to disappear. If we sent in parameter a path with only one slash,
@@ -106,8 +142,12 @@ class AccufizInterferometerSim(Service):
         self.detector_masks.submit_data(mask.astype(np.uint8))
         self.images.submit_data(img.astype(np.float32))
 
-        fits_local_file_path, fits_hdu = self.convert_h5_to_fits(local_file_path, rotate=0, fliplr=True, mask=mask, img=img)
-        return mask, img
+        image = self.convert_h5_to_fits(local_file_path, rotate=0, fliplr=True, mask=mask, img=img)
+        if temp_file:
+            os.remove(local_file_path)
+            os.remove(local_file_path.replace('.h5', '.fits'))
+            self.log.info('cleaning up temporary simulated files')
+        return image
 
 
     @staticmethod
@@ -136,7 +176,7 @@ class AccufizInterferometerSim(Service):
 
         fits_hdu = fits.PrimaryHDU(image)
         fits_hdu.writeto(fits_filepath, overwrite=True)
-        return fits_filepath, fits_hdu
+        return image
 
     def main(self):
         while not self.should_shut_down:
