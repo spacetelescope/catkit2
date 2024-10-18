@@ -17,7 +17,7 @@ Configuration
 
         visa_id: ASRL6::INSTR
 
-        filters:
+        filters: # named positions resolved by the proxy.
           clear: 1
           2.8_percent: 2
           12_percent: 3
