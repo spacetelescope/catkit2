@@ -21,7 +21,9 @@ class sim_response:
 
 def generate_circle_array(radius=1, h=256, w=256):
     # radius is the proportion of the circle (0.5 is half the size)
-    # grid_size is number of pixels
+    # h is the height of the rectangle
+    # w is the width of the rectangle array with circle
+    # the purpose of this function is to generate a dummy mask
 
     # Create a grid of points with shape (grid_size, grid_size)
     x = np.linspace(-1, 1, w)
