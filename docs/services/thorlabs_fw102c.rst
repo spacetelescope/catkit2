@@ -33,6 +33,6 @@ None.
 
 Datastreams
 -----------
-``position``: The commanded position of the filter wheel. This can have value 1, 2, 3, 4, 5, 6 indicating those respective positions.
+``position``: The commanded position of the filter wheel. This can have the values specified by the service configuration.
 
-``current_position``: The current position of the filter wheel. This can have value 1, 2, 3, 4, 5, 6 indicating those respective positions.
+``current_position``: The current position of the filter wheel. This can have the values specified by the service configuration.
