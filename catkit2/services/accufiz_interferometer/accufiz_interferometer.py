@@ -19,7 +19,7 @@ class AccufizInterferometer(Service):
 
     def __init__(self):
         super().__init__('accufiz_interferometer')
-        
+
         # mask, server path, local path are required
         self.mask = self.config['mask']
         self.server_path = self.config['server_path']
@@ -40,14 +40,15 @@ class AccufizInterferometer(Service):
         # Set the 4D timeout.
         self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
         set_timeout_string = f"{self.html_prefix}/SetTimeout?timeOut={self.timeout}"
-        
+        self.get(set_timeout_string)
+
         # set mask
         self.set_mask()
 
         # Create data streams.
         self.detector_masks = self.make_data_stream('detector_masks', 'uint8', [self.image_height, self.image_width], self.NUM_FRAMES_IN_BUFFER)
         self.images = self.make_data_stream('images', 'float32', [self.image_height, self.image_width], self.NUM_FRAMES_IN_BUFFER)
-        
+
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], 20)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
         self.should_be_acquiring = threading.Event()
@@ -82,7 +83,7 @@ class AccufizInterferometer(Service):
             raise RuntimeError(f"{self.config_id} POST error: {resp.status_code}: {resp.text}")
         time.sleep(self.post_save_sleep)
         return resp
-    
+
 
     def take_measurement(self, num_frames=2):
         # Send request to take data.
@@ -106,7 +107,7 @@ class AccufizInterferometer(Service):
 
         if not glob(f"{local_file_path}.h5"):
             raise RuntimeError(f"{self.config_id}: Failed to save measurement data to '{local_file_path}'.")
-        
+
         local_file_path = local_file_path if local_file_path.endswith(".h5") else f"{local_file_path}.h5"
 
         self.log.info(f"{self.config_id}: Succeeded to save measurement data to '{local_file_path}'")
@@ -140,7 +141,7 @@ class AccufizInterferometer(Service):
         center = ndimage.measurements.center_of_mass(mask)
 
         image = np.clip(img, -10, +10)[np.int64(center[0]) - radiusmask:np.int64(center[0]) + radiusmask - 1,
-                        np.int64(center[1]) - radiusmask: np.int64(center[1]) + radiusmask - 1]
+                                       np.int64(center[1]) - radiusmask: np.int64(center[1]) + radiusmask - 1]
 
         # Apply the rotation and flips.
         image = rotate_and_flip_image(image, rotate, fliplr)
@@ -179,11 +180,14 @@ class AccufizInterferometer(Service):
         finally:
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
+
     def start_acquisition(self):
         self.should_be_acquiring.set()
 
+
     def end_acquisition(self):
         self.should_be_acquiring.clear()
+
 
 if __name__ == '__main__':
     service = AccufizInterferometer()
