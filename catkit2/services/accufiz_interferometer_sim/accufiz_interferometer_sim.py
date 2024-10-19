@@ -61,6 +61,7 @@ class AccufizInterferometerSim(Service):
         self.config_id = self.config.get('config_id', 'accufiz')
         self.save_h5 = self.config.get('save_h5', True)
         self.save_fits = self.config.get('save_fits', False)
+        self.num_frames_avg = self.config.get('num_avg', 2)
 
         # Set the 4D timeout.
         self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
@@ -106,9 +107,11 @@ class AccufizInterferometerSim(Service):
         time.sleep(self.post_save_sleep)
         return sim_response()
 
-    def take_measurement(self, num_frames=1):
+
+    def take_measurement(self):
         # Send request to take data.
-        resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(num_frames)})
+        resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(self.num_frames_avg)})
+
         if "success" not in resp.text:
             raise RuntimeError(f"{self.config_id}: Failed to take data - {resp.text}.")
 
@@ -171,8 +174,8 @@ class AccufizInterferometerSim(Service):
 
         mask = np.array(h5py.File(filepath, 'r').get('measurement0').get('Detectormask', 1))
         img = np.array(h5py.File(filepath, 'r').get('measurement0').get('genraw').get('data')) * mask
-
-        fits.PrimaryHDU(mask).writeto(fits_filepath, overwrite=True)
+        if create_fits:
+            fits.PrimaryHDU(mask).writeto(fits_filepath, overwrite=True)
 
         radiusmask = np.int64(np.sqrt(np.sum(mask) / math.pi))
         center = ndimage.measurements.center_of_mass(mask)
