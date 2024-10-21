@@ -19,6 +19,12 @@ def run_testbed(port, config):
     is_simulated = False
 
     testbed = Testbed(port, is_simulated, config)
+
+    # Add test services manually for testing purposes.
+    base_path = os.path.dirname(__file__)
+    testbed.register_service_type('dummy_service', os.path.join(base_path, 'services/dummy_service/dummy_service.py'))
+    testbed.register_service_type('dummy_dm_service', os.path.join(base_path, 'services/dummy_dm_service/dummy_dm_service.py'))
+
     testbed.run()
 
 @pytest.fixture(scope='session')

@@ -4,7 +4,7 @@ import numpy as np
 from astropy.io import fits
 import hcipy
 
-@ServiceProxy.register_service_interface('bmc_dm')
+
 class BmcDmProxy(ServiceProxy):
     @property
     def dm_mask(self):

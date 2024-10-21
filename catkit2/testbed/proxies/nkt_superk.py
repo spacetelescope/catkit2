@@ -3,7 +3,7 @@ import time
 
 from ..service_proxy import ServiceProxy
 
-@ServiceProxy.register_service_interface('nkt_superk')
+
 class NktSuperkProxy(ServiceProxy):
     @property
     def center_wavelength(self):

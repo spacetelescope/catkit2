@@ -4,8 +4,6 @@ safety:
   check_interval: 60
   safe_interval: 180
 
-service_paths:
-  - !path ../services/
 base_data_path:
   default: !path "~/temp_data"
 support_data_path:
