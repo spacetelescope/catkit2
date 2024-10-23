@@ -37,6 +37,7 @@ class AccufizInterferometer(Service):
     """
     Service class for the 4D Technologies Accufiz Interferometer.
     It handles image acquisition, processing, and data handling.
+    This requires 4D Insight Web Service is run first and that the 4Sight software is set to be listening
     """
     NUM_FRAMES_IN_BUFFER = 20
     instrument_lib = requests
