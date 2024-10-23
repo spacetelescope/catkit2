@@ -9,13 +9,28 @@ import math
 from astropy.io import fits
 from glob import glob
 from catkit2.testbed.service import Service
-from catkit2.utils import rotate_and_flip_image
 import os
 import threading
 
 
+
+def rotate_and_flip_image(data, theta, flip):
+        """
+        Converts an image based on rotation and flip parameters.
+        :param data: Numpy array of image data.
+        :param theta: Rotation in degrees of the mounted camera, only these discrete values {0, 90, 180, 270}
+        :param flip: Boolean for whether to flip the data using np.fliplr.
+        :return: Converted numpy array.
+        """
+        data_corr = np.rot90(data, int(theta / 90))
+
+        if flip:
+            data_corr = np.fliplr(data_corr)
+
+        return data_corr
 class AccufizInterferometer(Service):
     NUM_FRAMES_IN_BUFFER = 20
+    instrument_lib = requests
 
     def __init__(self):
         super().__init__('accufiz_interferometer')
@@ -37,7 +52,8 @@ class AccufizInterferometer(Service):
         self.save_h5 = self.config.get('save_h5', True)
         self.save_fits = self.config.get('save_fits', False)
         self.num_frames_avg = self.config.get('num_avg', 2)
-        self.log.info(f'{self.save_fits} is type {type(self.save_fits)}')
+        self.fliplr = self.config.get('fliplr', True)
+        self.rotate = self.config.get('rotate', 0)
 
         # Set the 4D timeout.
         self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
@@ -59,8 +75,6 @@ class AccufizInterferometer(Service):
         self.make_command('take_measurement', self.take_measurement)
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
-
-    instrument_lib = requests
 
     def set_mask(self):
         # Set the Mask. This mask has to be local to the 4D computer in this directory.
@@ -98,9 +112,9 @@ class AccufizInterferometer(Service):
         server_file_path = os.path.join(self.server_path, filename)
         local_file_path = os.path.join(self.local_path, filename)
 
-        #  This line is here because when sent through webservice slashes tend
-        #  to disappear. If we sent in parameter a path with only one slash,
-        #  they disappear
+        # This line is here because when sent through webservice slashes tend
+        # to disappear. If we sent in parameter a path with only one slash,
+        # they disappear
         server_file_path = server_file_path.replace('\\', '/')
         server_file_path = server_file_path.replace('/', '\\\\')
 
@@ -119,13 +133,12 @@ class AccufizInterferometer(Service):
 
         self.detector_masks.submit_data(mask.astype(np.uint8))
 
-        image = self.convert_h5_to_fits(local_file_path, rotate=0, fliplr=True, mask=mask, img=img, create_fits=self.save_fits)
+        image = self.convert_h5_to_fits(local_file_path, rotate=self.rotate, fliplr=self.fliplr, mask=mask, img=img, create_fits=self.save_fits)
         # remove h5 file if configuration was not set
         if (not self.save_h5) and os.path.exists(local_file_path):
             os.remove(local_file_path)
 
         return image
-
 
     @staticmethod
     def convert_h5_to_fits(filepath, rotate, fliplr, img, mask, wavelength=632.8, create_fits=False):
@@ -171,21 +184,16 @@ class AccufizInterferometer(Service):
                 has_correct_parameters = np.allclose(self.images.shape, img.shape)
 
                 if not has_correct_parameters:
-                    self.images.update_parameters('uint16', img.shape, 20)
-                self.log.info('requesting new frame')
-                frame = self.images.request_new_frame()
+                    self.images.update_parameters('float32', img.shape, 20)
 
-                frame.data[:] = img
-                self.log.info(f'frame {frame.id} acquired')
-                self.images.submit_frame(frame.id)
+                self.images.submit_data(img.astype('float32'))
+
                 time.sleep(0.05)
         finally:
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
-
     def start_acquisition(self):
         self.should_be_acquiring.set()
-
 
     def end_acquisition(self):
         self.should_be_acquiring.clear()
