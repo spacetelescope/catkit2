@@ -23,10 +23,10 @@ from vmbpy import (AllocationMode,
 from catkit2.testbed.service import Service
 
 
-def _create_property(property_name, read_only=False, stopped_acquisition=True):
+def _create_property(av_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
-            return getattr(self.cam, property_name).get()
+            return getattr(self.cam, av_property_name).get()
 
     if read_only:
         setter = None
@@ -41,7 +41,7 @@ def _create_property(property_name, read_only=False, stopped_acquisition=True):
                     time.sleep(0.001)
 
             with self.mutex:
-                getattr(self.cam, property_name).set(value)
+                getattr(self.cam, av_property_name).set(value)
 
             if was_running and stopped_acquisition:
                 self.start_acquisition()
