@@ -19,6 +19,7 @@ Catkit2
    :maxdepth: 1
    :caption: Built-In Services
 
+   services/accufiz_interferometer
    services/aimtti_plp
    services/allied_vision_camera
    services/bmc_dm
