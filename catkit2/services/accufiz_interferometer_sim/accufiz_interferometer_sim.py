@@ -14,20 +14,34 @@ import os
 import threading
 
 class sim_response:
-    """Simulated response for HTTP requests used in the Accufiz Interferometer Simulator."""
+    """
+    Simulated response for HTTP requests used in the Accufiz Interferometer Simulator.
+
+    Attributes
+    ----------
+    text : str
+        Simulated response text, defaults to 'success'.
+    """
     text = 'success'
+
 
 def generate_circle_array(radius=1, h=256, w=256):
     """
     Generate a dummy mask as a numpy ndarray of size (h, w).
 
-    Args:
-        radius (int, optional): Proportion of the circle. Defaults to 1.
-        h (int, optional): Height of the rectangle. Defaults to 256.
-        w (int, optional): Width of the rectangle. Defaults to 256.
+    Parameters
+    ----------
+    radius : int, optional
+        Proportion of the circle, default is 1.
+    h : int, optional
+        Height of the rectangle, default is 256.
+    w : int, optional
+        Width of the rectangle, default is 256.
 
-    Returns:
-        numpy.ndarray: Dummy mask as a uint8 array.
+    Returns
+    -------
+    numpy.ndarray
+        Dummy mask as a uint8 array, representing a circle of specified radius.
     """
     x = np.linspace(-1, 1, w)
     y = np.linspace(-1, 1, h)
@@ -37,17 +51,24 @@ def generate_circle_array(radius=1, h=256, w=256):
 
     return circle_array.astype('uint8')
 
+
 def rotate_and_flip_image(data, theta, flip):
     """
     Rotate and/or flip the image data.
 
-    Args:
-        data (numpy.ndarray): Numpy array of image data.
-        theta (int): Rotation in degrees.
-        flip (bool): If True, flip the image horizontally.
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Numpy array of image data.
+    theta : int
+        Rotation angle in degrees.
+    flip : bool
+        If True, flip the image horizontally.
 
-    Returns:
-        numpy.ndarray: Modified image after rotation and/or flip.
+    Returns
+    -------
+    numpy.ndarray
+        Modified image after rotation and/or flip.
     """
     data_corr = np.rot90(data, int(theta / 90))
 
@@ -56,10 +77,12 @@ def rotate_and_flip_image(data, theta, flip):
 
     return data_corr
 
+
 class AccufizInterferometerSim(Service):
     """
-    Simulator class for the Accufiz Interferometer, inheriting from the Service class.
-    It handles image acquisition, processing, and data handling in a simulation environment.
+    Simulated Service class for the 4D Technologies Accufiz Interferometer.
+    It handles image acquisition, processing, and data handling.
+    This requires 4D Insight Web Service to be running, and the 4Sight software to be set to listening.
     """
 
     NUM_FRAMES_IN_BUFFER = 20
@@ -115,6 +138,11 @@ class AccufizInterferometerSim(Service):
     def set_mask(self):
         """
         Set the mask for the simulator. The mask must be local to the 4D computer in a specified directory.
+
+        Returns
+        -------
+        bool
+            True if the mask is successfully set.
         """
         filemask = self.mask
         typeofmask = "Detector"
@@ -127,29 +155,51 @@ class AccufizInterferometerSim(Service):
 
     def get(self, url, params=None, **kwargs):
         """
-        Simulate an HTTP GET request.
+        HTTP GET request.
 
-        Args:
-            url (str): URL to send the GET request to.
-            params (dict, optional): Parameters for the request. Defaults to None.
+        Parameters
+        ----------
+        url : str
+            URL to send the GET request to.
+        params : dict, optional
+            Parameters for the request. Defaults to None.
 
-        Returns:
-            sim_response: Simulated response object.
+        Returns
+        -------
+        resp
+            Response object.
+
+        Raises
+        ------
+        RuntimeError
+            If the GET request fails.
         """
         return sim_response()
 
     def post(self, url, data=None, json=None, **kwargs):
         """
-        Simulate an HTTP POST request.
+        HTTP POST request.
 
-        Args:
-            url (str): URL to send the POST request to.
-            data (dict, optional): Data to send in the request. Defaults to None.
-            json (dict, optional): JSON data to send in the request. Defaults to None.
+        Parameters
+        ----------
+        url : str
+            URL to send the POST request to.
+        data : dict, optional
+            Data to send in the request. Defaults to None.
+        json : dict, optional
+            JSON data to send in the request. Defaults to None.
 
-        Returns:
-            sim_response: Simulated response object.
+        Returns
+        -------
+        resp
+            Response object.
+
+        Raises
+        ------
+        RuntimeError
+            If the POST request fails.
         """
+
         time.sleep(self.post_save_sleep)
         return sim_response()
 
@@ -157,9 +207,17 @@ class AccufizInterferometerSim(Service):
         """
         Take a measurement, save the data, and return the processed image.
 
-        Returns:
-            numpy.ndarray: Processed image data after measurement.
+        Returns
+        -------
+        numpy.ndarray
+            Processed image data after measurement.
+
+        Raises
+        ------
+        RuntimeError
+            If data acquisition or saving fails.
         """
+
         # Send request to take data.
         resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(self.num_frames_avg)})
 
@@ -221,17 +279,27 @@ class AccufizInterferometerSim(Service):
         """
         Convert HDF5 data to FITS format and process image data.
 
-        Args:
-            filepath (str): Filepath for the HDF5 data.
-            rotate (int): Rotation angle in degrees.
-            fliplr (bool): If True, flip the image horizontally.
-            img (numpy.ndarray): Image data to be processed.
-            mask (numpy.ndarray): Mask data to be applied.
-            wavelength (float, optional): Wavelength for scaling. Defaults to 632.8 nm.
-            create_fits (bool, optional): If True, save the processed image as a FITS file.
+        Parameters
+        ----------
+        filepath : str
+            Filepath for the HDF5 data.
+        rotate : int
+            Rotation angle in degrees.
+        fliplr : bool
+            If True, flip the image horizontally.
+        img : numpy.ndarray
+            Image data to be processed.
+        mask : numpy.ndarray
+            Mask data to be applied.
+        wavelength : float, optional
+            Wavelength for scaling, default is 632.8 nm.
+        create_fits : bool, optional
+            If True, save the processed image as a FITS file.
 
-        Returns:
-            numpy.ndarray: Processed image data.
+        Returns
+        -------
+        numpy.ndarray
+            Processed image data.
         """
         filepath = filepath if filepath.endswith(".h5") else f"{filepath}.h5"
         fits_filepath = f"{os.path.splitext(filepath)[0]}.fits"
@@ -245,8 +313,10 @@ class AccufizInterferometerSim(Service):
         radiusmask = np.int64(np.sqrt(np.sum(mask) / math.pi))
         center = ndimage.measurements.center_of_mass(mask)
 
-        image = np.clip(img, -10, +10)[np.int64(center[0]) - radiusmask:np.int64(center[0]) + radiusmask - 1,
-                                       np.int64(center[1]) - radiusmask: np.int64(center[1]) + radiusmask - 1]
+        image = np.clip(img, -10, +10)[
+            np.int64(center[0]) - radiusmask:np.int64(center[0]) + radiusmask - 1,
+            np.int64(center[1]) - radiusmask:np.int64(center[1]) + radiusmask - 1
+        ]
 
         # Apply the rotation and flips.
         image = rotate_and_flip_image(image, rotate, fliplr)
@@ -270,7 +340,7 @@ class AccufizInterferometerSim(Service):
 
     def acquisition_loop(self):
         """
-        Handle continuous data acquisition while the simulator is running.
+        Handle continuous data acquisition while the service is running.
         """
         try:
             self.is_acquiring.submit_data(np.array([1], dtype='int8'))
