@@ -354,7 +354,6 @@ class AccufizInterferometerSim(Service):
                     self.images.update_parameters('float32', img.shape, 20)
 
                 self.images.submit_data(img.astype('float32'))
-                time.sleep(0.05)
         finally:
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
