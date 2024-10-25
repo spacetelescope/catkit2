@@ -91,14 +91,7 @@ class DeformableMirrorProxy(ServiceProxy):
         array
             A 1D array containing the DM command.
         """
-        try:
-            dm_map = np.broadcast_to(dm_map, self.device_actuator_mask.shape)
-        except ValueError:
-            raise ValueError(f'Invalid shape for dm map: {dm_map.shape}. Expected shape: {self.device_actuator_mask.shape}.')
-
-        command = dm_map[self.device_actuator_mask]
-
-        return command
+        return dm_maps_to_command(dm_map, self.device_actuator_mask)
 
     def command_to_dm_maps(self, command):
         """Convert a DM command into DM maps.
@@ -113,10 +106,7 @@ class DeformableMirrorProxy(ServiceProxy):
         ndarray
             The DM maps for each device.
         """
-        dm_maps = np.zeros_like(self.device_actuator_mask, dtype='float')
-        dm_maps[self.device_actuator_mask] = command
-
-        return dm_maps
+        return command_to_dm_maps(command, self.device_actuator_mask)
 
     def apply_shape(self, channel, dm_shape):
         """Apply a shape to a DM channel.
@@ -148,20 +138,80 @@ class DeformableMirrorProxy(ServiceProxy):
         dm_shape : ndarray
             Either a DM command or DM maps.
         '''
-        # If we're given a DM map, convert it to a command.
-        if dm_shape.shape != (self.command_length,):
-            command = self.dm_maps_to_command(dm_shape)
-            dm_map = dm_shape
-        else:
-            command = dm_shape
-            dm_map = self.command_to_dm_maps(dm_shape)
+        write_dm_shape(fname, dm_shape, self.device_actuator_mask)
 
-        hdus = [
-            fits.PrimaryHDU(),
-            fits.ImageHDU(dm_map, name='DM_MAP'),
-            fits.ImageHDU(command, name='COMMAND')
-        ]
+def dm_maps_to_command(dm_map, device_actuator_mask):
+    """Convert a 2D Dm map or cube of 2D DM maps to a DM command.
 
-        hdu_list = fits.HDUList(hdus)
+    Parameters
+    ----------
+    dm_map : array
+        The DM map for each device.
+    device_actuator_mask : array
+        A mask describing the physical actuators on all DMs.
 
-        hdu_list.writeto(fname)
+    Returns
+    -------
+    array
+        A 1D array containing the DM command.
+    """
+    try:
+        dm_map = np.broadcast_to(dm_map, device_actuator_mask.shape)
+    except ValueError:
+        raise ValueError(f'Invalid shape for dm map: {dm_map.shape}. Expected shape: {device_actuator_mask.shape}.')
+
+    command = dm_map[device_actuator_mask]
+
+    return command
+
+def command_to_dm_maps(command, device_actuator_mask):
+    """Convert a DM command into DM maps.
+
+    Parameters
+    ----------
+    command : ndarray
+        A 1D array containing the DM command.
+    device_actuator_mask : array
+        A mask describing the physical actuators on all DMs.
+
+    Returns
+    -------
+    ndarray
+        The DM maps for each device.
+    """
+    dm_maps = np.zeros_like(device_actuator_mask, dtype='float')
+    dm_maps[device_actuator_mask] = command
+
+    return dm_maps
+
+def write_dm_shape(fname, dm_shape, device_actuator_mask):
+    '''Write a DM shape to a file.
+
+    Parameters
+    ----------
+    fname : str
+        The path where to write the DM shape.
+    dm_shape : ndarray
+        Either a DM command or DM maps.
+    device_actuator_mask : array
+        A mask describing the physical actuators on all DMs.
+    '''
+    command_length = np.sum(device_actuator_mask)
+
+    # If we're given a DM map, convert it to a command.
+    if dm_shape.shape != (command_length,):
+        command = dm_maps_to_command(dm_shape, device_actuator_mask)
+        dm_map = dm_shape
+    else:
+        command = dm_shape
+        dm_map = command_to_dm_maps(dm_shape, device_actuator_mask)
+
+    hdus = [
+        fits.PrimaryHDU(),
+        fits.ImageHDU(dm_map, name='DM_MAP'),
+        fits.ImageHDU(command, name='COMMAND')
+    ]
+
+    hdu_list = fits.HDUList(hdus)
+
+    hdu_list.writeto(fname)
