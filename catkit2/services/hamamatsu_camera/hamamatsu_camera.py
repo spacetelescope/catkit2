@@ -114,7 +114,7 @@ class HamamatsuCamera(Service):
             hot_pixel_correction = 3.0
         else:
             raise ValueError(f'Invalid hot pixel correction: {self.hot_pixel_correction}, must be one of ["standard", "minimum", "aggressive"]')
-        self.cam.prop_setvalue(self.cam.DCAM_IDPROP.HOTPIXELCORRECT_LEVEL, hot_pixel_correction)
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.HOTPIXELCORRECT_LEVEL, hot_pixel_correction)
 
         self.camera_mode = self.config.get('camera_mode', "standard")
         if self.camera_mode == "ultraquiet":
