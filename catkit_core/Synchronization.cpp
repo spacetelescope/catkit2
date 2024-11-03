@@ -9,15 +9,15 @@
 
 #include "Timing.h"
 
-SynchronizationLock::SynchronizationLock(Synchronization *sync)
+SynchronizationLock::SynchronizationLock(Synchronization &sync)
 	: m_Sync(sync)
 {
-	m_Sync->Lock();
+	m_Sync.Lock();
 }
 
 SynchronizationLock::~SynchronizationLock()
 {
-	m_Sync->Unlock();
+	m_Sync.Unlock();
 }
 
 Synchronization::Synchronization()

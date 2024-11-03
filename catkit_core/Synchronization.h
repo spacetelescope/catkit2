@@ -30,11 +30,11 @@ struct SynchronizationSharedData
 class SynchronizationLock
 {
 public:
-	SynchronizationLock(Synchronization *sync);
+	SynchronizationLock(Synchronization &sync);
 	~SynchronizationLock();
 
 private:
-	Synchronization *m_Sync;
+	Synchronization &m_Sync;
 };
 
 class Synchronization
