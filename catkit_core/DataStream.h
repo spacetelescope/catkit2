@@ -8,7 +8,15 @@
 
 #include "SharedMemory.h"
 #include "Synchronization.h"
+#include "SynchronizationConditionVariable.h"
+#include "SynchronizationSemaphore.h"
 #include "Tensor.h"
+
+#ifdef _WIN32
+using Synchronization = SynchronizationSemaphore;
+#elif defined(__linux__) or defined(__APPLE__)
+using Synchronization = SynchronizationConditionVariable;
+#endif
 
 const char * const CURRENT_DATASTREAM_VERSION = "0.2";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
@@ -46,7 +54,7 @@ struct DataStreamHeader
 
 	double m_FrameRateCounter;
 
-	SynchronizationSharedData m_SynchronizationSharedData;
+	Synchronization::SharedState m_SynchronizationSharedData;
 };
 
 class DataFrame : public Tensor

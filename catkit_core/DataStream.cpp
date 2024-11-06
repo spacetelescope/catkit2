@@ -334,7 +334,7 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 
 		// Wait until frame becomes available.
 		// Obtain a lock first.
-		auto lock = SynchronizationLock(&m_Synchronization);
+		auto lock = SynchronizationLock(m_Synchronization);
 		m_Synchronization.Wait(wait_time_in_ms, [this, id]() { return this->m_Header->m_LastId > id; }, error_check);
 	}
 
