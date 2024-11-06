@@ -173,22 +173,27 @@ void DataStream::SubmitFrame(size_t id)
 	DataFrameMetadata *meta = m_Header->m_FrameMetadata + (id % m_Header->m_NumFramesInBuffer);
 	meta->m_TimeStamp = GetTimeStamp();
 
-	// Obtain a lock as we are about to modify the condition of the
-	// synchronization.
-	auto lock = SynchronizationLock(&m_Synchronization);
-
-	// Make frame available:
-	// Use a do-while loop to ensure we are never decrementing the last id.
-	size_t last_id;
-	do
 	{
-		last_id = m_Header->m_LastId;
+		// Obtain a lock as we are about to modify the condition of the
+		// synchronization.
+		auto lock = SynchronizationLock(m_Synchronization);
 
-		if (last_id >= id + 1)
-			break;
-	} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
+		// Make frame available:
+		// Use a do-while loop to ensure we are never decrementing the last id.
+		size_t last_id;
+		do
+		{
+			last_id = m_Header->m_LastId;
 
-	m_Synchronization.Signal();
+			if (last_id >= id + 1)
+				break;
+		} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
+
+		m_Synchronization.Signal();
+	}
+
+	auto ts = GetTimeStamp();
+	tracing_proxy.TraceInterval("DataStream::SubmitFrame", GetStreamName(), ts, 0);
 
 	// Don't update the framerate counter for the first frame.
 	if (id == 0)
@@ -207,9 +212,6 @@ void DataStream::SubmitFrame(size_t id)
 	m_Header->m_FrameRateCounter =
 		m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta)
 		+ FRAMERATE_DECAY;
-
-	auto ts = GetTimeStamp();
-	tracing_proxy.TraceInterval("DataStream::SubmitFrame", GetStreamName(), ts, 0);
 }
 
 void DataStream::SubmitData(const void *data)
