@@ -16,6 +16,7 @@ struct SharedStateConditionVariable
 class SynchronizationConditionVariable : public SynchronizationBase<SynchronizationConditionVariable, SharedStateConditionVariable>
 {
 	friend SynchronizationBase<SynchronizationConditionVariable, SharedStateConditionVariable>;
+
 public:
 	void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());
 	void Signal();

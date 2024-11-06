@@ -19,16 +19,16 @@ struct SharedStateSemaphore
 
 class SynchronizationSemaphore : public SynchronizationBase<SynchronizationSemaphore, SharedStateSemaphore>
 {
+	friend SynchronizationBase<SynchronizationSemaphore, SharedStateSemaphore>;
+
 public:
 	void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());
 	void Signal();
 
-	void Lock();
-	void Unlock();
-
 protected:
 	void CreateImpl(const std::string &id, SharedState *shared_state);
 	void OpenImpl(const std::string &id, SharedState *shared_state);
+	void CloseImpl();
 
 	HANDLE m_Semaphore;
 };

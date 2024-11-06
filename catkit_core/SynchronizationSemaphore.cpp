@@ -71,7 +71,7 @@ void SynchronizationSemaphore::CreateImpl(const std::string &id, SharedState *sh
 	if (m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while creating semaphore.");
 
-	shared_data->m_NumReadersWaiting = 0;
+	shared_state->m_NumReadersWaiting = 0;
 }
 
 void SynchronizationSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
@@ -82,7 +82,7 @@ void SynchronizationSemaphore::OpenImpl(const std::string &id, SharedState *shar
 		throw std::runtime_error("Something went wrong while opening semaphore.");
 }
 
-void SynchronizationSempahore::CloseImpl()
+void SynchronizationSemaphore::CloseImpl()
 {
     CloseHandle(m_Semaphore);
 }
