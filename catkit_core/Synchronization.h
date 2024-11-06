@@ -6,47 +6,24 @@
 #include <string>
 #include <functional>
 
-#ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#define NOMINMAX
-	#include <windows.h>
-#else
-	#include <semaphore.h>
-	#include <pthread.h>
-#endif // _WIN32
-
-class Synchronization;
-
-struct SynchronizationSharedData
-{
-#ifdef _WIN32
-	std::atomic_long m_NumReadersWaiting;
-#else
-	pthread_cond_t m_Condition;
-	pthread_mutex_t m_Mutex;
-#endif
-};
-
-class SynchronizationLock
+template<typename Derived, typename SharedStateType>
+class SynchronizationBase
 {
 public:
-	SynchronizationLock(Synchronization &sync);
-	~SynchronizationLock();
+	using SharedState = SharedStateType;
 
-private:
-	Synchronization &m_Sync;
-};
+	SynchronizationBase();
+	SynchronizationBase(const SynchronizationBase &other) = delete;
+	~SynchronizationBase();
 
-class Synchronization
-{
-public:
-	Synchronization();
-	Synchronization(const Synchronization &other) = delete;
-	~Synchronization();
+	SynchronizationBase<Derived, SharedState> &operator=(const SynchronizationBase<Derived, SharedState> &other) = delete;
 
-	Synchronization &operator=(const Synchronization &other) = delete;
+	void Initialize(const std::string &id, SharedState *shared_state, bool create);
 
-	void Initialize(const std::string &id, SynchronizationSharedData *shared_data, bool create);
+	void Create(const std::string &id, SharedState *shared_state);
+
+	void Open(const std::string &id, SharedState *shared_state);
+	void Close();
 
 	void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());
 	void Signal();
@@ -54,17 +31,28 @@ public:
 	void Lock();
 	void Unlock();
 
-private:
-	void Create(const std::string &id, SynchronizationSharedData *shared_data);
-	void Open(const std::string &id, SynchronizationSharedData *shared_data);
+protected:
+	void CreateImpl(const std::string &id, SharedState *shared_state);
+
+	void OpenImpl(const std::string &id, SharedState *shared_state);
+	void CloseImpl();
 
 	bool m_IsOwner;
-	SynchronizationSharedData *m_SharedData;
-	std::string m_Id;
-
-#ifdef _WIN32
-	HANDLE m_Semaphore;
-#endif
+	bool m_IsOpen;
+	SharedState *m_SharedState;
 };
+
+template<typename T>
+class SynchronizationLock
+{
+public:
+	SynchronizationLock(T &sync);
+	~SynchronizationLock();
+
+private:
+	T &m_Sync;
+};
+
+#include "Synchronization.inl"
 
 #endif // SYNCHRONIZATION_H
