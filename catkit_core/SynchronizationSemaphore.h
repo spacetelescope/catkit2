@@ -27,8 +27,8 @@ public:
 	void Unlock();
 
 protected:
-	void Create(const std::string &id, SharedState *shared_state);
-	void Open(const std::string &id, SharedState *shared_state);
+	void CreateImpl(const std::string &id, SharedState *shared_state);
+	void OpenImpl(const std::string &id, SharedState *shared_state);
 
 	HANDLE m_Semaphore;
 };
