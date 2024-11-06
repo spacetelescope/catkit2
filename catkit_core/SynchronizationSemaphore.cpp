@@ -1,7 +1,7 @@
 #include "SynchronizationSemaphore.h"
 
 #ifdef _WIN32
-void SynchronizationSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void *(error_check)())
+void SynchronizationSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
 {
     Timer timer;
 	DWORD res = WAIT_OBJECT_0;
