@@ -1,5 +1,8 @@
 #include "Synchronization.h"
 
+#include <stdexcept>
+#include <algorithm>
+
 template<typename T>
 SynchronizationLock<T>::SynchronizationLock(T &sync)
 	: m_Sync(sync)
