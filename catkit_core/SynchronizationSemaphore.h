@@ -12,12 +12,12 @@
 #endif
 
 #ifdef _WIN32
-struct SharedDataWindowsSemaphore
+struct SharedStateSemaphore
 {
 	std::atomic_long m_NumReadersWaiting;
 };
 
-class SynchronizationWindowsSemaphore : public SynchronizationBase<SynchronizationWindowsSemaphore, HANDLE>
+class SynchronizationSemaphore : public SynchronizationBase<SynchronizationSemaphore, SharedStateSemaphore>
 {
 public:
 	void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());

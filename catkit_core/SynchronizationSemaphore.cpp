@@ -14,7 +14,7 @@ void SynchronizationSemaphore::Wait(long timeout_in_ms, std::function<bool()> co
 			// is at least 1 after the increment. This can occur when a previous reader got
 			// interrupted and the trigger happening before decrementing the
 			// m_NumReadersWaiting counter.
-			while (m_SharedData->m_NumReadersWaiting++ < 0)
+			while (m_SharedState->m_NumReadersWaiting++ < 0)
 			{
 			}
 		}
@@ -24,13 +24,13 @@ void SynchronizationSemaphore::Wait(long timeout_in_ms, std::function<bool()> co
 
 		if (res == WAIT_TIMEOUT && timer.GetTime() > (timeout_in_ms * 0.001))
 		{
-			m_SharedData->m_NumReadersWaiting--;
+			m_SharedState->m_NumReadersWaiting--;
 			throw std::runtime_error("Waiting time has expired.");
 		}
 
 		if (res == WAIT_FAILED)
 		{
-			m_SharedData->m_NumReadersWaiting--;
+			m_SharedState->m_NumReadersWaiting--;
 			throw std::runtime_error("An error occured during waiting for the semaphore: " + std::to_string(GetLastError()));
 		}
 
@@ -42,7 +42,7 @@ void SynchronizationSemaphore::Wait(long timeout_in_ms, std::function<bool()> co
 			}
 			catch (...)
 			{
-				m_SharedData->m_NumReadersWaiting--;
+				m_SharedState->m_NumReadersWaiting--;
 				throw;
 			}
 		}
@@ -52,7 +52,7 @@ void SynchronizationSemaphore::Wait(long timeout_in_ms, std::function<bool()> co
 void SynchronizationSemaphore::Signal()
 {
     // Notify waiting processes.
-	long num_readers_waiting = m_SharedData->m_NumReadersWaiting.exchange(0);
+	long num_readers_waiting = m_SharedState->m_NumReadersWaiting.exchange(0);
 
 	// If a reader times out in between us reading the number of readers that are waiting
 	// and us releasing the semaphore, we are releasing one too many readers. This
