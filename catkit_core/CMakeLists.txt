@@ -78,6 +78,13 @@ find_package(Protobuf REQUIRED)
 target_include_directories(catkit_core PUBLIC ${PROTOBUF_INCLUDE_DIR})
 target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARY})
 
+# Optionally link Milk
+if(USE_MILK)
+  target_include_directories(catkit_core ${MILK_INSTALLDIR}/include)
+  target_link_directories(catkit_core ${MILK_INSTALLDIR}/lib)
+  target_link_libraries(catkit_core PUBLIC ImageStreamIO)
+endif(USE_MILK)
+
 # Add install files
 install(TARGETS catkit_core DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
