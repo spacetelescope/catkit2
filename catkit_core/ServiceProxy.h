@@ -3,6 +3,7 @@
 
 #include "Types.h"
 #include "DataStream.h"
+#include "CacaoStream.h"
 #include "ServiceState.h"
 #include "Client.h"
 
@@ -26,6 +27,8 @@ public:
 
 	std::shared_ptr<DataStream> GetDataStream(const std::string &name, void (*error_check)() = nullptr);
 
+	std::shared_ptr<CacaoStream> GetCacaoStream(const std::string &name, void (*error_check)() = nullptr);
+
 	std::shared_ptr<DataStream> GetHeartbeat();
 
 	ServiceState GetState();
@@ -40,6 +43,7 @@ public:
 	std::vector<std::string> GetPropertyNames(void (*error_check)() = nullptr);
 	std::vector<std::string> GetCommandNames(void (*error_check)() = nullptr);
 	std::vector<std::string> GetDataStreamNames(void (*error_check)() = nullptr);
+	std:;vector<std::stirng> GetCacaoStreamNames(void (*error_check)() = nullptr);
 
 	nlohmann::json GetConfig();
 	std::string GetId();
@@ -57,10 +61,12 @@ private:
 	std::vector<std::string> m_PropertyNames;
 	std::vector<std::string> m_CommandNames;
 	std::map<std::string, std::string> m_DataStreamIds;
+	std::map<std::string, std::string> m_CacaoStreamIds;
 
 	std::map<std::string, std::string> m_PropertyDataStreamLinks;
 
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
+	std::map<std::string, std::shared_ptr<CacaoStream>> m_CacaoStreams;
 
 	std::shared_ptr<DataStream> m_Heartbeat;
 	std::shared_ptr<DataStream> m_State;

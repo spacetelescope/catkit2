@@ -17,6 +17,7 @@ message GetInfoReply
     repeated string property_names = 4;
     repeated string command_names = 5;
     map<string, string> datastream_ids = 6;
+    map<string, string> cacaostream_ids = 9;
 
     map<string, string> property_datastream_links = 8;
 

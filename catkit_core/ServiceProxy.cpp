@@ -33,6 +33,7 @@ ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string se
 
 ServiceProxy::~ServiceProxy()
 {
+	Disconnect();
 }
 
 Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
@@ -151,6 +152,35 @@ std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name,
 	}
 
 	return m_DataStreams[name];
+}
+
+std::shared_ptr<CacaoStream> ServiceProxy::GetCacaoStream(const std::string &name, void (*error_check)())
+{
+#ifndef USE_MILK
+	throw std::runtime_error("Milk was not installed in this binary.");
+#else
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	// Check if the name is a valid cacao stream name.
+	if (m_CacaoStreamIds.find(name) == m_CacaoStreamIds.end())
+		throw std::runtime_error("This is not a valid cacao stream name.");
+
+	auto stream = m_CacaoStreams.find(name);
+
+	// Check if we already opened this cacao stream.
+	if (stream == m_CacaoStreams.end())
+	{
+		// Open it now.
+		auto stream = std::make_shared<CacaoStream>();
+		ImageStreamIO_openIm(stream.get(), name.c_str());
+		// TODO: perform error check.
+
+		m_CacaoStreams[name] = stream;
+	}
+
+	return m_CacaoStreams[name];
+#endif // USE_MILK
 }
 
 std::shared_ptr<DataStream> ServiceProxy::GetHeartbeat()
@@ -312,6 +342,9 @@ void ServiceProxy::Connect()
 	for (auto& [key, value] : reply.datastream_ids())
 		m_DataStreamIds[key] = value;
 
+	for (auto& [keym, value] : reply.cacaostream_ids())
+		m_CacaoStreamIds[key] = value;
+
 	for (auto& [key, value] : reply.property_datastream_links())
 		m_PropertyDataStreamLinks[key] = value;
 
@@ -327,7 +360,15 @@ void ServiceProxy::Disconnect()
 	m_PropertyNames.clear();
 	m_CommandNames.clear();
 	m_DataStreamIds.clear();
+	m_CacaoStreamIds.clear();
 	m_DataStreams.clear();
+
+#ifdef USE_MILK
+	// Close any Cacao streams that were opened.
+	for (const auto &[name, stream] : m_CacaoStreams)
+		ImageStreamIO_closeIm(stream.get());
+#endif // USE_MILK
+	m_CacaoStreams.clear();
 
 	m_Heartbeat = nullptr;
 }
@@ -356,6 +397,19 @@ std::vector<std::string> ServiceProxy::GetDataStreamNames(void (*error_check)())
 	std::vector<std::string> names;
 
 	for (auto const &item : m_DataStreamIds)
+		names.push_back(item.first);
+
+	return names;
+}
+
+std::vector<std::string> ServiceProxy::GetCacaoStreamNames(void (*error_check()))
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_T_START, error_check);
+
+	std::vector<std::string names;
+
+	for auto const &item : m_CacaoStreamIds)
 		names.push_back(item.first);
 
 	return names;

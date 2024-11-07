@@ -59,6 +59,9 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         elif name in self.data_stream_names:
             # Return datastream.
             return self.get_data_stream(name)
+        elif name in self.cacao_stream_names:
+            # Return cacaostream
+            return self.get_cacao_stream(name)
         else:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'.")
 
@@ -85,6 +88,8 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
             raise AttributeError('Cannot set a command.')
         elif name in self.data_stream_names:
             raise AttributeError('Cannot set a data stream. Did you mean .submit_data()?')
+        elif name in self.cacao_stream_names:
+            raise AttributeError('Cannot set a cacao stream. Did you mean .set_data()?')
         else:
             super().__setattr__(name, value)
 
