@@ -43,7 +43,7 @@ public:
 	std::vector<std::string> GetPropertyNames(void (*error_check)() = nullptr);
 	std::vector<std::string> GetCommandNames(void (*error_check)() = nullptr);
 	std::vector<std::string> GetDataStreamNames(void (*error_check)() = nullptr);
-	std:;vector<std::stirng> GetCacaoStreamNames(void (*error_check)() = nullptr);
+	std::vector<std::string> GetCacaoStreamNames(void (*error_check)() = nullptr);
 
 	nlohmann::json GetConfig();
 	std::string GetId();

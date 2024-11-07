@@ -342,7 +342,7 @@ void ServiceProxy::Connect()
 	for (auto& [key, value] : reply.datastream_ids())
 		m_DataStreamIds[key] = value;
 
-	for (auto& [keym, value] : reply.cacaostream_ids())
+	for (auto& [key, value] : reply.cacaostream_ids())
 		m_CacaoStreamIds[key] = value;
 
 	for (auto& [key, value] : reply.property_datastream_links())
@@ -402,14 +402,14 @@ std::vector<std::string> ServiceProxy::GetDataStreamNames(void (*error_check)())
 	return names;
 }
 
-std::vector<std::string> ServiceProxy::GetCacaoStreamNames(void (*error_check()))
+std::vector<std::string> ServiceProxy::GetCacaoStreamNames(void (*error_check)())
 {
 	// Start the service if it has not already been started.
-	Start(TIMEOUT_T_START, error_check);
+	Start(TIMEOUT_TO_START, error_check);
 
-	std::vector<std::string names;
+	std::vector<std::string> names;
 
-	for auto const &item : m_CacaoStreamIds)
+	for (auto const &item : m_CacaoStreamIds)
 		names.push_back(item.first);
 
 	return names;

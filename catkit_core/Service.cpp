@@ -478,8 +478,10 @@ string Service::HandleGetInfo(const string &data)
 	for (auto& [key, value] : m_DataStreams)
 		(*reply.mutable_datastream_ids())[key] = value->GetStreamId();
 
+#ifdef USE_MILK
 	for (auto& [key, value] : m_CacaoStreams)
 		(*reply.mutable_cacaostream_ids())[key] = std::string(value->md->name);
+#endif // USE_MILK
 
 	reply.set_heartbeat_stream_id(m_Heartbeat->GetStreamId());
 
