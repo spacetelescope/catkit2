@@ -8,7 +8,6 @@ from ..service_proxy import ServiceProxy
 MAX_TIMEOUT_FOR_CHECKING = 1000  # ms
 
 
-@ServiceProxy.register_service_interface('newport_picomotor')
 class NewportPicomotorProxy(ServiceProxy):
     log = logging.getLogger(__name__)
 
