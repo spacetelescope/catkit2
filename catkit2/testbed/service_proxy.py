@@ -25,10 +25,25 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         # The import is here instead of at the top of the file to avoid circular imports.
         from .testbed_proxy import TestbedProxy  # noqa: E402
         object.__setattr__(self, '_testbed', TestbedProxy(getattr(super(), 'testbed').host, getattr(super(), 'testbed').port))
+        object.__setattr__(self, '_cacao_streams', {})
 
     @property
     def testbed(self):
         return self._testbed
+
+    def get_cacao_stream(self, name):
+        try:
+            from pyMilk.interfacing.isio_shmlib import SHM
+
+            # Load cacao stream if we didn't already open it.
+            if name not in self._cacao_streams:
+                shm_name = self.cacao_stream_names[name]
+                stream = SHM(shm_name)
+                self._cacao_streams[name] = stream
+
+            return self._cacao_streams[name]
+        except ImportError as e:
+            raise RuntimeError("pyMilk install is required for using CACAO streams.") from e
 
     def __getattr__(self, name):
         '''Get a property, command or data stream.
