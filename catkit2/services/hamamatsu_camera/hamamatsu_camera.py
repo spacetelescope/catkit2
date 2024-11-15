@@ -121,8 +121,8 @@ class HamamatsuCamera(Service):
         binning = self.config.get('binning', 1)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.BINNING, binning)
 
-        detector_correction = 2.0 if self.config.get('detector_correction', True) else 1.0
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.DEFECTCORRECT_MODE, detector_correction)
+        defect_correction = 2.0 if self.config.get('defect_correction', True) else 1.0
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.DEFECTCORRECT_MODE, defect_correction)
 
         self.hot_pixel_correction = self.config.get('hot_pixel_correction', 'standard')
         if self.hot_pixel_correction == "standard":
