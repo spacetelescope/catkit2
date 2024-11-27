@@ -5,56 +5,57 @@
 #include <cstdint>
 
 // A simple lock-free pool allocator.
-template<typename Value, std::int32_t Size>
+template<std::size_t Size>
 class PoolAllocator
 {
 private:
-	Value m_Pool[Size];
-
-	std::atomic_int32_t m_Head;
-	std::atomic_int32_t m_Next[Size];
+	std::atomic_size_t m_Head;
+	std::atomic_size_t m_Next[Size];
 public:
 	PoolAllocator()
 		: m_Head(0);
 	{
-		// Check that size is smaller than maximum value of int32_t - 1.
-		static_assert(Size < INT32_MAX - 1, "Size must be smaller than INT32_MAX - 1.");
-
 		// Initialize the linked list.
 		for (size_t i = 0; i < Size; ++i)
 		{
-			m_Next[i] = i + 1;
+			if (i == Size - 1)
+			{
+				m_Next[i] = -1;
+			}
+			else
+			{
+				m_Next[i] = i + 1;
+			}
 		}
 	}
 
-	Value *Allocate()
+	size_t Allocate()
 	{
-		std::int32_t head;
-		std::int32_t next;
+		std::size_t head;
+		std::size_t next;
 
 		// Pop the first element from the linked list.
 		do
 		{
 			head = m_Head.load(std::memory_order_relaxed);
+
+			// Check if the pool is empty.
+			if (head == -1)
+			{
+				return nullptr;
+			}
+
 			next = m_Next[head].load(std::memory_order_relaxed);
 		} while (!m_Head.compare_exchange_weak(head, next));
 
 		// Return the popped element.
-		return &m_Pool[head];
+		return head;
 	}
 
-	void Deallocate(Value *element)
+	void Deallocate(size_t index)
 	{
-		// Ignore null pointers.
-		if (element == nullptr)
-		{
-			return;
-		}
-
-		// Check that the element is within the pool.
-		std::int32_t index = element - m_Pool;
-
-		if (index < 0 || index >= Size)
+		// Check if the element is within the pool bounds.
+		if (index >= Size)
 		{
 			return;
 		}
