@@ -32,7 +32,7 @@ std::size_t PoolAllocator<Size>::Allocate()
         // Check if the pool is empty.
         if (head == -1)
         {
-            return nullptr;
+            return -1;
         }
 
         next = m_Next[head].load(std::memory_order_relaxed);
@@ -43,7 +43,7 @@ std::size_t PoolAllocator<Size>::Allocate()
 }
 
 template<std::size_t Size>
-PoolAllocator<Size>::Deallocate(std::size_t index)
+void PoolAllocator<Size>::Deallocate(std::size_t index)
 {
     // Check if the element is within the pool bounds.
     if (index >= Size)
