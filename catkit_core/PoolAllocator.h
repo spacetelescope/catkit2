@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cstddef>
 
 // A simple lock-free pool allocator.
 template<std::size_t Size>
