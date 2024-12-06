@@ -51,9 +51,12 @@ void PoolAllocator<Size>::Deallocate(std::size_t index)
         return;
     }
 
+    std::size_t head;
+
     // Push the element back on the front of the linked list.
     do
     {
-        m_Next[index] = m_Head.load(std::memory_order_relaxed);
-    } while (!m_Head.compare_exchange_weak(m_Next[index], index));
+        head = m_Head.load(std::memory_order_relaxed);
+        m_Next[index] = head;
+    } while (!m_Head.compare_exchange_weak(head, index));
 }
