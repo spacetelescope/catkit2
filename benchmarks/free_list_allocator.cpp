@@ -33,6 +33,41 @@ void benchmark_linux_scalability()
 	delete[] handles;
 }
 
+void benchmark_threadtest()
+{
+	typedef FreeListAllocator<16384, 32> Allocator;
+
+	const size_t N = 100;
+	const size_t M = 100000;
+
+	auto *handles = new Allocator::BlockHandle[M];
+
+	Allocator allocator(size_t(32) * M);
+
+	auto start = GetTimeStamp();
+
+	for (size_t i = 0; i < M; ++i)
+	{
+		for (size_t j = 0; j < N; ++j)
+		{
+			handles[j] = allocator.Allocate(16);
+		}
+
+		for (size_t j = 0; j < N; ++j)
+		{
+			allocator.Deallocate(handles[j]);
+		}
+	}
+
+	auto end = GetTimeStamp();
+
+	std::cout << "Threadtest:" << std::endl;
+	std::cout << "Time: " << (end - start) / 1e9 << " sec" << std::endl;
+	std::cout << "Throughput: " << 2 * N * M / ((end - start) / 1e9) << " ops/s" << std::endl;
+
+	delete[] handles;
+}
+
 void benchmark_larson()
 {
 	const size_t ALIGNMENT = 32;
@@ -85,6 +120,7 @@ void benchmark_larson()
 int main(int argc, char **argv)
 {
 	benchmark_linux_scalability();
+	benchmark_threadtest();
 	benchmark_larson();
 
 	return 0;
