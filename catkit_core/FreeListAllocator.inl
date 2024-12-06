@@ -20,7 +20,7 @@ FreeListAllocator<MaxNumBlocks, Alignment>::~FreeListAllocator()
 }
 
 template <std::size_t MaxNumBlocks, std::size_t Alignment>
-FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocator<MaxNumBlocks, Alignment>::Allocate(std::size_t size)
+typename FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocator<MaxNumBlocks, Alignment>::Allocate(std::size_t size)
 {
 	// Round up the size to the nearest multiple of the alignment.
 	size = (size + Alignment - 1) & ~(Alignment - 1);
@@ -271,7 +271,7 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a
 }
 
 template <std::size_t MaxNumBlocks, std::size_t Alignment>
-FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocator<MaxNumBlocks, Alignment>::FindFirstFreeBlock(std::size_t size)
+typename FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocator<MaxNumBlocks, Alignment>::FindFirstFreeBlock(std::size_t size)
 {
 	BlockHandle current = m_Head.load();
 
