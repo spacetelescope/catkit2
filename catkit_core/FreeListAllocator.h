@@ -91,6 +91,7 @@ public:
 	std::size_t GetOffset(BlockHandle index);
 
 	void PrintState();
+	size_t GetNumFreeBlocks() const;
 
 private:
 	PoolAllocator<MaxNumBlocks> m_BlockAllocator;

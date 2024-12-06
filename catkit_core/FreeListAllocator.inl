@@ -1,5 +1,5 @@
 #include "FreeListAllocator.h"
-
+#include "Timing.h"
 #include <iostream>
 
 const std::size_t MAX_ATTEMPTS = 5;
@@ -63,7 +63,7 @@ FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocator<MaxNum
 				if (MarkBlockAsFree(index, false))
 				{
 					// Remove the block from the free list.
-					// This is guaranteed
+					// This is guaranteed to succeed since we own the block.
 					RemoveBlock(index);
 
 					// Return the block.
@@ -191,81 +191,71 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a
 	if (a == -1 || b == -1)
 		return false;
 
-	if (!owner_of_a)
+	BlockDescriptor descriptor_a = m_Blocks[a].descriptor.load();
+	BlockDescriptor descriptor_b = m_Blocks[b].descriptor.load();
+
+	// Perform a pre-check on the blocks.
+	if (descriptor_a.GetOffset() < descriptor_b.GetOffset())
 	{
-		// std::cout << "Trying to own block A." << std::endl;
-		// Try to own block A.
-		if (!MarkBlockAsFree(a, false))
+		if (descriptor_a.GetOffset() + descriptor_a.GetSize() != descriptor_b.GetOffset())
 		{
-			// The block was not free, so we cannot start owning it.
-			// std::cout << "Starting to own block A failed." << std::endl;
+			// The blocks are not adjacent.
+			// std::cout << "The blocks are not adjacent." << std::endl;
 			return false;
 		}
 	}
-
-	BlockDescriptor descriptor_a = m_Blocks[a].descriptor.load();
-	BlockDescriptor descriptor_b = m_Blocks[b].descriptor.load();
-	BlockDescriptor new_descriptor = descriptor_b;
+	else
+	{
+		if (descriptor_b.GetOffset() + descriptor_b.GetSize() != descriptor_a.GetOffset())
+		{
+			// The blocks are not adjacent.
+			// std::cout << "The blocks are not adjacent." << std::endl;
+			return false;
+		}
+	}
 
 	if (!descriptor_b.IsFree())
 	{
 		// The B block was not free and as such cannot be coalesced.
 		// std::cout << "The B block was not free." << std::endl;
 
-		// Return the A block to its original state and return.
-		// Note: since we're the owner, this cannot fail.
-		if (!owner_of_a)
-			MarkBlockAsFree(a, true);
-
 		return false;
 	}
 
-	if (descriptor_a.GetOffset() < descriptor_b.GetOffset())
+	// We are in principle good to coallesce the blocks.
+	// Start by owning the A block if we don't already.
+	if (!owner_of_a)
 	{
-		// std::cout << "A block is before B block." << std::endl;
+		BlockDescriptor descriptor_a_old = descriptor_a;
+		descriptor_a.SetFree(false);
 
-		// The B block is after the A block.
-		if (descriptor_a.GetOffset() + descriptor_a.GetSize() != descriptor_b.GetOffset())
+		// Try to own block A.
+		if (!m_Blocks[a].descriptor.compare_exchange_strong(descriptor_a_old, descriptor_a))
 		{
-			// std::cout << "The blocks are not adjacent." << std::endl;
-
-			// The blocks are not adjacent. Return the A block to its original state and return.
-			// Note: since we're the owner, this cannot fail.
-			if (!owner_of_a)
-				MarkBlockAsFree(a, true);
-
+			// The block was changed by someone else. We cannot own it.
+			// std::cout << "Starting to own block A failed." << std::endl;
 			return false;
 		}
+	}
 
-		// Set the new descriptor of the B block.
+	BlockDescriptor new_descriptor = descriptor_b;
+
+	if (descriptor_a.GetOffset() < descriptor_b.GetOffset())
+	{
+		// The B block is after the A block.
 		new_descriptor.SetOffset(descriptor_a.GetOffset());
 		new_descriptor.SetSize(descriptor_a.GetSize() + descriptor_b.GetSize());
 	}
 	else
 	{
-		// std::cout << "B block is before A block." << std::endl;
-
 		// The B block is before the A block.
-		if (descriptor_b.GetOffset() + descriptor_b.GetSize() != descriptor_a.GetOffset())
-		{
-			// std::cout << "The blocks are not adjacent: " << descriptor_b.GetOffset() + descriptor_b.GetSize() << " != " << descriptor_a.GetOffset() << std::endl;
-
-			// The blocks are not adjacent. Return the A block to its original state and return.
-			// Note: since we're the owner, this cannot fail.
-			if (!owner_of_a)
-				MarkBlockAsFree(a, true);
-
-			return false;
-		}
-
-		// Set the new size of the B block.
 		new_descriptor.SetSize(descriptor_a.GetSize() + descriptor_b.GetSize());
 	}
 
 	// std::cout << "Trying to set the new descriptor of the B block, with " << new_descriptor.GetOffset() << " and " << new_descriptor.GetSize() << std::endl;
 
 	// Try to set the new descriptor of the B block.
-	if (!m_Blocks[b].descriptor.compare_exchange_strong(descriptor_b, new_descriptor))
+	if (!m_Blocks[b].descriptor.compare_exchange_weak(descriptor_b, new_descriptor))
 	{
 		// The B block was changed by someone else. Return the A block to its original state and return.
 		// Note: since we're the owner, this cannot fail.
@@ -446,4 +436,19 @@ void FreeListAllocator<MaxNumBlocks, Alignment>::PrintState()
 
 		current = block.next;
 	}
+}
+
+template<std::size_t MaxNumBlocks, std::size_t Alignment>
+size_t FreeListAllocator<MaxNumBlocks, Alignment>::GetNumFreeBlocks() const
+{
+	size_t count = 0;
+	BlockHandle current = m_Head;
+
+	while (current != -1)
+	{
+		++count;
+		current = m_Blocks[current].next;
+	}
+
+	return count;
 }
