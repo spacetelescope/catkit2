@@ -33,7 +33,7 @@ public:
 		void Set(const Offset &offset, const Size &size, const bool &is_free)
 		{
 			m_Offset = offset;
-			m_SizeAndFreeFlag = (offset & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
+			m_SizeAndFreeFlag = (size & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
 		}
 
 		Offset GetOffset() const
