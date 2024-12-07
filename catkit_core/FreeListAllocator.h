@@ -12,8 +12,8 @@ class FreeListAllocator
 {
 public:
 	using BlockHandle = std::int32_t;
-	using Offset = std::uint64_t;
-	using Size = std::uint64_t;
+	using Offset = std::uint32_t;
+	using Size = std::uint32_t;
 
 	static const BlockHandle INVALID_HANDLE = -1;
 
@@ -70,7 +70,7 @@ public:
 		Offset m_OffsetAndFreeFlag;
 		Size m_Size;
 
-		static const Offset _FREE_FLAG = 0x8000000000000000;
+		static const Offset _FREE_FLAG = 0x80000000;
 	};
 
 	// Check that the BlockDescriptor is lock-free atomic.
