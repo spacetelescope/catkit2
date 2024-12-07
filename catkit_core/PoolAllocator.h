@@ -6,19 +6,22 @@
 #include <cstddef>
 
 // A simple lock-free pool allocator.
-template<std::size_t Size>
 class PoolAllocator
 {
-private:
-	std::atomic_size_t m_Head;
-	std::atomic_size_t m_Next[Size];
 public:
-	PoolAllocator();
+	PoolAllocator(void *buffer, size_t capacity);
+
+	void Initialize();
+
+	static std::size_t CalculateBufferSize(std::size_t capacity);
 
 	size_t Allocate();
 	void Deallocate(size_t index);
-};
 
-#include "PoolAllocator.inl"
+private:
+	std::size_t m_Capacity;
+	std::atomic_size_t *m_Head;
+	std::atomic_size_t *m_Next;
+};
 
 #endif // POOL_ALLOCATOR_H

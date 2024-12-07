@@ -94,7 +94,7 @@ public:
 	size_t GetNumFreeBlocks() const;
 
 private:
-	PoolAllocator<MaxNumBlocks> m_BlockAllocator;
+	PoolAllocator m_BlockAllocator;
 	Block m_Blocks[MaxNumBlocks];
 
 	std::atomic<BlockHandle> m_Head;

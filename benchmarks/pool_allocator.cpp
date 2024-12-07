@@ -4,13 +4,15 @@
 
 void benchmark_linux_scalability()
 {
-	typedef PoolAllocator<16384> Allocator;
-
 	const size_t N = 10000000;
+    const size_t CAPACITY = 2 * N;
+
+    void *buffer = new char[PoolAllocator::CalculateBufferSize(CAPACITY)];
+
+	PoolAllocator allocator(buffer, CAPACITY);
+    allocator.Initialize();
 
 	auto *handles = new size_t[N];
-
-	Allocator allocator;
 
 	auto start = GetTimeStamp();
 
@@ -31,6 +33,7 @@ void benchmark_linux_scalability()
 	std::cout << "Throughput: " << 2 * N / ((end - start) / 1e9) << " ops/s" << std::endl;
 
 	delete[] handles;
+    delete[] buffer;
 }
 
 int main(int argc, char **argv)

@@ -6,6 +6,7 @@ const std::size_t MAX_ATTEMPTS = 5;
 
 template <std::size_t MaxNumBlocks, std::size_t Alignment>
 FreeListAllocator<MaxNumBlocks, Alignment>::FreeListAllocator(std::size_t buffer_size)
+	: m_BlockAllocator(nullptr, MaxNumBlocks)
 {
 	// Initialize the free list.
 	m_Head = m_BlockAllocator.Allocate();
