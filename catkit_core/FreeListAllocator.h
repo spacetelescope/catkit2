@@ -32,43 +32,43 @@ public:
 
 		void Set(const Offset &offset, const Size &size, const bool &is_free)
 		{
-			m_OffsetAndFreeFlag = (offset & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
-			m_Size = size;
+			m_Offset = offset;
+			m_SizeAndFreeFlag = (offset & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
 		}
 
 		Offset GetOffset() const
 		{
-			return m_OffsetAndFreeFlag & ~_FREE_FLAG;
+			return m_Offset;
 		}
 
 		void SetOffset(const Offset &new_offset)
 		{
-			m_OffsetAndFreeFlag = new_offset | (m_OffsetAndFreeFlag & _FREE_FLAG);
+			m_Offset = new_offset;
 		}
 
 		Size GetSize() const
 		{
-			return m_Size;
+			return m_SizeAndFreeFlag & ~_FREE_FLAG;
 		}
 
 		void SetSize(const Size &new_size)
 		{
-			m_Size = new_size;
+			m_SizeAndFreeFlag = (new_size & ~_FREE_FLAG) | (m_SizeAndFreeFlag & _FREE_FLAG);
 		}
 
 		bool IsFree() const
 		{
-			return m_OffsetAndFreeFlag & _FREE_FLAG;
+			return m_SizeAndFreeFlag & _FREE_FLAG;
 		}
 
 		void SetFree(const bool &is_free)
 		{
-			m_OffsetAndFreeFlag = (m_OffsetAndFreeFlag & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
+			m_SizeAndFreeFlag = (m_SizeAndFreeFlag & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
 		}
 
 	private:
-		Offset m_OffsetAndFreeFlag;
-		Size m_Size;
+		Offset m_Offset;
+		Size m_SizeAndFreeFlag;
 
 		static const Offset _FREE_FLAG = 0x80000000;
 	};
