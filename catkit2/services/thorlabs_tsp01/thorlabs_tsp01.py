@@ -16,10 +16,12 @@ class ThorlabsTSP01(Service):
         self.serial_number = self.config['serial_number']
         self.num_averaging = self.config.get('averaging', 1)
         self.interval = self.config.get('interval', 10)
+        self.read_out_header_1 = self.config.get('read_out_header_1', True)
+        self.read_out_header_2 = self.config.get('read_out_header_2', True)
 
         self.temperature_internal = self.make_data_stream('temperature_internal', 'float64', [1], 20)
-        self.temperature_header_1 = self.make_data_stream('temperature_header_1', 'float64', [1], 20)
-        self.temperature_header_2 = self.make_data_stream('temperature_header_2', 'float64', [1], 20)
+        self.temperature_header_1 = self.make_data_stream('temperature_header_1', 'float64', [1], 20) if self.read_out_header_1 else None
+        self.temperature_header_2 = self.make_data_stream('temperature_header_2', 'float64', [1], 20) if self.read_out_header_2 else None
         self.humidity_internal = self.make_data_stream('humidity_internal', 'float64', [1], 20)
 
     def main(self):
@@ -28,11 +30,13 @@ class ThorlabsTSP01(Service):
                 temperature = self.get_temperature(1)
                 self.temperature_internal.submit_data(np.array([temperature]))
 
-                temperature = self.get_temperature(2)
-                self.temperature_header_1.submit_data(np.array([temperature]))
+                if self.read_out_header_1:
+                    temperature = self.get_temperature(2)
+                    self.temperature_header_1.submit_data(np.array([temperature]))
 
-                temperature = self.get_temperature(3)
-                self.temperature_header_2.submit_data(np.array([temperature]))
+                if self.read_out_header_2:
+                    temperature = self.get_temperature(3)
+                    self.temperature_header_2.submit_data(np.array([temperature]))
 
                 humidity = self.get_humidity()
                 self.humidity_internal.submit_data(np.array([humidity]))
