@@ -7,10 +7,10 @@ void benchmark_linux_scalability()
 	const size_t N = 10000000;
     const size_t CAPACITY = 2 * N;
 
-    void *buffer = new char[PoolAllocator::CalculateBufferSize(CAPACITY)];
+    char *buffer = new char[PoolAllocator::CalculateMetadataBufferSize(CAPACITY)];
 
-	PoolAllocator allocator(buffer, CAPACITY);
-    allocator.Initialize();
+	PoolAllocator allocator(buffer);
+    allocator.Initialize(CAPACITY);
 
 	auto *handles = new size_t[N];
 
