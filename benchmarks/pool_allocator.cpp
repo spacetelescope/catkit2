@@ -12,7 +12,7 @@ void benchmark_linux_scalability()
 	PoolAllocator allocator(buffer);
     allocator.Initialize(CAPACITY);
 
-	auto *handles = new size_t[N];
+	auto *handles = new PoolAllocator::BlockHandle[N];
 
 	auto start = GetTimeStamp();
 

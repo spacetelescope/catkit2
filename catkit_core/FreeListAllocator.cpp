@@ -1,6 +1,8 @@
 #include "FreeListAllocator.h"
 #include "Timing.h"
+
 #include <iostream>
+#include <algorithm>
 
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
@@ -76,7 +78,7 @@ std::size_t FreeListAllocator::ComputeMetadataBufferSize(std::size_t max_num_blo
 
 void FreeListAllocator::Initialize(std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
 {
-	std::memcpy(m_Header.version, VERSION, sizeof(VERSION));
+    std::copy(VERSION, VERSION + sizeof(VERSION), m_Header.version);
 	m_Header.max_num_blocks = max_num_blocks;
 	m_Header.alignment = alignment;
 	m_Header.total_buffer_size = buffer_size;

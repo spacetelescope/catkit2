@@ -1,5 +1,7 @@
 #include "PoolAllocator.h"
 
+#include <algorithm>
+
 const std::uint8_t VERSION[4] = {0, 0, 0, 0};
 
 PoolAllocator::PoolAllocator(void *metadata_buffer)
@@ -13,7 +15,7 @@ PoolAllocator::PoolAllocator(void *metadata_buffer)
 void PoolAllocator::Initialize(std::uint32_t capacity)
 {
     // Set version and capacity.
-    std::memcpy(m_Header.version, VERSION, sizeof(VERSION));
+    std::copy(VERSION, VERSION + sizeof(VERSION), m_Header.version);
     m_Capacity = capacity;
 
     // Initialize the linked list.
