@@ -4,13 +4,20 @@
 
 void benchmark_linux_scalability()
 {
-	typedef FreeListAllocator<16384, 32> Allocator;
+	typedef FreeListAllocator Allocator;
 
 	const size_t N = 10000000;
 
-	auto *handles = new Allocator::BlockHandle[N];
+	const size_t NUM_BLOCKS = N * 2;
+	const size_t ALIGNMENT = 32;
 
-	Allocator allocator(size_t(32) * N);
+	auto *handles = new FreeListAllocator::BlockHandle[N];
+
+	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
+	char *buffer = new char[buffer_size];
+
+	FreeListAllocator allocator(buffer);
+	allocator.Initialize(NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
 
 	auto start = GetTimeStamp();
 
@@ -31,18 +38,23 @@ void benchmark_linux_scalability()
 	std::cout << "Throughput: " << 2 * N / ((end - start) / 1e9) << " ops/s" << std::endl;
 
 	delete[] handles;
+	delete[] buffer;
 }
 
 void benchmark_threadtest()
 {
-	typedef FreeListAllocator<16384, 32> Allocator;
-
 	const size_t N = 100;
 	const size_t M = 100000;
+	const size_t NUM_BLOCKS = N * 2;
+	const size_t ALIGNMENT = 32;
 
-	auto *handles = new Allocator::BlockHandle[M];
+	auto *handles = new FreeListAllocator::BlockHandle[M];
 
-	Allocator allocator(size_t(32) * M);
+	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
+	char *buffer = new char[buffer_size];
+
+	FreeListAllocator allocator(buffer);
+	allocator.Initialize(NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
 
 	auto start = GetTimeStamp();
 
@@ -71,18 +83,24 @@ void benchmark_threadtest()
 void benchmark_larson()
 {
 	const size_t ALIGNMENT = 32;
-	typedef FreeListAllocator<16384, ALIGNMENT> Allocator;
 
 	const size_t N = 10000000;
 	const size_t M = 1000;
 	const size_t MIN_SIZE = 16;
 	const size_t MAX_SIZE = 128;
+	const size_t NUM_BLOCKS = M * 2;
 
-	auto *handles = new Allocator::BlockHandle[M];
+	auto *handles = new FreeListAllocator::BlockHandle[M];
 	for (size_t i = 0; i < M; ++i)
 	{
 		handles[i] = -1;
 	}
+
+	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
+	char *buffer = new char[buffer_size];
+
+	FreeListAllocator allocator(buffer);
+	allocator.Initialize(NUM_BLOCKS, ALIGNMENT, MAX_SIZE * NUM_BLOCKS);
 
 	auto *indices = new size_t[N];
 	auto *sizes = new size_t[N];
@@ -91,8 +109,6 @@ void benchmark_larson()
 		indices[i] = rand() % M;
 		sizes[i] = (MIN_SIZE + (rand() % (MAX_SIZE - MIN_SIZE))) * ALIGNMENT;
 	}
-
-	Allocator allocator(size_t(1024) * 1024 * 1024);
 
 	auto start = GetTimeStamp();
 

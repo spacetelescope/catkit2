@@ -2,41 +2,114 @@
 #include "Timing.h"
 #include <iostream>
 
-const std::size_t MAX_ATTEMPTS = 5;
+//#define DEBUG_PRINT(a) std::cout << a << std::endl
+#define DEBUG_PRINT(a)
 
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-FreeListAllocator<MaxNumBlocks, Alignment>::FreeListAllocator(std::size_t buffer_size)
-	: m_BlockAllocator(nullptr, MaxNumBlocks)
+const std::size_t MAX_ATTEMPTS = 5;
+const std::uint8_t VERSION[4] = {0, 0, 0, 0};
+
+FreeListAllocator::BlockDescriptor::BlockDescriptor()
 {
+}
+
+FreeListAllocator::BlockDescriptor::BlockDescriptor(Offset offset, Size size, bool is_free)
+{
+	Set(offset, size, is_free);
+}
+
+void FreeListAllocator::BlockDescriptor::Set(const Offset &offset, const Size &size, const bool &is_free)
+{
+	m_Offset = offset;
+	m_SizeAndFreeFlag = (size & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
+}
+
+FreeListAllocator::Offset FreeListAllocator::BlockDescriptor::GetOffset() const
+{
+	return m_Offset;
+}
+
+void FreeListAllocator::BlockDescriptor::SetOffset(const Offset &new_offset)
+{
+	m_Offset = new_offset;
+}
+
+FreeListAllocator::Size FreeListAllocator::BlockDescriptor::GetSize() const
+{
+	return m_SizeAndFreeFlag & ~_FREE_FLAG;
+}
+
+void FreeListAllocator::BlockDescriptor::SetSize(const Size &new_size)
+{
+	m_SizeAndFreeFlag = (new_size & ~_FREE_FLAG) | (m_SizeAndFreeFlag & _FREE_FLAG);
+}
+
+bool FreeListAllocator::BlockDescriptor::IsFree() const
+{
+	return m_SizeAndFreeFlag & _FREE_FLAG;
+}
+
+void FreeListAllocator::BlockDescriptor::SetFree(const bool &is_free)
+{
+	m_SizeAndFreeFlag = (m_SizeAndFreeFlag & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
+}
+
+FreeListAllocator::FreeListAllocator(void *metadata_buffer)
+	: m_Header(*static_cast<Header *>(metadata_buffer)),
+	m_MaxNumBlocks(m_Header.max_num_blocks),
+	m_Head(m_Header.head),
+	m_Alignment(m_Header.alignment),
+	m_BlockAllocator(static_cast<char *>(metadata_buffer) + sizeof(Header)),
+	m_MetadataBuffer(metadata_buffer)
+{
+	std::size_t block_list_offset = sizeof(Header) + PoolAllocator::CalculateMetadataBufferSize(m_MaxNumBlocks);
+	m_Blocks = reinterpret_cast<Block *>(static_cast<char *>(m_MetadataBuffer) + block_list_offset);
+}
+
+std::size_t FreeListAllocator::ComputeMetadataBufferSize(std::size_t max_num_blocks)
+{
+	std::size_t size = sizeof(Header);
+	size += PoolAllocator::CalculateMetadataBufferSize(max_num_blocks);
+	size += sizeof(Block) * max_num_blocks;
+
+	return size;
+}
+
+void FreeListAllocator::Initialize(std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
+{
+	std::memcpy(m_Header.version, VERSION, sizeof(VERSION));
+	m_Header.max_num_blocks = max_num_blocks;
+	m_Header.alignment = alignment;
+	m_Header.total_buffer_size = buffer_size;
+
+	// Initialize the internal allocator.
+	m_BlockAllocator.Initialize(max_num_blocks);
+
 	// Initialize the free list.
 	m_Head = m_BlockAllocator.Allocate();
 
+	std::size_t block_list_offset = sizeof(Header) + PoolAllocator::CalculateMetadataBufferSize(m_MaxNumBlocks);
+	m_Blocks = reinterpret_cast<Block *>(static_cast<char *>(m_MetadataBuffer) + block_list_offset);
+
 	m_Blocks[m_Head].descriptor = BlockDescriptor(0, buffer_size, true);
-	m_Blocks[m_Head].next = -1;
+	m_Blocks[m_Head].next = INVALID_HANDLE;
 }
 
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-FreeListAllocator<MaxNumBlocks, Alignment>::~FreeListAllocator()
-{
-}
-
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-typename FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocator<MaxNumBlocks, Alignment>::Allocate(std::size_t size)
+typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
 {
 	// Round up the size to the nearest multiple of the alignment.
-	size = (size + Alignment - 1) & ~(Alignment - 1);
+	size = (size + m_Alignment - 1) & ~(m_Alignment - 1);
 
-	// std::cout << "Allocating " << size << std::endl;
+	DEBUG_PRINT("Allocating " << size);
 
 	for (size_t i = 0; i < MAX_ATTEMPTS; ++i)
 	{
 		BlockHandle index = FindFirstFreeBlock(size);
 		Block &free_block = m_Blocks[index];
 
-		if (index == -1)
+		if (index == INVALID_HANDLE)
 		{
-			// std::cout << "No free block found." << std::endl;
-			return -1;
+			DEBUG_PRINT("No free block found.");
+			return INVALID_HANDLE;
 		}
 
 		BlockDescriptor old_descriptor;
@@ -51,14 +124,14 @@ typename FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocat
 			if (old_descriptor.GetSize() < size || !old_descriptor.IsFree())
 			{
 				// Break out of the nested loop and try again.
-				// std::cout << "Block is too small or not free. Size of block is " << old_descriptor.GetSize() << std::endl;
+				DEBUG_PRINT("Block is too small or not free. Size of block is " << old_descriptor.GetSize());
 				break;
 			}
 
 			if (old_descriptor.GetSize() == size)
 			{
 				// The block is exactly the right size.
-				// std::cout << "Block is exactly the right size." << std::endl;
+				DEBUG_PRINT("Block is exactly the right size.");
 
 				// Mark the block as allocated.
 				if (MarkBlockAsFree(index, false))
@@ -89,37 +162,40 @@ typename FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocat
 			continue;
 		}
 
-		// std::cout << "Reduced the size of the free block: " << old_descriptor.GetSize() << ", " << new_descriptor.GetSize() << std::endl;
-		// std::cout << "Old descriptor offset: " << old_descriptor.GetOffset() << std::endl;
-		// std::cout << "Old descriptor size: " << old_descriptor.GetSize() << std::endl;
-		// std::cout << "New size: " << size << std::endl;
+		DEBUG_PRINT("Reduced the size of the free block: " << old_descriptor.GetSize() << ", " << new_descriptor.GetSize());
+		DEBUG_PRINT("Old descriptor offset: " << old_descriptor.GetOffset());
+		DEBUG_PRINT("Old descriptor size: " << old_descriptor.GetSize());
+		DEBUG_PRINT("New size: " << size);
 
 		// We now have a block that is large enough to allocate the requested size.
 		// Add a new block for the remaining free space.
-		BlockHandle allocated_block_handle = m_BlockAllocator.Allocate();
+		PoolAllocator::BlockHandle allocated_block_handle = m_BlockAllocator.Allocate();
+		DEBUG_PRINT("Allocated block handle is " << allocated_block_handle);
+
 		Block &allocated_block = m_Blocks[allocated_block_handle];
 
 		allocated_block.descriptor = BlockDescriptor(old_descriptor.GetOffset(), size, false);
-		allocated_block.next = -1;
+		allocated_block.next = INVALID_HANDLE;
+
+		DEBUG_PRINT("Done setting the descriptor.");
 
 		BlockDescriptor descriptor = allocated_block.descriptor.load();
 
-		// std::cout << "Allocated block is " << descriptor.GetOffset() << ", " << descriptor.GetSize() << std::endl;
+		DEBUG_PRINT("Allocated block is " << descriptor.GetOffset() << ", " << descriptor.GetSize());
 
 		// Return the allocated block.
 		return allocated_block_handle;
 	}
 
-	return -1;
+	return INVALID_HANDLE;
 }
 
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-void FreeListAllocator<MaxNumBlocks, Alignment>::Deallocate(BlockHandle index)
+void FreeListAllocator::Deallocate(BlockHandle index)
 {
-	if (index == -1)
+	if (index == INVALID_HANDLE)
 		return;
 
-	// std::cout << "Deallocating block " << index << std::endl;
+	DEBUG_PRINT("Deallocating block " << index);
 	Block &block = m_Blocks[index];
 
 	bool owns_index = true;
@@ -127,12 +203,12 @@ void FreeListAllocator<MaxNumBlocks, Alignment>::Deallocate(BlockHandle index)
 	// Try to coalesce the block with its neighbors.
 	while (true)
 	{
-		BlockHandle prev = -1;
+		BlockHandle prev = INVALID_HANDLE;
 		BlockHandle next = m_Head.load();
 
-		// std::cout << "Finding the prev and next blocks." << std::endl;
+		DEBUG_PRINT("Finding the prev and next blocks.");
 
-		while (next != -1 && m_Blocks[next].descriptor.load().GetOffset() < block.descriptor.load().GetOffset())
+		while (next != INVALID_HANDLE && m_Blocks[next].descriptor.load().GetOffset() < block.descriptor.load().GetOffset())
 		{
 			prev = next;
 			next = m_Blocks[next].next.load();
@@ -184,12 +260,11 @@ void FreeListAllocator<MaxNumBlocks, Alignment>::Deallocate(BlockHandle index)
 
 // Try to coalesce two blocks, one of which is owned by us.
 // Return whether the coallescing was successful.
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a, BlockHandle b, bool owner_of_a)
+bool FreeListAllocator::TryCoalesceBlocks(BlockHandle a, BlockHandle b, bool owner_of_a)
 {
-	// std::cout << "Attempting to coalesce blocks " << a << " and " << b << std::endl;
+	DEBUG_PRINT("Attempting to coalesce blocks " << a << " and " << b);
 
-	if (a == -1 || b == -1)
+	if (a == INVALID_HANDLE || b == INVALID_HANDLE)
 		return false;
 
 	BlockDescriptor descriptor_a = m_Blocks[a].descriptor.load();
@@ -201,7 +276,7 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a
 		if (descriptor_a.GetOffset() + descriptor_a.GetSize() != descriptor_b.GetOffset())
 		{
 			// The blocks are not adjacent.
-			// std::cout << "The blocks are not adjacent." << std::endl;
+			DEBUG_PRINT("The blocks are not adjacent.");
 			return false;
 		}
 	}
@@ -210,7 +285,7 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a
 		if (descriptor_b.GetOffset() + descriptor_b.GetSize() != descriptor_a.GetOffset())
 		{
 			// The blocks are not adjacent.
-			// std::cout << "The blocks are not adjacent." << std::endl;
+			DEBUG_PRINT("The blocks are not adjacent.");
 			return false;
 		}
 	}
@@ -218,7 +293,7 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a
 	if (!descriptor_b.IsFree())
 	{
 		// The B block was not free and as such cannot be coalesced.
-		// std::cout << "The B block was not free." << std::endl;
+		DEBUG_PRINT("The B block was not free.");
 
 		return false;
 	}
@@ -234,7 +309,7 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a
 		if (!m_Blocks[a].descriptor.compare_exchange_strong(descriptor_a_old, descriptor_a))
 		{
 			// The block was changed by someone else. We cannot own it.
-			// std::cout << "Starting to own block A failed." << std::endl;
+			DEBUG_PRINT("Starting to own block A failed.");
 			return false;
 		}
 	}
@@ -253,7 +328,7 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a
 		new_descriptor.SetSize(descriptor_a.GetSize() + descriptor_b.GetSize());
 	}
 
-	// std::cout << "Trying to set the new descriptor of the B block, with " << new_descriptor.GetOffset() << " and " << new_descriptor.GetSize() << std::endl;
+	DEBUG_PRINT("Trying to set the new descriptor of the B block, with " << new_descriptor.GetOffset() << " and " << new_descriptor.GetSize());
 
 	// Try to set the new descriptor of the B block.
 	if (!m_Blocks[b].descriptor.compare_exchange_weak(descriptor_b, new_descriptor))
@@ -266,17 +341,16 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::TryCoalesceBlocks(BlockHandle a
 		return false;
 	}
 
-	// std::cout << "Succesfully coalesced blocks " << a << " and " << b << std::endl;
+	DEBUG_PRINT("Succesfully coalesced blocks " << a << " and " << b);
 
 	return true;
 }
 
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-typename FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocator<MaxNumBlocks, Alignment>::FindFirstFreeBlock(std::size_t size)
+FreeListAllocator::BlockHandle FreeListAllocator::FindFirstFreeBlock(Size size)
 {
 	BlockHandle current = m_Head.load();
 
-	while (current != -1)
+	while (current != INVALID_HANDLE)
 	{
 		Block &block = m_Blocks[current];
 		BlockDescriptor descriptor = block.descriptor.load();
@@ -290,26 +364,24 @@ typename FreeListAllocator<MaxNumBlocks, Alignment>::BlockHandle FreeListAllocat
 		current = block.next.load();
 	}
 
-	return -1;
+	return INVALID_HANDLE;
 }
 
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-std::size_t FreeListAllocator<MaxNumBlocks, Alignment>::GetOffset(BlockHandle index)
+std::size_t FreeListAllocator::GetOffset(BlockHandle index)
 {
 	return m_Blocks[index].descriptor.load().GetOffset();
 }
 
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-void FreeListAllocator<MaxNumBlocks, Alignment>::InsertBlockSorted(BlockHandle index)
+void FreeListAllocator::InsertBlockSorted(BlockHandle index)
 {
-	BlockHandle previous = -1;
+	BlockHandle previous = INVALID_HANDLE;
 	BlockHandle current;
 
 	do
 	{
 		current = m_Head.load();
 
-		while (current != -1 && m_Blocks[current].descriptor.load().GetOffset() < m_Blocks[index].descriptor.load().GetOffset())
+		while (current != INVALID_HANDLE && m_Blocks[current].descriptor.load().GetOffset() < m_Blocks[index].descriptor.load().GetOffset())
 		{
 			previous = current;
 			current = m_Blocks[current].next;
@@ -318,64 +390,63 @@ void FreeListAllocator<MaxNumBlocks, Alignment>::InsertBlockSorted(BlockHandle i
 		if (current == index)
 		{
 			// The block is already on the free list.
-			// std::cout << "Block " << index << " is already on the free list." << std::endl;
+			DEBUG_PRINT("Block " << index << " is already on the free list.");
 			return;
 		}
 
 		m_Blocks[index].next = current;
 
-		if (previous == -1)
+		if (previous == INVALID_HANDLE)
 		{
-			// std::cout << "Attempting to insert the block at the head." << std::endl;
+			DEBUG_PRINT("Attempting to insert the block at the head.");
 
 			if (m_Head.compare_exchange_weak(current, index))
 			{
 				// Successfully inserted the block.
-				// std::cout << "Successfully inserted the block." << std::endl;
+				DEBUG_PRINT("Successfully inserted the block.");
 				return;
 			}
 		}
 		else
 		{
-			// std::cout << "Attempting to insert the block in the middle." << std::endl;
+			DEBUG_PRINT("Attempting to insert the block in the middle.");
 
 			if (m_Blocks[previous].next.compare_exchange_weak(current, index))
 			{
 				// Successfully inserted the block.
-				// std::cout << "Successfully inserted the block." << std::endl;
+				DEBUG_PRINT("Successfully inserted the block.");
 				return;
 			}
 		}
 	} while (true);
 }
 
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-bool FreeListAllocator<MaxNumBlocks, Alignment>::RemoveBlock(BlockHandle index)
+bool FreeListAllocator::RemoveBlock(BlockHandle index)
 {
-	BlockHandle previous = -1;
+	BlockHandle previous = INVALID_HANDLE;
 	BlockHandle current;
 
-	// std::cout << "Removing block " << index << std::endl;
+	DEBUG_PRINT("Removing block " << index);
 
 	do
 	{
 		current = m_Head.load();
 
 		// Find the previous block.
-		while (current != index && current != -1)
+		while (current != index && current != INVALID_HANDLE)
 		{
 			previous = current;
 			current = m_Blocks[current].next;
 		}
 
-		if (current == -1)
+		if (current == INVALID_HANDLE)
 		{
 			// The block was not on the free list, even though it was supposed to be free.
-			// std::cout << "Block was not on the free list." << std::endl;
+			DEBUG_PRINT("Block was not on the free list.");
 			return false;
 		}
 
-		if (previous == -1)
+		if (previous == INVALID_HANDLE)
 		{
 			if (m_Head.compare_exchange_weak(current, m_Blocks[index].next))
 			{
@@ -394,17 +465,16 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::RemoveBlock(BlockHandle index)
 	} while (true);
 }
 
-template <std::size_t MaxNumBlocks, std::size_t Alignment>
-bool FreeListAllocator<MaxNumBlocks, Alignment>::MarkBlockAsFree(BlockHandle handle, bool mark_free)
+bool FreeListAllocator::MarkBlockAsFree(BlockHandle handle, bool mark_free)
 {
-	// std::cout << "Marking block " << handle << " as " << (mark_free ? "free" : "allocated") << std::endl;
+	DEBUG_PRINT("Marking block " << handle << " as " << (mark_free ? "free" : "allocated"));
 
 	BlockDescriptor descriptor = m_Blocks[handle].descriptor.load();
 
 	if (descriptor.IsFree() == mark_free)
 	{
 		// The block is already in the desired state.
-		// std::cout << "The block is already in the desired state." << std::endl;
+		DEBUG_PRINT("The block is already in the desired state.");
 		return false;
 	}
 
@@ -414,21 +484,20 @@ bool FreeListAllocator<MaxNumBlocks, Alignment>::MarkBlockAsFree(BlockHandle han
 	if (!m_Blocks[handle].descriptor.compare_exchange_strong(descriptor, new_descriptor))
 	{
 		// The block was changed in the meantime and we were unsuccessful.
-		// std::cout << "The block was changed in the meantime." << std::endl;
+		DEBUG_PRINT("The block was changed in the meantime.");
 		return false;
 	}
 
-	// std::cout << "Successfully marked the block." << std::endl;
+	DEBUG_PRINT("Successfully marked the block.");
 
 	return true;
 }
 
-template<std::size_t MaxNumBlocks, std::size_t Alignment>
-void FreeListAllocator<MaxNumBlocks, Alignment>::PrintState()
+void FreeListAllocator::PrintState()
 {
 	BlockHandle current = m_Head;
 
-	while (current != -1)
+	while (current != INVALID_HANDLE)
 	{
 		Block &block = m_Blocks[current];
 		BlockDescriptor descriptor = block.descriptor.load();
@@ -439,13 +508,12 @@ void FreeListAllocator<MaxNumBlocks, Alignment>::PrintState()
 	}
 }
 
-template<std::size_t MaxNumBlocks, std::size_t Alignment>
-size_t FreeListAllocator<MaxNumBlocks, Alignment>::GetNumFreeBlocks() const
+size_t FreeListAllocator::GetNumFreeBlocks() const
 {
 	size_t count = 0;
 	BlockHandle current = m_Head;
 
-	while (current != -1)
+	while (current != INVALID_HANDLE)
 	{
 		++count;
 		current = m_Blocks[current].next;
