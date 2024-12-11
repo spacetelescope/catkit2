@@ -5,7 +5,6 @@
 
 #include <atomic>
 #include <cstdint>
-#include <climits>
 
 // A simple lock-free free list allocator.
 class FreeListAllocator

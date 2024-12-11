@@ -4,7 +4,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstddef>
-#include <climits>
+#include <limits>
 
 // A simple lock-free pool allocator.
 class PoolAllocator
