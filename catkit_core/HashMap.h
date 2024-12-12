@@ -1,5 +1,5 @@
-#ifndef SHARED_HASH_MAP_H
-#define SHARED_HASH_MAP_H
+#ifndef HASH_MAP_H
+#define HASH_MAP_H
 
 #include <cstddef>
 #include <cstdint>
@@ -48,7 +48,7 @@ uint32_t murmurhash3(const std::string &key, uint32_t seed = 0)
 			k1 *= c2;
 			h ^= k1;
 		case 0:
-			// Do nothing.
+			; // Do nothing.
 	}
 
 	h ^= len;
@@ -65,7 +65,7 @@ uint32_t murmurhash3(const std::string &key, uint32_t seed = 0)
 // * entries cannot be removed.
 // * key is string type of fixed size.
 template <typename Value, std::size_t Size, std::size_t MaxKeyLength>
-class SharedHashMap
+class HashMap
 {
 private:
 	enum EntryFlags
@@ -83,7 +83,7 @@ private:
 		Value value;
 	};
 
-	Entry m_Data[Size];
+	Entry *m_Data;
 
 	size_t hash(const std::string &key) const
 	{
@@ -91,14 +91,28 @@ private:
 	}
 
 public:
-	bool insert(const std::string &key, const Value &value)
+	HashMap(void *buffer)
+		: m_Data(reinterpret_cast<Entry *>(buffer))
 	{
-		if (key.size() >= MaxKeyLength)
-		{
-			// Key is too long to fit in the fixed-size buffer.
-			return false;
-		}
+	}
 
+	static std::size_t CalculateBufferSize()
+	{
+		return sizeof(Entry) * Size;
+	}
+
+	void Initialize()
+	{
+		for (size_t i = 0; i < Size; ++i)
+		{
+			m_Data[i].flags = EntryFlags::UNOCCUPIED;
+
+			std::fill(m_Data[i].key, m_Data[i].key + MaxKeyLength, '\0');
+		}
+	}
+
+	bool Insert(const std::string &key, const Value &value)
+	{
 		size_t index = hash(key);
 
 		for (size_t i = 0; i < Size; ++i)
@@ -106,26 +120,32 @@ public:
 			size_t probe = (index + i) % Size;
 
 			// Try to use this entry.
-			auto flags = m_Data[probe].flags.compare_exchange_strong(EntryFlags::UNOCCUPIED, EntryFlags::INITIALIZING);
+			EntryFlags flags = EntryFlags::UNOCCUPIED;
 
-			// If this entry is still initializing, do a spin-wait until it's occupied.
-			// This should almost never be necessary and should only last a short while if it does.
-			while (flags == EntryFlags::INITIALIZING)
-			{
-				flags = m_Data[probe].flags.load();
-			}
+			bool success = m_Data[probe].flags.compare_exchange_strong(flags, EntryFlags::INITIALIZING, std::memory_order_acq_rel);
 
-			if (flags == EntryFlags::OCCUPIED)
+			if (!success)
 			{
-				// Check if the key is our key.
-				if (std::strcmp(m_Data[probe].key, key.c_str()) == 0)
+				// The entry is either occupied or still initializing.
+
+				// If this entry is still initializing, do a spin-wait until it's occupied.
+				// This should almost never be necessary and should only last a short while if it does.
+				while (flags == EntryFlags::INITIALIZING)
 				{
-					// Key already exists.
-					return false;
+					flags = m_Data[probe].flags.load(std::memory_order_acquire);
+				}
+
+				if (flags == EntryFlags::OCCUPIED)
+				{
+					// Check if the key is our key.
+					if (std::strcmp(m_Data[probe].key, key.c_str()) == 0)
+					{
+						// Key already exists.
+						return false;
+					}
 				}
 			}
-
-			if (flags == EntryFlags::UNOCCUPIED)
+			else
 			{
 				// Copy key ensuring null-termination.
 				std::strncpy(m_Data[probe].key, key.c_str(), MaxKeyLength - 1);
@@ -135,7 +155,7 @@ public:
 				m_Data[probe].value = value;
 
 				// Make occupied.
-				m_Data[probe].flags = EntryFlags::OCCUPIED;
+				m_Data[probe].flags.store(EntryFlags::OCCUPIED, std::memory_order_release);
 
 				return true;
 			}
@@ -145,7 +165,7 @@ public:
 		return false;
 	}
 
-	const Value* find(const std::string &key) const
+	const Value *Find(const std::string &key) const
 	{
 		if (key.size() >= MaxKeyLength)
 		{
@@ -177,4 +197,4 @@ public:
 	}
 };
 
-#endif // SHARED_HASH_MAP_H
+#endif // HASH_MAP_H
