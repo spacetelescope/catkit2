@@ -20,8 +20,13 @@ class ThorlabsTSP01(Service):
         self.read_out_header_2 = self.config.get('read_out_header_2', True)
 
         self.temperature_internal = self.make_data_stream('temperature_internal', 'float64', [1], 20)
-        self.temperature_header_1 = self.make_data_stream('temperature_header_1', 'float64', [1], 20) if self.read_out_header_1 else None
-        self.temperature_header_2 = self.make_data_stream('temperature_header_2', 'float64', [1], 20) if self.read_out_header_2 else None
+
+        if self.read_out_header_1:
+            self.temperature_header_1 = self.make_data_stream('temperature_header_1', 'float64', [1], 20)
+
+        if self.read_out_header_2:
+            self.temperature_header_2 = self.make_data_stream('temperature_header_2', 'float64', [1], 20)
+
         self.humidity_internal = self.make_data_stream('humidity_internal', 'float64', [1], 20)
 
     def main(self):
