@@ -36,6 +36,7 @@ void benchmark_linux_scalability()
 	std::cout << "Linux Scalability:" << std::endl;
 	std::cout << "Time: " << (end - start) / 1e9 << " sec" << std::endl;
 	std::cout << "Throughput: " << 2 * N / ((end - start) / 1e9) << " ops/s" << std::endl;
+    std::cout << "Time per operation: " << (end - start) / (2 * N) << " ns" << std::endl;
 
 	delete[] handles;
 	delete[] buffer;
@@ -76,6 +77,7 @@ void benchmark_threadtest()
 	std::cout << "Threadtest:" << std::endl;
 	std::cout << "Time: " << (end - start) / 1e9 << " sec" << std::endl;
 	std::cout << "Throughput: " << 2 * N * M / ((end - start) / 1e9) << " ops/s" << std::endl;
+    std::cout << "Time per operation: " << (end - start) / (2 * N * M) << " ns" << std::endl;
 
 	delete[] handles;
 }
@@ -129,6 +131,7 @@ void benchmark_larson()
 	std::cout << "Larson benchmark:" << std::endl;
 	std::cout << "Time: " << (end - start) / 1e9 << " sec" << std::endl;
 	std::cout << "Throughput: " << (N * 2 - M) / ((end - start) / 1e9) << " ops/s" << std::endl;
+    std::cout << "Time per operation: " << (end - start) / (2 * N - M) << " ns" << std::endl;
 
 	delete[] handles;
 }
