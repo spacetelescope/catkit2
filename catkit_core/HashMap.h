@@ -18,9 +18,9 @@ uint32_t murmurhash3(const std::string &key, uint32_t seed = 0)
 	const uint32_t c2 = 0x1b873593;
 
 	// Partition in blocks of 4 bytes.
-	const int nblocks = len / 4;
+	const size_t nblocks = len / 4;
 	const uint32_t* blocks = reinterpret_cast<const uint32_t *>(data);
-	for (int i = 0; i < nblocks; i++)
+	for (size_t i = 0; i < nblocks; i++)
 	{
 		uint32_t k = blocks[i];
 		k *= c1;
@@ -149,7 +149,8 @@ public:
 			else
 			{
 				// Copy key ensuring null-termination.
-				std::strncpy(m_Data[probe].key, key.c_str(), MaxKeyLength - 1);
+				std::size_t key_length = std::min(key.size(), MaxKeyLength - 1);
+				key.copy(m_Data[probe].key, key_length);
 				m_Data[probe].key[MaxKeyLength - 1] = '\0';
 
 				// Copy m_Data.
@@ -180,7 +181,7 @@ public:
 		{
 			size_t probe = (index + i) % Size;
 
-			EntryFlags flags = m_Data[probe].flags.load();
+			EntryFlags flags = m_Data[probe].flags.load(std::memory_order_acquire);
 
 			if (flags == EntryFlags::OCCUPIED && std::strcmp(m_Data[probe].key, key.c_str()) == 0)
 			{

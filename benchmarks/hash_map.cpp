@@ -14,7 +14,7 @@ int main(int argc, char **argv)
     map.Initialize();
 
     std::uint64_t total_time = 0;
-    std::size_t N = 1000;
+    std::size_t N = 5000;
 
     for (size_t i = 0; i < N; ++i)
     {
