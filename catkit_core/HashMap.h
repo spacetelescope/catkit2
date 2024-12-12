@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <atomic>
 #include <string>
+#include <cstring>
 
 // MurmurHash3 32-bit version
 uint32_t murmurhash3(const std::string &key, uint32_t seed = 0)
