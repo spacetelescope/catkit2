@@ -5,9 +5,10 @@
 
 int main(int argc, char **argv)
 {
-    typedef HashMap<int, 16384, 32> MyHashMap;
+    typedef HashMap<uint16_t, 16384, 13> MyHashMap;
 
     std::size_t buffer_size = MyHashMap::CalculateBufferSize();
+    std::cout << "Buffer size: " << buffer_size << " bytes" << std::endl;
     char *buffer = new char[buffer_size];
 
     MyHashMap map(buffer);
@@ -21,8 +22,13 @@ int main(int argc, char **argv)
         std::string key = "key" + std::to_string(i);
 
         auto start = GetTimeStamp();
-        map.Insert(key, i);
+        bool success = map.Insert(key, uint16_t(i));
         auto end = GetTimeStamp();
+
+        if (!success)
+        {
+            std::cout << "Insertion failed." << std::endl;
+        }
 
         total_time += end - start;
     }
@@ -36,8 +42,13 @@ int main(int argc, char **argv)
         std::string key = "key" + std::to_string(i);
 
         auto start = GetTimeStamp();
-        const int *value = map.Find(key);
+        auto *value = map.Find(key);
         auto end = GetTimeStamp();
+
+        if (value == nullptr || *value != i)
+        {
+            std::cout << "Key not found." << std::endl;
+        }
 
         total_time += end - start;
     }
