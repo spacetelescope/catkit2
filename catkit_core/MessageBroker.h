@@ -9,6 +9,8 @@
 #include "CudaSharedMemory.h"
 #include "UuidGenerator.h"
 
+#include <memory>
+
 const char * const MESSAGE_BROKER_VERSION = "0.1";
 
 const size_t VERSION_SIZE = 8;
@@ -16,26 +18,17 @@ const size_t TOPIC_HASH_MAP_SIZE = 16384;
 const size_t TOPIC_MAX_KEY_SIZE = 128;
 const size_t TOPIC_MAX_NUM_MESSAGES = 15;
 const size_t HOST_NAME_SIZE = 64;
-const size_t METADATA_MAX_STRLEN = 15;
-const size_t UUID_SIZE = 16;
+const size_t METADATA_MAX_STRLEN = 16;
 const size_t MAX_NUM_DIMENSIONS = 4;
 const size_t MAX_NUM_METADATA_ENTRIES = 16;
 const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
 const size_t MAX_NUM_GPUS = 8;
 
-struct MetadataEntry
+union MetadataEntry
 {
-// Avoid post-padding of this anonymous union.
-#pragma pack(push,1)
-    union
-    {
-        std::uint64_t integer;
-        double floating_point;
-        char string[METADATA_MAX_STRLEN];
-    };
-#pragma pack(pop)
-
-	std::uint8_t metadata_id;
+	std::uint64_t integer;
+	double floating_point;
+	char string[METADATA_MAX_STRLEN];
 };
 
 struct ArrayInfo
@@ -60,10 +53,10 @@ struct MessageHeader
 {
 	char topic[TOPIC_MAX_KEY_SIZE];
 
-	char payload_id[UUID_SIZE];
+	Uuid payload_id;
 	std::uint64_t frame_id;
 
-	char trace_id[UUID_SIZE];
+	Uuid trace_id;
 
 	char producer_hostname[HOST_NAME_SIZE];
 	std::uint32_t producer_pid;
@@ -80,11 +73,20 @@ struct MessageHeader
 
 struct TopicHeader
 {
-	std::atomic_uint64_t latest_frame_id;
+	std::atomic_uint64_t next_frame_id;
 	std::uint64_t message_offsets[TOPIC_MAX_NUM_MESSAGES];
-	char message_ids[UUID_SIZE][TOPIC_MAX_NUM_MESSAGES];
 
 	SynchronizationSharedData synchronization;
+
+	char metadata_keys[METADATA_MAX_STRLEN][MAX_NUM_METADATA_ENTRIES];
+
+	TopicHeader() = default;
+	TopicHeader(const TopicHeader &header);
+
+	TopicHeader &operator=(const TopicHeader &header);
+
+private:
+	void CopyFrom(const TopicHeader &header);
 };
 
 struct MessageBrokerHeader
@@ -97,32 +99,87 @@ struct MessageBrokerHeader
 	CudaIpcHandle cuda_ipc_handles[MAX_NUM_GPUS];
 };
 
-struct Message
+class Message
 {
-	MessageHeader *header;
-	void *payload;
+	friend class MessageBroker;
+
+public:
+	Message();
+
+	bool PublishPartial(std::uint64_t start_byte, std::uint64_t end_byte, bool is_final);
+	bool Publish();
+
+	const char *GetTopic() const;
+
+	const Uuid &GetPayloadId() const;
+	const std::uint64_t GetFrameId() const;
+
+	const Uuid &GetTraceId() const;
+
+	const char *GetProducerHostnname() const;
+	const std::uint32_t GetProducerPid() const;
+	const std::uint64_t GetProducerTimestamp() const;
+
+	const PayloadInfo &GetPayloadInfo() const;
+
+	const ArrayInfo &GetArrayInfo() const;
+	void SetArrayInfo(const ArrayInfo &array_info);
+
+	void *GetPayload() const;
+	size_t GetPayloadSize() const;
+
+	const MetadataEntry &GetMetadataEntry(std::uint8_t metadata_id) const;
+	void SetMetadataEntry(std::uint8_t metadata_id, std::uint64_t value);
+	void SetMetadataEntry(std::uint8_t metadata_id, double value);
+	void SetMetadataEntry(std::uint8_t metadata_id, const char *value);
+
+	const std::uint16_t GetPartialFrameId() const;
+
+	const std::uint64_t GetStartByte() const;
+	void SetStartByte(const std::uint64_t &start_byte);
+
+	const std::uint64_t GetEndByte() const;
+	void SetEndByte(const std::uint64_t &end_byte);
+
+private:
+	MessageHeader *m_Header;
+	void *m_Payload;
+
+	bool m_HasBeenPublished;
+
+	std::shared_ptr<MessageBroker> m_MessageBroker;
 };
 
 class MessageBroker
 {
+private:
+	MessageBroker(); // TODO: Add parameters.
+
 public:
-	MessageBroker(void *metadata_buffer);
+	std::unique_ptr<MessageBroker> Create(); // TODO: Add parameters.
+	std::unique_ptr<MessageBroker> Open(void *metadata_buffer);
 
-	void Initialize();
+	Message PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, int8_t device_id = -1);
+	Message PrepareMessage(const std::string &topic, size_t payload_size, int8_t device_id = -1);
 
-	void *ReservePayload(size_t payload_size, int8_t device_id = -1);
-
-	void Publish(const std::string &topic, const Message &message);
-	void PublishPartial(const std::string &topic, const Message &message);
+	bool Publish(const Message &message);
+	bool PublishPartial(const Message &message, bool is_final);
 
 	Message GetNextMessage(const std::string &topic, double timeout_in_seconds);
 	Message GetMessage(const std::string &topic, size_t frame_id);
 
 private:
+	uint64_t AllocatePayload(size_t payload_size, int8_t device_id);
+	bool PublishMessage(const Message &message);
+
+	FreeListAllocator *GetAllocator(int8_t device_id);
+
 	MessageBrokerHeader &m_Header;
 
 	HashMap<TopicHeader, TOPIC_HASH_MAP_SIZE, TOPIC_MAX_KEY_SIZE> m_TopicHeaders;
 	PoolAllocator m_MessageHeaderAllocator;
+
+	MessageHeader *m_MessageHeaders;
 
 	FreeListAllocator m_CpuPayloadAllocator;
 	std::shared_ptr<SharedMemory> m_CpuPayloadMemory;
