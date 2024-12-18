@@ -3,12 +3,14 @@
 
 #include <random>
 
+using Uuid = char[16];
+
 class UuidGenerator
 {
 public:
 	UuidGenerator();
 
-	void GenerateUuid(char *uuid);
+	void Generate(Uuid &uuid);
 
 private:
 	std::mt19937_64 m_Engines[2];

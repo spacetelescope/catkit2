@@ -11,7 +11,7 @@ UuidGenerator::UuidGenerator()
 	}
 }
 
-void UuidGenerator::GenerateUuid(char *uuid)
+void UuidGenerator::Generate(Uuid &uuid)
 {
 	for (size_t i = 0; i < 2; ++i)
 	{
