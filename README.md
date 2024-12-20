@@ -81,8 +81,23 @@ cd catkit2
 cd extern
 ./download.sh
 cd ..
+```
+For installation on Apple Silicon with python=3.7, you need to follow these steps:
+```
+conda create --name catkit2 
+conda activate catkit2 
+conda config --env --set subdir osx-64 
+conda env update --file environment.yml
+```
+
+For all other platforms, you can use the following command:
+```
 conda env create --file environment.yml
 conda activate catkit2
+```
+
+Finally install the package using: 
+```
 python setup.py develop
 cd ..
 ```
