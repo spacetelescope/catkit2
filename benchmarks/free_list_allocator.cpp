@@ -4,8 +4,6 @@
 
 void benchmark_linux_scalability()
 {
-	typedef FreeListAllocator Allocator;
-
 	const size_t N = 10000000;
 
 	const size_t NUM_BLOCKS = N * 2;
@@ -16,19 +14,18 @@ void benchmark_linux_scalability()
 	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	FreeListAllocator allocator(buffer);
-	allocator.Initialize(NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
+	auto allocator = FreeListAllocator::Create(buffer, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
 
 	auto start = GetTimeStamp();
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		handles[i] = allocator.Allocate(16);
+		handles[i] = allocator->Allocate(16);
 	}
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		allocator.Deallocate(handles[i]);
+		allocator->Deallocate(handles[i]);
 	}
 
 	auto end = GetTimeStamp();
@@ -54,8 +51,7 @@ void benchmark_threadtest()
 	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	FreeListAllocator allocator(buffer);
-	allocator.Initialize(NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
+	auto allocator = FreeListAllocator::Create(buffer, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
 
 	auto start = GetTimeStamp();
 
@@ -63,12 +59,12 @@ void benchmark_threadtest()
 	{
 		for (size_t j = 0; j < N; ++j)
 		{
-			handles[j] = allocator.Allocate(16);
+			handles[j] = allocator->Allocate(16);
 		}
 
 		for (size_t j = 0; j < N; ++j)
 		{
-			allocator.Deallocate(handles[j]);
+			allocator->Deallocate(handles[j]);
 		}
 	}
 
@@ -101,8 +97,7 @@ void benchmark_larson()
 	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	FreeListAllocator allocator(buffer);
-	allocator.Initialize(NUM_BLOCKS, ALIGNMENT, MAX_SIZE * NUM_BLOCKS);
+	auto allocator = FreeListAllocator::Create(buffer, NUM_BLOCKS, ALIGNMENT, MAX_SIZE * NUM_BLOCKS);
 
 	auto *indices = new size_t[N];
 	auto *sizes = new size_t[N];
@@ -121,10 +116,10 @@ void benchmark_larson()
 
 		if (handles[index] != -1)
 		{
-			allocator.Deallocate(handles[index]);
+			allocator->Deallocate(handles[index]);
 		}
 
-		handles[index] = allocator.Allocate(size);
+		handles[index] = allocator->Allocate(size);
 	}
 
 	auto end = GetTimeStamp();

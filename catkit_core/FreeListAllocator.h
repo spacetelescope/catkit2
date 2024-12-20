@@ -5,10 +5,14 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
 
 // A simple lock-free free list allocator.
 class FreeListAllocator
 {
+private:
+	FreeListAllocator(void *metadata_buffer);
+
 public:
 	using BlockHandle = PoolAllocator::BlockHandle;
 	using Offset = std::uint32_t;
@@ -16,11 +20,10 @@ public:
 
 	static const BlockHandle INVALID_HANDLE = PoolAllocator::INVALID_HANDLE;
 
-	FreeListAllocator(void *metadata_buffer);
-
 	static std::size_t ComputeMetadataBufferSize(std::size_t max_num_blocks);
 
-	void Initialize(std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size);
+	static std::shared_ptr<FreeListAllocator> Create(void *metadata_buffer, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size);
+	static std::shared_ptr<FreeListAllocator> Open(void *metadata_buffer);
 
 	BlockHandle Allocate(std::size_t size);
 	void Deallocate(BlockHandle index);

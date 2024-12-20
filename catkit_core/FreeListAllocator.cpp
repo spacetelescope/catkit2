@@ -76,24 +76,35 @@ std::size_t FreeListAllocator::ComputeMetadataBufferSize(std::size_t max_num_blo
 	return size;
 }
 
-void FreeListAllocator::Initialize(std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
+std::shared_ptr<FreeListAllocator> FreeListAllocator::Open(void *metadata_buffer)
 {
-	std::copy(VERSION, VERSION + sizeof(VERSION), m_Header.version);
-	m_Header.max_num_blocks = max_num_blocks;
-	m_Header.alignment = alignment;
-	m_Header.total_buffer_size = buffer_size;
+	return std::shared_ptr<FreeListAllocator>(new FreeListAllocator(metadata_buffer));
+}
+
+std::shared_ptr<FreeListAllocator> FreeListAllocator::Create(void *metadata_buffer, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
+{
+	auto allocator = std::shared_ptr<FreeListAllocator>(new FreeListAllocator(metadata_buffer));
+
+	auto &header = allocator->m_Header;
+
+	std::copy(VERSION, VERSION + sizeof(VERSION), header.version);
+	header.max_num_blocks = max_num_blocks;
+	header.alignment = alignment;
+	header.total_buffer_size = buffer_size;
 
 	// Initialize the internal allocator.
-	m_BlockAllocator.Initialize(max_num_blocks);
+	allocator->m_BlockAllocator.Initialize(max_num_blocks);
 
 	// Initialize the free list.
-	m_Head = m_BlockAllocator.Allocate();
+	allocator->m_Head = allocator->m_BlockAllocator.Allocate();
 
-	std::size_t block_list_offset = sizeof(Header) + PoolAllocator::CalculateMetadataBufferSize(m_MaxNumBlocks);
-	m_Blocks = reinterpret_cast<Block *>(static_cast<char *>(m_MetadataBuffer) + block_list_offset);
+	std::size_t block_list_offset = sizeof(Header) + PoolAllocator::CalculateMetadataBufferSize(max_num_blocks);
+	allocator->m_Blocks = reinterpret_cast<Block *>(static_cast<char *>(metadata_buffer) + block_list_offset);
 
-	m_Blocks[m_Head].descriptor = BlockDescriptor(0, buffer_size, true);
-	m_Blocks[m_Head].next = INVALID_HANDLE;
+	allocator->m_Blocks[allocator->m_Head].descriptor = BlockDescriptor(0, buffer_size, true);
+	allocator->m_Blocks[allocator->m_Head].next = INVALID_HANDLE;
+
+	return allocator;
 }
 
 typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
