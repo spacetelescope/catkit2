@@ -4,12 +4,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <atomic>
-#include <string>
-#include <cstring>
-#include <limits>
+#include <string_view>
 
 // MurmurHash3 32-bit version
-uint32_t murmurhash3(const std::string &key, uint32_t seed = 0)
+uint32_t murmurhash3(const std::string_view &key, uint32_t seed = 0)
 {
 	const uint8_t *data = reinterpret_cast<const uint8_t *>(key.data());
 	size_t len = key.size();
@@ -87,7 +85,7 @@ private:
 
 	Entry *m_Data;
 
-	size_t hash(const std::string &key) const
+	size_t GetIndex(std::string_view key) const
 	{
 		return murmurhash3(key) % Size;
 	}
@@ -113,15 +111,15 @@ public:
 		}
 	}
 
-	bool Insert(const std::string &key, const Value &value)
+	bool Insert(std::string_view key, const Value &value)
 	{
-		if (key.size() > MaxKeyLength)
+		if (key.size() >= MaxKeyLength)
 		{
 			// Key is too long to fit in the fixed-size buffer.
 			return false;
 		}
 
-		size_t index = hash(key);
+		size_t index = GetIndex(key);
 
 		for (size_t i = 0; i < Size; ++i)
 		{
@@ -146,7 +144,7 @@ public:
 				if (flags == EntryFlags::OCCUPIED)
 				{
 					// Check if the key is our key.
-					if (AreKeysTheSame(m_Data[probe].key, key.c_str()))
+					if (key == m_Data[probe].key)
 					{
 						// Key already exists.
 						return false;
@@ -155,9 +153,9 @@ public:
 			}
 			else
 			{
-				// Copy key.
-				std::size_t key_length = std::min(key.size(), MaxKeyLength);
-				key.copy(m_Data[probe].key, key_length);
+				// Copy key, ensuring null-termination.
+				key.copy(m_Data[probe].key, key.size() - 1);
+				m_Data[probe].key[key.size()] = '\0';
 
 				// Copy m_Data.
 				m_Data[probe].value = value;
@@ -173,15 +171,15 @@ public:
 		return false;
 	}
 
-	Value *Find(const std::string &key) const
+	Value *Find(std::string_view key) const
 	{
-		if (key.size() > MaxKeyLength)
+		if (key.size() >= MaxKeyLength)
 		{
 			// Key is too long to fit in the fixed-size buffer.
 			return nullptr;
 		}
 
-		size_t index = hash(key);
+		size_t index = GetIndex(key);
 
 		for (size_t i = 0; i < Size; ++i)
 		{
@@ -189,7 +187,7 @@ public:
 
 			EntryFlags flags = m_Data[probe].flags.load(std::memory_order_acquire);
 
-			if (flags == EntryFlags::OCCUPIED && AreKeysTheSame(m_Data[probe].key, key.c_str()))
+			if (flags == EntryFlags::OCCUPIED && key == m_Data[probe].key)
 			{
 				return &m_Data[probe].value;
 			}
@@ -203,11 +201,6 @@ public:
 
 		// Key not found.
 		return nullptr;
-	}
-
-	bool AreKeysTheSame(const char *ky1, const char *ky2) const
-	{
-		return std::strncmp(ky1, ky2, MaxKeyLength) == 0;
 	}
 };
 
