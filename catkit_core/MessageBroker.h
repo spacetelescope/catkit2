@@ -101,6 +101,8 @@ struct MessageBrokerHeader
 	CudaIpcHandle cuda_ipc_handles[MAX_NUM_GPUS];
 };
 
+class MessageBroker;
+
 class Message
 {
 	friend class MessageBroker;
