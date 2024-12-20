@@ -24,6 +24,8 @@ const size_t MAX_NUM_METADATA_ENTRIES = 16;
 const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
 const size_t MAX_NUM_GPUS = 8;
 
+const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
+
 union MetadataEntry
 {
 	std::uint64_t integer;
@@ -103,11 +105,11 @@ class Message
 {
 	friend class MessageBroker;
 
-public:
+private:
 	Message();
 
-	bool PublishPartial(std::uint64_t start_byte, std::uint64_t end_byte, bool is_final);
-	bool Publish();
+public:
+	~Message();
 
 	const char *GetTopic() const;
 
@@ -150,8 +152,10 @@ private:
 	std::shared_ptr<MessageBroker> m_MessageBroker;
 };
 
-class MessageBroker
+class MessageBroker : std::enable_shared_from_this<MessageBroker>
 {
+	friend class Message;
+
 private:
 	MessageBroker(); // TODO: Add parameters.
 
@@ -159,20 +163,17 @@ public:
 	std::unique_ptr<MessageBroker> Create(); // TODO: Add parameters.
 	std::unique_ptr<MessageBroker> Open(void *metadata_buffer);
 
-	Message PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, int8_t device_id = -1);
 	Message PrepareMessage(const std::string &topic, size_t payload_size, int8_t device_id = -1);
+	Message PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, int8_t device_id = -1);
 
-	bool Publish(const Message &message);
-	bool PublishPartial(const Message &message, bool is_final);
+	void PublishMessage(Message &message, bool is_final = true);
 
 	Message GetNextMessage(const std::string &topic, double timeout_in_seconds);
 	Message GetMessage(const std::string &topic, size_t frame_id);
 
 private:
-	uint64_t AllocatePayload(size_t payload_size, int8_t device_id);
-	bool PublishMessage(const Message &message);
-
 	FreeListAllocator *GetAllocator(int8_t device_id);
+	Synchronization *GetSynchronization(const std::string &topic);
 
 	MessageBrokerHeader &m_Header;
 
