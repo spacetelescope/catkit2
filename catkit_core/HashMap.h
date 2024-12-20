@@ -173,7 +173,7 @@ public:
 		return false;
 	}
 
-	const Value *Find(const std::string &key) const
+	Value *Find(const std::string &key) const
 	{
 		if (key.size() > MaxKeyLength)
 		{
