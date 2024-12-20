@@ -154,7 +154,7 @@ public:
 			else
 			{
 				// Copy key, ensuring null-termination.
-				key.copy(m_Data[probe].key, key.size() - 1);
+				key.copy(m_Data[probe].key, key.size());
 				m_Data[probe].key[key.size()] = '\0';
 
 				// Copy m_Data.
