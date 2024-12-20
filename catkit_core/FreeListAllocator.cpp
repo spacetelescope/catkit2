@@ -102,7 +102,7 @@ std::shared_ptr<FreeListAllocator> FreeListAllocator::Create(void *metadata_buff
 
 	void *block_allocator_memory;
 	Block *blocks;
-	GetMemoryLayout(metadata_buffer, header->max_num_blocks, &block_allocator_memory, &blocks);
+	GetMemoryLayout(metadata_buffer, max_num_blocks, &block_allocator_memory, &blocks);
 
 	// Fill in the header information.
 	std::copy(VERSION, VERSION + sizeof(VERSION), header->version);
