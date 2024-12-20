@@ -4,34 +4,56 @@
 
 const std::uint8_t VERSION[4] = {0, 0, 0, 0};
 
-PoolAllocator::PoolAllocator(void *metadata_buffer)
-	: m_Header(*static_cast<Header *>(metadata_buffer)),
-				m_Capacity(m_Header.capacity),
-				m_Head(m_Header.head),
-				m_Next(reinterpret_cast<std::atomic_uint32_t *>(static_cast<char *>(metadata_buffer) + sizeof(Header)))
+PoolAllocator::PoolAllocator(Header *header, std::atomic<BlockHandle> *next)
+	: m_Header(*header),
+	m_Next(next),
+	m_Capacity(m_Header.capacity),
+	m_Head(m_Header.head)
 {
 }
 
-void PoolAllocator::Initialize(std::uint32_t capacity)
+void PoolAllocator::GetMemoryLayout(void *metadata_buffer, std::atomic<BlockHandle> **next)
 {
+	*next = reinterpret_cast<std::atomic<BlockHandle> *>(static_cast<char *>(metadata_buffer) + sizeof(Header));
+}
+
+std::shared_ptr<PoolAllocator> PoolAllocator::Create(void *metadata_buffer, std::uint32_t capacity)
+{
+	Header *header = static_cast<PoolAllocator::Header *>(metadata_buffer);
+
+	std::atomic<BlockHandle> *next;
+	GetMemoryLayout(metadata_buffer, &next);
+
 	// Set version and capacity.
-	std::copy(VERSION, VERSION + sizeof(VERSION), m_Header.version);
-	m_Capacity = capacity;
+	std::copy(VERSION, VERSION + sizeof(VERSION), header->version);
+	header->capacity = capacity;
 
 	// Initialize the linked list.
-	m_Head.store(0, std::memory_order_relaxed);
+	header->head.store(0, std::memory_order_relaxed);
 
-	for (std::size_t i = 0; i < m_Capacity; ++i)
+	for (std::size_t i = 0; i < capacity; ++i)
 	{
-		if (i == m_Capacity - 1)
+		if (i == capacity - 1)
 		{
-			m_Next[i] = INVALID_HANDLE;
+			next[i] = INVALID_HANDLE;
 		}
 		else
 		{
-			m_Next[i] = i + 1;
+			next[i] = i + 1;
 		}
 	}
+
+	return std::shared_ptr<PoolAllocator>(new PoolAllocator(header, next));
+}
+
+std::shared_ptr<PoolAllocator> PoolAllocator::Open(void *metadata_buffer)
+{
+	Header *header = static_cast<PoolAllocator::Header *>(metadata_buffer);
+
+	std::atomic<BlockHandle> *next;
+	GetMemoryLayout(metadata_buffer, &next);
+
+	return std::shared_ptr<PoolAllocator>(new PoolAllocator(header, next));
 }
 
 std::size_t PoolAllocator::CalculateMetadataBufferSize(std::uint32_t capacity)

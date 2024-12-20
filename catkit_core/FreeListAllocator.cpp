@@ -55,16 +55,14 @@ void FreeListAllocator::BlockDescriptor::SetFree(const bool &is_free)
 	m_SizeAndFreeFlag = (m_SizeAndFreeFlag & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
 }
 
-FreeListAllocator::FreeListAllocator(void *metadata_buffer)
-	: m_Header(*static_cast<Header *>(metadata_buffer)),
+FreeListAllocator::FreeListAllocator(Header *header, std::shared_ptr<PoolAllocator> block_allocator, Block *blocks)
+	: m_Header(*header),
+	m_BlockAllocator(block_allocator),
+	m_Blocks(blocks),
 	m_MaxNumBlocks(m_Header.max_num_blocks),
 	m_Head(m_Header.head),
-	m_Alignment(m_Header.alignment),
-	m_BlockAllocator(static_cast<char *>(metadata_buffer) + sizeof(Header)),
-	m_MetadataBuffer(metadata_buffer)
+	m_Alignment(m_Header.alignment)
 {
-	std::size_t block_list_offset = sizeof(Header) + PoolAllocator::CalculateMetadataBufferSize(m_MaxNumBlocks);
-	m_Blocks = reinterpret_cast<Block *>(static_cast<char *>(m_MetadataBuffer) + block_list_offset);
 }
 
 std::size_t FreeListAllocator::ComputeMetadataBufferSize(std::size_t max_num_blocks)
@@ -76,35 +74,52 @@ std::size_t FreeListAllocator::ComputeMetadataBufferSize(std::size_t max_num_blo
 	return size;
 }
 
+void FreeListAllocator::GetMemoryLayout(void *metadata_buffer, std::size_t max_num_blocks, void **block_allocator_memory, Block **blocks)
+{
+	std::size_t offset = sizeof(Header);
+	*block_allocator_memory = static_cast<void *>(static_cast<char *>(metadata_buffer) + offset);
+
+	offset += PoolAllocator::CalculateMetadataBufferSize(max_num_blocks);
+	*blocks = reinterpret_cast<Block *>(static_cast<char *>(metadata_buffer) + offset);
+}
+
 std::shared_ptr<FreeListAllocator> FreeListAllocator::Open(void *metadata_buffer)
 {
-	return std::shared_ptr<FreeListAllocator>(new FreeListAllocator(metadata_buffer));
+	Header *header = static_cast<Header *>(metadata_buffer);
+
+	void *block_allocator_memory;
+	Block *blocks;
+	GetMemoryLayout(metadata_buffer, header->max_num_blocks, &block_allocator_memory, &blocks);
+
+	auto block_allocator = PoolAllocator::Open(block_allocator_memory);
+
+	return std::shared_ptr<FreeListAllocator>(new FreeListAllocator(header, block_allocator, blocks));
 }
 
 std::shared_ptr<FreeListAllocator> FreeListAllocator::Create(void *metadata_buffer, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
 {
-	auto allocator = std::shared_ptr<FreeListAllocator>(new FreeListAllocator(metadata_buffer));
+	Header *header = static_cast<Header *>(metadata_buffer);
 
-	auto &header = allocator->m_Header;
+	void *block_allocator_memory;
+	Block *blocks;
+	GetMemoryLayout(metadata_buffer, header->max_num_blocks, &block_allocator_memory, &blocks);
 
-	std::copy(VERSION, VERSION + sizeof(VERSION), header.version);
-	header.max_num_blocks = max_num_blocks;
-	header.alignment = alignment;
-	header.total_buffer_size = buffer_size;
+	// Fill in the header information.
+	std::copy(VERSION, VERSION + sizeof(VERSION), header->version);
+	header->max_num_blocks = max_num_blocks;
+	header->alignment = alignment;
+	header->total_buffer_size = buffer_size;
 
-	// Initialize the internal allocator.
-	allocator->m_BlockAllocator.Initialize(max_num_blocks);
+	// Create the block allocator.
+	auto block_allocator = PoolAllocator::Create(block_allocator_memory, max_num_blocks);
 
 	// Initialize the free list.
-	allocator->m_Head = allocator->m_BlockAllocator.Allocate();
+	header->head = block_allocator->Allocate();
 
-	std::size_t block_list_offset = sizeof(Header) + PoolAllocator::CalculateMetadataBufferSize(max_num_blocks);
-	allocator->m_Blocks = reinterpret_cast<Block *>(static_cast<char *>(metadata_buffer) + block_list_offset);
+	blocks[header->head].descriptor = BlockDescriptor(0, buffer_size, true);
+	blocks[header->head].next = INVALID_HANDLE;
 
-	allocator->m_Blocks[allocator->m_Head].descriptor = BlockDescriptor(0, buffer_size, true);
-	allocator->m_Blocks[allocator->m_Head].next = INVALID_HANDLE;
-
-	return allocator;
+	return std::shared_ptr<FreeListAllocator>(new FreeListAllocator(header, block_allocator, blocks));
 }
 
 typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
@@ -182,7 +197,7 @@ typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t 
 
 		// We now have a block that is large enough to allocate the requested size.
 		// Add a new block for the remaining free space.
-		PoolAllocator::BlockHandle allocated_block_handle = m_BlockAllocator.Allocate();
+		PoolAllocator::BlockHandle allocated_block_handle = m_BlockAllocator->Allocate();
 		DEBUG_PRINT("Allocated block handle is " << allocated_block_handle);
 
 		Block &allocated_block = m_Blocks[allocated_block_handle];
@@ -238,7 +253,7 @@ void FreeListAllocator::Deallocate(BlockHandle index)
 			if (!owns_index)
 				RemoveBlock(index);
 
-			m_BlockAllocator.Deallocate(index);
+			m_BlockAllocator->Deallocate(index);
 
 			index = prev;
 			owns_index = false;
@@ -252,7 +267,7 @@ void FreeListAllocator::Deallocate(BlockHandle index)
 			// The next block is no longer valid. Deallocate it.
 
 			RemoveBlock(index);
-			m_BlockAllocator.Deallocate(index);
+			m_BlockAllocator->Deallocate(index);
 
 			index = next;
 			owns_index = false;

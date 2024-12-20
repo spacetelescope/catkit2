@@ -10,9 +10,6 @@
 // A simple lock-free free list allocator.
 class FreeListAllocator
 {
-private:
-	FreeListAllocator(void *metadata_buffer);
-
 public:
 	using BlockHandle = PoolAllocator::BlockHandle;
 	using Offset = std::uint32_t;
@@ -85,16 +82,18 @@ private:
 	static_assert(offsetof(Header, head) == 16);
 	static_assert(sizeof(Header) == 20);
 
+	FreeListAllocator(Header *header, std::shared_ptr<PoolAllocator> block_allocator, Block *blocks);
+
+	static void GetMemoryLayout(void *metadata_buffer, std::size_t max_num_blocks, void **block_allocator_memory, Block **blocks);
+
 	Header &m_Header;
 
 	std::uint32_t &m_MaxNumBlocks;
 	std::uint32_t &m_Alignment;
 	std::atomic<BlockHandle> &m_Head;
 
-	PoolAllocator m_BlockAllocator;
+	std::shared_ptr<PoolAllocator> m_BlockAllocator;
 	Block *m_Blocks;
-
-	void *m_MetadataBuffer;
 
 	BlockHandle FindFirstFreeBlock(Size size);
 

@@ -9,8 +9,7 @@ void benchmark_linux_scalability()
 
     char *buffer = new char[PoolAllocator::CalculateMetadataBufferSize(CAPACITY)];
 
-	PoolAllocator allocator(buffer);
-    allocator.Initialize(CAPACITY);
+	auto allocator = PoolAllocator::Create(buffer, CAPACITY);
 
 	auto *handles = new PoolAllocator::BlockHandle[N];
 
@@ -18,12 +17,12 @@ void benchmark_linux_scalability()
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		handles[i] = allocator.Allocate();
+		handles[i] = allocator->Allocate();
 	}
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		allocator.Deallocate(handles[i]);
+		allocator->Deallocate(handles[i]);
 	}
 
 	auto end = GetTimeStamp();
