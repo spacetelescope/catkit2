@@ -122,9 +122,9 @@ SharedMemory::SharedMemory(std::string_view fname, FileObject file, bool is_owne
 		throw std::runtime_error("Something went wrong while mapping shared memory file.");
 }
 
-void *SharedMemory::GetAddress()
+void *SharedMemory::GetAddress(std::size_t offset)
 {
-	return m_Buffer;
+	return static_cast<char *>(m_Buffer) + offset;
 }
 
 ShareableType SharedMemory::GetType() const

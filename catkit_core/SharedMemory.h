@@ -1,6 +1,8 @@
 #ifndef SHARED_MEMORY_H
 #define SHARED_MEMORY_H
 
+#include "Memory.h"
+
 #include <memory>
 #include <string>
 #include <string_view>
@@ -20,7 +22,7 @@
 
 const int SHARED_MEMORY_FNAME_SIZE = 256;
 
-class SharedMemory : public Shareable
+class SharedMemory : public Shareable, public Memory
 {
 public:
 	#ifdef _WIN32
@@ -43,7 +45,7 @@ public:
 	static std::unique_ptr<SharedMemory> Open(StructStream &stream);
 	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
 
-	void *GetAddress();
+	void *GetAddress(std::size_t offset = 0) override;
 
 	ShareableType GetType() const override;
 
