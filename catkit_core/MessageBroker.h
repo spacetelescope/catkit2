@@ -10,6 +10,7 @@
 #include "UuidGenerator.h"
 
 #include <memory>
+#include <map>
 
 const char * const MESSAGE_BROKER_VERSION = "0.1";
 
@@ -174,8 +175,8 @@ public:
 	Message GetMessage(const std::string &topic, size_t frame_id);
 
 private:
-	FreeListAllocator *GetAllocator(int8_t device_id);
-	Synchronization *GetSynchronization(const std::string &topic);
+	std::shared_ptr<FreeListAllocator> GetAllocator(int8_t device_id);
+	std::shared_ptr<Synchronization> GetSynchronization(std::string_view topic);
 
 	MessageBrokerHeader &m_Header;
 
@@ -184,13 +185,15 @@ private:
 
 	MessageHeader *m_MessageHeaders;
 
-	FreeListAllocator m_CpuPayloadAllocator;
+	std::shared_ptr<FreeListAllocator> m_CpuPayloadAllocator;
 	std::shared_ptr<SharedMemory> m_CpuPayloadMemory;
 
-	FreeListAllocator m_GpuPayloadAllocator[MAX_NUM_GPUS];
+	std::shared_ptr<FreeListAllocator> m_GpuPayloadAllocator[MAX_NUM_GPUS];
 	std::shared_ptr<CudaSharedMemory> m_GpuPayloadMemory[MAX_NUM_GPUS];
 
 	UuidGenerator m_UuidGenerator;
+
+	std::map<std::string_view, std::shared_ptr<Synchronization>> m_Synchronizations;
 };
 
 #endif // MESSAGE_BROKER_H
