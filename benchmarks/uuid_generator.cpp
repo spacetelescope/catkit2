@@ -17,7 +17,7 @@ int main()
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		generator.GenerateUuid(uuid);
+		generator.Generate(uuid);
 	}
 
 	auto end = GetTimeStamp();
