@@ -24,7 +24,25 @@ add_executable(timestamp timestamp.cpp)
 target_include_directories(timestamp PUBLIC ../catkit_core)
 target_link_libraries(timestamp PUBLIC catkit_core)
 
+# Free list allocator benchmark
+add_executable(free_list_allocator free_list_allocator.cpp)
+target_include_directories(free_list_allocator PUBLIC ../catkit_core)
+target_link_libraries(free_list_allocator PUBLIC catkit_core)
+
+# Pool allocator benchmark
+add_executable(pool_allocator pool_allocator.cpp)
+target_include_directories(pool_allocator PUBLIC ../catkit_core)
+target_link_libraries(pool_allocator PUBLIC catkit_core)
+
+# Hash map benchmark
+add_executable(hash_map hash_map.cpp)
+target_include_directories(hash_map PUBLIC ../catkit_core)
+target_link_libraries(hash_map PUBLIC catkit_core)
+
 # Add install files
 install(TARGETS datastream_latency DESTINATION bin)
 install(TARGETS datastream_submit DESTINATION bin)
 install(TARGETS timestamp DESTINATION bin)
+install(TARGETS free_list_allocator DESTINATION bin)
+install(TARGETS pool_allocator DESTINATION bin)
+install(TARGETS hash_map DESTINATION bin)

@@ -33,6 +33,8 @@ add_library(catkit_core STATIC
     Tracing.cpp
     Types.cpp
     Util.cpp
+    PoolAllocator.cpp
+    FreeListAllocator.cpp
     proto/core.pb.cc
     proto/logging.pb.cc
     proto/testbed.pb.cc
