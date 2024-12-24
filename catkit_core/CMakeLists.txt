@@ -11,34 +11,10 @@ endif()
 
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP1>)
 
-add_library(catkit_core STATIC
-    DataStream.cpp
-    SharedMemory.cpp
-    Timing.cpp
-    Log.cpp
-    LogConsole.cpp
-    LogFile.cpp
-    LogForwarder.cpp
-    HostName.cpp
-    Command.cpp
-    Property.cpp
-    Service.cpp
-    Server.cpp
-    Client.cpp
-    TestbedProxy.cpp
-    ServiceProxy.cpp
-    ServiceState.cpp
-    Tensor.cpp
-    Tracing.cpp
-    Types.cpp
-    Util.cpp
-    PoolAllocator.cpp
-    FreeListAllocator.cpp
-    proto/core.pb.cc
-    proto/logging.pb.cc
-    proto/testbed.pb.cc
-    proto/service.pb.cc
-    proto/tracing.pb.cc)
+file(GLOB_RECURSE SOURCES "*.cpp")
+file(GLOB_RECURSE HEADERS "*.h")
+
+add_library(catkit_core STATIC "${SOURCES}")
 
 set_property(TARGET catkit_core PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(catkit_core PUBLIC PROTOBUF_USE_DLLS)
