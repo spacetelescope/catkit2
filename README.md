@@ -1,9 +1,9 @@
 The Control and Automation for Testbeds Kit 2 (CATKit2)
 ---------------------
-CATKit2 is a toolkit for hardware controls that has been developed at the Space Telescope Science Institute. 
-It provides a general infrastructure to control hardware and synchronize devices.  
+CATKit2 is a toolkit for hardware controls that has been developed at the Space Telescope Science Institute.
+It provides a general infrastructure to control hardware and synchronize devices.
 
-This package was developed for use on the High-contrast Imager for Complex Apertures Testbed (HiCAT) for 
+This package was developed for use on the High-contrast Imager for Complex Apertures Testbed (HiCAT) for
 developing technologies relevant to direct imaging of exoplanets in astronomy in the laboratory.
 
 This is an open-source package, but it is not actively supported.  Use at your own risk.
@@ -66,27 +66,19 @@ Installation
 
 This procedure requires a pre-installed C++ compiler.
 - On Windows, you can for example install the Visual Studio Compiler, either by installing the Build Tools, or by installing the full IDE with compiler (the community edition is free).
-- On MacOS, nothing should be needed, but some machines require Xcode to be installed. It does install components on first startup, so it is recommended to start XCode on your mac if you have never used it (and accept the license agreement of XCode, which is required). 
-- XCode 15 (Sonoma and higher) introduced some changes in the compiler location, which require the following environment variable update: 
+- On MacOS, nothing should be needed, but some machines require Xcode to be installed. It does install components on first startup, so it is recommended to start XCode on your mac if you have never used it (and accept the license agreement of XCode, which is required).
+- XCode 15 (Sonoma and higher) introduced some changes in the compiler location, which require the following environment variable update:
 ```
 export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 ```
 
-The following will download all third-party C++ dependencies and create a new Conda environment with the required Python packages. The download can be performed on a separate machine with internet connectivity and the resulting folders can be copy-pasted in the extern folder on the machine without internet connectivity.
+The following will create a new Conda environment with the required C++ and Python packages. You will need to install drivers and SDKs for some devices yourself to use those devices.
 
-You will need to install drivers and SDKs for some devices yourself to use those devices.
-
-```
-cd catkit2
-cd extern
-./download.sh
-cd ..
-```
 For installation on Apple Silicon with python=3.7, you need to follow these steps:
 ```
-conda create --name catkit2 
-conda activate catkit2 
-conda config --env --set subdir osx-64 
+conda create --name catkit2
+conda activate catkit2
+conda config --env --set subdir osx-64
 conda env update --file environment.yml
 ```
 
@@ -96,7 +88,7 @@ conda env create --file environment.yml
 conda activate catkit2
 ```
 
-Finally install the package using: 
+Finally install the package using:
 ```
 python setup.py develop
 cd ..
