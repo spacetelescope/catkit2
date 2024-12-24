@@ -26,10 +26,15 @@ dependencies:
   - psutil
   - protobuf
   - libprotobuf
-  - conda-forge:hcipy
+  - conda-forge::hcipy
+  - conda-forge::cppzmq==4.8.1
+  - conda-forge::pybind11==2.13.6
+  - conda-forge::eigen==3.4.0
+  - conda-forge::nlohmann_json==3.9.1
+  - conda-forge::pybind11_json==0.2.15
   - pip
-  - conda-forge::cmake>=3.0.0
-  - conda-forge::doxygen
+  - cmake>=3.0.0
+  - doxygen
   - sphinx
   - conda-forge::sphinx-automodapi
   - conda-forge::breathe==4.32.0
