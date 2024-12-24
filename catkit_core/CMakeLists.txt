@@ -62,16 +62,16 @@ else()
 endif (WIN32)
 
 # Add includes for cppzmq
-set(CPPZMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/cppzmq-4.8.1)
+find_package(cppzmq REQUIRED)
 target_include_directories(catkit_core PUBLIC ${CPPZMQ_INCLUDE_DIR})
 
 # Link Eigen
-set(EIGEN_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/eigen-3.4.0)
-target_include_directories(catkit_core PUBLIC ${EIGEN_INCLUDE_DIR})
+find_package(Eigen3 REQUIRED NO_MODULE)
+target_link_libraries (catkit_core PUBLIC Eigen3::Eigen)
 
 # Link nlohmann JSON
-set (JSON_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/json-3.9.1/include)
-target_include_directories(catkit_core PUBLIC ${JSON_INCLUDE_DIR})
+find_package(nlohmann_json)
+target_include_directories(catkit_core PRIVATE ${JSON_INCLUDE_DIR})
 
 # Link protobuf
 INCLUDE(FindProtobuf)
