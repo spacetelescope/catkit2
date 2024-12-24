@@ -17,4 +17,26 @@ target_include_directories(catkit_bindings PUBLIC ../catkit_core)
 
 target_link_libraries(catkit_bindings PUBLIC catkit_core)
 
+# Compile protobuf files.
+find_package(Protobuf REQUIRED)
+
+set(PROTO_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../proto/core.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/../proto/logging.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/../proto/service.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/../proto/testbed.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/../proto/tracing.proto
+)
+
+set(PYTHON_OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../catkit2/proto)
+
+add_custom_target(
+    catkit2_python_protobuf ALL
+    COMMAND ${Protobuf_PROTOC_EXECUTABLE}
+    --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/../proto
+    --python_out=${PYTHON_OUT_DIR}
+    ${PROTO_FILES}
+    DEPENDS ${PROTO_FILES}
+)
+
 install(TARGETS catkit_bindings DESTINATION lib)

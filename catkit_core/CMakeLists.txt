@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.21)
 
 project(catkit_core)
 
@@ -55,15 +55,34 @@ find_package(Protobuf REQUIRED)
 target_include_directories(catkit_core PUBLIC ${PROTOBUF_INCLUDE_DIR})
 target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARY})
 
+set(PROTO_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/gen/")
+file(MAKE_DIRECTORY "${PROTO_BINARY_DIR}")
+protobuf_generate(
+  TARGET catkit_core
+  IMPORT_DIRS ../proto
+  PROTOC_OUT_DIR "${PROTO_BINARY_DIR}"
+  PROTOS
+    ../proto/core.proto
+    ../proto/logging.proto
+    ../proto/service.proto
+    ../proto/testbed.proto
+    ../proto/tracing.proto
+)
+target_include_directories(catkit_core PUBLIC "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>")
+
 # Add install files
-install(TARGETS catkit_core DESTINATION lib)
+install(TARGETS catkit_core
+  LIBRARY DESTINATION lib
+  PUBLIC_HEADER DESTINATION include
+)
+
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         DESTINATION include
         FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.inl"
 )
-install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../proto/gen/cpp/
+install(DIRECTORY "${PROTO_BINARY_DIR}"
         DESTINATION include/catkit_core
         FILES_MATCHING
         PATTERN "*.h"

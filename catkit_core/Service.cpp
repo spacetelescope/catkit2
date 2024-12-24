@@ -4,7 +4,7 @@
 #include "Timing.h"
 #include "TestbedProxy.h"
 #include "Tracing.h"
-#include "proto/service.pb.h"
+#include "service.pb.h"
 
 #include <chrono>
 #include <csignal>

@@ -1,7 +1,7 @@
 #ifndef SERVICE_STATE_H
 #define SERVICE_STATE_H
 
-#include "proto/testbed.pb.h"
+#include "testbed.pb.h"
 
 enum ServiceState
 {
