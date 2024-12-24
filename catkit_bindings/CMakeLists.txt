@@ -39,4 +39,4 @@ add_custom_target(
     DEPENDS ${PROTO_FILES}
 )
 
-install(TARGETS catkit_bindings DESTINATION lib)
+install(TARGETS catkit_bindings LIBRARY DESTINATION catkit2/)
