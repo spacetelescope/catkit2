@@ -31,7 +31,7 @@ dependencies:
   - conda-forge::pybind11==2.13.6
   - conda-forge::eigen==3.4.0
   - conda-forge::nlohmann_json==3.9.1
-  - conda-forge::pybind11_json==0.2.15
+  - conda-forge::pybind11_json
   - pip
   - cmake>=3.0.0
   - doxygen
