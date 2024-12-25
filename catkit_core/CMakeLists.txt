@@ -69,21 +69,41 @@ protobuf_generate(
     ../proto/tracing.proto
 )
 target_include_directories(catkit_core PUBLIC "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>")
+# Generate and install CatkitCoreConfig.cmake
+include(CMakePackageConfigHelpers)
 
-# Add install files
-install(TARGETS catkit_core
+configure_package_config_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CatkitCoreConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/CatkitCoreConfig.cmake"
+  INSTALL_DESTINATION lib/cmake/catkit_core
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/CatkitCoreConfig.cmake"
+  DESTINATION "${SKBUILD_PLATLIB_DIR}/cmake/catkit_core"
+)
+
+install(
+  TARGETS catkit_core
+  EXPORT CatkitCoreTargets
   LIBRARY DESTINATION lib
-  PUBLIC_HEADER DESTINATION include
+)
+
+# Generate and install CatkitCoreTargets.cmake
+install(
+  EXPORT CatkitCoreTargets
+  FILE CatkitCoreTargets.cmake
+  DESTINATION "${SKBUILD_PLATLIB_DIR}/cmake/catkit_core"
 )
 
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-        DESTINATION include
+        DESTINATION "${SKBUILD_HEADERS_DIR}"
         FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.inl"
 )
 install(DIRECTORY "${PROTO_BINARY_DIR}"
-        DESTINATION include/catkit_core
+        DESTINATION "${SKBUILD_HEADERS_DIR}/catkit_core"
         FILES_MATCHING
         PATTERN "*.h"
 )
