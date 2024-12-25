@@ -28,15 +28,15 @@ set(PROTO_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/../proto/tracing.proto
 )
 
-set(PYTHON_OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../catkit2/proto)
+set(PYTHON_OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/./proto/)
 
 add_custom_target(
     catkit2_python_protobuf ALL
     COMMAND ${Protobuf_PROTOC_EXECUTABLE}
-    --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/../proto
+    --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/../proto/
     --python_out=${PYTHON_OUT_DIR}
     ${PROTO_FILES}
     DEPENDS ${PROTO_FILES}
 )
 
-install(TARGETS catkit_bindings LIBRARY DESTINATION catkit2/)
+install(TARGETS catkit_bindings LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}/catkit2/")
