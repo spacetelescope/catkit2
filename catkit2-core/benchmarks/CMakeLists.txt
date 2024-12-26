@@ -11,27 +11,22 @@ endif()
 
 # DataStream latency benchmark
 add_executable(datastream_latency datastream_latency.cpp)
-target_include_directories(datastream_latency PUBLIC ../catkit_core)
 target_link_libraries(datastream_latency PUBLIC catkit_core)
 
 # Datastream submit benchmark
 add_executable(datastream_submit datastream_submit.cpp)
-target_include_directories(datastream_submit PUBLIC ../catkit_core)
 target_link_libraries(datastream_submit PUBLIC catkit_core)
 
 # Timestamp benchmark
 add_executable(timestamp timestamp.cpp)
-target_include_directories(timestamp PUBLIC ../catkit_core)
 target_link_libraries(timestamp PUBLIC catkit_core)
 
 # Pool allocator benchmark
 add_executable(pool_allocator pool_allocator.cpp)
-target_include_directories(pool_allocator PUBLIC ../catkit_core)
 target_link_libraries(pool_allocator PUBLIC catkit_core)
 
 # Hash map benchmark
 add_executable(hash_map hash_map.cpp)
-target_include_directories(hash_map PUBLIC ../catkit_core)
 target_link_libraries(hash_map PUBLIC catkit_core)
 
 # Uuid generator benchmark
