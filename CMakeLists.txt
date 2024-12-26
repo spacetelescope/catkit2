@@ -21,6 +21,4 @@ list(APPEND CMAKE_INSTALL_RPATH $ENV{CONDA_PREFIX}/lib)
 list(APPEND CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
 list(APPEND CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}/Library")
 
-add_subdirectory(catkit_core)
 add_subdirectory(catkit2)
-add_subdirectory(benchmarks)
