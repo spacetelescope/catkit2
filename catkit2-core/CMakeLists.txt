@@ -63,11 +63,12 @@ target_include_directories(catkit_core PUBLIC ${PROTOBUF_INCLUDE_DIR})
 target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARY})
 
 set(PROTO_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/gen/")
-file(GLOB_RECURSE PROTO_SOURCES "./proto/*.proto")
+set(PROTO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/proto/")
+file(GLOB_RECURSE PROTO_SOURCES "${PROTO_SOURCE_DIR}/*.proto")
 file(MAKE_DIRECTORY "${PROTO_BINARY_DIR}")
 protobuf_generate(
   TARGET catkit_core
-  IMPORT_DIRS ./proto
+  IMPORT_DIRS "${PROTO_SOURCE_DIR}"
   PROTOC_OUT_DIR "${PROTO_BINARY_DIR}"
   PROTOS ${PROTO_SOURCES}
 )
@@ -99,7 +100,7 @@ install(
   DESTINATION "lib/cmake/catkit_core"
 )
 
-install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src/"
         DESTINATION include/catkit_core
         FILES_MATCHING
         PATTERN "*.h"
@@ -109,6 +110,11 @@ install(DIRECTORY "${PROTO_BINARY_DIR}"
         DESTINATION include/catkit_core
         FILES_MATCHING
         PATTERN "*.h"
+)
+install(DIRECTORY "${PROTO_SOURCE_DIR}"
+        DESTINATION include/catkit_core/proto
+        FILES_MATCHING
+        PATTERN "*.proto"
 )
 
 add_subdirectory(benchmarks)
