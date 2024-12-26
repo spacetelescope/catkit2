@@ -107,3 +107,5 @@ install(DIRECTORY "${PROTO_BINARY_DIR}"
         FILES_MATCHING
         PATTERN "*.h"
 )
+
+add_subdirectory(benchmarks)
