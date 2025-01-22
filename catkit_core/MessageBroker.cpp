@@ -6,6 +6,89 @@
 
 #include <algorithm>
 
+class SubtopicIterator {
+public:
+	SubtopicIterator(std::string_view str, char delimiter, bool is_valid = true)
+		: m_String(str), m_Delimiter(delimiter), m_IsValid(is_valid)
+	{
+	}
+
+	std::string_view operator*() const
+	{
+		return m_String;
+	}
+
+	SubtopicIterator& operator++()
+	{
+		if (m_String.empty())
+		{
+			m_IsValid = false;
+			return *this;
+		}
+
+		size_t pos = m_String.rfind(m_Delimiter);
+
+		if (pos != std::string_view::npos)
+		{
+			// Remove the last part.
+			m_String.remove_suffix(m_String.size() - pos);
+		}
+		else
+		{
+			// No more delimiters left, so remove the whole string.
+			m_String.remove_suffix(m_String.size());
+		}
+
+		return *this;
+	}
+
+	bool operator!=(const SubtopicIterator& other) const
+	{
+		if (!m_IsValid && !other.m_IsValid)
+		{
+			// If both iterators are invalid, they are equal no matter what.
+			return false;
+		}
+
+		return m_IsValid == other.m_IsValid ||
+			m_String.data() != other.m_String.data() ||
+			m_String.size() != other.m_String.size();
+	}
+
+	static SubtopicIterator end()
+	{
+		return SubtopicIterator({}, '\0', true);
+	}
+
+private:
+	std::string_view m_String;
+	char m_Delimiter;
+	bool m_IsValid;
+};
+
+class SubtopicRange
+{
+public:
+	SubtopicRange(std::string_view str, char delimiter = '/')
+		: m_String(str), m_Delimiter(delimiter)
+	{
+	}
+
+	SubtopicIterator begin() const
+	{
+		return SubtopicIterator(m_String, m_Delimiter);
+	}
+
+	SubtopicIterator end() const
+	{
+		return SubtopicIterator::end();
+	}
+
+private:
+	std::string_view m_String;
+	char m_Delimiter;
+};
+
 TopicHeader::TopicHeader(const TopicHeader &header)
 {
 	CopyFrom(header);
