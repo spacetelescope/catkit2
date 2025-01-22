@@ -176,6 +176,8 @@ public:
 
 private:
 	std::shared_ptr<FreeListAllocator> GetAllocator(int8_t device_id);
+	std::shared_ptr<Memory> GetMemory(int8_t device_id);
+
 	std::shared_ptr<Synchronization> GetSynchronization(std::string_view topic);
 
 	MessageBrokerHeader &m_Header;

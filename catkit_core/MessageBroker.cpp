@@ -142,20 +142,18 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 
 	auto offset = allocator->GetOffset(block_handle);
 
-	if (device_id < 0)
-	{
-		message.m_Payload = m_CpuPayloadMemory->GetAddress(offset);
-	}
-	else
-	{
-		message.m_Payload = m_GpuPayloadMemory[device_id]->GetAddress(offset);
-	}
+	auto memory = GetMemory(device_id);
+	message.m_Payload = memory->GetAddress(offset);
 
 	// Allocate a message header.
 	auto message_header_handle = m_MessageHeaderAllocator.Allocate();
 
 	if (message_header_handle == PoolAllocator::INVALID_HANDLE)
 	{
+		// Deallocate allocated memory block.
+		// TODO: Do this with RAII.
+		allocator->Deallocate(block_handle);
+
 		throw std::runtime_error("Could not allocate message header.");
 	}
 
