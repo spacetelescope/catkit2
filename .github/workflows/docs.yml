@@ -32,7 +32,7 @@ jobs:
       run: |
         conda env create --name build-env --file environment.yml
         conda activate build-env
-        pip install .
+        pip install -e .
       shell: bash -l {0}
     - name: Build documentation
       run: |
