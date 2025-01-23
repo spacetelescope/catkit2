@@ -2,6 +2,7 @@
 #define EVENT_BASE_H
 
 #include <functional>
+#include <stdexcept>
 
 enum EventImplementationType
 {
