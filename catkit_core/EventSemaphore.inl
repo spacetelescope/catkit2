@@ -12,7 +12,7 @@ struct EventSharedState<EventImplementationType::ET_SEMAPHORE>
 };
 
 template<>
-void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+inline void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
 {
     Timer timer;
 	DWORD res = WAIT_OBJECT_0;
@@ -61,7 +61,7 @@ void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, v
 }
 
 template<>
-void EventSemaphore::Signal()
+inline void EventSemaphore::Signal()
 {
     // Notify waiting processes.
 	long num_readers_waiting = m_SharedState->m_NumReadersWaiting.exchange(0);
@@ -76,7 +76,7 @@ void EventSemaphore::Signal()
 }
 
 template<>
-void EventSemaphore::CreateImpl(const std::string &id, SharedState *shared_state)
+inline void EventSemaphore::CreateImpl(const std::string &id, SharedState *shared_state)
 {
     m_Semaphore = CreateSemaphore(NULL, 0, 9999, (id + ".sem").c_str());
 
@@ -87,7 +87,7 @@ void EventSemaphore::CreateImpl(const std::string &id, SharedState *shared_state
 }
 
 template<>
-void EventSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
+inline void EventSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
 {
     m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
 
@@ -95,7 +95,8 @@ void EventSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
 		throw std::runtime_error("Something went wrong while opening semaphore.");
 }
 
-void EventSemaphore::~EventImpl()
+template<>
+inline void EventSemaphore::~EventImpl()
 {
     CloseHandle(m_Semaphore);
 }

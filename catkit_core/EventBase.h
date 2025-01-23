@@ -34,18 +34,20 @@ protected:
 public:
 	~EventImpl();
 
+	// Note: do not implement these functions for specific implementations.
 	static std::unique_ptr<EventImpl<Type>> Create(const std::string &id, SharedState *shared_state);
 	static std::unique_ptr<EventImpl<Type>> Open(const std::string &id, SharedState *shared_state);
 
-	void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());
-	void Signal();
+	// Note: implement the following functions for specific implementations.
+	inline void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());
+	inline void Signal();
 
-	void Lock();
-	void Unlock();
+	inline void Lock();
+	inline void Unlock();
 
 protected:
-	void CreateImpl(const std::string &id, SharedState *shared_state);
-	void OpenImpl(const std::string &id, SharedState *shared_state);
+	inline void CreateImpl(const std::string &id, SharedState *shared_state);
+	inline void OpenImpl(const std::string &id, SharedState *shared_state);
 
 	bool m_IsOwner;
 

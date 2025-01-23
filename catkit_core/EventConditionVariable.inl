@@ -14,7 +14,7 @@ struct EventSharedState<EventImplementationType::ET_CONDITION_VARIABLE>
 };
 
 template<>
-void EventConditionVariable::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+inline void EventConditionVariable::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
 {
     Timer timer;
 
@@ -50,25 +50,25 @@ void EventConditionVariable::Wait(long timeout_in_ms, std::function<bool()> cond
 }
 
 template<>
-void EventConditionVariable::Signal()
+inline void EventConditionVariable::Signal()
 {
     pthread_cond_broadcast(&(m_SharedState->m_Condition));
 }
 
 template<>
-void EventConditionVariable::Lock()
+inline void EventConditionVariable::Lock()
 {
     pthread_mutex_lock(&(m_SharedState->m_Mutex));
 }
 
 template<>
-void EventConditionVariable::Unlock()
+inline void EventConditionVariable::Unlock()
 {
     pthread_mutex_unlock(&(m_SharedState->m_Mutex));
 }
 
 template<>
-void EventConditionVariable::CreateImpl(const std::string &id, EventConditionVariable::SharedState *shared_state)
+inline void EventConditionVariable::CreateImpl(const std::string &id, EventConditionVariable::SharedState *shared_state)
 {
     pthread_mutexattr_t mutex_attr;
 	pthread_mutexattr_init(&mutex_attr);
@@ -84,6 +84,12 @@ void EventConditionVariable::CreateImpl(const std::string &id, EventConditionVar
 #endif // __APPLE__
 	pthread_cond_init(&(shared_state->m_Condition), &cond_attr);
 	pthread_condattr_destroy(&cond_attr);
+}
+
+template<>
+inline void EventConditionVariable::OpenImpl(const std::string &id, EventConditionVariable::SharedState *shared_state)
+{
+	// Nothing to do.
 }
 
 #endif
