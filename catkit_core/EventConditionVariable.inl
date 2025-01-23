@@ -2,6 +2,10 @@
 
 #include "Timing.h"
 
+#if defined(__linux__) || defined(__APPLE__)
+	#include <pthread.h>
+#endif
+
 using EventConditionVariable = EventImpl<EventImplementationType::ET_CONDITION_VARIABLE>;
 
 #if defined(__linux__) || defined(__APPLE__)
