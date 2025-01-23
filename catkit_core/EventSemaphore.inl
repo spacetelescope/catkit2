@@ -1,8 +1,18 @@
-#include "SynchronizationSemaphore.h"
+#include "EventBase.h"
+
 #include "Timing.h"
 
+using EventSemaphore = EventImpl<EventImplementationType::ET_SEMAPHORE>;
+
 #ifdef _WIN32
-void SynchronizationSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+template<>
+struct EventSharedState<EventImplementationType::ET_SEMAPHORE>
+{
+	std::atomic_long m_NumReadersWaiting;
+};
+
+template<>
+void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
 {
     Timer timer;
 	DWORD res = WAIT_OBJECT_0;
@@ -50,7 +60,8 @@ void SynchronizationSemaphore::Wait(long timeout_in_ms, std::function<bool()> co
 	}
 }
 
-void SynchronizationSemaphore::Signal()
+template<>
+void EventSemaphore::Signal()
 {
     // Notify waiting processes.
 	long num_readers_waiting = m_SharedState->m_NumReadersWaiting.exchange(0);
@@ -64,7 +75,8 @@ void SynchronizationSemaphore::Signal()
 		ReleaseSemaphore(m_Semaphore, (LONG) num_readers_waiting, NULL);
 }
 
-void SynchronizationSemaphore::CreateImpl(const std::string &id, SharedState *shared_state)
+template<>
+void EventSemaphore::CreateImpl(const std::string &id, SharedState *shared_state)
 {
     m_Semaphore = CreateSemaphore(NULL, 0, 9999, (id + ".sem").c_str());
 
@@ -74,7 +86,8 @@ void SynchronizationSemaphore::CreateImpl(const std::string &id, SharedState *sh
 	shared_state->m_NumReadersWaiting = 0;
 }
 
-void SynchronizationSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
+template<>
+void EventSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
 {
     m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
 
@@ -82,7 +95,7 @@ void SynchronizationSemaphore::OpenImpl(const std::string &id, SharedState *shar
 		throw std::runtime_error("Something went wrong while opening semaphore.");
 }
 
-void SynchronizationSemaphore::CloseImpl()
+void EventSemaphore::~EventImpl()
 {
     CloseHandle(m_Semaphore);
 }

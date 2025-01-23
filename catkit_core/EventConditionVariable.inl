@@ -1,10 +1,20 @@
-#include "SynchronizationConditionVariable.h"
+#include "EventBase.h"
 
 #include "Timing.h"
 
+using EventConditionVariable = EventImpl<EventImplementationType::ET_CONDITION_VARIABLE>;
+
 #if defined(__linux__) || defined(__APPLE__)
 
-void SynchronizationConditionVariable::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+template<>
+struct EventSharedState<EventImplementationType::ET_CONDITION_VARIABLE>
+{
+	pthread_mutex_t m_Mutex;
+	pthread_cond_t m_Condition;
+};
+
+template<>
+void EventConditionVariable::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
 {
     Timer timer;
 
@@ -39,22 +49,26 @@ void SynchronizationConditionVariable::Wait(long timeout_in_ms, std::function<bo
 	}
 }
 
-void SynchronizationConditionVariable::Signal()
+template<>
+void EventConditionVariable::Signal()
 {
     pthread_cond_broadcast(&(m_SharedState->m_Condition));
 }
 
-void SynchronizationConditionVariable::Lock()
+template<>
+void EventConditionVariable::Lock()
 {
     pthread_mutex_lock(&(m_SharedState->m_Mutex));
 }
 
-void SynchronizationConditionVariable::Unlock()
+template<>
+void EventConditionVariable::Unlock()
 {
     pthread_mutex_unlock(&(m_SharedState->m_Mutex));
 }
 
-void SynchronizationConditionVariable::CreateImpl(const std::string &id, SynchronizationConditionVariable::SharedState *shared_state)
+template<>
+void EventConditionVariable::CreateImpl(const std::string &id, EventConditionVariable::SharedState *shared_state)
 {
     pthread_mutexattr_t mutex_attr;
 	pthread_mutexattr_init(&mutex_attr);
