@@ -14,8 +14,6 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP1>)
 add_library(catkit_core STATIC
     DataStream.cpp
     SharedMemory.cpp
-    SynchronizationConditionVariable.cpp
-    SynchronizationSemaphore.cpp
     Timing.cpp
     Log.cpp
     LogConsole.cpp
