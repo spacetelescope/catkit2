@@ -86,31 +86,35 @@ void EventImpl<Type>::Unlock()
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::CreateImpl(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Create(const std::string &id, EventImpl<Type>::SharedState *shared_state)
 {
 	if (!shared_state)
 		throw std::runtime_error("The passed shared data was a nullptr.");
 
-	auto obj = std::make_shared<EventImpl<Type>>();
+	auto obj = std::unique_ptr<EventImpl<Type>>(new EventImpl<Type>());
 
 	obj->CreateImpl(id, shared_state);
 
 	obj->m_IsOwner = true;
-
 	obj->m_SharedState = shared_state;
+
+	return obj;
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::OpenImpl(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Open(const std::string &id, EventImpl<Type>::SharedState *shared_state)
 {
 	if (!shared_state)
 		throw std::runtime_error("The passed shared data was a nullptr.");
 
-	OpenImpl(id, shared_state);
+	auto obj = std::unique_ptr<EventImpl<Type>>(new EventImpl<Type>());
 
-	m_IsOwner = false;
+	obj->OpenImpl(id, shared_state);
 
-	m_SharedState = shared_state;
+	obj->m_IsOwner = false;
+	obj->m_SharedState = shared_state;
+
+	return obj;
 }
 
 #include "EventConditionVariable.inl"
