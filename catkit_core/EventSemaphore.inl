@@ -12,6 +12,12 @@ struct EventSharedState<EventImplementationType::ET_SEMAPHORE>
 };
 
 template<>
+struct EventLocalState<EventImplementationType::ET_SEMAPHORE>
+{
+	HANDLE m_Semaphore;
+};
+
+template<>
 inline void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
 {
     Timer timer;
@@ -31,7 +37,7 @@ inline void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condi
 		}
 
 		// Wait for a maximum of 20ms to perform periodic error checking.
-		auto res = WaitForSingleObject(m_Semaphore, (unsigned long) (std::min)(20L, timeout_in_ms));
+		res = WaitForSingleObject(m_LocalState.m_Semaphore, (unsigned long) (std::min)(20L, timeout_in_ms));
 
 		if (res == WAIT_TIMEOUT && timer.GetTime() > (timeout_in_ms * 0.001))
 		{
@@ -72,15 +78,15 @@ inline void EventSemaphore::Signal()
 	// as there are checks in place for that.
 
 	if (num_readers_waiting > 0)
-		ReleaseSemaphore(m_Semaphore, (LONG) num_readers_waiting, NULL);
+		ReleaseSemaphore(m_LocalState.m_Semaphore, (LONG) num_readers_waiting, NULL);
 }
 
 template<>
 inline void EventSemaphore::CreateImpl(const std::string &id, SharedState *shared_state)
 {
-    m_Semaphore = CreateSemaphore(NULL, 0, 9999, (id + ".sem").c_str());
+    m_LocalState.m_Semaphore = CreateSemaphore(NULL, 0, 9999, (id + ".sem").c_str());
 
-	if (m_Semaphore == NULL)
+	if (m_LocalState.m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while creating semaphore.");
 
 	shared_state->m_NumReadersWaiting = 0;
@@ -89,16 +95,16 @@ inline void EventSemaphore::CreateImpl(const std::string &id, SharedState *share
 template<>
 inline void EventSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
 {
-    m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
+    m_LocalState.m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
 
-	if (m_Semaphore == NULL)
+	if (m_LocalState.m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while opening semaphore.");
 }
 
 template<>
-inline void EventSemaphore::~EventImpl()
+inline EventSemaphore::~EventImpl()
 {
-    CloseHandle(m_Semaphore);
+    CloseHandle(m_LocalState.m_Semaphore);
 }
 
 #ifdef __linux__
