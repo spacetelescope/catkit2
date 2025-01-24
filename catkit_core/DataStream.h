@@ -7,7 +7,7 @@
 #include <climits>
 
 #include "SharedMemory.h"
-#include "Synchronization.h"
+#include "Event.h"
 #include "Tensor.h"
 
 const char * const CURRENT_DATASTREAM_VERSION = "0.2";
@@ -46,7 +46,7 @@ struct DataStreamHeader
 
 	double m_FrameRateCounter;
 
-	SynchronizationSharedData m_SynchronizationSharedData;
+	Event::SharedState m_EventSharedState;
 };
 
 class DataFrame : public Tensor
@@ -117,7 +117,7 @@ private:
 	DataStreamHeader *m_Header;
 	char *m_Buffer;
 
-	Synchronization m_Synchronization;
+	std::shared_ptr<Event> m_Event;
 
 	size_t m_NextFrameIdToRead;
 	BufferHandlingMode m_BufferHandlingMode;

@@ -68,6 +68,7 @@ void CopyString(char *dest, const char *src, size_t n)
 
 DataStream::DataStream(const std::string &stream_id, std::shared_ptr<SharedMemory> shared_memory, bool create)
 	: m_SharedMemory(shared_memory),
+	m_Event(nullptr),
 	m_Header(nullptr), m_Buffer(nullptr),
 	m_NextFrameIdToRead(0),
 	m_BufferHandlingMode(BM_NEWEST_ONLY)
@@ -75,8 +76,6 @@ DataStream::DataStream(const std::string &stream_id, std::shared_ptr<SharedMemor
 	auto buffer = m_SharedMemory->GetAddress();
 	m_Header = (DataStreamHeader *) buffer;
 	m_Buffer = ((char *) buffer) + sizeof(DataStreamHeader);
-
-	m_Synchronization.Initialize(stream_id, &(m_Header->m_SynchronizationSharedData), create);
 }
 
 DataStream::~DataStream()
@@ -119,6 +118,8 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 
 	data_stream->UpdateParameters(type, dimensions, num_frames_in_buffer);
 
+	data_stream->m_Event = Event::Create(stream_id, &(header->m_EventSharedState));
+
 	return data_stream;
 }
 
@@ -140,6 +141,8 @@ std::shared_ptr<DataStream> DataStream::Open(const std::string &stream_id)
 
 	// Don't read frames that already are available at the time the data stream is opened.
 	data_stream->m_NextFrameIdToRead = data_stream->m_Header->m_LastId;
+
+	data_stream->m_Event = Event::Open(stream_id, &(data_stream->m_Header->m_EventSharedState));
 
 	return data_stream;
 }
@@ -173,22 +176,27 @@ void DataStream::SubmitFrame(size_t id)
 	DataFrameMetadata *meta = m_Header->m_FrameMetadata + (id % m_Header->m_NumFramesInBuffer);
 	meta->m_TimeStamp = GetTimeStamp();
 
-	// Obtain a lock as we are about to modify the condition of the
-	// synchronization.
-	auto lock = SynchronizationLock(&m_Synchronization);
-
-	// Make frame available:
-	// Use a do-while loop to ensure we are never decrementing the last id.
-	size_t last_id;
-	do
 	{
-		last_id = m_Header->m_LastId;
+		// Obtain a lock as we are about to modify the condition of the
+		// synchronization.
+		auto lock = EventLockGuard(m_Event);
 
-		if (last_id >= id + 1)
-			break;
-	} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
+		// Make frame available:
+		// Use a do-while loop to ensure we are never decrementing the last id.
+		size_t last_id;
+		do
+		{
+			last_id = m_Header->m_LastId;
 
-	m_Synchronization.Signal();
+			if (last_id >= id + 1)
+				break;
+		} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
+
+		m_Event->Signal();
+	}
+
+	auto ts = GetTimeStamp();
+	tracing_proxy.TraceInterval("DataStream::SubmitFrame", GetStreamName(), ts, 0);
 
 	// Don't update the framerate counter for the first frame.
 	if (id == 0)
@@ -207,9 +215,6 @@ void DataStream::SubmitFrame(size_t id)
 	m_Header->m_FrameRateCounter =
 		m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta)
 		+ FRAMERATE_DECAY;
-
-	auto ts = GetTimeStamp();
-	tracing_proxy.TraceInterval("DataStream::SubmitFrame", GetStreamName(), ts, 0);
 }
 
 void DataStream::SubmitData(const void *data)
@@ -332,8 +337,8 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 
 		// Wait until frame becomes available.
 		// Obtain a lock first.
-		auto lock = SynchronizationLock(&m_Synchronization);
-		m_Synchronization.Wait(wait_time_in_ms, [this, id]() { return this->m_Header->m_LastId > id; }, error_check);
+		auto lock = EventLockGuard(m_Event);
+		m_Event->Wait(wait_time_in_ms, [this, id]() { return this->m_Header->m_LastId > id; }, error_check);
 	}
 
 	size_t offset = (id % m_Header->m_NumFramesInBuffer) * m_Header->m_NumBytesPerFrame;
