@@ -5,6 +5,19 @@
 #include "HostName.h"
 
 #include <algorithm>
+#include <cstdint>
+
+template<typename T>
+T fetch_max(std::atomic<T> &atom, T value)
+{
+	T current = atom.load(std::memory_order_relaxed);
+
+	while (current < value && !atom.compare_exchange_weak(current, value, std::memory_order_acq_rel))
+	{
+	}
+
+	return current;
+}
 
 class SubtopicIterator {
 public:
@@ -203,6 +216,12 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		// First partial frame. Assign a new frame ID.
 		message.m_Header->frame_id = topic_header->next_frame_id.fetch_add(1, std::memory_order_relaxed);
 		message.m_Header->partial_frame_id = 0;
+
+		// If the ring buffer is full, make the oldest frame unavailable.
+		if ((topic_header->last_frame_id - topic_header->first_frame_id) >= TOPIC_MAX_NUM_MESSAGES)
+		{
+			topic_header->first_frame_id++;
+		}
 	}
 	else
 	{
@@ -213,20 +232,31 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
 
-	// TODO: put message offsets.
-
-	// Go to synchronization structures and signal them.
-	// This includes parent topics.
-	for (std::size_t i = 0; i <= topic.size(); ++i)
+	for (const auto &subtopic : SubtopicRange(topic))
 	{
-		std::size_t size = topic.size() - i;
+		auto topic_header = m_TopicHeaders.Find(std::string(subtopic));
 
-		if (i == 0 || topic[size] == '/')
+		if (!topic_header)
 		{
-			auto synchronization = GetSynchronization(topic.substr(0, size));
+			// TODO: if the topic header doesn't exist, create it.
 
-			if (synchronization)
-				synchronization->Signal();
+		}
+
+		auto synchronization = GetSynchronization(subtopic);
+
+		// Copy over message header reference.
+		std::size_t message_header_index = message.m_Header - m_MessageHeaders;
+		topic_header->message_headers[message.m_Header->frame_id % TOPIC_MAX_NUM_MESSAGES] = message_header_index;
+
+		{
+			// Obtain a lock as we're about to signal the synchronization structure.
+			auto lock = SynchronizationLock(synchronization);
+
+			// Make the message available.
+			fetch_max(topic_header->last_frame_id, message.m_Header->frame_id);
+
+			// Signal the synchronization structure.
+			synchronization->Signal();
 		}
 	}
 

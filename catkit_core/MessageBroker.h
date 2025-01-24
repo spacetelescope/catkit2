@@ -77,7 +77,10 @@ struct MessageHeader
 struct TopicHeader
 {
 	std::atomic_uint64_t next_frame_id;
-	std::uint64_t message_offsets[TOPIC_MAX_NUM_MESSAGES];
+	std::atomic_uint64_t first_frame_id;
+	std::atomic_uint64_t last_frame_id;
+
+	std::uint64_t message_headers[TOPIC_MAX_NUM_MESSAGES];
 
 	SynchronizationSharedData synchronization;
 
