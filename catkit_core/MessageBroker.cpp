@@ -119,7 +119,7 @@ void TopicHeader::CopyFrom(const TopicHeader &header)
 	next_frame_id.store(header.next_frame_id.load(std::memory_order_relaxed), std::memory_order_relaxed);
 	synchronization = header.synchronization;
 
-	std::copy(header.message_offsets, header.message_offsets + TOPIC_MAX_NUM_MESSAGES, message_offsets);
+	std::copy(header.message_headers, header.message_headers + TOPIC_MAX_NUM_MESSAGES, message_headers);
 	std::copy((char *)header.metadata_keys, (char *)header.metadata_keys + sizeof(metadata_keys), (char *)metadata_keys);
 }
 
