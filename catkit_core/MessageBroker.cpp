@@ -117,7 +117,7 @@ TopicHeader &TopicHeader::operator=(const TopicHeader &header)
 void TopicHeader::CopyFrom(const TopicHeader &header)
 {
 	next_frame_id.store(header.next_frame_id.load(std::memory_order_relaxed), std::memory_order_relaxed);
-	synchronization = header.synchronization;
+	event_shared_state = header.event_shared_state;
 
 	std::copy(header.message_headers, header.message_headers + TOPIC_MAX_NUM_MESSAGES, message_headers);
 	std::copy((char *)header.metadata_keys, (char *)header.metadata_keys + sizeof(metadata_keys), (char *)metadata_keys);
@@ -242,21 +242,21 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 
 		}
 
-		auto synchronization = GetSynchronization(subtopic);
+		auto event = GetEvent(subtopic);
 
 		// Copy over message header reference.
 		std::size_t message_header_index = message.m_Header - m_MessageHeaders;
 		topic_header->message_headers[message.m_Header->frame_id % TOPIC_MAX_NUM_MESSAGES] = message_header_index;
 
 		{
-			// Obtain a lock as we're about to signal the synchronization structure.
-			auto lock = SynchronizationLock(synchronization);
+			// Obtain a lock as we're about to signal the event structure.
+			auto lock = EventLockGuard(event);
 
 			// Make the message available.
 			fetch_max(topic_header->last_frame_id, message.m_Header->frame_id);
 
-			// Signal the synchronization structure.
-			synchronization->Signal();
+			// Signal the event structure.
+			event->Signal();
 		}
 	}
 
@@ -293,7 +293,7 @@ std::shared_ptr<FreeListAllocator> MessageBroker::GetAllocator(int8_t device_id)
 	return m_GpuPayloadAllocator[device_id];
 }
 
-std::shared_ptr<Synchronization> MessageBroker::GetSynchronization(std::string_view topic)
+std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 {
 	auto topic_header = m_TopicHeaders.Find(topic);
 
@@ -303,10 +303,10 @@ std::shared_ptr<Synchronization> MessageBroker::GetSynchronization(std::string_v
 	}
 
 	// Look up the synchronization structure (not the shared data).
-	if (m_Synchronizations.find(topic) == m_Synchronizations.end())
+	if (m_Events.find(topic) == m_Events.end())
 	{
-		m_Synchronizations[topic] = std::make_shared<Synchronization>(topic_header->synchronization);
+		m_Events[topic] = Event::Create(topic, &topic_header->event_shared_state);
 	}
 
-	return m_Synchronizations[topic];
+	return m_Events[topic];
 }

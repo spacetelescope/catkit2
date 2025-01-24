@@ -74,7 +74,7 @@ inline void EventConditionVariable::Unlock()
 }
 
 template<>
-inline void EventConditionVariable::CreateImpl(const std::string &id, EventConditionVariable::SharedState *shared_state)
+inline void EventConditionVariable::CreateImpl(std::string_view id, EventConditionVariable::SharedState *shared_state)
 {
     pthread_mutexattr_t mutex_attr;
 	pthread_mutexattr_init(&mutex_attr);
@@ -93,7 +93,7 @@ inline void EventConditionVariable::CreateImpl(const std::string &id, EventCondi
 }
 
 template<>
-inline void EventConditionVariable::OpenImpl(const std::string &id, EventConditionVariable::SharedState *shared_state)
+inline void EventConditionVariable::OpenImpl(std::string_view id, EventConditionVariable::SharedState *shared_state)
 {
 	// Nothing to do.
 }

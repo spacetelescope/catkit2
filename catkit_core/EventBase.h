@@ -4,7 +4,7 @@
 #include <functional>
 #include <stdexcept>
 #include <memory>
-#include <string>
+#include <string_view>
 
 enum class EventImplementationType
 {
@@ -38,8 +38,8 @@ public:
 	~EventImpl();
 
 	// Note: do not implement these functions for specific implementations.
-	static std::unique_ptr<EventImpl<Type>> Create(const std::string &id, SharedState *shared_state);
-	static std::unique_ptr<EventImpl<Type>> Open(const std::string &id, SharedState *shared_state);
+	static std::unique_ptr<EventImpl<Type>> Create(std::string_view id, SharedState *shared_state);
+	static std::unique_ptr<EventImpl<Type>> Open(std::string_view id, SharedState *shared_state);
 
 	// Note: implement the following functions for specific implementations.
 	inline void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());
@@ -49,8 +49,8 @@ public:
 	inline void Unlock();
 
 protected:
-	inline void CreateImpl(const std::string &id, SharedState *shared_state);
-	inline void OpenImpl(const std::string &id, SharedState *shared_state);
+	inline void CreateImpl(std::string_view id, SharedState *shared_state);
+	inline void OpenImpl(std::string_view id, SharedState *shared_state);
 
 	bool m_IsOwner;
 

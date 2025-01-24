@@ -91,7 +91,7 @@ inline void EventSemaphore::Signal()
 }
 
 template<>
-inline void EventSemaphore::CreateImpl(const std::string &id, SharedState *shared_state)
+inline void EventSemaphore::CreateImpl(std::string_view id, SharedState *shared_state)
 {
     m_LocalState.m_Semaphore = CreateSemaphore(NULL, 0, 9999, (id + ".sem").c_str());
 
@@ -102,7 +102,7 @@ inline void EventSemaphore::CreateImpl(const std::string &id, SharedState *share
 }
 
 template<>
-inline void EventSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
+inline void EventSemaphore::OpenImpl(std::string_view id, SharedState *shared_state)
 {
     m_LocalState.m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
 

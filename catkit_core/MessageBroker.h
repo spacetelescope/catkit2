@@ -2,7 +2,7 @@
 #define MESSAGE_BROKER_H
 
 #include "HashMap.h"
-#include "Synchronization.h"
+#include "Event.h"
 #include "FreeListAllocator.h"
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
@@ -82,7 +82,7 @@ struct TopicHeader
 
 	std::uint64_t message_headers[TOPIC_MAX_NUM_MESSAGES];
 
-	SynchronizationSharedData synchronization;
+	Event::SharedState event_shared_state;
 
 	char metadata_keys[METADATA_MAX_STRLEN][MAX_NUM_METADATA_ENTRIES];
 
@@ -166,7 +166,7 @@ private:
 	MessageBroker(); // TODO: Add parameters.
 
 public:
-	std::unique_ptr<MessageBroker> Create(); // TODO: Add parameters.
+	std::unique_ptr<MessageBroker> Create(void *metadata_buffer, std::vector<std::shared_ptr<Memory>> memory_blocks); // TODO: Add parameters.
 	std::unique_ptr<MessageBroker> Open(void *metadata_buffer);
 
 	Message PrepareMessage(const std::string &topic, size_t payload_size, int8_t device_id = -1);
@@ -181,7 +181,7 @@ private:
 	std::shared_ptr<FreeListAllocator> GetAllocator(int8_t device_id);
 	std::shared_ptr<Memory> GetMemory(int8_t device_id);
 
-	std::shared_ptr<Synchronization> GetSynchronization(std::string_view topic);
+	std::shared_ptr<Event> GetEvent(std::string_view topic);
 
 	MessageBrokerHeader &m_Header;
 
@@ -198,7 +198,7 @@ private:
 
 	UuidGenerator m_UuidGenerator;
 
-	std::map<std::string_view, std::shared_ptr<Synchronization>> m_Synchronizations;
+	std::map<std::string_view, std::shared_ptr<Event>> m_Events;
 };
 
 #endif // MESSAGE_BROKER_H
