@@ -13,13 +13,14 @@ Configuration
         simulated_service_type: accufiz_interferometer_sim
         interface: camera
         requires_safety: false
-        height: 1967
-        width: 1970
-        sim_data: C:/path/to/example.h5
-        mask: C:/path/to/4d.mask
+
+        ip_address: localhost:8080
         server_path: C:/path/to/data
         local_path: C:/path/to/data
-        ip_address: localhost:8080
+        sim_data: C:/path/to/example.h5
+        mask: C:/path/to/4d.mask
+        height: 1967
+        width: 1970
         save_h5: true
         save_fits: false
         num_avg: 2
