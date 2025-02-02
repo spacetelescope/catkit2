@@ -11,6 +11,7 @@ The child hardware service is ``BmcDeformableMirrorHardware``, and the child sim
 ``BmcDeformableMirrorSim``. While the simulated service talks directly to a simulator, the hardware service talks to the
 actual hardware. The latter performs a conversion to the actual hardware device command by reading an optional command
 starting index ``device_command_index`` from the service configuration. This parameter has three value options:
+
 - *Undefined*: Zero will be assumed as the hardware command index.
 - *Integer*: If only one device is controlled by the service, using a non-zero starting index for its hardware command.
 - *List of integers*: If multiple devices with the same number of actuators are controlled by the service.

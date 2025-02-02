@@ -11,8 +11,7 @@ and Downloads". It is also shipped with the device on a CD. Installation instruc
 
 The Python API used to control the device is `dcps <https://github.com/sgoadhouse/dcps>`_
 
-Notes:
-
+.. note::
 - The device automatically applies a remote interface lock when it is commanded for the first time
 (see `manual <https://resources.aimtti.com/manuals/New_PL+PL-P_Series_Instruction_Manual-Iss18.pdf>`_, page 23).
 This is also noted in the `dcps library <https://github.com/sgoadhouse/dcps/blob/afbe687236bfa6176240e26790dd26b6c395b515/dcps/AimTTiPLP.py#L85>`_.
