@@ -1,7 +1,15 @@
 Newport Motor Controller
 ========================
 
-This service controls a Newport XPS motor controller.
+This service controls a Newport XPS motor controller which controls a set of motors identified by their motor IDs. These motor
+names are defined in the configuration file and have to follow the naming given to them through the Newport control interface.
+
+Each motor can define an arbitrary number of named positions. These named positions can can also call each other in a chain. This
+is useful for being able to save motor positions associated with different experiment modes.
+
+- Something about command tolerances (TODO)
+
+- Something about the concrete model used so far with catkit2, on HiCAT. (TODO)
 
 Configuration
 -------------
