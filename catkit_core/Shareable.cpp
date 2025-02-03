@@ -18,19 +18,19 @@ std::unique_ptr<Shareable> Open(void *memory_block)
 	switch (type)
 	{
 	case ShareableType::DataStream:
-		return Shareable::Open<DataStream>(reinterpret_cast<DataStream::SharedState *>(ptr));
+		return DataStream::Open(reinterpret_cast<DataStream::SharedState *>(ptr));
 	case ShareableType::EventConditionVariable:
-		return Shareable::Open<EventConditionVariable>(reinterpret_cast<EventConditionVariable::SharedState *>(ptr));
+		return EventConditionVariable::Open(reinterpret_cast<EventConditionVariable::SharedState *>(ptr));
 	case ShareableType::EventSemaphore:
-		return Shareable::Open<EventSemaphore>(reinterpret_cast<EventSemaphore::SharedState *>(ptr));
+		return EventSemaphore::Open(reinterpret_cast<EventSemaphore::SharedState *>(ptr));
 	case ShareableType::FreeListAllocator:
-		return Shareable::Open<FreeListAllocator>(reinterpret_cast<FreeListAllocator::SharedState *>(ptr));
+		return FreeListAllocator::Open(reinterpret_cast<FreeListAllocator::SharedState *>(ptr));
 	case ShareableType::LocalMemory:
-		return Shareable::Open<LocalMemory>(reinterpret_cast<LocalMemory::SharedState *>(ptr));
+		return LocalMemory::Open(reinterpret_cast<LocalMemory::SharedState *>(ptr));
 	case ShareableType::PoolAllocator:
-		return Shareable::Open<PoolAllocator>(reinterpret_cast<PoolAllocator::SharedState *>(ptr));
+		return PoolAllocator::Open(reinterpret_cast<PoolAllocator::SharedState *>(ptr));
 	case ShareableType::SharedMemory:
-		return Shareable::Open<SharedMemory>(reinterpret_cast<SharedMemory::SharedState *>(ptr));
+		return SharedMemory::Open(reinterpret_cast<SharedMemory::SharedState *>(ptr));
 	default:
 		throw std::runtime_error("Unknown shareable type.");
 	}
