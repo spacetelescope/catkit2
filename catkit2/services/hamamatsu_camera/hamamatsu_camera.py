@@ -9,6 +9,7 @@ import sys
 import threading
 import numpy as np
 from catkit2.testbed.service import Service
+from catkit2.testbed.tracing import trace_interval
 
 try:
     sdk_path = os.environ.get('CATKIT_DCAM_SDK_PATH')
@@ -223,15 +224,16 @@ class HamamatsuCamera(Service):
 
                 img = self.cam.buf_getlastframedata()
 
-                if i == 0:
-                    # The first frame often contains systematic errors, so drop it.
-                    self.log.info('Dropping first camera frame')
+                with trace_interval('processing frame'):
+                    if i == 0:
+                        # The first frame often contains systematic errors, so drop it.
+                        self.log.info('Dropping first camera frame')
+                        i += 1
+                        continue
+
+                    self.images.submit_data(img.astype('float32'))
+
                     i += 1
-                    continue
-
-                self.images.submit_data(img.astype('float32'))
-
-                i += 1
 
         finally:
             # Stop acquisition.
