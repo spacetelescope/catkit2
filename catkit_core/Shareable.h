@@ -20,6 +20,14 @@ struct SharedState
 {
 };
 
+/*
+ * A base class for all shareable objects.
+ *
+ * A shareable object is a object that operates on a shared memory block.
+ * It can use the shared state to communicate with itself on other processes
+ * or other threads. The attributes of a shareable object are stored locally.
+ * A shareable object should be able to be opened from its shared state.
+ */
 class Shareable
 {
 protected:
@@ -38,10 +46,6 @@ public:
 
 	virtual std::size_t GetSharedStateSize() const = 0;
 	virtual ShareableType GetType() const = 0;
-
-private:
-	template <typename Derived>
-	static std::unique_ptr<Derived> Open(typename Derived::SharedState *shared_state);
 };
 
 template<enum ShareableType Type>
@@ -55,7 +59,6 @@ protected:
 
 public:
 	std::size_t GetSharedStateSize() const override;
-
 	ShareableType GetType() const override;
 
 protected:
