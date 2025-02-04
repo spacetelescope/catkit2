@@ -22,15 +22,17 @@ SharedMemory::~SharedMemory()
 	}
 }
 
-std::shared_ptr<SharedMemory> SharedMemory::Create(const std::string &id, size_t num_bytes_in_buffer)
+std::unique_ptr<SharedMemory> SharedMemory::Create(SharedState *shared_state, std::string_view id, size_t num_bytes_in_buffer)
 {
+	std::string fname = std::string(id) + ".mem";
+
 #ifdef _WIN32
 	FileObject file = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD) num_bytes_in_buffer, (id + ".mem").c_str());
 
 	if (file == NULL)
 		throw std::runtime_error("Something went wrong while creating shared memory.");
 #else
-	FileObject file = shm_open((id + ".mem").c_str(), O_CREAT | O_RDWR | O_EXCL, 0666);
+	FileObject file = shm_open(fname.c_str(), O_CREAT | O_RDWR | O_EXCL, 0666);
 
 	if (file < 0)
 		throw std::runtime_error("Something went wrong while creating shared memory.");
@@ -39,35 +41,47 @@ std::shared_ptr<SharedMemory> SharedMemory::Create(const std::string &id, size_t
 
 	if (res < 0)
 	{
-		shm_unlink((id + ".mem").c_str());
+		shm_unlink(fname.c_str());
 		close(file);
 
 		throw std::runtime_error("Something went wrong while setting the size of shared memory.");
 	}
 #endif
 
-	return std::shared_ptr<SharedMemory>(new SharedMemory(id, file, true));
+	// Copy id to shared state.
+
+	return std::unique_ptr<SharedMemory>(new SharedMemory(shared_state, file, true));
 }
 
-std::shared_ptr<SharedMemory> SharedMemory::Open(const std::string &id)
+std::unique_ptr<SharedMemory> SharedMemory::Open(std::string_view id)
 {
+	std::string fname = std::string(id) + ".mem";
+
 #ifdef _WIN32
-	FileObject file = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, (id + ".mem").c_str());
+	FileObject file = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, fname.c_str());
 
 	if (file == NULL)
 		throw std::runtime_error("Something went wrong while opening shared memory.");
 #else
-	FileObject file = shm_open((id + ".mem").c_str(), O_RDWR, 0666);
+	FileObject file = shm_open(fname.c_str(), O_RDWR, 0666);
 
 	if (file < 0)
 		throw std::runtime_error("Something went wrong while opening shared memory.");
 #endif
 
-	return std::shared_ptr<SharedMemory>(new SharedMemory(id, file, false));
+	return std::unique_ptr<SharedMemory>(new SharedMemory(nullptr, file, false));
 }
 
-SharedMemory::SharedMemory(const std::string &id, FileObject file, bool is_owner)
-	: m_File(file), m_Id(id), m_IsOwner(is_owner), m_Buffer(nullptr)
+std::unique_ptr<SharedMemory> SharedMemory::Open(SharedState *shared_state)
+{
+	std::string_view id{shared_state->id};
+
+	return Open(id);
+}
+
+SharedMemory::SharedMemory(SharedState *shared_state, FileObject file, bool is_owner)
+	: m_File(file), m_Id(shared_state->id), m_IsOwner(is_owner), m_Buffer(nullptr),
+	ShareableImpl(shared_state)
 {
 #ifdef _WIN32
 	m_Buffer = MapViewOfFile(m_File, FILE_MAP_ALL_ACCESS, 0, 0, 0);
