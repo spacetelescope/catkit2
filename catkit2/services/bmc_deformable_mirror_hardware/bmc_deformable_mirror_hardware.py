@@ -30,12 +30,12 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
 
     def open(self):
         self.device = bmc.BmcDm()
-        self.device.enable_high_res(enable=self.enable_high_resolution)
         status = self.device.open_dm(self.serial_number)
 
         if status != bmc.NO_ERR:
             raise RuntimeError(f'Failed to connect: {self.dm.error_string(status)}.')
 
+        self.device.enable_high_res(enable=self.enable_high_resolution)
         self.device_command_length = self.device.num_actuators()
 
         super().open()
