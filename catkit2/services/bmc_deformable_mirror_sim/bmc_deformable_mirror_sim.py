@@ -3,8 +3,8 @@ import threading
 
 
 class BmcDeformableMirrorSim(BmcDeformableMirror):
-    def __init__(self):
-        super().__init__('bmc_deformable_mirror_sim')
+    def __init__(self, service_type='bmc_deformable_mirror_sim'):
+        super().__init__(service_type)
 
         self.lock = threading.Lock()
 

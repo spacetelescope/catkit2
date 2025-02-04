@@ -17,8 +17,8 @@ except ImportError:
 
 
 class BmcDeformableMirrorHardware(BmcDeformableMirror):
-    def __init__(self):
-        super().__init__('bmc_deformable_mirror_hardware')
+    def __init__(self, service_type='bmc_deformable_mirror_hardware'):
+        super().__init__(service_type)
 
         self.device_command_index = self.config.get('device_command_index', 0)
         self.enable_high_resolution = self.config.get('enable_high_resolution', False)
