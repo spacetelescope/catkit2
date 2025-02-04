@@ -91,7 +91,10 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 
 	auto stream_id = MakeStreamId(stream_name, service_id, GetProcessId());
 
-	auto shared_memory = SharedMemory::Create(stream_id, num_bytes_in_buffer);
+	// Temporary hack.
+	SharedMemory::SharedState shared_state;
+
+	std::shared_ptr<SharedMemory> shared_memory = SharedMemory::Create(&shared_state, stream_id, num_bytes_in_buffer);
 	auto data_stream = std::shared_ptr<DataStream>(new DataStream(stream_id, shared_memory, true));
 
 	auto header = data_stream->m_Header;
@@ -130,7 +133,9 @@ std::shared_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 
 std::shared_ptr<DataStream> DataStream::Open(const std::string &stream_id)
 {
-	auto shared_memory = SharedMemory::Open(stream_id);
+	SharedMemory::SharedState shared_state;
+
+	std::shared_ptr<SharedMemory> shared_memory = SharedMemory::Open(stream_id);
 	auto data_stream = std::shared_ptr<DataStream>(new DataStream(stream_id, shared_memory, false));
 
 	if (strcmp(data_stream->m_Header->m_Version, CURRENT_DATASTREAM_VERSION) != 0)
