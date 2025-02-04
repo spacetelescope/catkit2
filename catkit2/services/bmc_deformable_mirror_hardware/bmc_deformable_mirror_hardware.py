@@ -21,6 +21,7 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
         super().__init__('bmc_deformable_mirror_hardware')
 
         self.device_command_index = self.config.get('device_command_index', 0)
+        self.enable_high_resolution = self.config.get('enable_high_resolution', False)
 
         if not isinstance(self.device_command_index, list):
             self.device_command_index = [self.device_command_index]
@@ -34,6 +35,7 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
         if status != bmc.NO_ERR:
             raise RuntimeError(f'Failed to connect: {self.dm.error_string(status)}.')
 
+        self.device.enable_high_res(enable=self.enable_high_resolution)
         self.device_command_length = self.device.num_actuators()
 
         super().open()
