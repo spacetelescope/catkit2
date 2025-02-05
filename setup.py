@@ -190,7 +190,6 @@ setup(
             'zwo_camera = catkit2.services.zwo_camera.zwo_camera',
         ],
         'catkit2.proxies': [
-            'bmc_dm = catkit2.testbed.proxies.bmc_dm:BmcDmProxy',
             'camera = catkit2.testbed.proxies.camera:CameraProxy',
             'deformable_mirror = catkit2.testbed.proxies.deformable_mirror:DeformableMirrorProxy',
             'flip_mount = catkit2.testbed.proxies.flip_mount:FlipMountProxy',
