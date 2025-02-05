@@ -1,4 +1,5 @@
 from ..testbed.service import Service
+from catkit2.testbed.tracing import trace_interval
 
 import threading
 import numpy as np
@@ -116,13 +117,15 @@ class DeformableMirrorService(Service):
 
         This co-adds all the DM commands from each channel and applies it to the DM.
         '''
-        # Add up all channels to get the total surface.
-        total_surface = 0
-        for stream in self.channels.values():
-            total_surface += stream.get_latest_frame().data
+        with trace_interval('update dm surface'):
+            with trace_interval('compute total surface'):
+                # Add up all channels to get the total surface.
+                total_surface = 0
+                for stream in self.channels.values():
+                    total_surface += stream.get_latest_frame().data
 
-        # Apply the command on the DM.
-        self.send_surface(total_surface)
+            # Apply the command on the DM.
+            self.send_surface(total_surface)
 
     def send_surface(self, surface):
         '''Send a surface map to the DM(s).

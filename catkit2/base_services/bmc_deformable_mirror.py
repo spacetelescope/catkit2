@@ -1,4 +1,5 @@
 from catkit2.base_services.deformable_mirror import DeformableMirrorService
+from catkit2.testbed.tracing import trace_interval
 
 import numpy as np
 from astropy.io import fits
@@ -47,14 +48,19 @@ class BmcDeformableMirror(DeformableMirrorService):
         surface : ndarray
             The requested surface of the DM(s).
         '''
-        self.surface = surface
+        with trace_interval('send surface'):
+            self.surface = surface
 
-        # Send voltages to the device.
-        self.send_to_device()
+            # Send voltages to the device.
+            self.send_to_device()
 
-        # Submit discretized surface and voltages to data streams.
-        self.total_surface.submit_data(self.discretized_surface)
-        self.total_voltage.submit_data(self.discretized_voltages)
+            with trace_interval('compute voltage'):
+                discretized_surface = self.discretized_surface
+                discretized_voltages = self.discretized_voltages
+
+            # Submit discretized surface and voltages to data streams.
+            self.total_surface.submit_data(discretized_surface)
+            self.total_voltage.submit_data(discretized_voltages)
 
     def send_to_device(self):
         '''Send the surface to the simulated/real hardware.
