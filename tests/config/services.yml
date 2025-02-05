@@ -1,9 +1,9 @@
 dummy_dm_service:
   service_type: dummy_dm_service
   requires_safety: false
-  interface: bmc_dm
+  interface: deformable_mirror
 
-  num_actuators: 952 
+  device_actuator_mask_fname: !path ../data/boston/TBD.fits
   dm_shape: 2048
 
 dummy_service:
