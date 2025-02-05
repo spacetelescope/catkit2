@@ -54,9 +54,13 @@ class BmcDeformableMirror(DeformableMirrorService):
             # Send voltages to the device.
             self.send_to_device()
 
+            with trace_interval('compute voltage'):
+                discretized_surface = self.discretized_surface
+                discretized_voltages = self.discretized_voltages
+
             # Submit discretized surface and voltages to data streams.
-            self.total_surface.submit_data(self.discretized_surface)
-            self.total_voltage.submit_data(self.discretized_voltages)
+            self.total_surface.submit_data(discretized_surface)
+            self.total_voltage.submit_data(discretized_voltages)
 
     def send_to_device(self):
         '''Send the surface to the simulated/real hardware.
