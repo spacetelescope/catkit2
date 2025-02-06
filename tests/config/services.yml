@@ -3,7 +3,7 @@ dummy_dm_service:
   requires_safety: false
   interface: deformable_mirror
 
-  device_actuator_mask_fname: !path ../data/boston/TBD.fits
+  device_actuator_mask_fname: !path ../data/boston/dm_mask.fits
 
 dummy_service:
   service_type: dummy_service
