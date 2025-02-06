@@ -9,6 +9,7 @@
 #include "SharedMemory.h"
 #include "Event.h"
 #include "Tensor.h"
+#include "Shareable.h"
 
 const char * const CURRENT_DATASTREAM_VERSION = "0.2";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
@@ -47,6 +48,14 @@ struct DataStreamHeader
 	double m_FrameRateCounter;
 
 	Event::SharedState m_EventSharedState;
+
+	SharedMemory::SharedState m_BufferSharedState;
+};
+
+template<>
+struct SharedState<ShareableType::DataStream>
+{
+	DataStreamHeader header;
 };
 
 class DataFrame : public Tensor
@@ -62,7 +71,7 @@ enum BufferHandlingMode
 	BM_OLDEST_FIRST_OVERWRITE
 };
 
-class DataStream
+class DataStream : public ShareableImpl<ShareableType::DataStream>
 {
 private:
 	DataStream(const std::string &stream_id, std::shared_ptr<SharedMemory> shared_memory, bool create);
@@ -70,9 +79,9 @@ private:
 public:
 	~DataStream();
 
-	static std::shared_ptr<DataStream> Create(const std::string &stream_name, const std::string &service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::shared_ptr<DataStream> Create(const std::string &stream_name, const std::string &service_id, DataType type, std::initializer_list<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::shared_ptr<DataStream> Open(const std::string &stream_id);
+	static std::unique_ptr<DataStream> Create(const std::string &stream_name, const std::string &service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::unique_ptr<DataStream> Open(const std::string &stream_id);
+	static std::unique_ptr<DataStream> Open(const DataStream::SharedState *shared_state);
 
 	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
