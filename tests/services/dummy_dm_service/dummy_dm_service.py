@@ -8,13 +8,13 @@ class DummyDmService(Service):
         super().__init__('dummy_dm_service')
 
         self.channel_names = ['correction_howfs', 'correction_lowfs', 'aberration', 'atmosphere']
-        self.num_actuators = self.config['num_actuators']
+        self.num_actuators_all_dms = self.config['num_actuators_all_dms']
 
     def open(self):
         # Make channels streamable
         for channel in self.channel_names:
-            setattr(self, channel, self.make_data_stream(channel, 'float64', [self.num_actuators], 20))
-            getattr(self, channel).submit_data(np.zeros(self.num_actuators,))
+            setattr(self, channel, self.make_data_stream(channel, 'float64', [self.num_actuators_all_dms], 20))
+            getattr(self, channel).submit_data(np.zeros(self.num_actuators_all_dms,))
 
     def main(self):
         while not self.should_shut_down:

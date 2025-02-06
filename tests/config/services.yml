@@ -4,7 +4,7 @@ dummy_dm_service:
   interface: deformable_mirror
 
   device_actuator_mask_fname: !path ../data/dm_mask.fits
-  num_actuators: 1904
+  num_actuators_all_dms: 1904
 
 dummy_service:
   service_type: dummy_service
