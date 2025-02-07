@@ -5,8 +5,8 @@ def test_flatten_single_channel(testbed):
     # Test with single channel
     dm_proxy = testbed.dummy_dm_service
 
-    expected_zero_command = np.zeros(dm_proxy.config['dm_shape'])
-    initial_command = np.ones(dm_proxy.config['dm_shape'])
+    expected_zero_command = np.zeros(dm_proxy.num_dms * dm_proxy.num_actuators)
+    initial_command = np.ones(dm_proxy.num_dms * dm_proxy.num_actuators)
     dm_proxy.correction_howfs.submit_data(initial_command)
 
     previous_dm_command = dm_proxy.flatten_channels('correction_howfs')
@@ -19,14 +19,14 @@ def test_flatten_multiple_channels(testbed):
     # Flatten multiple channels
     dm_proxy = testbed.dummy_dm_service
 
-    initial_command = np.ones(dm_proxy.config['dm_shape'])
+    initial_command = np.ones(dm_proxy.num_dms * dm_proxy.num_actuators)
     dm_proxy.correction_lowfs.submit_data(initial_command)
     dm_proxy.atmosphere.submit_data(initial_command)
     dm_proxy.aberration.submit_data(initial_command)
     num_channels_summed = 3
 
-    expected_summed_command = num_channels_summed*initial_command
-    expected_zero_command = np.zeros(dm_proxy.config['dm_shape'])
+    expected_summed_command = num_channels_summed * initial_command
+    expected_zero_command = np.zeros(dm_proxy.num_dms * dm_proxy.num_actuators)
 
     move_command = dm_proxy.flatten_channels(['correction_lowfs', 'atmosphere', 'aberration'])
     assert np.allclose(move_command, expected_summed_command)

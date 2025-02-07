@@ -150,8 +150,6 @@ setup(
             'allied_vision_camera = catkit2.services.allied_vision_camera.allied_vision_camera',
             'bmc_deformable_mirror_hardware = catkit2.services.bmc_deformable_mirror_hardware.bmc_deformable_mirror_hardware',
             'bmc_deformable_mirror_sim = catkit2.services.bmc_deformable_mirror_sim.bmc_deformable_mirror_sim',
-            'bmc_dm = catkit2.services.bmc_dm.bmc_dm',
-            'bmc_dm_sim = catkit2.services.bmc_dm_sim.bmc_dm_sim',
             'camera_sim = catkit2.services.camera_sim.camera_sim',
             'dummy_camera = catkit2.services.dummy_camera.dummy_camera',
             'empty_service = catkit2.services.empty_service.empty_service',
@@ -192,7 +190,6 @@ setup(
             'zwo_camera = catkit2.services.zwo_camera.zwo_camera',
         ],
         'catkit2.proxies': [
-            'bmc_dm = catkit2.testbed.proxies.bmc_dm:BmcDmProxy',
             'camera = catkit2.testbed.proxies.camera:CameraProxy',
             'deformable_mirror = catkit2.testbed.proxies.deformable_mirror:DeformableMirrorProxy',
             'flip_mount = catkit2.testbed.proxies.flip_mount:FlipMountProxy',
