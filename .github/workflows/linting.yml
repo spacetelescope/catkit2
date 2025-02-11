@@ -2,8 +2,6 @@ name: Linting
 
 on:
   workflow_dispatch:
-    branches:
-      - develop
   pull_request:
     types: [opened, synchronize, ready_for_review]
     branches:
@@ -12,7 +10,7 @@ on:
 jobs:
   linter:
     name: Flake8
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v4
