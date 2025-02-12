@@ -21,6 +21,7 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
     def __init__(self, service_type='bmc_deformable_mirror_hardware'):
         super().__init__(service_type)
 
+        self.device_id = self.config.get('device_id')
         self.device_command_index = self.config.get('device_command_index', 0)
         self.enable_high_resolution = self.config.get('enable_high_resolution', False)
 
@@ -31,6 +32,7 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
 
     def open(self):
         self.device = bmc.BmcDm()
+        status1 = self.device.set_device_id(self.device_id)
         status = self.device.open_dm(self.serial_number)
 
         if status != bmc.NO_ERR:
