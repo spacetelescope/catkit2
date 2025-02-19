@@ -61,6 +61,11 @@ Service::Service(string service_type, string service_id, int service_port, int t
 
 Service::~Service()
 {
+#ifdef USE_MILK
+	// Close any Cacao streams that were opened.
+	for (const auto &[name, stream] : m_CacaoStreams)
+		ImageStreamIO_closeIm(stream.get());
+#endif // USE_MILK
 }
 
 void Service::Run(void (*error_check)())
@@ -361,6 +366,16 @@ std::shared_ptr<DataStream> Service::GetDataStream(const std::string &stream_nam
 		return nullptr;
 }
 
+std::shared_ptr<CacaoStream> Service::GetCacaoStream(const std::string &stream_name) const
+{
+	auto i = m_CacaoStreams.find(stream_name);
+
+	if (i != m_CacaoStreams.end())
+		return i->second;
+	else
+		return nullptr;
+}
+
 json Service::GetConfig() const
 {
 	return m_Config;
@@ -410,6 +425,21 @@ std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, Dat
 	return stream;
 }
 
+std::shared_ptr<CacaoStream> Service::UseCacaoStream(std::string stream_name, std::string cacao_fname)
+{
+#ifndef USE_MILK
+	throw std::runtime_error("Milk was not installed in this binary.");
+#else
+	auto stream = std::make_shared<CacaoStream>();
+	ImageStreamIO_openIm(stream.get(), cacao_fname.c_str());
+	// TODO: perform error check.
+
+	m_CacaoStreams[stream_name] = stream;
+
+	return stream;
+#endif // USE_MILK
+}
+
 std::shared_ptr<DataStream> Service::ReuseDataStream(std::string stream_name, std::string stream_id)
 {
 	LOG_DEBUG("Reusing data stream \"" + stream_name + "\".");
@@ -447,6 +477,11 @@ string Service::HandleGetInfo(const string &data)
 
 	for (auto& [key, value] : m_DataStreams)
 		(*reply.mutable_datastream_ids())[key] = value->GetStreamId();
+
+#ifdef USE_MILK
+	for (auto& [key, value] : m_CacaoStreams)
+		(*reply.mutable_cacaostream_ids())[key] = std::string(value->md->name);
+#endif // USE_MILK
 
 	reply.set_heartbeat_stream_id(m_Heartbeat->GetStreamId());
 
