@@ -27,6 +27,8 @@ SharedMemory::~SharedMemory()
 
 std::unique_ptr<SharedMemory> SharedMemory::Create(SharedState *shared_state, std::string_view fname, size_t num_bytes_in_buffer)
 {
+	std::cout << "Creating shared memory " << fname << std::endl;
+
 	std::string fname_string = std::string(fname);
 
 #ifdef _WIN32
@@ -51,6 +53,12 @@ std::unique_ptr<SharedMemory> SharedMemory::Create(SharedState *shared_state, st
 	}
 #endif
 
+	if (shared_state)
+	{
+		std::fill(shared_state->fname, shared_state->fname + SHARED_MEMORY_FNAME_SIZE, '\0');
+		fname.copy(shared_state->fname, SHARED_MEMORY_FNAME_SIZE - 1);
+	}
+
 	return std::unique_ptr<SharedMemory>(new SharedMemory(fname, file, true));
 }
 
@@ -60,6 +68,11 @@ std::unique_ptr<SharedMemory> SharedMemory::Create(SharedState *shared_state, si
 	std::string fname = std::to_string(GetTimeStamp()) + ".mem";
 
 	return Create(shared_state, fname, num_bytes_in_buffer);
+}
+
+std::unique_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_t num_bytes_in_buffer)
+{
+	return Create(nullptr, fname, num_bytes_in_buffer);
 }
 
 std::unique_ptr<SharedMemory> SharedMemory::Open(std::string_view fname)
