@@ -74,14 +74,15 @@ enum BufferHandlingMode
 class DataStream : public ShareableImpl<ShareableType::DataStream>
 {
 private:
-	DataStream(const std::string &stream_id, std::shared_ptr<SharedMemory> shared_memory, bool create);
+	DataStream(SharedState *shared_state, std::unique_ptr<SharedMemory> buffer_shared_memory, std::unique_ptr<SharedMemory> header_shared_memory);
 
 public:
 	~DataStream();
 
-	static std::unique_ptr<DataStream> Create(const std::string &stream_name, const std::string &service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::unique_ptr<DataStream> Open(const std::string &stream_id);
-	static std::unique_ptr<DataStream> Open(const DataStream::SharedState *shared_state);
+	static std::unique_ptr<DataStream> Create(std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::unique_ptr<DataStream> Create(SharedState *shared_state, std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer, std::unique_ptr<SharedMemory> header_shared_memory = nullptr);
+	static std::unique_ptr<DataStream> Open(SharedState *shared_state, std::unique_ptr<SharedMemory> header_shared_memory = nullptr);
+	static std::unique_ptr<DataStream> Open(std::string_view stream_id);
 
 	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
@@ -122,7 +123,6 @@ public:
 	double GetFrameRate();
 
 private:
-	std::shared_ptr<SharedMemory> m_SharedMemory;
 	DataStreamHeader *m_Header;
 	char *m_Buffer;
 
@@ -130,6 +130,9 @@ private:
 
 	size_t m_NextFrameIdToRead;
 	BufferHandlingMode m_BufferHandlingMode;
+
+	std::unique_ptr<SharedMemory> m_HeaderSharedMemory;
+	std::unique_ptr<SharedMemory> m_BufferSharedMemory;
 };
 
 #endif // DATASTREAM_H
