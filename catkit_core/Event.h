@@ -51,7 +51,7 @@ private:
 const int EVENT_ID_MAX_SIZE = 256;
 
 template<>
-struct SharedState<ShareableType::Event>
+struct SharedStateInternal<ShareableType::Event>
 {
 	char m_Id[EVENT_ID_MAX_SIZE];
 

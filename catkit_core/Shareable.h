@@ -15,7 +15,7 @@ enum class ShareableType
 };
 
 template<enum ShareableType Type>
-struct SharedState
+struct SharedStateInternal
 {
 };
 
@@ -51,7 +51,7 @@ template<enum ShareableType Type>
 class ShareableImpl : public Shareable
 {
 public:
-	using SharedState = SharedState<Type>;
+	using SharedState = SharedStateInternal<Type>;
 
 protected:
 	ShareableImpl(SharedState *shared_state);
