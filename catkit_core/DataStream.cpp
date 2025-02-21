@@ -129,8 +129,6 @@ std::unique_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 
 std::unique_ptr<DataStream> DataStream::Open(const std::string &stream_id)
 {
-	SharedMemory::SharedState shared_state;
-
 	std::shared_ptr<SharedMemory> shared_memory = SharedMemory::Open(stream_id);
 	auto data_stream = std::unique_ptr<DataStream>(new DataStream(stream_id, shared_memory, false));
 
