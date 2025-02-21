@@ -537,15 +537,19 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_static("create", [](std::string &stream_name, std::string &service_id, std::string &type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 		{
 			DataType dtype = GetDataTypeFromString(type);
-			return DataStream::Create(stream_name, service_id, dtype, dimensions, num_frames_in_buffer);
+			auto stream = DataStream::Create(stream_name, service_id, dtype, dimensions, num_frames_in_buffer);
+
+			return std::shared_ptr<DataStream>(std::move(stream));
 		})
 		.def_static("open", [](std::string &stream_id)
 		{
-			return DataStream::Open(stream_id);
+			auto stream = DataStream::Open(stream_id);
+			return std::shared_ptr<DataStream>(std::move(stream));
 		})
 		.def("copy", [](DataStream &s)
 		{
-			return DataStream::Open(s.GetStreamId());
+			auto stream = DataStream::Open(s.GetStreamId());
+			return std::shared_ptr<DataStream>(std::move(stream));
 		})
 		.def("request_new_frame", &DataStream::RequestNewFrame)
 		.def("submit_frame", &DataStream::SubmitFrame)
