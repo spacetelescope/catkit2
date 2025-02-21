@@ -7,8 +7,7 @@
 enum class ShareableType
 {
 	DataStream,
-	EventSemaphore,
-	EventConditionVariable,
+	Event,
 	FreeListAllocator,
 	LocalMemory,
 	PoolAllocator,
