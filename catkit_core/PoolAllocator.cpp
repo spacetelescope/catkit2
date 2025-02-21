@@ -4,25 +4,26 @@
 
 const std::uint8_t VERSION[4] = {0, 0, 0, 0};
 
-PoolAllocator::PoolAllocator(Header *header, std::atomic<BlockHandle> *next)
-	: m_Header(*header),
+PoolAllocator::PoolAllocator(SharedState *shared_state, std::atomic<BlockHandle> *next)
+	: m_Header(shared_state->header),
 	m_Next(next),
 	m_Capacity(m_Header.capacity),
-	m_Head(m_Header.head)
+	m_Head(m_Header.head),
+	ShareableImpl<ShareableType::PoolAllocator>(shared_state, shared_state->header.capacity * sizeof(std::atomic<BlockHandle>))
 {
 }
 
-void PoolAllocator::GetMemoryLayout(void *metadata_buffer, std::atomic<BlockHandle> **next)
+void PoolAllocator::GetMemoryLayout(SharedState *shared_state, std::atomic<BlockHandle> **next)
 {
-	*next = reinterpret_cast<std::atomic<BlockHandle> *>(static_cast<char *>(metadata_buffer) + sizeof(Header));
+	*next = reinterpret_cast<std::atomic<BlockHandle> *>(reinterpret_cast<char *>(shared_state) + sizeof(Header));
 }
 
-std::shared_ptr<PoolAllocator> PoolAllocator::Create(void *metadata_buffer, std::uint32_t capacity)
+std::unique_ptr<PoolAllocator> PoolAllocator::Create(SharedState *shared_state, std::uint32_t capacity)
 {
-	Header *header = static_cast<PoolAllocator::Header *>(metadata_buffer);
+	Header *header = &shared_state->header;
 
 	std::atomic<BlockHandle> *next;
-	GetMemoryLayout(metadata_buffer, &next);
+	GetMemoryLayout(shared_state, &next);
 
 	// Set version and capacity.
 	std::copy(VERSION, VERSION + sizeof(VERSION), header->version);
@@ -43,17 +44,15 @@ std::shared_ptr<PoolAllocator> PoolAllocator::Create(void *metadata_buffer, std:
 		}
 	}
 
-	return std::shared_ptr<PoolAllocator>(new PoolAllocator(header, next));
+	return std::unique_ptr<PoolAllocator>(new PoolAllocator(shared_state, next));
 }
 
-std::shared_ptr<PoolAllocator> PoolAllocator::Open(void *metadata_buffer)
+std::unique_ptr<PoolAllocator> PoolAllocator::Open(SharedState *shared_state)
 {
-	Header *header = static_cast<PoolAllocator::Header *>(metadata_buffer);
-
 	std::atomic<BlockHandle> *next;
-	GetMemoryLayout(metadata_buffer, &next);
+	GetMemoryLayout(shared_state, &next);
 
-	return std::shared_ptr<PoolAllocator>(new PoolAllocator(header, next));
+	return std::unique_ptr<PoolAllocator>(new PoolAllocator(shared_state, next));
 }
 
 std::size_t PoolAllocator::CalculateMetadataBufferSize(std::uint32_t capacity)
