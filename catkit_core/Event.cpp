@@ -68,6 +68,8 @@ std::unique_ptr<Event> Event::Create(std::string id, SharedState *shared_state)
 {
 	std::unique_ptr<Event> event(new Event(shared_state));
 
+	id.copy(shared_state->m_Id, EVENT_ID_MAX_SIZE);
+
 	// Create all event types.
 	event->m_ConditionVariable = EventConditionVariable::Create(id, &shared_state->m_ConditionVariable);
 	event->m_Futex = EventFutex::Create(id, &shared_state->m_Futex);
@@ -77,9 +79,11 @@ std::unique_ptr<Event> Event::Create(std::string id, SharedState *shared_state)
 	return event;
 }
 
-std::unique_ptr<Event> Event::Open(std::string id, SharedState *shared_state)
+std::unique_ptr<Event> Event::Open(SharedState *shared_state)
 {
 	std::unique_ptr<Event> event(new Event(shared_state));
+
+	std::string id(shared_state->m_Id);
 
 	// Open all event types.
 	event->m_ConditionVariable = EventConditionVariable::Open(id, &shared_state->m_ConditionVariable);

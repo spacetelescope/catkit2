@@ -141,7 +141,7 @@ std::unique_ptr<DataStream> DataStream::Open(const std::string &stream_id)
 	// Don't read frames that already are available at the time the data stream is opened.
 	data_stream->m_NextFrameIdToRead = data_stream->m_Header->m_LastId;
 
-	data_stream->m_Event = Event::Open(stream_id, &(data_stream->m_Header->m_EventSharedState));
+	data_stream->m_Event = Event::Open(&(data_stream->m_Header->m_EventSharedState));
 
 	return data_stream;
 }

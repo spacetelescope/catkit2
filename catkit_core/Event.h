@@ -39,7 +39,7 @@ public:
 	void Unlock();
 
 	static std::unique_ptr<Event> Create(std::string id, SharedState *shared_state);
-	static std::unique_ptr<Event> Open(std::string id, SharedState *shared_state);
+	static std::unique_ptr<Event> Open(SharedState *shared_state);
 
 private:
 	std::unique_ptr<EventConditionVariable> m_ConditionVariable;
@@ -48,9 +48,13 @@ private:
 	std::unique_ptr<EventSpinLock> m_SpinLock;
 };
 
+const int EVENT_ID_MAX_SIZE = 256;
+
 template<>
 struct SharedState<ShareableType::Event>
 {
+	char m_Id[EVENT_ID_MAX_SIZE];
+
 	EventConditionVariable::SharedState m_ConditionVariable;
 	EventFutex::SharedState m_Futex;
 	EventSemaphore::SharedState m_Semaphore;
