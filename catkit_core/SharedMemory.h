@@ -6,7 +6,6 @@
 #include <string_view>
 
 #include "Shareable.h"
-#include "Memory.h"
 
 #ifdef _WIN32
 	#define WIN32_LEAN_AND_MEAN
