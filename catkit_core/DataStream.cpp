@@ -21,14 +21,14 @@ using namespace std;
 // Decay rate for the frame rate estimate in 1/sec.
 const double FRAMERATE_DECAY = 2.5;
 
-std::string MakeStreamId(const std::string &stream_name, const std::string &service_id, int pid)
+std::string MakeStreamId(std::string_view &stream_name, std::string_view &service_id, int pid)
 {
 #ifdef _WIN32
-	return std::to_string(pid) + "." + service_id + "." + stream_name;
+	return std::to_string(pid) + "." + std::string(service_id) + "." + std::string(stream_name);
 #elif __APPLE__
 	// MacOS shared memory names have a strongly reduced length. So we only use
 	// the pid and a hash based on stream name and service name.
-	size_t hash =  std::hash<std::string>{}(service_id + "." + stream_name);
+	size_t hash =  std::hash<std::string>{}(std::string(service_id) + "." + std::string(stream_name));
 
 	std::stringstream stream;
 	stream << "/" << pid << "."
@@ -38,7 +38,7 @@ std::string MakeStreamId(const std::string &stream_name, const std::string &serv
 	return stream.str();
 #elif __linux__
 	// Linux shared memory names should preferably start with a '/'.
-	return "/"s + std::to_string(pid) + "." + service_id + "." + stream_name;
+	return "/"s + std::to_string(pid) + "." + std::string(service_id) + "." + std::string(stream_name);
 #endif
 }
 
@@ -66,45 +66,57 @@ void CopyString(char *dest, const char *src, size_t n)
 	snprintf(dest, n, "%s", src);
 }
 
-DataStream::DataStream(const std::string &stream_id, std::shared_ptr<SharedMemory> shared_memory, bool create)
-	: m_SharedMemory(shared_memory),
+DataStream::DataStream(SharedState *shared_state, std::unique_ptr<SharedMemory> buffer_shared_memory, std::unique_ptr<SharedMemory> header_shared_memory)
+	: m_HeaderSharedMemory(std::move(header_shared_memory)),
+	m_BufferSharedMemory(std::move(buffer_shared_memory)),
 	m_Event(nullptr),
 	m_Header(nullptr), m_Buffer(nullptr),
 	m_NextFrameIdToRead(0),
 	m_BufferHandlingMode(BM_NEWEST_ONLY),
-	ShareableImpl<ShareableType::DataStream>(nullptr)
+	ShareableImpl<ShareableType::DataStream>(shared_state)
 {
-	auto buffer = m_SharedMemory->GetAddress();
-	m_Header = (DataStreamHeader *) buffer;
-	m_Buffer = ((char *) buffer) + sizeof(DataStreamHeader);
+	m_Header = &shared_state->header;
+	m_Buffer = (char *) m_BufferSharedMemory->GetAddress();
 }
 
 DataStream::~DataStream()
 {
 }
 
-std::unique_ptr<DataStream> DataStream::Create(const std::string &stream_name, const std::string &service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
+std::unique_ptr<DataStream> DataStream::Create(std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
+	// Make shared memory for header.
+	std::string stream_id = MakeStreamId(stream_name, service_id, GetProcessId());
+	std::unique_ptr<SharedMemory> header_shared_memory = SharedMemory::Create(std::string(stream_id) + ".hdr", sizeof(DataStreamHeader));
+
+	// Create the DataStream object.
+	auto shared_state = (SharedState *) header_shared_memory->GetAddress();
+	return DataStream::Create(shared_state, stream_name, service_id, type, dimensions, num_frames_in_buffer, std::move(header_shared_memory));
+}
+
+std::unique_ptr<DataStream> DataStream::Create(SharedState *shared_state, std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer, std::unique_ptr<SharedMemory> header_shared_memory)
+{
+	// Compute the buffer size.
 	size_t num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer;
 
 	CalculateBufferSize(type, dimensions, num_frames_in_buffer,
 		num_elements_per_frame, num_bytes_per_frame, num_bytes_in_buffer);
 
+	// Create the buffer.
 	auto stream_id = MakeStreamId(stream_name, service_id, GetProcessId());
+	std::unique_ptr<SharedMemory> buffer = SharedMemory::Create(&shared_state->header.m_BufferSharedState, std::string(stream_id) + ".buf", num_bytes_in_buffer);
 
-	// Temporary hack.
-	SharedMemory::SharedState shared_state;
+	// Create the data stream object.
+	auto data_stream = std::unique_ptr<DataStream>(new DataStream(shared_state, std::move(buffer), std::move(header_shared_memory)));
 
-	std::shared_ptr<SharedMemory> shared_memory = SharedMemory::Create(&shared_state, stream_id, num_bytes_in_buffer);
-	auto data_stream = std::unique_ptr<DataStream>(new DataStream(stream_id, shared_memory, true));
-
+	// Fill in header information.
 	auto header = data_stream->m_Header;
 
 	size_t n = sizeof(header->m_Version) / sizeof(header->m_Version[0]);
 	CopyString(header->m_Version, CURRENT_DATASTREAM_VERSION, n);
 
 	n = sizeof(header->m_StreamName) / sizeof(header->m_StreamName[0]);
-	CopyString(header->m_StreamName, stream_name.c_str(), n);
+	CopyString(header->m_StreamName, std::string(stream_name).c_str(), n);
 
 	n = sizeof(header->m_StreamId) / sizeof(header->m_StreamId[0]);
 	CopyString(header->m_StreamId, stream_id.c_str(), n);
@@ -120,18 +132,34 @@ std::unique_ptr<DataStream> DataStream::Create(const std::string &stream_name, c
 
 	header->m_NumBytesInBuffer = num_bytes_in_buffer;
 
+	// Set the parameters in the header.
 	data_stream->UpdateParameters(type, dimensions, num_frames_in_buffer);
 
+	// Create the event.
 	data_stream->m_Event = Event::Create(stream_id, &(header->m_EventSharedState));
 
 	return data_stream;
 }
 
-std::unique_ptr<DataStream> DataStream::Open(const std::string &stream_id)
+std::unique_ptr<DataStream> DataStream::Open(std::string_view stream_id)
 {
-	std::shared_ptr<SharedMemory> shared_memory = SharedMemory::Open(stream_id);
-	auto data_stream = std::unique_ptr<DataStream>(new DataStream(stream_id, shared_memory, false));
+	// Open the shared memory for the header and extract shared state.
+	auto header_shared_memory = SharedMemory::Open(std::string(stream_id) + ".hdr");
+	auto shared_state = (SharedState *) header_shared_memory->GetAddress();
 
+	// Open the data stream and return it.
+	return DataStream::Open(shared_state, std::move(header_shared_memory));
+}
+
+std::unique_ptr<DataStream> DataStream::Open(DataStream::SharedState *shared_state, std::unique_ptr<SharedMemory> header_shared_memory)
+{
+	// Open buffer shared memory.
+	auto buffer_shared_memory = SharedMemory::Open(&(shared_state->header.m_BufferSharedState));
+
+	// Create data stream object.
+	auto data_stream = std::unique_ptr<DataStream>(new DataStream(shared_state, std::move(buffer_shared_memory), std::move(header_shared_memory)));
+
+	// Check if versions match.
 	if (strcmp(data_stream->m_Header->m_Version, CURRENT_DATASTREAM_VERSION) != 0)
 	{
 		// DataStreams were made with different versions.
@@ -141,16 +169,10 @@ std::unique_ptr<DataStream> DataStream::Open(const std::string &stream_id)
 	// Don't read frames that already are available at the time the data stream is opened.
 	data_stream->m_NextFrameIdToRead = data_stream->m_Header->m_LastId;
 
+	// Open the event.
 	data_stream->m_Event = Event::Open(&(data_stream->m_Header->m_EventSharedState));
 
 	return data_stream;
-}
-
-std::unique_ptr<DataStream> DataStream::Open(const DataStream::SharedState *shared_state)
-{
-	std::string id = shared_state->header.m_StreamId;
-
-	return Open(id);
 }
 
 DataFrame DataStream::RequestNewFrame()
