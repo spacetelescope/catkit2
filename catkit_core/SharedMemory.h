@@ -24,7 +24,7 @@ const int SHARED_MEMORY_FNAME_SIZE = 256;
 template<>
 struct SharedState<ShareableType::SharedMemory>
 {
-	char id[SHARED_MEMORY_FNAME_SIZE];
+	char fname[SHARED_MEMORY_FNAME_SIZE];
 };
 
 class SharedMemory : public ShareableImpl<ShareableType::SharedMemory>
@@ -37,19 +37,20 @@ public:
 	#endif
 
 private:
-	SharedMemory(SharedState *shared_state, FileObject file, bool is_owner);
+	SharedMemory(std::string_view fname, FileObject file, bool is_owner);
 
 public:
 	~SharedMemory();
 
-	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, std::string_view id, size_t num_bytes_in_buffer);
+	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, std::string_view fname, size_t num_bytes_in_buffer);
+	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, size_t num_bytes_in_buffer);
 	static std::unique_ptr<SharedMemory> Open(SharedState *shared_state);
-	static std::unique_ptr<SharedMemory> Open(std::string_view id);
+	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
 
 	void *GetAddress();
 
 private:
-	std::string m_Id;
+	std::string m_FileName;
 	bool m_IsOwner;
 
 	FileObject m_File;
