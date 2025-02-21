@@ -54,7 +54,7 @@ public:
 	using SharedState = SharedStateInternal<Type>;
 
 protected:
-	ShareableImpl(SharedState *shared_state);
+	ShareableImpl(SharedState *shared_state, std::size_t dynamic_shared_state_size = 0);
 
 public:
 	std::size_t GetSharedStateSize() const override;
@@ -62,6 +62,7 @@ public:
 
 protected:
 	SharedState *m_SharedState;
+	std::size_t m_DynamicSharedStateSize;
 };
 
 #include "Shareable.inl"
