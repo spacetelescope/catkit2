@@ -53,7 +53,7 @@ struct DataStreamHeader
 };
 
 template<>
-struct SharedState<ShareableType::DataStream>
+struct SharedStateInternal<ShareableType::DataStream>
 {
 	DataStreamHeader header;
 };

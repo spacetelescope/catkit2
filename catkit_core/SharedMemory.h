@@ -21,7 +21,7 @@
 const int SHARED_MEMORY_FNAME_SIZE = 256;
 
 template<>
-struct SharedState<ShareableType::SharedMemory>
+struct SharedStateInternal<ShareableType::SharedMemory>
 {
 	char fname[SHARED_MEMORY_FNAME_SIZE];
 };
