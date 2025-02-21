@@ -1,14 +1,17 @@
 #ifndef POOL_ALLOCATOR_H
 #define POOL_ALLOCATOR_H
 
+#include "Shareable.h"
+
 #include <atomic>
 #include <cstdint>
 #include <cstddef>
 #include <limits>
 #include <memory>
+#include <array>
 
 // A simple lock-free pool allocator.
-class PoolAllocator
+class PoolAllocator : public ShareableImpl<ShareableType::PoolAllocator>
 {
 public:
 	using BlockHandle = std::uint32_t;
@@ -16,13 +19,12 @@ public:
 
 	static std::size_t CalculateMetadataBufferSize(std::uint32_t capacity);
 
-	static std::shared_ptr<PoolAllocator> Create(void *metadata_buffer, std::uint32_t capacity);
-	static std::shared_ptr<PoolAllocator> Open(void *metadata_buffer);
+	static std::unique_ptr<PoolAllocator> Create(SharedState *shared_state, std::uint32_t capacity);
+	static std::unique_ptr<PoolAllocator> Open(SharedState *shared_state);
 
 	BlockHandle Allocate();
 	void Deallocate(BlockHandle index);
 
-private:
 	struct Header
 	{
 		std::uint8_t version[4];
@@ -36,15 +38,22 @@ private:
 	static_assert(offsetof(PoolAllocator::Header, head) == 8);
 	static_assert(sizeof(PoolAllocator::Header) == 12);
 
-	PoolAllocator(Header *header, std::atomic<BlockHandle> *next);
+private:
+	PoolAllocator(SharedState *header, std::atomic<BlockHandle> *next);
 
-	static void GetMemoryLayout(void *metadata_buffer, std::atomic<BlockHandle> **next);
+	static void GetMemoryLayout(SharedState *shared_state, std::atomic<BlockHandle> **next);
 
 	Header &m_Header;
 
 	std::uint32_t &m_Capacity;
 	std::atomic<BlockHandle> &m_Head;
 	std::atomic<BlockHandle> *m_Next;
+};
+
+template<>
+struct SharedStateInternal<ShareableType::PoolAllocator>
+{
+	PoolAllocator::Header header;
 };
 
 #endif // POOL_ALLOCATOR_H

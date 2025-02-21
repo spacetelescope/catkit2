@@ -16,12 +16,12 @@ std::unique_ptr<Shareable> Shareable::Open(ShareableType type, void *memory_bloc
 		return DataStream::Open(reinterpret_cast<DataStream::SharedState *>(memory_block));
 	case ShareableType::Event:
 		return Event::Open(reinterpret_cast<Event::SharedState *>(memory_block));
-	/*case ShareableType::FreeListAllocator:
+	case ShareableType::FreeListAllocator:
 		return FreeListAllocator::Open(reinterpret_cast<FreeListAllocator::SharedState *>(memory_block));
-	case ShareableType::LocalMemory:
-		return LocalMemory::Open(reinterpret_cast<LocalMemory::SharedState *>(memory_block));
+	//case ShareableType::LocalMemory:
+	//	return LocalMemory::Open(reinterpret_cast<LocalMemory::SharedState *>(memory_block));
 	case ShareableType::PoolAllocator:
-		return PoolAllocator::Open(reinterpret_cast<PoolAllocator::SharedState *>(memory_block));*/
+		return PoolAllocator::Open(reinterpret_cast<PoolAllocator::SharedState *>(memory_block));
 	case ShareableType::SharedMemory:
 		return SharedMemory::Open(reinterpret_cast<SharedMemory::SharedState *>(memory_block));
 	default:
