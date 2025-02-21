@@ -3,13 +3,14 @@
 
 #include <functional>
 #include <stdexcept>
+#include <memory>
 
-enum EventImplementationType
+enum class EventImplementationType
 {
-	ET_CONDITION_VARIABLE,
-	ET_FUTEX,
-	ET_SEMAPHORE,
-	ET_SPIN_LOCK
+	ConditionVariable,
+	Futex,
+	Semaphore,
+	SpinLock
 };
 
 template<EventImplementationType Type>
@@ -118,6 +119,18 @@ std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Open(const std::string &id, Ev
 	obj->m_SharedState = shared_state;
 
 	return obj;
+}
+
+template<enum EventImplementationType Type>
+void EventImpl<Type>::CreateImpl(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+{
+	// Do nothing.
+}
+
+template<enum EventImplementationType Type>
+void EventImpl<Type>::OpenImpl(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+{
+	// Do nothing.
 }
 
 #include "EventConditionVariable.inl"
