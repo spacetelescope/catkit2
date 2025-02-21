@@ -8,25 +8,22 @@
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
 
-std::unique_ptr<Shareable> Shareable::Open(void *memory_block)
+std::unique_ptr<Shareable> Shareable::Open(ShareableType type, void *memory_block)
 {
-	auto type = *reinterpret_cast<ShareableType *>(memory_block);
-	auto ptr = (char *) memory_block + sizeof(ShareableType);
-
 	switch (type)
 	{
 	case ShareableType::DataStream:
-		return DataStream::Open(reinterpret_cast<DataStream::SharedState *>(ptr));
+		return DataStream::Open(reinterpret_cast<DataStream::SharedState *>(memory_block));
 	case ShareableType::Event:
-		return Event::Open(reinterpret_cast<Event::SharedState *>(ptr));
+		return Event::Open(reinterpret_cast<Event::SharedState *>(memory_block));
 	/*case ShareableType::FreeListAllocator:
-		return FreeListAllocator::Open(reinterpret_cast<FreeListAllocator::SharedState *>(ptr));
+		return FreeListAllocator::Open(reinterpret_cast<FreeListAllocator::SharedState *>(memory_block));
 	case ShareableType::LocalMemory:
-		return LocalMemory::Open(reinterpret_cast<LocalMemory::SharedState *>(ptr));
+		return LocalMemory::Open(reinterpret_cast<LocalMemory::SharedState *>(memory_block));
 	case ShareableType::PoolAllocator:
-		return PoolAllocator::Open(reinterpret_cast<PoolAllocator::SharedState *>(ptr));*/
+		return PoolAllocator::Open(reinterpret_cast<PoolAllocator::SharedState *>(memory_block));*/
 	case ShareableType::SharedMemory:
-		return SharedMemory::Open(reinterpret_cast<SharedMemory::SharedState *>(ptr));
+		return SharedMemory::Open(reinterpret_cast<SharedMemory::SharedState *>(memory_block));
 	default:
 		throw std::runtime_error("Unknown shareable type.");
 	}
