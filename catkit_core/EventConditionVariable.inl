@@ -6,12 +6,12 @@
 	#include <pthread.h>
 #endif
 
-using EventConditionVariable = EventImpl<EventImplementationType::ET_CONDITION_VARIABLE>;
+using EventConditionVariable = EventImpl<EventImplementationType::ConditionVariable>;
 
 #if defined(__linux__) || defined(__APPLE__)
 
 template<>
-struct EventSharedState<EventImplementationType::ET_CONDITION_VARIABLE>
+struct EventSharedState<EventImplementationType::ConditionVariable>
 {
 	pthread_mutex_t m_Mutex;
 	pthread_cond_t m_Condition;

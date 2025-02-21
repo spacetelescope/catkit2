@@ -8,18 +8,18 @@
 	#include <windows.h>
 #endif // _WIN32
 
-using EventSemaphore = EventImpl<EventImplementationType::ET_SEMAPHORE>;
+using EventSemaphore = EventImpl<EventImplementationType::Semaphore>;
 
 #ifdef _WIN32
 
 template<>
-struct EventSharedState<EventImplementationType::ET_SEMAPHORE>
+struct EventSharedState<EventImplementationType::Semaphore>
 {
 	std::atomic_long m_NumReadersWaiting;
 };
 
 template<>
-struct EventLocalState<EventImplementationType::ET_SEMAPHORE>
+struct EventLocalState<EventImplementationType::Semaphore>
 {
 	HANDLE m_Semaphore;
 };
