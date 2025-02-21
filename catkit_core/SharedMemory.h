@@ -43,6 +43,7 @@ public:
 
 	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, std::string_view fname, size_t num_bytes_in_buffer);
 	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, size_t num_bytes_in_buffer);
+	static std::unique_ptr<SharedMemory> Create(std::string_view fname, size_t num_bytes_in_buffer);
 	static std::unique_ptr<SharedMemory> Open(SharedState *shared_state);
 	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
 
