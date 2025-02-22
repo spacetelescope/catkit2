@@ -8,6 +8,7 @@
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
 #include "HashMap.h"
+#include "MessageBroker.h"
 
 std::unique_ptr<Shareable> Shareable::Open(StructStream &stream)
 {
@@ -27,6 +28,8 @@ std::unique_ptr<Shareable> Shareable::Open(StructStream &stream)
 		return SharedMemory::Open(stream);
 	case ShareableType::HashMap:
 		return HashMap::Open(stream);
+	case ShareableType::MessageBroker:
+		return MessageBroker::Open(stream);
 	default:
 		throw std::runtime_error("Unknown shareable type.");
 	}

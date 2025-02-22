@@ -15,7 +15,8 @@ enum class ShareableType
 	LocalMemory,
 	PoolAllocator,
 	SharedMemory,
-	HashMap
+	HashMap,
+	MessageBroker
 };
 
 /*

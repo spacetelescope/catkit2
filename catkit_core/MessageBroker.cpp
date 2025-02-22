@@ -124,6 +124,22 @@ void TopicHeader::CopyFrom(const TopicHeader &header)
 	std::copy((char *)header.metadata_keys, (char *)header.metadata_keys + sizeof(metadata_keys), (char *)metadata_keys);
 }
 
+MessageBroker::MessageBroker(SharedState *shared_state)
+	: m_Header(shared_state->header),
+	ShareableImpl(shared_state, 0)
+{
+}
+
+std::unique_ptr<MessageBroker> MessageBroker::Create(SharedState *shared_state, std::vector<std::shared_ptr<Memory>> memory_blocks)
+{
+	return nullptr;
+}
+
+std::unique_ptr<MessageBroker> MessageBroker::Open(SharedState *shared_state)
+{
+	return nullptr;
+}
+
 Message MessageBroker::PrepareMessage(const std::string &topic, size_t payload_size, int8_t device_id)
 {
 	Uuid trace_id;
