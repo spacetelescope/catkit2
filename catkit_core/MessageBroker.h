@@ -117,16 +117,17 @@ private:
 public:
 	~Message();
 
-	const char *GetTopic() const;
+	std::string_view GetTopic() const;
 
 	const Uuid &GetPayloadId() const;
-	const std::uint64_t GetFrameId() const;
+	std::uint64_t GetFrameId() const;
+	std::uint16_t GetPartialFrameId() const;
 
 	const Uuid &GetTraceId() const;
 
-	const char *GetProducerHostnname() const;
-	const std::uint32_t GetProducerPid() const;
-	const std::uint64_t GetProducerTimestamp() const;
+	std::string_view GetProducerHostnname() const;
+	std::uint32_t GetProducerPid() const;
+	std::uint64_t GetProducerTimestamp() const;
 
 	const PayloadInfo &GetPayloadInfo() const;
 
@@ -134,20 +135,18 @@ public:
 	void SetArrayInfo(const ArrayInfo &array_info);
 
 	void *GetPayload() const;
-	size_t GetPayloadSize() const;
+	std::size_t GetPayloadSize() const;
 
 	const MetadataEntry &GetMetadataEntry(std::uint8_t metadata_id) const;
 	void SetMetadataEntry(std::uint8_t metadata_id, std::uint64_t value);
 	void SetMetadataEntry(std::uint8_t metadata_id, double value);
-	void SetMetadataEntry(std::uint8_t metadata_id, const char *value);
-
-	const std::uint16_t GetPartialFrameId() const;
+	void SetMetadataEntry(std::uint8_t metadata_id, std::string_view value);
 
 	const std::uint64_t GetStartByte() const;
-	void SetStartByte(const std::uint64_t &start_byte);
+	void SetStartByte(std::uint64_t start_byte);
 
 	const std::uint64_t GetEndByte() const;
-	void SetEndByte(const std::uint64_t &end_byte);
+	void SetEndByte(std::uint64_t end_byte);
 
 private:
 	MessageHeader *m_Header;

@@ -19,7 +19,8 @@ T fetch_max(std::atomic<T> &atom, T value)
 	return current;
 }
 
-class SubtopicIterator {
+class SubtopicIterator
+{
 public:
 	SubtopicIterator(std::string_view str, char delimiter, bool is_valid = true)
 		: m_String(str), m_Delimiter(delimiter), m_IsValid(is_valid)
@@ -293,6 +294,21 @@ std::shared_ptr<FreeListAllocator> MessageBroker::GetAllocator(int8_t device_id)
 	return m_GpuPayloadAllocator[device_id];
 }
 
+std::shared_ptr<Memory> MessageBroker::GetMemory(int8_t device_id)
+{
+	if (device_id < -1 || device_id >= MAX_NUM_GPUS)
+	{
+		return nullptr;
+	}
+
+	if (device_id == -1)
+	{
+		return m_CpuPayloadMemory;
+	}
+
+	return m_GpuPayloadMemory[device_id];
+}
+
 std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 {
 	auto topic_header = m_TopicHeaders.Find(topic);
@@ -309,4 +325,120 @@ std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 	}
 
 	return m_Events[topic];
+}
+
+Message::Message()
+	: m_Header(nullptr), m_Payload(nullptr), m_HasBeenPublished(false)
+{
+}
+
+Message::~Message()
+{
+}
+
+std::string_view Message::GetTopic() const
+{
+	return m_Header->topic;
+}
+
+const Uuid &Message::GetPayloadId() const
+{
+	return m_Header->payload_id;
+}
+
+std::uint64_t Message::GetFrameId() const
+{
+	return m_Header->frame_id;
+}
+
+std::uint16_t Message::GetPartialFrameId() const
+{
+	return m_Header->partial_frame_id;
+}
+
+const Uuid &Message::GetTraceId() const
+{
+	return m_Header->trace_id;
+}
+
+std::string_view Message::GetProducerHostnname() const
+{
+	return m_Header->producer_hostname;
+}
+
+std::uint32_t Message::GetProducerPid() const
+{
+	return m_Header->producer_pid;
+}
+
+std::uint64_t Message::GetProducerTimestamp() const
+{
+	return m_Header->producer_timestamp;
+}
+
+const PayloadInfo &Message::GetPayloadInfo() const
+{
+	return m_Header->payload_info;
+}
+
+const ArrayInfo &Message::GetArrayInfo() const
+{
+	return m_Header->payload_info.array_info;
+}
+
+void Message::SetArrayInfo(const ArrayInfo &array_info)
+{
+	m_Header->payload_info.array_info = array_info;
+}
+
+void *Message::GetPayload() const
+{
+	return m_Payload;
+}
+
+std::size_t Message::GetPayloadSize() const
+{
+	return m_Header->payload_info.total_size;
+}
+
+const MetadataEntry &Message::GetMetadataEntry(std::uint8_t metadata_id) const
+{
+	return m_Header->metadata_entries[metadata_id];
+}
+
+void Message::SetMetadataEntry(std::uint8_t metadata_id, std::uint64_t value)
+{
+	m_Header->metadata_entries[metadata_id].integer = value;
+}
+
+void Message::SetMetadataEntry(std::uint8_t metadata_id, double value)
+{
+	m_Header->metadata_entries[metadata_id].floating_point = *reinterpret_cast<std::uint64_t *>(&value);
+}
+
+void Message::SetMetadataEntry(std::uint8_t metadata_id, std::string_view value)
+{
+	char *dest = m_Header->metadata_entries[metadata_id].string;
+	std::fill(dest, dest + METADATA_MAX_STRLEN, '\0');
+	value.copy(dest, METADATA_MAX_STRLEN - 1);
+}
+
+const std::uint64_t Message::GetStartByte() const
+{
+	return m_Header->start_byte;
+}
+
+void Message::SetStartByte(std::uint64_t start_byte)
+{
+	m_Header->start_byte = start_byte;
+}
+
+const std::uint64_t Message::GetEndByte() const
+{
+	return m_Header->end_byte;
+}
+
+void Message::SetEndByte(std::uint64_t end_byte)
+{
+	m_Header->end_byte = end_byte;
 }
