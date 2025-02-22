@@ -176,13 +176,15 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 	m_UuidGenerator.Generate(header->payload_id);
 
 	// Set the topic.
-	std::strncpy(header->topic, topic.c_str(), sizeof(header->topic));
+	std::fill(header->topic, header->topic + sizeof(header->topic), '\0');
+	topic.copy(header->topic, TOPIC_MAX_KEY_SIZE - 1);
 
 	// Set the trace ID.
-	std::strncpy(header->trace_id, trace_id, sizeof(header->trace_id));
+	std::copy(trace_id, trace_id + sizeof(trace_id), header->trace_id);
 
 	// Set the producer information.
-	std::strncpy(header->producer_hostname, GetHostName().c_str(), sizeof(header->producer_hostname));
+	std::fill(header->producer_hostname, header->producer_hostname + HOST_NAME_SIZE, '\0');
+	GetHostName().copy(header->producer_hostname, HOST_NAME_SIZE - 1);
 	header->producer_pid = GetProcessId();
 
 	header->partial_frame_id = 0;
