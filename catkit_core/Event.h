@@ -38,7 +38,7 @@ public:
 	void Lock();
 	void Unlock();
 
-	static std::unique_ptr<Event> Create(StructStream &stream, std::string id);
+	static std::unique_ptr<Event> Create(StructStream &stream, std::string_view id);
 	static std::unique_ptr<Event> Open(StructStream &stream);
 
 	ShareableType GetType() const override;

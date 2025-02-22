@@ -33,7 +33,7 @@ void EventImpl<Type>::Unlock()
 }
 
 template<enum EventImplementationType Type>
-std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Create(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Create(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	if (!shared_state)
 		throw std::runtime_error("The passed shared data was a nullptr.");
@@ -49,7 +49,7 @@ std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Create(const std::string &id, 
 }
 
 template<enum EventImplementationType Type>
-std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Open(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Open(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	if (!shared_state)
 		throw std::runtime_error("The passed shared data was a nullptr.");
@@ -65,13 +65,13 @@ std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Open(const std::string &id, Ev
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::CreateImpl(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+void EventImpl<Type>::CreateImpl(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	// Do nothing.
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::OpenImpl(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+void EventImpl<Type>::OpenImpl(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	// Do nothing.
 }

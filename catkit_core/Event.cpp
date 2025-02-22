@@ -77,7 +77,7 @@ void Event::Unlock()
 	m_SpinLock->Unlock();
 }
 
-std::unique_ptr<Event> Event::Create(StructStream &stream, std::string id)
+std::unique_ptr<Event> Event::Create(StructStream &stream, std::string_view id)
 {
 	auto header = stream.Extract<Header>();
 
