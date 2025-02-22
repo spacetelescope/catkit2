@@ -93,7 +93,7 @@ inline void EventSemaphore::Signal()
 template<>
 inline void EventSemaphore::CreateImpl(std::string_view id, SharedState *shared_state)
 {
-    m_LocalState.m_Semaphore = CreateSemaphore(NULL, 0, 9999, (id + ".sem").c_str());
+    m_LocalState.m_Semaphore = CreateSemaphore(NULL, 0, 9999, (std::string(id) + ".sem").c_str());
 
 	if (m_LocalState.m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while creating semaphore.");
@@ -104,7 +104,7 @@ inline void EventSemaphore::CreateImpl(std::string_view id, SharedState *shared_
 template<>
 inline void EventSemaphore::OpenImpl(std::string_view id, SharedState *shared_state)
 {
-    m_LocalState.m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
+    m_LocalState.m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (std::string(id) + ".sem").c_str());
 
 	if (m_LocalState.m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while opening semaphore.");
