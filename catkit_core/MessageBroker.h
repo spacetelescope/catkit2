@@ -112,11 +112,9 @@ class Message
 	friend class MessageBroker;
 
 private:
-	Message();
+	Message(MessageHeader *header, void *payload, bool has_been_published = false);
 
 public:
-	~Message();
-
 	std::string_view GetTopic() const;
 
 	const Uuid &GetPayloadId() const;
@@ -153,11 +151,9 @@ private:
 	void *m_Payload;
 
 	bool m_HasBeenPublished;
-
-	std::shared_ptr<MessageBroker> m_MessageBroker;
 };
 
-class MessageBroker : std::enable_shared_from_this<MessageBroker>
+class MessageBroker
 {
 	friend class Message;
 

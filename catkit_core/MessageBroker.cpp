@@ -134,11 +134,6 @@ Message MessageBroker::PrepareMessage(const std::string &topic, size_t payload_s
 
 Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, int8_t device_id)
 {
-	Message message;
-
-	message.m_HasBeenPublished = false;
-	message.m_MessageBroker = shared_from_this();
-
 	// Allocate a payload.
 	auto allocator = GetAllocator(device_id);
 
@@ -157,7 +152,7 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 	auto offset = allocator->GetOffset(block_handle);
 
 	auto memory = GetMemory(device_id);
-	message.m_Payload = memory->GetAddress(offset);
+	auto payload = memory->GetAddress(offset);
 
 	// Allocate a message header.
 	auto message_header_handle = m_MessageHeaderAllocator.Allocate();
@@ -172,8 +167,7 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 	}
 
 	// Access the message header.
-	message.m_Header = &m_MessageHeaders[message_header_handle];
-	auto header = message.m_Header;
+	auto header = &m_MessageHeaders[message_header_handle];
 
 	// Set the payload information.
 	header->payload_info.device_id = device_id;
@@ -199,7 +193,7 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 	header->frame_id = INVALID_FRAME_ID;
 	header->producer_timestamp = 0;
 
-	return message;
+	return Message(header, payload, false);
 }
 
 void MessageBroker::PublishMessage(Message &message, bool is_final)
@@ -233,6 +227,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
 
+	// Publish the message to all subtopics.
 	for (const auto &subtopic : SubtopicRange(topic))
 	{
 		auto topic_header = m_TopicHeaders.Find(std::string(subtopic));
@@ -327,12 +322,8 @@ std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 	return m_Events[topic];
 }
 
-Message::Message()
-	: m_Header(nullptr), m_Payload(nullptr), m_HasBeenPublished(false)
-{
-}
-
-Message::~Message()
+Message::Message(MessageHeader *header, void *payload, bool has_been_published)
+	: m_Header(header), m_Payload(payload), m_HasBeenPublished(has_been_published)
 {
 }
 
