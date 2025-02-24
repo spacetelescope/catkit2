@@ -67,146 +67,168 @@ std::size_t HashMap::GetIndex(std::string_view key) const
 
 std::string_view HashMap::GetKey(std::size_t entry) const
 {
-    std::size_t i = entry * m_EntrySize + sizeof(EntryFlags);
+	std::size_t i = entry * m_EntrySize + sizeof(EntryFlags);
 
-    return std::string_view(m_Data + i);
+	return std::string_view(m_Data + i);
 }
 
 void HashMap::SetKey(std::size_t entry, std::string_view key)
 {
-    std::size_t i = entry * m_EntrySize + sizeof(EntryFlags);
+	std::size_t i = entry * m_EntrySize + sizeof(EntryFlags);
 
-    std::fill(m_Data + i, m_Data + i + m_MaxKeySize, '\0');
-    key.copy(m_Data + i, m_MaxKeySize - 1);
+	std::fill(m_Data + i, m_Data + i + m_MaxKeySize, '\0');
+	key.copy(m_Data + i, m_MaxKeySize - 1);
 }
 
 std::atomic<HashMap::EntryFlags> *HashMap::GetFlagsRef(std::size_t entry) const
 {
-    std::size_t i = entry * m_EntrySize;
+	std::size_t i = entry * m_EntrySize;
 
-    return reinterpret_cast<std::atomic<EntryFlags> *>(m_Data + i);
+	return reinterpret_cast<std::atomic<EntryFlags> *>(m_Data + i);
 }
 
 void *HashMap::GetValue(std::size_t entry) const
 {
-    std::size_t i = entry * m_EntrySize + sizeof(EntryFlags) + m_MaxKeySize;
+	std::size_t i = entry * m_EntrySize + sizeof(EntryFlags) + m_MaxKeySize;
 
-    return m_Data + i;
+	return m_Data + i;
 }
 
-HashMap::HashMap(void *buffer, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
-    : m_Data(static_cast<char *>(buffer)),
-    m_NumEntries(num_entries),
-    m_MaxKeySize(max_key_size),
-    m_ValueSize(value_size),
-    m_EntrySize(sizeof(EntryFlags) + max_key_size + value_size)
+HashMap::HashMap(SharedState *shared_state)
+	: m_Data(reinterpret_cast<char *>(shared_state) + sizeof(SharedState)),
+	m_NumEntries(shared_state->num_entries),
+	m_MaxKeySize(shared_state->max_key_size),
+	m_ValueSize(shared_state->value_size),
+	m_EntrySize(CalculateEntrySize(shared_state->max_key_size, shared_state->value_size)),
+	ShareableImpl(shared_state, CalculateBufferSize(shared_state->num_entries, shared_state->max_key_size, shared_state->value_size) - sizeof(SharedState))
 {
+}
+
+std::size_t HashMap::CalculateEntrySize(std::size_t max_key_size, std::size_t value_size)
+{
+	auto entry_size = sizeof(EntryFlags) + max_key_size + value_size;
+	entry_size = round_up_to_nearest_multiple_power_of_two(entry_size, alignof(std::atomic<EntryFlags>));
+
+	return entry_size;
 }
 
 std::size_t HashMap::CalculateBufferSize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
 {
-    auto entry_size = sizeof(EntryFlags) + max_key_size + value_size;
-    entry_size = round_up_to_nearest_multiple_power_of_two(entry_size, alignof(std::atomic<EntryFlags>));
+	auto entry_size = CalculateEntrySize(max_key_size, value_size);
 
-    return entry_size * num_entries;
+	return sizeof(SharedState) + entry_size * num_entries;
 }
 
-void HashMap::Initialize()
+std::unique_ptr<HashMap> HashMap::Create(SharedState *shared_state, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
 {
-    for (std::size_t i = 0; i < m_NumEntries; ++i)
-    {
-        *GetFlagsRef(i) = EntryFlags::UNOCCUPIED;
-        SetKey(i, "");
-    }
+	shared_state->num_entries = num_entries;
+	shared_state->max_key_size = max_key_size;
+	shared_state->value_size = value_size;
+
+	auto map = std::unique_ptr<HashMap>(new HashMap(shared_state));
+
+	// Initialize the map.
+	for (std::size_t i = 0; i < map->m_NumEntries; ++i)
+	{
+		map->GetFlagsRef(i)->store(EntryFlags::UNOCCUPIED);
+		map->SetKey(i, "");
+	}
+
+	return map;
+}
+
+std::unique_ptr<HashMap> HashMap::Open(SharedState *shared_state)
+{
+	return std::unique_ptr<HashMap>(new HashMap(shared_state));
 }
 
 void *HashMap::Insert(std::string_view key)
 {
-    if (key.size() >= m_MaxKeySize)
-    {
-        // Key is too long to fit in the fixed-size buffer.
-        return nullptr;
-    }
+	if (key.size() >= m_MaxKeySize)
+	{
+		// Key is too long to fit in the fixed-size buffer.
+		return nullptr;
+	}
 
-    std::size_t index = GetIndex(key);
+	std::size_t index = GetIndex(key);
 
-    for (std::size_t i = 0; i < m_NumEntries; ++i)
-    {
-        std::size_t probe = (index + i) % m_NumEntries;
-        auto entry_flags = GetFlagsRef(probe);
+	for (std::size_t i = 0; i < m_NumEntries; ++i)
+	{
+		std::size_t probe = (index + i) % m_NumEntries;
+		auto entry_flags = GetFlagsRef(probe);
 
-        // Try to use this entry.
-        EntryFlags flags = EntryFlags::UNOCCUPIED;
+		// Try to use this entry.
+		EntryFlags flags = EntryFlags::UNOCCUPIED;
 
-        bool success = entry_flags->compare_exchange_strong(flags, EntryFlags::INITIALIZING, std::memory_order_acq_rel);
+		bool success = entry_flags->compare_exchange_strong(flags, EntryFlags::INITIALIZING, std::memory_order_acq_rel);
 
-        if (!success)
-        {
-            // The entry is either occupied or still initializing.
+		if (!success)
+		{
+			// The entry is either occupied or still initializing.
 
-            // If this entry is still initializing, do a spin-wait until it's occupied.
-            // This should almost never be necessary and should only last a short while if it does.
-            while (flags == EntryFlags::INITIALIZING)
-            {
-                flags = entry_flags->load(std::memory_order_acquire);
-            }
+			// If this entry is still initializing, do a spin-wait until it's occupied.
+			// This should almost never be necessary and should only last a short while if it does.
+			while (flags == EntryFlags::INITIALIZING)
+			{
+				flags = entry_flags->load(std::memory_order_acquire);
+			}
 
-            if (flags == EntryFlags::OCCUPIED)
-            {
-                // Check if the key is our key.
-                if (GetKey(probe) == key)
-                {
-                    // Key already exists.
-                    return nullptr;
-                }
-            }
-        }
-        else
-        {
-            // The entry was unooccupied, so we can now use it.
-            // Set the key of our entry.
-            SetKey(probe, key);
+			if (flags == EntryFlags::OCCUPIED)
+			{
+				// Check if the key is our key.
+				if (GetKey(probe) == key)
+				{
+					// Key already exists.
+					return nullptr;
+				}
+			}
+		}
+		else
+		{
+			// The entry was unooccupied, so we can now use it.
+			// Set the key of our entry.
+			SetKey(probe, key);
 
-            // Make occupied.
-            entry_flags->store(EntryFlags::OCCUPIED, std::memory_order_release);
+			// Make occupied.
+			entry_flags->store(EntryFlags::OCCUPIED, std::memory_order_release);
 
-            return GetValue(probe);
-        }
-    }
+			return GetValue(probe);
+		}
+	}
 
-    // Map is full.
-    return nullptr;
+	// Map is full.
+	return nullptr;
 }
 
 void *HashMap::Find(std::string_view key) const
 {
-    if (key.size() >= m_MaxKeySize)
-    {
-        // Key is too long to fit in the fixed-size buffer.
-        return nullptr;
-    }
+	if (key.size() >= m_MaxKeySize)
+	{
+		// Key is too long to fit in the fixed-size buffer.
+		return nullptr;
+	}
 
-    std::size_t index = GetIndex(key);
+	std::size_t index = GetIndex(key);
 
-    for (std::size_t i = 0; i < m_NumEntries; ++i)
-    {
-        std::size_t probe = (index + i) % m_NumEntries;
-        auto entry_flags = GetFlagsRef(probe);
+	for (std::size_t i = 0; i < m_NumEntries; ++i)
+	{
+		std::size_t probe = (index + i) % m_NumEntries;
+		auto entry_flags = GetFlagsRef(probe);
 
-        EntryFlags flags = entry_flags->load(std::memory_order_acquire);
+		EntryFlags flags = entry_flags->load(std::memory_order_acquire);
 
-        if (flags == EntryFlags::OCCUPIED && GetKey(probe) == key)
-        {
-            return GetValue(probe);
-        }
+		if (flags == EntryFlags::OCCUPIED && GetKey(probe) == key)
+		{
+			return GetValue(probe);
+		}
 
-        if (flags != EntryFlags::OCCUPIED)
-        {
-            // Key not found.
-            break;
-        }
-    }
+		if (flags != EntryFlags::OCCUPIED)
+		{
+			// Key not found.
+			break;
+		}
+	}
 
-    // Key not found.
-    return nullptr;
+	// Key not found.
+	return nullptr;
 }

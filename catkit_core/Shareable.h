@@ -11,7 +11,8 @@ enum class ShareableType
 	FreeListAllocator,
 	LocalMemory,
 	PoolAllocator,
-	SharedMemory
+	SharedMemory,
+	HashMap
 };
 
 template<enum ShareableType Type>

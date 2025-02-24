@@ -10,8 +10,7 @@ int main(int argc, char **argv)
 
     char *buffer = new char[buffer_size];
 
-    HashMap map(buffer, 65536, 13, sizeof(std::int16_t));
-    map.Initialize();
+    auto map = HashMap::Create((HashMap::SharedState *) buffer, 65536, 13, sizeof(std::int16_t));
 
     std::uint64_t total_time = 0;
     std::size_t N = 5000;
@@ -21,7 +20,7 @@ int main(int argc, char **argv)
         std::string key = "key" + std::to_string(i);
 
         auto start = GetTimeStamp();
-        auto value = map.Insert(key);
+        auto value = map->Insert(key);
         auto end = GetTimeStamp();
 
         if (value == nullptr)
@@ -43,7 +42,7 @@ int main(int argc, char **argv)
         std::string key = "key" + std::to_string(i);
 
         auto start = GetTimeStamp();
-        auto *value = map.Find(key);
+        auto *value = map->Find(key);
         auto end = GetTimeStamp();
 
         if (value == nullptr || *((std::uint16_t *)value) != i)
