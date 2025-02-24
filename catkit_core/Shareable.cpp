@@ -7,6 +7,7 @@
 #include "FreeListAllocator.h"
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
+#include "HashMap.h"
 
 std::unique_ptr<Shareable> Shareable::Open(ShareableType type, void *memory_block)
 {
@@ -18,8 +19,8 @@ std::unique_ptr<Shareable> Shareable::Open(ShareableType type, void *memory_bloc
 		return Event::Open(reinterpret_cast<Event::SharedState *>(memory_block));
 	case ShareableType::FreeListAllocator:
 		return FreeListAllocator::Open(reinterpret_cast<FreeListAllocator::SharedState *>(memory_block));
-	//case ShareableType::LocalMemory:
-	//	return LocalMemory::Open(reinterpret_cast<LocalMemory::SharedState *>(memory_block));
+	case ShareableType::HashMap:
+		return HashMap::Open(reinterpret_cast<HashMap::SharedState *>(memory_block));
 	case ShareableType::PoolAllocator:
 		return PoolAllocator::Open(reinterpret_cast<PoolAllocator::SharedState *>(memory_block));
 	case ShareableType::SharedMemory:
