@@ -45,7 +45,7 @@ public:
 	static std::unique_ptr<HashMap> Create(SharedState *shared_state, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
 	static std::unique_ptr<HashMap> Open(SharedState *shared_state);
 
-	void *Insert(std::string_view key, const void *value);
+	void *Insert(std::string_view key, const void *value = nullptr);
 	void *Find(std::string_view key) const;
 };
 

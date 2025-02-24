@@ -192,9 +192,11 @@ void *HashMap::Insert(std::string_view key, const void *value)
 			// Set the key of our entry.
 			SetKey(probe, key);
 
-			// Copy the value.
+			// Copy the value, if given.
 			void *new_value = GetValue(probe);
-			std::memcpy(new_value, value, m_ValueSize);
+
+			if (value)
+				std::memcpy(new_value, value, m_ValueSize);
 
 			// Make occupied.
 			entry_flags->store(EntryFlags::OCCUPIED, std::memory_order_release);
