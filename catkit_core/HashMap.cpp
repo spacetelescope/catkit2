@@ -1,5 +1,8 @@
 #include "HashMap.h"
 
+#include <algorithm>
+#include <cstring>
+
 // MurmurHash3 32-bit version
 uint32_t murmurhash3(std::string_view key, uint32_t seed = 0)
 {
@@ -142,7 +145,7 @@ std::unique_ptr<HashMap> HashMap::Open(SharedState *shared_state)
 	return std::unique_ptr<HashMap>(new HashMap(shared_state));
 }
 
-void *HashMap::Insert(std::string_view key)
+void *HashMap::Insert(std::string_view key, const void *value)
 {
 	if (key.size() >= m_MaxKeySize)
 	{
@@ -189,10 +192,14 @@ void *HashMap::Insert(std::string_view key)
 			// Set the key of our entry.
 			SetKey(probe, key);
 
+			// Copy the value.
+			void *new_value = GetValue(probe);
+			std::memcpy(new_value, value, m_ValueSize);
+
 			// Make occupied.
 			entry_flags->store(EntryFlags::OCCUPIED, std::memory_order_release);
 
-			return GetValue(probe);
+			return new_value;
 		}
 	}
 
