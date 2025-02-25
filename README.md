@@ -90,6 +90,6 @@ conda activate catkit2
 
 Finally install the package using:
 ```
-python setup.py develop
+pip install -e .
 cd ..
 ```

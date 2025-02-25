@@ -30,6 +30,6 @@ You should see the main compilation complete in the terminal output without erro
 
 .. code-block:: bash
 
-    python setup.py develop
+    pip install -e .
 
 Some services require manual installation of their respective drivers to access the devices that they operate.
