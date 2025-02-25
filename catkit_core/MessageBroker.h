@@ -45,7 +45,7 @@ struct ArrayInfo
 
 struct PayloadInfo
 {
-	std::int8_t device_id;
+	std::uint8_t memory_block_id;
 	std::uint64_t offset_in_buffer;
 	std::uint64_t total_size;
 
@@ -85,14 +85,6 @@ struct TopicHeader
 	Event::SharedState event_shared_state;
 
 	char metadata_keys[METADATA_MAX_STRLEN][MAX_NUM_METADATA_ENTRIES];
-
-	TopicHeader() = default;
-	TopicHeader(const TopicHeader &header);
-
-	TopicHeader &operator=(const TopicHeader &header);
-
-private:
-	void CopyFrom(const TopicHeader &header);
 };
 
 struct MessageBrokerHeader
@@ -103,8 +95,6 @@ struct MessageBrokerHeader
 
 	char buffer_shared_memory_id[MAX_SHARED_MEMORY_ID_SIZE];
 	CudaIpcHandle cuda_ipc_handles[MAX_NUM_GPUS];
-
-
 };
 
 class MessageBroker;
@@ -163,13 +153,13 @@ private:
 	MessageBroker(SharedState *shared_state);
 
 public:
-	std::unique_ptr<MessageBroker> Create(SharedState *shared_state, std::vector<std::shared_ptr<Memory>> memory_blocks); // TODO: Add parameters.
-	std::unique_ptr<MessageBroker> Open(SharedState *shared_state);
+	static std::unique_ptr<MessageBroker> Create(SharedState *shared_state, std::vector<std::shared_ptr<Memory>> memory_blocks); // TODO: Add parameters.
+	static std::unique_ptr<MessageBroker> Open(SharedState *shared_state);
 
 	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
 
-	Message PrepareMessage(const std::string &topic, size_t payload_size, int8_t device_id = -1);
-	Message PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, int8_t device_id = -1);
+	Message PrepareMessage(const std::string &topic, size_t payload_size, uint8_t memory_block_id = 0);
+	Message PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, uint8_t memory_block_id = 0);
 
 	void PublishMessage(Message &message, bool is_final = true);
 
@@ -177,27 +167,25 @@ public:
 	Message GetMessage(const std::string &topic, size_t frame_id);
 
 private:
-	std::unique_ptr<FreeListAllocator> GetAllocator(int8_t device_id);
-	std::shared_ptr<Memory> GetMemory(int8_t device_id);
+	std::shared_ptr<FreeListAllocator> GetAllocator(uint8_t memory_block_id);
+	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
 
 	std::shared_ptr<Event> GetEvent(std::string_view topic);
 
+	TopicHeader *GetTopicHeader(std::string_view topic);
+
 	MessageBrokerHeader &m_Header;
 
-	HashMap<TopicHeader, TOPIC_HASH_MAP_SIZE, TOPIC_MAX_KEY_SIZE> m_TopicHeaders;
-	std::unique_ptr<PoolAllocator> m_MessageHeaderAllocator;
+	std::unique_ptr<HashMap> m_TopicHeaders;
+	std::map<std::string_view, std::shared_ptr<Event>> m_Events;
 
+	std::unique_ptr<PoolAllocator> m_MessageHeaderAllocator;
 	MessageHeader *m_MessageHeaders;
 
-	std::unique_ptr<FreeListAllocator> m_CpuPayloadAllocator;
-	std::shared_ptr<SharedMemory> m_CpuPayloadMemory;
-
-	std::unique_ptr<FreeListAllocator> m_GpuPayloadAllocator[MAX_NUM_GPUS];
-	std::shared_ptr<CudaSharedMemory> m_GpuPayloadMemory[MAX_NUM_GPUS];
+	std::vector<std::shared_ptr<FreeListAllocator>> m_Allocators;
+	std::vector<std::shared_ptr<Memory>> m_MemoryBlocks;
 
 	UuidGenerator m_UuidGenerator;
-
-	std::map<std::string_view, std::shared_ptr<Event>> m_Events;
 };
 
 template<>

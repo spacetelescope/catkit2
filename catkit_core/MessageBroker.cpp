@@ -103,27 +103,6 @@ private:
 	char m_Delimiter;
 };
 
-TopicHeader::TopicHeader(const TopicHeader &header)
-{
-	CopyFrom(header);
-}
-
-TopicHeader &TopicHeader::operator=(const TopicHeader &header)
-{
-	CopyFrom(header);
-
-	return *this;
-}
-
-void TopicHeader::CopyFrom(const TopicHeader &header)
-{
-	next_frame_id.store(header.next_frame_id.load(std::memory_order_relaxed), std::memory_order_relaxed);
-	event_shared_state = header.event_shared_state;
-
-	std::copy(header.message_headers, header.message_headers + TOPIC_MAX_NUM_MESSAGES, message_headers);
-	std::copy((char *)header.metadata_keys, (char *)header.metadata_keys + sizeof(metadata_keys), (char *)metadata_keys);
-}
-
 MessageBroker::MessageBroker(SharedState *shared_state)
 	: m_Header(shared_state->header),
 	ShareableImpl(shared_state, 0)
@@ -140,18 +119,18 @@ std::unique_ptr<MessageBroker> MessageBroker::Open(SharedState *shared_state)
 	return nullptr;
 }
 
-Message MessageBroker::PrepareMessage(const std::string &topic, size_t payload_size, int8_t device_id)
+Message MessageBroker::PrepareMessage(const std::string &topic, size_t payload_size, uint8_t memory_block_id)
 {
 	Uuid trace_id;
 	m_UuidGenerator.Generate(trace_id);
 
-	return PrepareMessage(topic, trace_id, payload_size, device_id);
+	return PrepareMessage(topic, trace_id, payload_size, memory_block_id);
 }
 
-Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, int8_t device_id)
+Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, uint8_t memory_block_id)
 {
 	// Allocate a payload.
-	auto allocator = GetAllocator(device_id);
+	auto allocator = GetAllocator(memory_block_id);
 
 	if (allocator == nullptr)
 	{
@@ -167,11 +146,11 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 
 	auto offset = allocator->GetOffset(block_handle);
 
-	auto memory = GetMemory(device_id);
+	auto memory = GetMemory(memory_block_id);
 	auto payload = memory->GetAddress(offset);
 
 	// Allocate a message header.
-	auto message_header_handle = m_MessageHeaderAllocator.Allocate();
+	auto message_header_handle = m_MessageHeaderAllocator->Allocate();
 
 	if (message_header_handle == PoolAllocator::INVALID_HANDLE)
 	{
@@ -186,7 +165,7 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 	auto header = &m_MessageHeaders[message_header_handle];
 
 	// Set the payload information.
-	header->payload_info.device_id = device_id;
+	header->payload_info.memory_block_id = memory_block_id;
 	header->payload_info.total_size = payload_size;
 	header->payload_info.offset_in_buffer = offset;
 	m_UuidGenerator.Generate(header->payload_id);
@@ -196,7 +175,7 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 	topic.copy(header->topic, TOPIC_MAX_KEY_SIZE - 1);
 
 	// Set the trace ID.
-	std::copy(trace_id, trace_id + sizeof(trace_id), header->trace_id);
+	std::copy(trace_id, trace_id + sizeof(Uuid), header->trace_id);
 
 	// Set the producer information.
 	std::fill(header->producer_hostname, header->producer_hostname + HOST_NAME_SIZE, '\0');
@@ -222,7 +201,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	}
 
 	auto topic = std::string_view(message.m_Header->topic);
-	auto topic_header = m_TopicHeaders.Find(topic);
+	auto topic_header = (TopicHeader *) m_TopicHeaders->Find(topic);
 
 	if (message.m_Header->frame_id == INVALID_FRAME_ID)
 	{
@@ -248,7 +227,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	// Publish the message to all subtopics.
 	for (const auto &subtopic : SubtopicRange(topic))
 	{
-		auto topic_header = m_TopicHeaders.Find(std::string(subtopic));
+		auto topic_header = (TopicHeader *) m_TopicHeaders->Find(std::string(subtopic));
 
 		if (!topic_header)
 		{
@@ -277,7 +256,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	if (!is_final)
 	{
 		// Copy the message header since it's gone after publishing.
-		auto message_header_handle = m_MessageHeaderAllocator.Allocate();
+		auto message_header_handle = m_MessageHeaderAllocator->Allocate();
 
 		if (message_header_handle == PoolAllocator::INVALID_HANDLE)
 		{
@@ -292,52 +271,70 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	message.m_HasBeenPublished = is_final;
 }
 
-std::shared_ptr<FreeListAllocator> MessageBroker::GetAllocator(int8_t device_id)
+std::shared_ptr<FreeListAllocator> MessageBroker::GetAllocator(uint8_t memory_block_id)
 {
-	if (device_id < -1 || device_id >= MAX_NUM_GPUS)
+	if (memory_block_id >= m_Allocators.size())
 	{
 		return nullptr;
 	}
 
-	if (device_id == -1)
-	{
-		return m_CpuPayloadAllocator;
-	}
-
-	return m_GpuPayloadAllocator[device_id];
+	return m_Allocators[memory_block_id];
 }
 
-std::shared_ptr<Memory> MessageBroker::GetMemory(int8_t device_id)
+std::shared_ptr<Memory> MessageBroker::GetMemory(uint8_t memory_block_id)
 {
-	if (device_id < -1 || device_id >= MAX_NUM_GPUS)
+	if (memory_block_id >= m_MemoryBlocks.size())
 	{
 		return nullptr;
 	}
 
-	if (device_id == -1)
-	{
-		return m_CpuPayloadMemory;
-	}
-
-	return m_GpuPayloadMemory[device_id];
+	return m_MemoryBlocks[memory_block_id];
 }
 
 std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 {
-	auto topic_header = m_TopicHeaders.Find(topic);
-
-	if (topic_header == nullptr)
-	{
-		return nullptr;
-	}
-
 	// Look up the synchronization structure (not the shared data).
 	if (m_Events.find(topic) == m_Events.end())
 	{
+		auto topic_header = GetTopicHeader(topic);
+
+		if (!topic_header)
+			return nullptr;
+
 		m_Events[topic] = Event::Create(topic, &topic_header->event_shared_state);
 	}
 
 	return m_Events[topic];
+}
+
+TopicHeader *MessageBroker::GetTopicHeader(std::string_view topic)
+{
+	auto topic_header = (TopicHeader *) m_TopicHeaders->Find(topic);
+
+	if (topic_header)
+	{
+		return topic_header;
+	}
+
+	// The topic header doesn't exist, so create it.
+	TopicHeader temp_topic_header;
+
+	temp_topic_header.next_frame_id = 0;
+	temp_topic_header.first_frame_id = 0;
+	temp_topic_header.last_frame_id = 0;
+
+
+
+	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
+
+	if (!topic_header)
+	{
+		// Someone scooped us while we were creating the topic header.
+		// Let's use the topic header created by the other actor.
+		topic_header = (TopicHeader *) m_TopicHeaders->Find(topic);
+	}
+
+	return topic_header;
 }
 
 Message::Message(MessageHeader *header, void *payload, bool has_been_published)
