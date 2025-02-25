@@ -3,7 +3,7 @@
 #include "Timing.h"
 #include "Util.h"
 #include "Log.h"
-#include "proto/tracing.pb.h"
+#include "tracing.pb.h"
 
 #include <zmq.hpp>
 

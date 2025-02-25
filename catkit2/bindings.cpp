@@ -21,7 +21,7 @@
 #include "HostName.h"
 #include "Tracing.h"
 
-#include "proto/testbed.pb.h"
+#include "testbed.pb.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)

@@ -32,9 +32,6 @@ jobs:
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
     - name: Install dependencies
       run: |
-        cd extern/
-        bash ./download.sh
-        cd ../
         conda env create --name ci-env --file environment.yml
       shell: bash -l {0}
     - name: Print debugging information
@@ -45,7 +42,7 @@ jobs:
     - name: Install catkit2
       run: |
         conda activate ci-env
-        python setup.py develop
+        pip install -v -e .
       shell: bash -l {0}
     - name: Run tests
       run: |
