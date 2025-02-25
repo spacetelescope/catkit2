@@ -46,6 +46,36 @@ class Evo(Enum):
     REG_MAC_ADDRESS = 0xB3
 
 
+class Fianium(Enum):
+    DEVICE_ID = 15
+
+    #REG_BASE_TEMPERATURE = 0x17
+    #REG_SUPPLY_VOLTAGE = 0x1D
+    #REG_EXTERNAL_CONTROL_INPUT = 0x94
+
+    #REG_OUTPUT_POWER_SETPOINT = 0x21
+    #REG_CURRENT_SETPOINT = 0x27
+    REG_EMISSION = 0x30
+    REG_SETUP_BITS = 0x31
+    REG_INTERLOCK = 0x32
+    REG_PULSE_PICKER_RATIO = 0x34 #Added
+    REG_WATCHDOG_TIMER = 0x36
+    REG_OUTPUT_LEVEL = 0x37 #Added
+    REG_NIM_DELAY = 0x39
+    REG_MODULE_TYPE = 0x61  # Added general register
+    REG_MODEL_SERIAL_NUMBER = 0x65
+
+    REG_STATUS_BITS = 0x66
+    REG_ERROR_CODE = 0x67 #Added general register
+
+    #REG_USER_AREA = 0x8D
+    #Ethernet modules needed?
+    #REG_IP_ADDRESS = 0xB0
+    #REG_GATEWAY = 0xB1
+    #REG_SUBNET_MASK = 0xB2
+    #REG_MAC_ADDRESS = 0xB3
+
+
 class Varia(Enum):
     DEVICE_ID = 16
 
@@ -100,6 +130,58 @@ class NktSuperk(Service):
 
         self.threads = {}
         self.port = self.config['port']
+
+        connected_device = self.config['connected_device'].lower()
+        if connected_device == 'evo':
+            device = Evo
+        elif connected_device == 'fianium':
+            device = Fianium
+        else:
+            raise NotImplementedError(f'Connected device {connected_device} not implemented.')
+        
+        # Functions for the SuperK EVO
+        if device is Evo:
+            self.get_base_temperature = read_register(registerReadS16, Evo.REG_BASE_TEMPERATURE, ratio=0.1)
+            self.get_supply_voltage = read_register(registerReadU16, Evo.REG_SUPPLY_VOLTAGE, ratio=0.001)
+            self.get_external_control_input = read_register(registerReadU16, Evo.REG_EXTERNAL_CONTROL_INPUT, ratio=0.001)
+
+            self.get_power_setpoint = read_register(registerReadU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
+            self.set_power_setpoint = write_register(registerWriteU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
+
+            self.get_current_setpoint = read_register(registerReadU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
+            self.set_current_setpoint = write_register(registerWriteU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
+
+        elif device is Fianium:
+            self.get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO)
+            self.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO)
+
+        #Functions for both
+        self.get_emission = read_register(registerReadU8, device.REG_EMISSION, ratio=0.5)
+        self.set_emission = write_register(registerWriteU8, device.REG_EMISSION, ratio=0.5)
+
+        self.get_setup_bits = read_register(registerReadU8, device.REG_SETUP_BITS)
+        self.set_setup_bits = write_register(registerWriteU8, device.REG_SETUP_BITS)
+
+        self.get_interlock_msb = read_register(registerReadU8, device.REG_INTERLOCK, index=0)
+        self.get_interlock_lsb = read_register(registerReadU8, device.REG_INTERLOCK, index=1)
+
+        self.get_fianium_status_bits = read_register(registerReadU16, device.REG_STATUS_BITS)
+
+        self.get_watchdog_timer = read_register(registerReadU8, device.REG_WATCHDOG_TIMER)
+        self.set_watchdog_timer = write_register(registerWriteU8, device.REG_WATCHDOG_TIMER)
+
+        # Functions for the SuperK VARIA
+        self.get_monitor_input = read_register(registerReadU16, Varia.REG_MONITOR_INPUT, ratio=0.1)
+
+        self.get_nd_setpoint = read_register(registerReadU16, Varia.REG_ND_SETPOINT, ratio=0.1)
+        self.get_swp_setpoint = read_register(registerReadU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
+        self.get_lwp_setpoint = read_register(registerReadU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
+
+        self.set_nd_setpoint = write_register(registerWriteU16, Varia.REG_ND_SETPOINT, ratio=0.1)
+        self.set_swp_setpoint = write_register(registerWriteU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
+        self.set_lwp_setpoint = write_register(registerWriteU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
+
+        self.get_varia_status_bits = read_register(registerReadU16, Varia.REG_STATUS_BITS)
 
     def open(self):
         # Make datastreams.
@@ -230,44 +312,6 @@ class NktSuperk(Service):
                 self.sleep(1)
 
         return func
-
-    # Functions for the SuperK EVO
-    get_base_temperature = read_register(registerReadS16, Evo.REG_BASE_TEMPERATURE, ratio=0.1)
-    get_supply_voltage = read_register(registerReadU16, Evo.REG_SUPPLY_VOLTAGE, ratio=0.001)
-    get_external_control_input = read_register(registerReadU16, Evo.REG_EXTERNAL_CONTROL_INPUT, ratio=0.001)
-
-    get_power_setpoint = read_register(registerReadU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
-    set_power_setpoint = write_register(registerWriteU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
-
-    get_current_setpoint = read_register(registerReadU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
-    set_current_setpoint = write_register(registerWriteU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
-
-    get_emission = read_register(registerReadU8, Evo.REG_EMISSION, ratio=0.5)
-    set_emission = write_register(registerWriteU8, Evo.REG_EMISSION, ratio=0.5)
-
-    get_setup_bits = read_register(registerReadU8, Evo.REG_SETUP_BITS)
-    set_setup_bits = write_register(registerWriteU8, Evo.REG_SETUP_BITS)
-
-    get_interlock_msb = read_register(registerReadU8, Evo.REG_INTERLOCK, index=0)
-    get_interlock_lsb = read_register(registerReadU8, Evo.REG_INTERLOCK, index=1)
-
-    get_evo_status_bits = read_register(registerReadU16, Evo.REG_STATUS_BITS)
-
-    get_watchdog_timer = read_register(registerReadU8, Evo.REG_WATCHDOG_TIMER)
-    set_watchdog_timer = write_register(registerWriteU8, Evo.REG_WATCHDOG_TIMER)
-
-    # Functions for the SuperK VARIA
-    get_monitor_input = read_register(registerReadU16, Varia.REG_MONITOR_INPUT, ratio=0.1)
-
-    get_nd_setpoint = read_register(registerReadU16, Varia.REG_ND_SETPOINT, ratio=0.1)
-    get_swp_setpoint = read_register(registerReadU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
-    get_lwp_setpoint = read_register(registerReadU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
-
-    set_nd_setpoint = write_register(registerWriteU16, Varia.REG_ND_SETPOINT, ratio=0.1)
-    set_swp_setpoint = write_register(registerWriteU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
-    set_lwp_setpoint = write_register(registerWriteU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
-
-    get_varia_status_bits = read_register(registerReadU16, Varia.REG_STATUS_BITS)
 
 
 if __name__ == '__main__':
