@@ -2,7 +2,7 @@
 #define TYPES_H
 
 #include "Tensor.h"
-#include "proto/core.pb.h"
+#include "core.pb.h"
 
 #include <list>
 #include <map>

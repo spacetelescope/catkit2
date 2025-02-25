@@ -4,7 +4,7 @@
 #include "Timing.h"
 #include "Service.h"
 #include "Util.h"
-#include "proto/service.pb.h"
+#include "service.pb.h"
 
 #include <iostream>
 

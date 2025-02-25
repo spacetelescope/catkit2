@@ -2,7 +2,7 @@
 
 #include "Timing.h"
 #include "HostName.h"
-#include "proto/testbed.pb.h"
+#include "testbed.pb.h"
 
 #include <memory>
 #include <regex>

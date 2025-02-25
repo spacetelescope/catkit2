@@ -2,7 +2,7 @@
 #define TENSOR_H
 
 #include "ComplexTraits.h"
-#include "proto/core.pb.h"
+#include "core.pb.h"
 
 #include <Eigen/Dense>
 

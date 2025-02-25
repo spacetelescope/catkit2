@@ -5,7 +5,7 @@
 #include "LoggingProxy.h"
 #include "DataStream.h"
 #include "Client.h"
-#include "proto/testbed.pb.h"
+#include "testbed.pb.h"
 #include "ServiceState.h"
 #include "Util.h"
 

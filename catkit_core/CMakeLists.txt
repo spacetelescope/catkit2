@@ -11,34 +11,10 @@ endif()
 
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP1>)
 
-add_library(catkit_core STATIC
-    DataStream.cpp
-    SharedMemory.cpp
-    Timing.cpp
-    Log.cpp
-    LogConsole.cpp
-    LogFile.cpp
-    LogForwarder.cpp
-    HostName.cpp
-    Command.cpp
-    Property.cpp
-    Service.cpp
-    Server.cpp
-    Client.cpp
-    TestbedProxy.cpp
-    ServiceProxy.cpp
-    ServiceState.cpp
-    Tensor.cpp
-    Tracing.cpp
-    Types.cpp
-    Util.cpp
-    PoolAllocator.cpp
-    FreeListAllocator.cpp
-    proto/core.pb.cc
-    proto/logging.pb.cc
-    proto/testbed.pb.cc
-    proto/service.pb.cc
-    proto/tracing.pb.cc)
+file(GLOB_RECURSE SOURCES "*.cpp")
+file(GLOB_RECURSE HEADERS "*.h")
+
+add_library(catkit_core STATIC "${SOURCES}")
 
 set_property(TARGET catkit_core PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(catkit_core PUBLIC PROTOBUF_USE_DLLS)
@@ -62,16 +38,16 @@ else()
 endif (WIN32)
 
 # Add includes for cppzmq
-set(CPPZMQ_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/cppzmq-4.8.1)
+find_package(cppzmq REQUIRED)
 target_include_directories(catkit_core PUBLIC ${CPPZMQ_INCLUDE_DIR})
 
 # Link Eigen
-set(EIGEN_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/eigen-3.4.0)
-target_include_directories(catkit_core PUBLIC ${EIGEN_INCLUDE_DIR})
+find_package(Eigen3 REQUIRED NO_MODULE)
+target_link_libraries (catkit_core PUBLIC Eigen3::Eigen)
 
 # Link nlohmann JSON
-set (JSON_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../extern/json-3.9.1/include)
-target_include_directories(catkit_core PUBLIC ${JSON_INCLUDE_DIR})
+find_package(nlohmann_json)
+target_include_directories(catkit_core PRIVATE ${JSON_INCLUDE_DIR})
 
 # Link protobuf
 INCLUDE(FindProtobuf)
@@ -79,16 +55,55 @@ find_package(Protobuf REQUIRED)
 target_include_directories(catkit_core PUBLIC ${PROTOBUF_INCLUDE_DIR})
 target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARY})
 
-# Add install files
-install(TARGETS catkit_core DESTINATION lib)
+set(PROTO_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/gen/")
+file(MAKE_DIRECTORY "${PROTO_BINARY_DIR}")
+protobuf_generate(
+  TARGET catkit_core
+  IMPORT_DIRS ../proto
+  PROTOC_OUT_DIR "${PROTO_BINARY_DIR}"
+  PROTOS
+    ../proto/core.proto
+    ../proto/logging.proto
+    ../proto/service.proto
+    ../proto/testbed.proto
+    ../proto/tracing.proto
+)
+target_include_directories(catkit_core PUBLIC "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>")
+# Generate and install CatkitCoreConfig.cmake
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CatkitCoreConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/CatkitCoreConfig.cmake"
+  INSTALL_DESTINATION lib/cmake/catkit_core
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/CatkitCoreConfig.cmake"
+  DESTINATION "${SKBUILD_PLATLIB_DIR}/cmake/catkit_core"
+)
+
+install(
+  TARGETS catkit_core
+  EXPORT CatkitCoreTargets
+  LIBRARY DESTINATION lib
+)
+
+# Generate and install CatkitCoreTargets.cmake
+install(
+  EXPORT CatkitCoreTargets
+  FILE CatkitCoreTargets.cmake
+  DESTINATION "${SKBUILD_PLATLIB_DIR}/cmake/catkit_core"
+)
+
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-        DESTINATION include
+        DESTINATION "${SKBUILD_HEADERS_DIR}"
         FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.inl"
 )
-install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../proto/gen/cpp/
-        DESTINATION include/catkit_core
+install(DIRECTORY "${PROTO_BINARY_DIR}"
+        DESTINATION "${SKBUILD_HEADERS_DIR}/catkit_core"
         FILES_MATCHING
         PATTERN "*.h"
 )

@@ -1,10 +1,10 @@
 dummy_dm_service:
   service_type: dummy_dm_service
   requires_safety: false
-  interface: bmc_dm
+  interface: deformable_mirror
 
-  num_actuators: 952 
-  dm_shape: 2048
+  device_actuator_mask_fname: !path ../data/dm_mask.fits
+  num_actuators_all_dms: 1904
 
 dummy_service:
   service_type: dummy_service
