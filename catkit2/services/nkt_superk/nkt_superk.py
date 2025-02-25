@@ -152,6 +152,12 @@ class NktSuperk(Service):
             self.set_current_setpoint = write_register(registerWriteU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
 
         # Functions for the SuperK FIANIUM
+        elif self.device is Fianium:
+            self.get_power_setpoint = read_register(registerReadU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
+            self.set_power_setpoint = write_register(registerWriteU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
+
+            self.get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=0.1)
+            self.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=0.1)
 
         #Functions for both
         self.get_emission = read_register(registerReadU8, self.device.REG_EMISSION, ratio=0.5)
