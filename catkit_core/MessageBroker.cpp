@@ -323,8 +323,6 @@ TopicHeader *MessageBroker::GetTopicHeader(std::string_view topic)
 	temp_topic_header.first_frame_id = 0;
 	temp_topic_header.last_frame_id = 0;
 
-
-
 	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
 
 	if (!topic_header)

@@ -44,6 +44,11 @@ add_executable(uuid_generator uuid_generator.cpp)
 target_include_directories(uuid_generator PUBLIC ../catkit_core)
 target_link_libraries(uuid_generator PUBLIC catkit_core)
 
+# Ringbuffer benchmark
+add_executable(ring_buffer ring_buffer.cpp)
+target_include_directories(ring_buffer PUBLIC ../catkit_core)
+target_link_libraries(ring_buffer PUBLIC catkit_core)
+
 # Add install files
 install(TARGETS datastream_latency DESTINATION bin)
 install(TARGETS datastream_submit DESTINATION bin)
@@ -52,3 +57,4 @@ install(TARGETS free_list_allocator DESTINATION bin)
 install(TARGETS pool_allocator DESTINATION bin)
 install(TARGETS hash_map DESTINATION bin)
 install(TARGETS uuid_generator DESTINATION bin)
+install(TARGETS ring_buffer DESTINATION bin)
