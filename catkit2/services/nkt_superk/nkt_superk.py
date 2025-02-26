@@ -267,7 +267,7 @@ class NktSuperk(Service):
 
     def close(self):
         # Turn off the source
-        self.set_emission(0)
+        self.set_emission(self,0)
 
         # Join all threads.
         for thread in self.threads.values():
@@ -286,17 +286,17 @@ class NktSuperk(Service):
             raise RuntimeError(RegisterResultTypes(result))
 
     def update_evo_status(self):
-        temperature = self.get_base_temperature()
+        temperature = self.get_base_temperature(self)
         self.base_temperature.submit_data(np.array([temperature], dtype='float32'))
 
-        voltage = self.get_supply_voltage()
+        voltage = self.get_supply_voltage(self)
         self.supply_voltage.submit_data(np.array([voltage], dtype='float32'))
 
-        control_input = self.get_external_control_input()
+        control_input = self.get_external_control_input(self)
         self.external_control_input.submit_data(np.array([control_input], dtype='float32'))
 
     def update_varia_status(self):
-        status = self.get_varia_status_bits()
+        status = self.get_varia_status_bits(self)
 
         # Extract moving filters from status.
         nd_filter_moving = (status & (2 << 12)) > 0
@@ -309,7 +309,7 @@ class NktSuperk(Service):
         self.lwp_filter_moving.submit_data(np.array([lwp_filter_moving], dtype='uint8'))
 
         # Update input monitor.
-        monitor_input = self.get_monitor_input()
+        monitor_input = self.get_monitor_input(self)
         self.monitor_input.submit_data(np.array([monitor_input], dtype='float32'))
 
     def monitor_func(self, stream, setter):
@@ -320,7 +320,7 @@ class NktSuperk(Service):
                 except Exception:
                     continue
 
-                setter(frame.data[0])
+                setter(self, frame.data[0])
 
         return func
 
