@@ -23,6 +23,10 @@ void UuidGenerator::Generate(Uuid *uuid)
 		*reinterpret_cast<std::uint64_t *>(uuid->data + i * 8) = value;
 	}
 
+	// Ensure we are compliant with RFC 4122.
+	// Set the version and variant bits to conform to version 4.
+	uuid->data[6] = (uuid->data[6] & 0x0F) | 0x40;
+	uuid->data[8] = (uuid->data[8] & 0x3F) | 0x80;
 }
 
 std::string Uuid::to_string() const
