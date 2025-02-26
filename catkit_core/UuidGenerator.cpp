@@ -1,5 +1,8 @@
 #include "UuidGenerator.h"
 
+#include <sstream>
+#include <iomanip>
+
 UuidGenerator::UuidGenerator()
 {
 	std::random_device random_device;
@@ -11,11 +14,31 @@ UuidGenerator::UuidGenerator()
 	}
 }
 
-void UuidGenerator::Generate(Uuid &uuid)
+void UuidGenerator::Generate(Uuid *uuid)
 {
+	// Fill all bytes with random data.
 	for (size_t i = 0; i < 2; ++i)
 	{
 		std::uint64_t value = m_Engines[i]();
-		*reinterpret_cast<std::uint64_t *>(uuid + i * 8) = value;
+		*reinterpret_cast<std::uint64_t *>(uuid->data + i * 8) = value;
 	}
+
+}
+
+std::string Uuid::to_string() const
+{
+	std::ostringstream oss;
+	oss << std::hex << std::setw(2) << std::setfill('0');
+
+	for (size_t i = 0; i < 16; ++i)
+	{
+		// Insert hex value of the current byte.
+		oss << static_cast<int>(data[i]);
+
+		// Insert dashes at the correct positions.
+		if (i == 3 || i == 5 || i == 7 || i == 9)
+			oss << '-';
+	}
+
+	return oss.str();
 }
