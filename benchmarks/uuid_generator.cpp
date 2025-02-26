@@ -9,7 +9,7 @@ int main()
 
 	UuidGenerator generator;
 
-	char uuid[16];
+	Uuid uuid;
 
 	std::cout << std::hex;
 
@@ -17,7 +17,7 @@ int main()
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		generator.Generate(uuid);
+		generator.Generate(&uuid);
 	}
 
 	auto end = GetTimeStamp();
