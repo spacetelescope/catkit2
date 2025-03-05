@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(catkit2)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -39,6 +39,11 @@ add_executable(hash_map hash_map.cpp)
 target_include_directories(hash_map PUBLIC ../catkit_core)
 target_link_libraries(hash_map PUBLIC catkit_core)
 
+# Struct test
+add_executable(struct struct.cpp)
+target_include_directories(struct PUBLIC ../catkit_core)
+target_link_libraries(struct PUBLIC catkit_core)
+
 # Add install files
 install(TARGETS datastream_latency DESTINATION bin)
 install(TARGETS datastream_submit DESTINATION bin)
@@ -46,3 +51,4 @@ install(TARGETS timestamp DESTINATION bin)
 install(TARGETS free_list_allocator DESTINATION bin)
 install(TARGETS pool_allocator DESTINATION bin)
 install(TARGETS hash_map DESTINATION bin)
+install(TARGETS struct DESTINATION bin)
