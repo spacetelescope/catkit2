@@ -10,6 +10,8 @@
 #include <type_traits>
 #include <algorithm>
 
+#include "Timing.h"
+
 template <typename T, template <typename...> class A>
 struct is_specialization_of : std::false_type {};
 
@@ -249,7 +251,7 @@ public:
 	}
 
 	template <FixedString Name>
-	auto GetSubSpec()
+	auto &GetSubSpec()
 	{
 		constexpr size_t index = GetStructFieldIndex(Name);
 		static_assert(index < NumStructFields, "Field name not found!");
@@ -281,7 +283,7 @@ public:
 		}
 	}
 
-private:
+public:
 	// Offsets and sizes for dynamic fields.
 	std::array<size_t, NumFields> m_Offsets;
 	std::array<size_t, NumFields> m_NumElements;
@@ -369,23 +371,44 @@ template<typename StructSpec>
 class Struct
 {
 public:
-	Struct(void *buffer, StructSpec spec)
+	Struct(void *buffer, StructSpec &spec)
 		: m_Buffer(buffer), m_Spec(spec)
 	{
 	}
 
-	template<FixedString Name>
-	void *Get()
+	template <FixedString Name>
+	auto Get()
 	{
-		return nullptr;
+		constexpr size_t index = StructSpec::GetFieldIndex(Name);
+		using Field = std::tuple_element_t<index, typename StructSpec::FieldsTuple>;
+
+		char *ptr = reinterpret_cast<char *>(m_Buffer);
+		ptr += m_Spec.template GetOffset<Name>();
+
+		if constexpr (Field::is_struct)
+		{
+			auto &sub_spec = m_Spec.template GetSubSpec<Name>();
+			return Struct<typename std::remove_reference<decltype(sub_spec)>::type>(ptr, sub_spec);
+		}
+		else
+		{
+			return reinterpret_cast<Field::type *>(ptr);
+		}
+	}
+
+	auto operator [] (size_t index)
+	{
+		char *ptr = reinterpret_cast<char *>(m_Buffer);
+		ptr += m_Spec.GetSize() * index;
+
+		return Struct(ptr, m_Spec);
 	}
 
 private:
 	void *m_Buffer;
-	StructSpec m_Spec;
-};
 
-// USAGE:
+	StructSpec &m_Spec;
+};
 
 void usage()
 {
@@ -399,21 +422,36 @@ void usage()
 		NamedField<"c", char, 64>,
 		NamedField<"d", NestedStructSpec, Dynamic>>;
 
+	auto start = GetTimeStamp();
 	auto spec = MyStructSpec::Build({
 		{"b", 10},
 		{"d", 5, {
 			{"f", 2}
 			}}
 		});
+	auto end = GetTimeStamp();
+	std::cout << (end - start) << " ns" << std::endl;
 
 	spec.Print();
 
 	void *buffer = malloc(spec.GetSize());
-	Struct s = Struct(buffer, spec);
 
-	//s.Get<"a">() = 10;
-	//s.Get<"b">()[5] = 3.14;
-	//s.Get<"d">()[3].Get<"e">() = 5;
+	start = GetTimeStamp();
+	Struct s = Struct(buffer, spec);
+	end = GetTimeStamp();
+	std::cout << (end - start) << " ns" << std::endl;
+
+	start = GetTimeStamp();
+
+	end = GetTimeStamp();
+	std::cout << double(end - start) / 1000000.0 << " ns" << std::endl;
+
+	*s.Get<"a">() = 10;
+	s.Get<"b">()[5] = 3.14;
+	*s.Get<"d">()[3].Get<"e">() = 5;
+
+	std::cout << "A " << *s.Get<"a">() << std::endl;
+	std::cout << "D.E " << *s.Get<"d">()[3].Get<"e">() << std::endl;
 
 	free(buffer);
 }
