@@ -7,18 +7,22 @@ from ..service_proxy import ServiceProxy
 class NktSuperkProxy(ServiceProxy):
     @property
     def center_wavelength(self):
+        print('Getting central wavelength...')
         return (self.swp_setpoint.get()[0] + self.lwp_setpoint.get()[0]) / 2
 
     @center_wavelength.setter
     def center_wavelength(self, center_wavelength):
+        print('Setting central wavelength...')
         self.set_spectrum(center_wavelength=center_wavelength, wait=False)
 
     @property
     def bandwidth(self):
+        print('Getting bandwidth value...')
         return self.swp_setpoint.get()[0] - self.lwp_setpoint.get()[0]
 
     @bandwidth.setter
     def bandwidth(self, bandwidth):
+        print('Setting bandwidth value...')
         self.set_spectrum(bandwidth=bandwidth, wait=False)
 
     def set_spectrum(self, center_wavelength=None, bandwidth=None, wait=True):
