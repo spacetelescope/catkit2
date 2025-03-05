@@ -101,3 +101,22 @@ class NktSuperkProxy(ServiceProxy):
         self.power_setpoint.submit_data(np.array([power], dtype='float32'))
 
 
+    @property
+    def pulse_picker_ratio(self):
+        print('Getting pulse_picker_ratio value...')
+        try:
+            return self.pulse_picker_ratio.get()[0]
+        except RuntimeError:
+                # The frame wasn't available anymore because we were waiting too long.
+                print('Could not getting pulse picker ratio')
+        
+    @pulse_picker_ratio.setter
+    def pulse_picker_ratio(self, pulse_picker_ratio):
+        print('Setting pulse_picker_ratio value...')
+        try:
+            self.pulse_picker_ratio.submit_data(np.array([pulse_picker_ratio], dtype='float32'))
+        except RuntimeError:
+                # The frame wasn't available anymore because we were waiting too long.
+                print('Could not setting pulse picker ratio')
+
+
