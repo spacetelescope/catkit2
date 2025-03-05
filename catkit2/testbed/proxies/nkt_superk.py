@@ -90,4 +90,14 @@ class NktSuperkProxy(ServiceProxy):
             print('NKT already OFF')
 
     
-   
+    @property
+    def power(self):
+        print('Getting power value...')
+        return self.power_setpoint.get()[0]
+
+    @power.setter
+    def power(self, power):
+        print('Setting power value...')
+        self.power_setpoint.submit_data(np.array([power], dtype='float32'))
+
+
