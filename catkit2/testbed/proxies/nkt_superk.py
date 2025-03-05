@@ -90,10 +90,4 @@ class NktSuperkProxy(ServiceProxy):
             print('NKT already OFF')
 
     
-    @property
-    def power(self):
-        print('Getting power value...')
-        return self.power.get()[0] - self.lwp_setpoint.get()[0]
-
-    @bandwidth.setter
-    def bandwidth(self, bandwidth):
+   
