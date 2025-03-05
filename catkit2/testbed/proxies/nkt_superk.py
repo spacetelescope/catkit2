@@ -74,7 +74,7 @@ class NktSuperkProxy(ServiceProxy):
         return self.config['base_sleep_time']
     
     def turn_on(self):
-        emission = self.emission.emission.get()[0]
+        emission = self.emission.get()[0]
         if emission is False:
             self.emission.submit_data(np.array([1], dtype='uint8'))
             print('NKT turned ON')
@@ -82,21 +82,18 @@ class NktSuperkProxy(ServiceProxy):
             print('NKT already ON')
 
     def turn_off(self):
-        emission = self.emission.emission.get()[0]
+        emission = self.emission.get()[0]
         if emission is True:
             self.emission.submit_data(np.array([0], dtype='uint8'))
             print('NKT turned OFF')
         else:
             print('NKT already OFF')
 
-
     
-
-
-    """ @property
-    def bandwidth(self):
-        print('Getting bandwidth value...')
-        return self.swp_setpoint.get()[0] - self.lwp_setpoint.get()[0]
+    @property
+    def power(self):
+        print('Getting power value...')
+        return self.power.get()[0] - self.lwp_setpoint.get()[0]
 
     @bandwidth.setter
-    def bandwidth(self, bandwidth): """
+    def bandwidth(self, bandwidth):
