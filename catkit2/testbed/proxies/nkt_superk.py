@@ -73,12 +73,8 @@ class NktSuperkProxy(ServiceProxy):
     def base_sleep_time(self):
         return self.config['base_sleep_time']
     
-    @property
-    def emission(self):
-        return self.emission.get()[0]
-    
     def turn_on(self):
-        emission = self.emission
+        emission = self.emission.emission.get()[0]
         if emission is False:
             self.emission.submit_data(np.array([1], dtype='uint8'))
             print('NKT turned ON')
@@ -86,41 +82,21 @@ class NktSuperkProxy(ServiceProxy):
             print('NKT already ON')
 
     def turn_off(self):
-        emission = self.emission
+        emission = self.emission.emission.get()[0]
         if emission is True:
             self.emission.submit_data(np.array([0], dtype='uint8'))
             print('NKT turned OFF')
         else:
             print('NKT already OFF')
 
+
     
-    @property
-    def power(self):
-        print('Getting power value...')
-        return self.power_setpoint.get()[0]
-
-    @power.setter
-    def power(self, power):
-        print('Setting power value...')
-        self.power_setpoint.submit_data(np.array([power], dtype='float32'))
 
 
-    @property
-    def pulse_picker_ratio(self):
-        print('Getting pulse_picker_ratio value...')
-        try:
-            return self.pulse_picker_ratio.get()[0]
-        except RuntimeError:
-                # The frame wasn't available anymore because we were waiting too long.
-                print('Could not getting pulse picker ratio')
-        
-    @pulse_picker_ratio.setter
-    def pulse_picker_ratio(self, pulse_picker_ratio):
-        print('Setting pulse_picker_ratio value...')
-        try:
-            self.pulse_picker_ratio.submit_data(np.array([pulse_picker_ratio], dtype='float32'))
-        except RuntimeError:
-                # The frame wasn't available anymore because we were waiting too long.
-                print('Could not setting pulse picker ratio')
+    """ @property
+    def bandwidth(self):
+        print('Getting bandwidth value...')
+        return self.swp_setpoint.get()[0] - self.lwp_setpoint.get()[0]
 
-
+    @bandwidth.setter
+    def bandwidth(self, bandwidth): """
