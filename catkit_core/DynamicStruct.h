@@ -377,7 +377,7 @@ public:
 	}
 
 	template <FixedString Name>
-	auto Get()
+	decltype(auto) Get()
 	{
 		constexpr size_t index = StructSpec::GetFieldIndex(Name);
 		using Field = std::tuple_element_t<index, typename StructSpec::FieldsTuple>;
@@ -392,7 +392,17 @@ public:
 		}
 		else
 		{
-			return reinterpret_cast<Field::type *>(ptr);
+			auto *type_ptr = reinterpret_cast<Field::type *>(ptr);
+			if constexpr (Field::is_dynamic || Field::num_elements > 1)
+			{
+				// Return pointer.
+				return type_ptr;
+			}
+			else
+			{
+				// Return reference.
+				return *type_ptr;
+			}
 		}
 	}
 
@@ -446,12 +456,12 @@ void usage()
 	end = GetTimeStamp();
 	std::cout << double(end - start) / 1000000.0 << " ns" << std::endl;
 
-	*s.Get<"a">() = 10;
+	s.Get<"a">() = 10;
 	s.Get<"b">()[5] = 3.14;
-	*s.Get<"d">()[3].Get<"e">() = 5;
+	s.Get<"d">()[3].Get<"e">() = 5;
 
-	std::cout << "A " << *s.Get<"a">() << std::endl;
-	std::cout << "D.E " << *s.Get<"d">()[3].Get<"e">() << std::endl;
+	std::cout << "A " << s.Get<"a">() << std::endl;
+	std::cout << "D.E " << s.Get<"d">()[3].Get<"e">() << std::endl;
 
 	free(buffer);
 }
