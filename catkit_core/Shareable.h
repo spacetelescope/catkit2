@@ -1,6 +1,8 @@
 #ifndef SHAREABLE_H
 #define SHAREABLE_H
 
+#include "StructStream.h"
+
 #include <cstddef>
 #include <memory>
 
@@ -65,6 +67,22 @@ protected:
 	SharedState *m_SharedState;
 	std::size_t m_DynamicSharedStateSize;
 };
+
+template <typename T, std::size_t N>
+inline bool CheckVersion(StructStream &stream, const std::array<T, N> expected_version)
+{
+	// Get the version from the stream;
+	T *our_version = stream.Extract<T>(N);
+
+	// Check if the version strings are the same, up to the null-terminator.
+	for (size_t i = 0; i < N; ++i)
+	{
+		if (our_version[i] != expected_version[i])
+			return false;
+	}
+
+	return true;
+}
 
 #include "Shareable.inl"
 
