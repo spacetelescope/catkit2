@@ -2,8 +2,6 @@
 #define STRUCT_STREAM_H
 
 #include <cstddef>
-#include <concepts>
-#include <type_traits>
 
 class StructStream
 {
@@ -15,33 +13,17 @@ public:
 	}
 
 	template <typename T>
-	requires std::is_fundamental_v<T>
-	StructStream &operator >> (T *&element)
+	T *Extract(std::size_t num_elements = 1)
 	{
 		AddPadding<T>();
 
 		// Link element to the buffer.
-		element = reinterpret_cast<T *>(m_Buffer + m_Offset);
+		T *res = reinterpret_cast<T *>(m_Buffer + m_Offset);
 
 		// Consume bytes from the buffer.
-		m_Offset += size;
+		m_Offset += num_elements * sizeof(T);
 
-		return *this;
-	}
-
-	template <typename T, std::size_t N>
-	requires std::is_fundamental_v<T>
-	StructStream &operator >> (T (*&array)[N])
-	{
-		AddPadding<T>();
-
-		// Link element to the buffer.
-		array = reinterpret_cast<T (*)[N]>(m_Buffer + m_Offset);
-
-		// Consume bytes from the buffer.
-		m_Offset += size * N;
-
-		return *this;
+		return res;
 	}
 
 	template <typename T>
@@ -51,8 +33,7 @@ public:
 		constexpr std::size_t align = alignof(T);
 
 		// Pad the buffer to satisfy alignment requirement.
-		std::size_t padding = (align - (m_Offset % align)) % align;
-		m_Offset += padding;
+		m_Offset += (align - (m_Offset % align)) % align;
 	}
 
 	char *m_Buffer;
