@@ -36,6 +36,12 @@ public:
 		m_Offset += (align - (m_Offset % align)) % align;
 	}
 
+	std::size_t GetOffset()
+	{
+		return m_Offset;
+	}
+
+private:
 	char *m_Buffer;
 	std::size_t m_Offset;
 };
