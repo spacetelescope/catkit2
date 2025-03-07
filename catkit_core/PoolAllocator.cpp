@@ -2,70 +2,66 @@
 
 #include <algorithm>
 
-const std::uint8_t VERSION[4] = {0, 0, 0, 0};
+const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
 
-PoolAllocator::PoolAllocator(SharedState *shared_state, std::atomic<BlockHandle> *next)
-	: m_Header(shared_state->header),
-	m_Next(next),
-	m_Capacity(m_Header.capacity),
-	m_Head(m_Header.head),
-	ShareableImpl<ShareableType::PoolAllocator>(shared_state, shared_state->header.capacity * sizeof(std::atomic<BlockHandle>))
+PoolAllocator::PoolAllocator(StructStream &stream, std::uint32_t capacity)
 {
+	m_Version = stream.Extract<std::array<std::uint8_t, 4>>();
+	m_Capacity = stream.Extract<std::uint32_t>();
+	m_Head = stream.Extract<std::atomic<BlockHandle>>();
+	m_Next = stream.Extract<std::atomic<BlockHandle>>(capacity);
 }
 
-void PoolAllocator::GetMemoryLayout(SharedState *shared_state, std::atomic<BlockHandle> **next)
+std::size_t PoolAllocator::GetMemorySize(std::uint32_t capacity)
 {
-	*next = reinterpret_cast<std::atomic<BlockHandle> *>(reinterpret_cast<char *>(shared_state) + sizeof(Header));
+	auto stream = StructStream(nullptr);
+	PoolAllocator(stream, capacity);
+
+	return stream.GetOffset();
 }
 
-std::unique_ptr<PoolAllocator> PoolAllocator::Create(SharedState *shared_state, std::uint32_t capacity)
+std::unique_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::uint32_t capacity)
 {
-	Header *header = &shared_state->header;
-
-	std::atomic<BlockHandle> *next;
-	GetMemoryLayout(shared_state, &next);
+	auto res = std::unique_ptr<PoolAllocator>(new PoolAllocator(stream, capacity));
 
 	// Set version and capacity.
-	std::copy(VERSION, VERSION + sizeof(VERSION), header->version);
-	header->capacity = capacity;
+	*res->m_Version = VERSION;
+	*res->m_Capacity = capacity;
 
 	// Initialize the linked list.
-	header->head.store(0, std::memory_order_relaxed);
+	std::construct_at(res->m_Head);
+	res->m_Head->store(0, std::memory_order_relaxed);
 
 	for (std::size_t i = 0; i < capacity; ++i)
 	{
+		std::construct_at(&res->m_Next[i]);
+
 		if (i == capacity - 1)
 		{
-			next[i] = INVALID_HANDLE;
+			res->m_Next[i] = INVALID_HANDLE;
 		}
 		else
 		{
-			next[i] = i + 1;
+			res->m_Next[i] = i + 1;
 		}
 	}
 
-	return std::unique_ptr<PoolAllocator>(new PoolAllocator(shared_state, next));
+	return res;
 }
 
-std::unique_ptr<PoolAllocator> PoolAllocator::Open(SharedState *shared_state)
+std::unique_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
 {
-	std::atomic<BlockHandle> *next;
-	GetMemoryLayout(shared_state, &next);
+	StructStream stream_copy = stream;
+	CheckVersion(stream_copy, VERSION);
 
-	return std::unique_ptr<PoolAllocator>(new PoolAllocator(shared_state, next));
-}
+	auto capacity = *stream_copy.Extract<std::uint32_t>();
 
-std::size_t PoolAllocator::CalculateMetadataBufferSize(std::uint32_t capacity)
-{
-	std::size_t size = sizeof(Header);
-	size += capacity * sizeof(std::atomic<BlockHandle>);
-
-	return size;
+	return std::unique_ptr<PoolAllocator>(new PoolAllocator(stream, capacity));
 }
 
 PoolAllocator::BlockHandle PoolAllocator::Allocate()
 {
-	BlockHandle head = m_Head.load(std::memory_order_relaxed);
+	BlockHandle head = m_Head->load(std::memory_order_relaxed);
 	BlockHandle next;
 
 	// Pop the first element from the linked list.
@@ -78,7 +74,7 @@ PoolAllocator::BlockHandle PoolAllocator::Allocate()
 		}
 
 		next = m_Next[head].load(std::memory_order_relaxed);
-	} while (!m_Head.compare_exchange_weak(head, next));
+	} while (!m_Head->compare_exchange_weak(head, next));
 
 	// Return the popped element.
 	return head;
@@ -87,16 +83,16 @@ PoolAllocator::BlockHandle PoolAllocator::Allocate()
 void PoolAllocator::Deallocate(BlockHandle index)
 {
 	// Check if the element is within the pool bounds.
-	if (index >= m_Capacity)
+	if (index >= *m_Capacity)
 	{
 		return;
 	}
 
-	BlockHandle head = m_Head.load(std::memory_order_relaxed);;
+	BlockHandle head = m_Head->load(std::memory_order_relaxed);;
 
 	// Push the element back on the front of the linked list.
 	do
 	{
 		m_Next[index] = head;
-	} while (!m_Head.compare_exchange_weak(head, index));
+	} while (!m_Head->compare_exchange_weak(head, index));
 }

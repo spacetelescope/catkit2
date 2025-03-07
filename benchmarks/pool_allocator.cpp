@@ -1,15 +1,17 @@
 #include "PoolAllocator.h"
 #include "Timing.h"
+#include "StructStream.h"
 #include <iostream>
 
 void benchmark_linux_scalability()
 {
 	const size_t N = 10000000;
-    const size_t CAPACITY = 2 * N;
+	const size_t CAPACITY = 2 * N;
 
-    char *buffer = new char[PoolAllocator::CalculateMetadataBufferSize(CAPACITY)];
+	char *buffer = new char[PoolAllocator::GetMemorySize(CAPACITY)];
+	auto stream = StructStream(buffer);
 
-	auto allocator = PoolAllocator::Create((PoolAllocator::SharedState *) buffer, CAPACITY);
+	auto allocator = PoolAllocator::Create(stream, CAPACITY);
 
 	auto *handles = new PoolAllocator::BlockHandle[N];
 
@@ -30,10 +32,10 @@ void benchmark_linux_scalability()
 	std::cout << "Linux Scalability:" << std::endl;
 	std::cout << "Time: " << (end - start) / 1e9 << " sec" << std::endl;
 	std::cout << "Throughput: " << 2 * N / ((end - start) / 1e9) << " ops/s" << std::endl;
-    std::cout << "Time per operation: " << (end - start) / (2 * N) << " ns" << std::endl;
+	std::cout << "Time per operation: " << (end - start) / (2 * N) << " ns" << std::endl;
 
 	delete[] handles;
-    delete[] buffer;
+	delete[] buffer;
 }
 
 int main(int argc, char **argv)
