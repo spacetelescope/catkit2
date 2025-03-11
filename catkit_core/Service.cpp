@@ -13,6 +13,9 @@
 #include <iostream>
 #include <memory>
 #include <zmq_addon.hpp>
+#include <cstdint>
+#include <string>
+#include <thread>
 
 using namespace std;
 using namespace zmq;

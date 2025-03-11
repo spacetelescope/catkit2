@@ -10,6 +10,8 @@
 #include <nlohmann/json.hpp>
 
 #include <string>
+#include <cstdint>
+#include <vector>
 
 class TestbedProxy;
 

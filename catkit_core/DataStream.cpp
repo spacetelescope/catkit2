@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <string>
 
 #ifndef _WIN32
 	#include <sys/mman.h>

@@ -6,6 +6,7 @@
 #include <numeric>
 #include <fstream>
 #include <atomic>
+#include <cstdint>
 
 #include "DataStream.h"
 #include "Timing.h"

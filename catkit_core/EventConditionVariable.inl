@@ -2,6 +2,8 @@
 
 #include "Timing.h"
 
+#include <string>
+
 #if defined(__linux__) || defined(__APPLE__)
 	#include <pthread.h>
 #endif

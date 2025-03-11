@@ -2,6 +2,8 @@
 #include "Timing.h"
 
 #include <iostream>
+#include <cstdint>
+#include <string>
 
 int main(int argc, char **argv)
 {

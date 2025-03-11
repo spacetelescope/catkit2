@@ -6,6 +6,9 @@
 #include <queue>
 #include <condition_variable>
 #include <variant>
+#include <cstdint>
+#include <string>
+#include <mutex>
 
 struct TraceEventInterval
 {
