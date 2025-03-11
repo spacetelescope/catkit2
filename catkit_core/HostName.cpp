@@ -1,6 +1,6 @@
 #include "HostName.h"
 
-#include <string>
+#include <cstring>
 #include <locale>
 
 #ifdef _WIN32
