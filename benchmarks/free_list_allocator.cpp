@@ -14,7 +14,7 @@ void benchmark_linux_scalability()
 	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	auto allocator = FreeListAllocator::Create(buffer, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
+	auto allocator = FreeListAllocator::Create((FreeListAllocator::SharedState *) buffer, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
 
 	auto start = GetTimeStamp();
 
@@ -51,7 +51,7 @@ void benchmark_threadtest()
 	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	auto allocator = FreeListAllocator::Create(buffer, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
+	auto allocator = FreeListAllocator::Create((FreeListAllocator::SharedState *) buffer, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
 
 	auto start = GetTimeStamp();
 
@@ -97,7 +97,7 @@ void benchmark_larson()
 	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	auto allocator = FreeListAllocator::Create(buffer, NUM_BLOCKS, ALIGNMENT, MAX_SIZE * NUM_BLOCKS);
+	auto allocator = FreeListAllocator::Create((FreeListAllocator::SharedState *) buffer, NUM_BLOCKS, ALIGNMENT, MAX_SIZE * NUM_BLOCKS);
 
 	auto *indices = new size_t[N];
 	auto *sizes = new size_t[N];

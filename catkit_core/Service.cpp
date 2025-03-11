@@ -404,7 +404,7 @@ std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, Dat
 {
 	LOG_DEBUG("Making data stream \"" + stream_name + "\".");
 
-	auto stream = DataStream::Create(stream_name, GetId(), type, dimensions, num_frames_in_buffer);
+	std::shared_ptr<DataStream> stream = DataStream::Create(stream_name, GetId(), type, dimensions, num_frames_in_buffer);
 	m_DataStreams[stream_name] = stream;
 
 	return stream;
@@ -414,7 +414,7 @@ std::shared_ptr<DataStream> Service::ReuseDataStream(std::string stream_name, st
 {
 	LOG_DEBUG("Reusing data stream \"" + stream_name + "\".");
 
-	auto stream = DataStream::Open(stream_id);
+	std::shared_ptr<DataStream> stream = DataStream::Open(stream_id);
 	m_DataStreams[stream_name] = stream;
 
 	return stream;

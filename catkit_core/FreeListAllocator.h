@@ -2,13 +2,14 @@
 #define FREE_LIST_ALLOCATOR_H
 
 #include "PoolAllocator.h"
+#include "Shareable.h"
 
 #include <atomic>
 #include <cstdint>
 #include <memory>
 
 // A simple lock-free free list allocator.
-class FreeListAllocator
+class FreeListAllocator : public ShareableImpl<ShareableType::FreeListAllocator>
 {
 public:
 	using BlockHandle = PoolAllocator::BlockHandle;
@@ -19,8 +20,8 @@ public:
 
 	static std::size_t ComputeMetadataBufferSize(std::size_t max_num_blocks);
 
-	static std::shared_ptr<FreeListAllocator> Create(void *metadata_buffer, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size);
-	static std::shared_ptr<FreeListAllocator> Open(void *metadata_buffer);
+	static std::unique_ptr<FreeListAllocator> Create(SharedState *shared_state, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size);
+	static std::unique_ptr<FreeListAllocator> Open(SharedState *shared_state);
 
 	BlockHandle Allocate(std::size_t size);
 	void Deallocate(BlockHandle index);
@@ -30,7 +31,6 @@ public:
 	void PrintState();
 	size_t GetNumFreeBlocks() const;
 
-private:
 	// A unique descriptor of the block.
 	class BlockDescriptor
 	{
@@ -82,7 +82,8 @@ private:
 	static_assert(offsetof(Header, head) == 16);
 	static_assert(sizeof(Header) == 20);
 
-	FreeListAllocator(Header *header, std::shared_ptr<PoolAllocator> block_allocator, Block *blocks);
+private:
+	FreeListAllocator(SharedState *shared_state, std::unique_ptr<PoolAllocator> block_allocator, Block *blocks);
 
 	static void GetMemoryLayout(void *metadata_buffer, std::size_t max_num_blocks, void **block_allocator_memory, Block **blocks);
 
@@ -92,7 +93,7 @@ private:
 	std::uint32_t &m_Alignment;
 	std::atomic<BlockHandle> &m_Head;
 
-	std::shared_ptr<PoolAllocator> m_BlockAllocator;
+	std::unique_ptr<PoolAllocator> m_BlockAllocator;
 	Block *m_Blocks;
 
 	BlockHandle FindFirstFreeBlock(Size size);
@@ -103,6 +104,12 @@ private:
 	bool MarkBlockAsFree(BlockHandle index, bool mark_free);
 
 	bool TryCoalesceBlocks(BlockHandle a, BlockHandle b, bool owner_of_a);
+};
+
+template<>
+struct SharedStateInternal<ShareableType::FreeListAllocator>
+{
+	FreeListAllocator::Header header;
 };
 
 #endif // FREE_LIST_ALLOCATOR_H

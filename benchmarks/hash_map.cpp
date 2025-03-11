@@ -5,27 +5,25 @@
 
 int main(int argc, char **argv)
 {
-    typedef HashMap<uint16_t, 16384, 13> MyHashMap;
-
-    std::size_t buffer_size = MyHashMap::CalculateBufferSize();
+    std::size_t buffer_size = HashMap::CalculateBufferSize(65536, 13, sizeof(std::int16_t));
     std::cout << "Buffer size: " << buffer_size << " bytes" << std::endl;
+
     char *buffer = new char[buffer_size];
 
-    MyHashMap map(buffer);
-    map.Initialize();
+    auto map = HashMap::Create((HashMap::SharedState *) buffer, 65536, 13, sizeof(std::int16_t));
 
     std::uint64_t total_time = 0;
     std::size_t N = 5000;
 
-    for (size_t i = 0; i < N; ++i)
+    for (std::int16_t i = 0; i < N; ++i)
     {
         std::string key = "key" + std::to_string(i);
 
         auto start = GetTimeStamp();
-        bool success = map.Insert(key, uint16_t(i));
+        auto value = map->Insert(key, &i);
         auto end = GetTimeStamp();
 
-        if (!success)
+        if (value == nullptr)
         {
             std::cout << "Insertion failed." << std::endl;
         }
@@ -37,15 +35,15 @@ int main(int argc, char **argv)
 
     total_time = 0;
 
-    for (size_t i = 0; i < N; ++i)
+    for (std::int16_t i = 0; i < N; ++i)
     {
         std::string key = "key" + std::to_string(i);
 
         auto start = GetTimeStamp();
-        auto *value = map.Find(key);
+        auto *value = map->Find(key);
         auto end = GetTimeStamp();
 
-        if (value == nullptr || *value != i)
+        if (value == nullptr || *((std::uint16_t *)value) != i)
         {
             std::cout << "Key not found." << std::endl;
         }

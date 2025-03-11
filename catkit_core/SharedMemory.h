@@ -3,6 +3,9 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
+
+#include "Shareable.h"
 
 #ifdef _WIN32
 	#define WIN32_LEAN_AND_MEAN
@@ -15,27 +18,39 @@
 	#include <unistd.h>
 #endif // _WIN32
 
-#ifdef _WIN32
-	typedef HANDLE FileObject;
-#else
-	typedef int FileObject;
-#endif
+const int SHARED_MEMORY_FNAME_SIZE = 256;
 
-class SharedMemory
+template<>
+struct SharedStateInternal<ShareableType::SharedMemory>
 {
+	char fname[SHARED_MEMORY_FNAME_SIZE];
+};
+
+class SharedMemory : public ShareableImpl<ShareableType::SharedMemory>
+{
+public:
+	#ifdef _WIN32
+	typedef HANDLE FileObject;
+	#else
+	typedef int FileObject;
+	#endif
+
 private:
-	SharedMemory(const std::string &id, FileObject file, bool is_owner);
+	SharedMemory(std::string_view fname, FileObject file, bool is_owner);
 
 public:
 	~SharedMemory();
 
-	static std::shared_ptr<SharedMemory> Create(const std::string &id, size_t num_bytes_in_buffer);
-	static std::shared_ptr<SharedMemory> Open(const std::string &id);
+	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, std::string_view fname, size_t num_bytes_in_buffer);
+	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, size_t num_bytes_in_buffer);
+	static std::unique_ptr<SharedMemory> Create(std::string_view fname, size_t num_bytes_in_buffer);
+	static std::unique_ptr<SharedMemory> Open(SharedState *shared_state);
+	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
 
 	void *GetAddress();
 
 private:
-	std::string m_Id;
+	std::string m_FileName;
 	bool m_IsOwner;
 
 	FileObject m_File;

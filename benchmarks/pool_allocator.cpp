@@ -9,7 +9,7 @@ void benchmark_linux_scalability()
 
     char *buffer = new char[PoolAllocator::CalculateMetadataBufferSize(CAPACITY)];
 
-	auto allocator = PoolAllocator::Create(buffer, CAPACITY);
+	auto allocator = PoolAllocator::Create((PoolAllocator::SharedState *) buffer, CAPACITY);
 
 	auto *handles = new PoolAllocator::BlockHandle[N];
 
