@@ -5,6 +5,7 @@
 #include "TestbedProxy.h"
 
 #include <string>
+
 class LoggingProxy
 {
 public:
