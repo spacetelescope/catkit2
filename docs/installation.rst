@@ -37,7 +37,8 @@ Some services require manual installation of their respective drivers to access 
 On MacOS 15.3.1 (Sequoia) a "too many open files error" can be seen due to the default resources
 available to processes set by the OS. This value can be increased manually using the ``ulimit``
 command that can be executed on terminal startup by adding the following line to your
-``.bash_profle``. The default for Sequoia is 256 and a value of at least 2000 is recommended.
+``.bash_profle`` (or the profile of your terminal if not using bash). The default for Sequoia is 256
+and a value of at least 2000 is recommended.
 
 .. code-block:: bash
 
