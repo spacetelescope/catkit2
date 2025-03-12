@@ -7,12 +7,13 @@
 
 int main(int argc, char **argv)
 {
-    std::size_t buffer_size = HashMap::CalculateBufferSize(65536, 13, sizeof(std::int16_t));
+    std::size_t buffer_size = HashMap::GetMemorySize(65536, 13, sizeof(std::int16_t));
     std::cout << "Buffer size: " << buffer_size << " bytes" << std::endl;
 
     char *buffer = new char[buffer_size];
+    auto stream = StructStream(buffer);
 
-    auto map = HashMap::Create((HashMap::SharedState *) buffer, 65536, 13, sizeof(std::int16_t));
+    auto map = HashMap::Create(stream, 65536, 13, sizeof(std::int16_t));
 
     std::uint64_t total_time = 0;
     std::size_t N = 5000;

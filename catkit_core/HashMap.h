@@ -2,6 +2,7 @@
 #define HASH_MAP_H
 
 #include "Shareable.h"
+#include "StructStream.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -11,7 +12,7 @@
 // A hash map with the following limitations:
 // * entries cannot be removed.
 // * key is string type of fixed size.
-class HashMap : public ShareableImpl<ShareableType::HashMap>
+class HashMap
 {
 private:
 	enum EntryFlags : uint8_t
@@ -23,9 +24,9 @@ private:
 
 	char *m_Data;
 
-	std::size_t &m_NumEntries;
-	std::size_t &m_MaxKeySize;
-	std::size_t &m_ValueSize;
+	std::size_t m_NumEntries;
+	std::size_t m_MaxKeySize;
+	std::size_t m_ValueSize;
 	std::size_t m_EntrySize;
 
 	std::size_t GetIndex(std::string_view key) const;
@@ -38,12 +39,12 @@ private:
 	static std::size_t CalculateEntrySize(std::size_t max_key_size, std::size_t value_size);
 
 public:
-	HashMap(SharedState *shared_state);
+	HashMap(char *data, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
 
-	static std::size_t CalculateBufferSize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
+	static std::size_t GetMemorySize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
 
-	static std::unique_ptr<HashMap> Create(SharedState *shared_state, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
-	static std::unique_ptr<HashMap> Open(SharedState *shared_state);
+	static std::unique_ptr<HashMap> Create(StructStream &stream, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
+	static std::unique_ptr<HashMap> Open(StructStream &stream);
 
 	void *Insert(std::string_view key, const void *value = nullptr);
 	void *Find(std::string_view key) const;
