@@ -20,13 +20,7 @@
 
 const int SHARED_MEMORY_FNAME_SIZE = 256;
 
-template<>
-struct SharedStateInternal<ShareableType::SharedMemory>
-{
-	char fname[SHARED_MEMORY_FNAME_SIZE];
-};
-
-class SharedMemory : public ShareableImpl<ShareableType::SharedMemory>
+class SharedMemory
 {
 public:
 	#ifdef _WIN32
@@ -41,10 +35,12 @@ private:
 public:
 	~SharedMemory();
 
-	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, std::string_view fname, size_t num_bytes_in_buffer);
-	static std::unique_ptr<SharedMemory> Create(SharedState *shared_state, size_t num_bytes_in_buffer);
+	std::size_t GetMemorySize();
+
+	static std::unique_ptr<SharedMemory> Create(StructStream &stream, std::string_view fname, size_t num_bytes_in_buffer);
+	static std::unique_ptr<SharedMemory> Create(StructStream &stream, size_t num_bytes_in_buffer);
 	static std::unique_ptr<SharedMemory> Create(std::string_view fname, size_t num_bytes_in_buffer);
-	static std::unique_ptr<SharedMemory> Open(SharedState *shared_state);
+	static std::unique_ptr<SharedMemory> Open(StructStream &stream);
 	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
 
 	void *GetAddress();
