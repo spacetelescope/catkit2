@@ -93,3 +93,15 @@ Finally install the package using:
 pip install -e .
 cd ..
 ```
+
+If using MacOS 15.3.1 (Sequoia) be sure to add the following line to your
+``.bash_profle`` (or the profile of your terminal if not using bash) to increase 
+the default resources available to processes set by the OS. The default for Sequoia 
+is 256 and a value of at least 2000 is recommended. Most people find 4096 to be 
+sufficient.
+
+.. code-block:: bash
+
+    ulimit -n <number>
+
+See Installation documentation for more details.  
