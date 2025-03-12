@@ -33,3 +33,15 @@ You should see the main compilation complete in the terminal output without erro
     pip install -e .
 
 Some services require manual installation of their respective drivers to access the devices that they operate.
+
+On MacOS 15.3.1 (Sequoia) a "too many open files error" can be seen due to the default resources
+available to processes set by the OS. This value can be increased manually using the ``ulimit``
+command that can be executed on terminal startup by adding the following line to your
+``.bash_profle`` (or the profile of your terminal if not using bash). The default for Sequoia is 256
+and a value of at least 2000 is recommended. Most people find 4096 to be sufficient.
+
+.. code-block:: bash
+
+    ulimit -n <number>
+
+Note: This issue is OS version dependent and might need to be revisited.
