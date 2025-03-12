@@ -8,28 +8,11 @@ developing technologies relevant to direct imaging of exoplanets in astronomy in
 
 This is an open-source package, but it is not actively supported.  Use at your own risk.
 
-Environment variables
----------------------
-
-Set `FOR_DISABLE_CONSOLE_CTRL_HANDLER` to `1`. This disables the Fortran Ctrl+C hander, and avoids crashing of the Python program upon receiving on a Keyboard interrupt. This is necessary if you import scipy, which uses Fortran modules.
-
-On Windows, you can set environment variables for your account only from the control panel, which doesn't require administrator rights.
-
-On MacOS, assuming a bash shell this is done by adding the following line at the end of your .bash_profile file:
-```
-export FOR_DISABLE_CONSOLE_CTRL_HANDLER=1
-```
-The .bash_profile file is located in your home directory and can be created if it does not exist.
-This line can be added using VI or a text editor like BBEdit that allows to edit hidden files.
-
-Shared memory configuration
----------------------------
-
-On MacOS you need to increase the amount of shared memory that is available to programs. The default (4MB) is by far not enough for anything we do.
-Note: it appears that Catalina seem to allow more shared memory than what is indicated in the documentation, so no action seem to be needed.
+For installation instructions, see the official documentation:  
+https://spacetelescope.github.io/catkit2/
 
 Python permissions
----------------------------
+------------------
 
 On MacOS, even after having allowed your firewall to receive incoming connections from Python applications while running catkit2,
 it might keep popping up windows asking you to accept incoming connections every single time you start a server or service.
@@ -60,48 +43,3 @@ In the dialog that appears, click "Allow".
 
 Note that when using a virtual environment, you need to activate the virtual environment before running this command.
 ```
-
-Installation
-------------
-
-This procedure requires a pre-installed C++ compiler.
-- On Windows, you can for example install the Visual Studio Compiler, either by installing the Build Tools, or by installing the full IDE with compiler (the community edition is free).
-- On MacOS, nothing should be needed, but some machines require Xcode to be installed. It does install components on first startup, so it is recommended to start XCode on your mac if you have never used it (and accept the license agreement of XCode, which is required).
-- XCode 15 (Sonoma and higher) introduced some changes in the compiler location, which require the following environment variable update:
-```
-export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-```
-
-The following will create a new Conda environment with the required C++ and Python packages. You will need to install drivers and SDKs for some devices yourself to use those devices.
-
-For installation on Apple Silicon with python=3.7, you need to follow these steps:
-```
-conda create --name catkit2
-conda activate catkit2
-conda config --env --set subdir osx-64
-conda env update --file environment.yml
-```
-
-For all other platforms, you can use the following command:
-```
-conda env create --file environment.yml
-conda activate catkit2
-```
-
-Finally install the package using:
-```
-pip install -e .
-cd ..
-```
-
-If using MacOS 15.3.1 (Sequoia) be sure to add the following line to your
-``.bash_profle`` (or the profile of your terminal if not using bash) to increase 
-the default resources available to processes set by the OS. The default for Sequoia 
-is 256 and a value of at least 2000 is recommended. Most people find 4096 to be 
-sufficient.
-
-.. code-block:: bash
-
-    ulimit -n <number>
-
-See Installation documentation for more details.  
