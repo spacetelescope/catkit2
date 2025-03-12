@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <algorithm>
 
 enum class ShareableType
 {
@@ -74,14 +75,8 @@ inline bool CheckVersion(StructStream &stream, const std::array<T, N> expected_v
 	// Get the version from the stream;
 	T *our_version = stream.Extract<T>(N);
 
-	// Check if the version strings are the same, up to the null-terminator.
-	for (size_t i = 0; i < N; ++i)
-	{
-		if (our_version[i] != expected_version[i])
-			return false;
-	}
-
-	return true;
+	// Return if the version strings are the same.
+	return std::equal(expected_version.begin(), expected_version.end(), our_version);
 }
 
 #include "Shareable.inl"
