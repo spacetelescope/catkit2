@@ -22,7 +22,7 @@ Configuration
 
 Properties
 ----------
-``value``:
+``value``: The value that is continuously submitted to the datastream ``check``.
 
 
 Commands
@@ -31,4 +31,4 @@ None.
 
 Datastreams
 -----------
-``check``:
+``check``: The data stream that is continuously checked for safety.
