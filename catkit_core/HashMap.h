@@ -50,12 +50,4 @@ public:
 	void *Find(std::string_view key) const;
 };
 
-template<>
-struct SharedStateInternal<ShareableType::HashMap>
-{
-	std::size_t num_entries;
-	std::size_t max_key_size;
-	std::size_t value_size;
-};
-
 #endif // HASH_MAP_H

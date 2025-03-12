@@ -18,11 +18,6 @@ enum class ShareableType
 	HashMap
 };
 
-template<enum ShareableType Type>
-struct SharedStateInternal
-{
-};
-
 /*
  * A base class for all shareable objects.
  *
@@ -51,24 +46,6 @@ public:
 	virtual ShareableType GetType() const = 0;
 };
 
-template<enum ShareableType Type>
-class ShareableImpl : public Shareable
-{
-public:
-	using SharedState = SharedStateInternal<Type>;
-
-protected:
-	ShareableImpl(SharedState *shared_state, std::size_t dynamic_shared_state_size = 0);
-
-public:
-	std::size_t GetSharedStateSize() const override;
-	ShareableType GetType() const override;
-
-protected:
-	SharedState *m_SharedState;
-	std::size_t m_DynamicSharedStateSize;
-};
-
 template <typename T, std::size_t N>
 inline bool CheckVersion(StructStream &stream, const std::array<T, N> expected_version)
 {
@@ -78,7 +55,5 @@ inline bool CheckVersion(StructStream &stream, const std::array<T, N> expected_v
 	// Return if the version strings are the same.
 	return std::equal(expected_version.begin(), expected_version.end(), our_version);
 }
-
-#include "Shareable.inl"
 
 #endif // SHAREABLE_H
