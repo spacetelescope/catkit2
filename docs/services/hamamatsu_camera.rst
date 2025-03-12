@@ -2,13 +2,16 @@ Hamamatsu Camera
 ====================
 
 This service controls a Hamamatsu camera. It is a wrapper around the DCAM SDK, which is distributed on the manufacturer
-website together with their Python API ``dcam``: `https://www.hamamatsu.com/eu/en/product/cameras/software/driver-software.html <https://www.hamamatsu.com/eu/en/product/cameras/software/driver-software.html>`_
+website together with their Python API ``dcam``:
+`https://www.hamamatsu.com/eu/en/product/cameras/software/driver-software.html <https://www.hamamatsu.com/eu/en/product/cameras/software/driver-software.html>`_
 
 The service requires the definition of an environment variable ``CATKIT_DCAM_SDK_PATH`` that points to the
 ``python`` directory within the DCAM SDK installation.
 
 The service has been successfully tested with the following camera models:
+
 - Hamamatsu ORCA-Quest C15550-20UP
+- Hamamatsu ORCA-Quest 2 C15550-22UP
 
 Configuration
 -------------

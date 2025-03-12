@@ -2,6 +2,7 @@ from catkit2.testbed import Service
 
 import numpy as np
 
+
 class SafetyManualCheck(Service):
     def __init__(self):
         super().__init__('safety_manual_check')
@@ -20,11 +21,12 @@ class SafetyManualCheck(Service):
             self.sleep(0.1)
 
     def get_value(self):
-        return self.check_value[0]
+        return self.value[0]
 
     def set_value(self, new_value):
         # This makes sure that the new value is actually convertable to a self.dtype.
         self.value = np.array([new_value], dtype=self.dtype)
+
 
 if __name__ == '__main__':
     service = SafetyManualCheck()

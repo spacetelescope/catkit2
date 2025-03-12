@@ -7,8 +7,6 @@ temperature and humidity sensor.
 Configuration
 -------------
 
-Example configuration:
-
 .. code-block:: YAML
 
     tsp01_1:

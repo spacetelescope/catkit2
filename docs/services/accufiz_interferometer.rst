@@ -1,7 +1,13 @@
 AccuFiz Interferometer
-==========
+======================
 
 This service operates a 4D Technologies AccuFiz Interferometer using the 4D InSight software and their Web Services API for communication. It handles image acquisition, processing, and data management.
+
+.. note::
+The AccuFiz Interferometer requires the 4D InSight software to be in listening mode and WebServices4D to be installed and configured correctly.
+The service communicates with the interferometer using HTTP requests to the Web Services API provided by the 4D InSight software and Web Service.
+Ensure that the mask file specified in the configuration is accessible to the 4D computer.
+
 
 Configuration
 -------------
@@ -13,13 +19,14 @@ Configuration
         simulated_service_type: accufiz_interferometer_sim
         interface: camera
         requires_safety: false
-        height: 1967
-        width: 1970
-        sim_data: C:/path/to/example.h5
-        mask: C:/path/to/4d.mask
+
+        ip_address: localhost:8080
         server_path: C:/path/to/data
         local_path: C:/path/to/data
-        ip_address: localhost:8080
+        sim_data: C:/path/to/example.h5
+        mask: C:/path/to/4d.mask
+        height: 1967
+        width: 1970
         save_h5: true
         save_fits: false
         num_avg: 2
@@ -75,10 +82,3 @@ Datastreams
 ``detector_masks``: The detector masks used during measurements.
 
 ``is_acquiring``: Indicates whether the service is currently acquiring data (1 for acquiring, 0 for not acquiring).
-
-Notes
-The AccuFiz Interferometer requires the 4D InSight software to be in listening mode and WebServices4D to be installed and configured correctly.
-
-The service communicates with the interferometer using HTTP requests to the Web Services API provided by the 4D InSight software and Web Service.
-
-Ensure that the mask file specified in the configuration is accessible to the 4D computer.

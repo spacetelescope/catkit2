@@ -6,8 +6,6 @@ This service periodically checks datastreams from other services and makes sure 
 Configuration
 -------------
 
-Example configuration:
-
 .. code-block:: YAML
 
     safety:
