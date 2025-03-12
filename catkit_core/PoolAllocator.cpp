@@ -4,59 +4,58 @@
 
 const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
 
-PoolAllocator::PoolAllocator(StructStream &stream, std::uint32_t capacity)
+PoolAllocator::PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next)
+	: m_Capacity(capacity), m_Head(head), m_Next(next)
 {
-	m_Version = stream.Extract<std::array<std::uint8_t, 4>>();
-	m_Capacity = stream.Extract<std::uint32_t>();
-	m_Head = stream.Extract<std::atomic<BlockHandle>>();
-	m_Next = stream.Extract<std::atomic<BlockHandle>>(capacity);
 }
 
 std::size_t PoolAllocator::GetMemorySize(std::uint32_t capacity)
 {
-	auto stream = StructStream(nullptr);
-	PoolAllocator(stream, capacity);
-
-	return stream.GetOffset();
+	return 0;
 }
 
 std::unique_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::uint32_t capacity)
 {
-	auto res = std::unique_ptr<PoolAllocator>(new PoolAllocator(stream, capacity));
+	// Add padding to ensure consistent alignment from object to object.
+	stream.AddPadding<BlockHandle>();
 
 	// Set version and capacity.
-	*res->m_Version = VERSION;
-	*res->m_Capacity = capacity;
+	*stream.Extract<std::array<std::uint8_t, 4>>() = VERSION;
+	*stream.Extract<std::uint32_t>() = capacity;
+
+	std::atomic<BlockHandle> *head = stream.Extract<std::atomic<BlockHandle>>();
+	std::atomic<BlockHandle> *next = stream.Extract<std::atomic<BlockHandle>>(capacity);
 
 	// Initialize the linked list.
-	std::construct_at(res->m_Head);
-	res->m_Head->store(0, std::memory_order_relaxed);
+	std::construct_at(head);
+	head->store(0, std::memory_order_relaxed);
 
 	for (std::size_t i = 0; i < capacity; ++i)
 	{
-		std::construct_at(&res->m_Next[i]);
+		std::construct_at(&next[i]);
 
 		if (i == capacity - 1)
 		{
-			res->m_Next[i] = INVALID_HANDLE;
+			next[i] = INVALID_HANDLE;
 		}
 		else
 		{
-			res->m_Next[i] = i + 1;
+			next[i] = i + 1;
 		}
 	}
 
-	return res;
+	return std::unique_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next));
 }
 
 std::unique_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
 {
-	StructStream stream_copy = stream;
-	CheckVersion(stream_copy, VERSION);
+	CheckVersion(stream, VERSION);
+	auto capacity = *stream.Extract<std::uint32_t>();
 
-	auto capacity = *stream_copy.Extract<std::uint32_t>();
+	auto head = stream.Extract<std::atomic<BlockHandle>>();
+	auto next = stream.Extract<std::atomic<BlockHandle>>(capacity);
 
-	return std::unique_ptr<PoolAllocator>(new PoolAllocator(stream, capacity));
+	return std::unique_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next));
 }
 
 PoolAllocator::BlockHandle PoolAllocator::Allocate()
@@ -83,7 +82,7 @@ PoolAllocator::BlockHandle PoolAllocator::Allocate()
 void PoolAllocator::Deallocate(BlockHandle index)
 {
 	// Check if the element is within the pool bounds.
-	if (index >= *m_Capacity)
+	if (index >= m_Capacity)
 	{
 		return;
 	}

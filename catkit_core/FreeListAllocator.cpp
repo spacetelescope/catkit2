@@ -8,7 +8,7 @@
 #define DEBUG_PRINT(a)
 
 const std::size_t MAX_ATTEMPTS = 5;
-const std::uint8_t VERSION[4] = {0, 0, 0, 0};
+const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
 
 FreeListAllocator::BlockDescriptor::BlockDescriptor()
 {
@@ -55,64 +55,53 @@ void FreeListAllocator::BlockDescriptor::SetFree(const bool &is_free)
 	m_SizeAndFreeFlag = (m_SizeAndFreeFlag & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
 }
 
-FreeListAllocator::FreeListAllocator(SharedState *shared_state, std::unique_ptr<PoolAllocator> block_allocator, Block *blocks)
-	: m_Header(shared_state->header),
+FreeListAllocator::FreeListAllocator(Header *header, std::unique_ptr<PoolAllocator> block_allocator, Block *blocks)
+	: m_Header(*header),
 	m_BlockAllocator(std::move(block_allocator)),
 	m_Blocks(blocks),
 	m_MaxNumBlocks(m_Header.max_num_blocks),
 	m_Head(m_Header.head),
-	m_Alignment(m_Header.alignment),
-	ShareableImpl<ShareableType::FreeListAllocator>(shared_state, ComputeMetadataBufferSize(shared_state->header.max_num_blocks) - sizeof(Header))
+	m_Alignment(m_Header.alignment)
 {
 }
 
-std::size_t FreeListAllocator::ComputeMetadataBufferSize(std::size_t max_num_blocks)
+std::size_t FreeListAllocator::GetMemorySize(std::size_t max_num_blocks)
 {
 	std::size_t size = sizeof(Header);
-	size += PoolAllocator::CalculateMetadataBufferSize(max_num_blocks);
+	size += PoolAllocator::GetMemorySize(max_num_blocks);
 	size += sizeof(Block) * max_num_blocks;
 
 	return size;
 }
 
-void FreeListAllocator::GetMemoryLayout(void *metadata_buffer, std::size_t max_num_blocks, void **block_allocator_memory, Block **blocks)
+std::unique_ptr<FreeListAllocator> FreeListAllocator::Open(StructStream &stream)
 {
-	std::size_t offset = sizeof(Header);
-	*block_allocator_memory = static_cast<void *>(static_cast<char *>(metadata_buffer) + offset);
+	CheckVersion(stream, VERSION);
 
-	offset += PoolAllocator::CalculateMetadataBufferSize(max_num_blocks);
-	*blocks = reinterpret_cast<Block *>(static_cast<char *>(metadata_buffer) + offset);
+	Header *header = stream.Extract<Header>();
+	auto block_allocator = PoolAllocator::Open(stream);
+	auto blocks = stream.Extract<Block>(header->max_num_blocks);
+
+	return std::unique_ptr<FreeListAllocator>(new FreeListAllocator(header, std::move(block_allocator), blocks));
 }
 
-std::unique_ptr<FreeListAllocator> FreeListAllocator::Open(SharedState *shared_state)
+std::unique_ptr<FreeListAllocator> FreeListAllocator::Create(StructStream &stream, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
 {
-	std::uint32_t max_num_blocks = shared_state->header.max_num_blocks;
+	// Add padding to ensure consistent alignment from object to object.
+	stream.AddPadding<Block>();
 
-	void *block_allocator_memory;
-	Block *blocks;
-	GetMemoryLayout(shared_state, max_num_blocks, &block_allocator_memory, &blocks);
+	// Set the version.
+	*stream.Extract<std::array<std::uint8_t, 4>>() = VERSION;
 
-	auto block_allocator = PoolAllocator::Open((PoolAllocator::SharedState *)block_allocator_memory);
-
-	return std::unique_ptr<FreeListAllocator>(new FreeListAllocator(shared_state, std::move(block_allocator), blocks));
-}
-
-std::unique_ptr<FreeListAllocator> FreeListAllocator::Create(SharedState *shared_state, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
-{
-	Header *header = &shared_state->header;
-
-	void *block_allocator_memory;
-	Block *blocks;
-	GetMemoryLayout(shared_state, max_num_blocks, &block_allocator_memory, &blocks);
+	// Create all other information.
+	Header *header = stream.Extract<Header>();
+	auto block_allocator = PoolAllocator::Create(stream, max_num_blocks);
+	auto blocks = stream.Extract<Block>(max_num_blocks);
 
 	// Fill in the header information.
-	std::copy(VERSION, VERSION + sizeof(VERSION), header->version);
 	header->max_num_blocks = max_num_blocks;
 	header->alignment = alignment;
 	header->total_buffer_size = buffer_size;
-
-	// Create the block allocator.
-	auto block_allocator = PoolAllocator::Create((PoolAllocator::SharedState *) block_allocator_memory, max_num_blocks);
 
 	// Initialize the free list.
 	header->head = block_allocator->Allocate();
@@ -120,7 +109,7 @@ std::unique_ptr<FreeListAllocator> FreeListAllocator::Create(SharedState *shared
 	blocks[header->head].descriptor = BlockDescriptor(0, buffer_size, true);
 	blocks[header->head].next = INVALID_HANDLE;
 
-	return std::unique_ptr<FreeListAllocator>(new FreeListAllocator(shared_state, std::move(block_allocator), blocks));
+	return std::unique_ptr<FreeListAllocator>(new FreeListAllocator(header, std::move(block_allocator), blocks));
 }
 
 typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)

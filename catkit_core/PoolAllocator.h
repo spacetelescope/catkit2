@@ -26,10 +26,9 @@ public:
 	void Deallocate(BlockHandle index);
 
 private:
-	PoolAllocator(StructStream &stream, std::uint32_t capacity);
+	PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next);
 
-	std::array<std::uint8_t, 4> *m_Version;
-	std::uint32_t *m_Capacity;
+	std::uint32_t m_Capacity;
 	std::atomic<BlockHandle> *m_Head;
 	std::atomic<BlockHandle> *m_Next;
 
