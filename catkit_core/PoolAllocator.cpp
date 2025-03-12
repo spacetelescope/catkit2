@@ -27,13 +27,13 @@ std::unique_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::
 	std::atomic<BlockHandle> *next = stream.Extract<std::atomic<BlockHandle>>(capacity);
 
 	// Initialize the linked list.
-	std::construct_at(head);
+	std::uninitialized_default_construct(head, head + 1);
+	std::uninitialized_default_construct(next, next + capacity);
+
 	head->store(0, std::memory_order_relaxed);
 
 	for (std::size_t i = 0; i < capacity; ++i)
 	{
-		std::construct_at(&next[i]);
-
 		if (i == capacity - 1)
 		{
 			next[i] = INVALID_HANDLE;
