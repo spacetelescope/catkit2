@@ -4,7 +4,7 @@
 
 #include <stdexcept>
 #include <iostream>
-#include <string>
+#include <array>
 
 SharedMemory::~SharedMemory()
 {
