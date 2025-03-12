@@ -38,8 +38,10 @@ On MacOS 15.3.1 (Sequoia) a "too many open files error" can be seen due to the d
 available to processes set by the OS. This value can be increased manually using the ``ulimit``
 command that can be executed on terminal startup by adding the following line to your
 ``.bash_profle`` (or the profile of your terminal if not using bash). The default for Sequoia is 256
-and a value of at least 2000 is recommended.
+and a value of at least 2000 is recommended. Most people find 4096 to be sufficient.
 
 .. code-block:: bash
 
     ulimit -n <number>
+
+Note: This issue is OS version dependent and might need to be revisited.
