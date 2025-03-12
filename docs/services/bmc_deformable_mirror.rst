@@ -5,7 +5,8 @@ This is a base class for Boston Micromachines DMs, which inherits from the gener
 abstracts away the discretization of the voltage and total surface, as well as the handling of the flat maps and gain
 maps.
 
-The provided flat maps and gain maps need to be FITS files in DM map format.
+.. note::
+    The provided flat maps and gain maps need to be FITS files in DM map format.
 
 The child hardware service is ``BmcDeformableMirrorHardware``, and the child simulated service is
 ``BmcDeformableMirrorSim``. While the simulated service talks directly to a simulator, the hardware service talks to the

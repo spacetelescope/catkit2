@@ -12,12 +12,11 @@ and Downloads". It is also shipped with the device on a CD. Installation instruc
 The Python API used to control the device is `dcps <https://github.com/sgoadhouse/dcps>`_
 
 .. note::
-- The device automatically applies a remote interface lock when it is commanded for the first time
-(see `manual <https://resources.aimtti.com/manuals/New_PL+PL-P_Series_Instruction_Manual-Iss18.pdf>`_, page 23).
-This is also noted in the `dcps library <https://github.com/sgoadhouse/dcps/blob/afbe687236bfa6176240e26790dd26b6c395b515/dcps/AimTTiPLP.py#L85>`_.
-Even after setting the interface lock to ``LOCAL``, this will instantly be overwritten back to ``REMOTE`` when a new command is issued.
-- All remote commands are listed on page 34 of the `device manual <https://resources.aimtti.com/manuals/New_PL+PL-P_Series_Instruction_Manual-Iss18.pdf>`_.
-- Only a minimum of the commands listed in the manual are implemented. More commands can easily be added in the future as needed.
+    - The device automatically applies a remote interface lock when it is commanded for the first time (see `manual <https://resources.aimtti.com/manuals/New_PL+PL-P_Series_Instruction_Manual-Iss18.pdf>`_, page 23).
+      This is also noted in the `dcps library <https://github.com/sgoadhouse/dcps/blob/afbe687236bfa6176240e26790dd26b6c395b515/dcps/AimTTiPLP.py#L85>`_.
+      Even after setting the interface lock to ``LOCAL``, this will instantly be overwritten back to ``REMOTE`` when a new command is issued.
+    - All remote commands are listed on page 34 of the `device manual <https://resources.aimtti.com/manuals/New_PL+PL-P_Series_Instruction_Manual-Iss18.pdf>`_.
+    - Only a minimum of the commands listed in the manual are implemented. More commands can easily be added in the future as needed.
 
 The service has been successfully tested with the following device:
 
