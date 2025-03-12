@@ -10,6 +10,8 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <string>
+#include <mutex>
 
 using namespace std;
 using namespace zmq;

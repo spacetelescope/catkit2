@@ -1,5 +1,7 @@
 #include "Property.h"
 
+#include <string>
+
 Property::Property(std::string name, std::shared_ptr<DataStream> stream, Getter getter, Setter setter)
 	: m_Name(name), m_DataStream(stream), m_Getter(getter), m_Setter(setter)
 {

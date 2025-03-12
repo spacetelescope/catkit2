@@ -1,5 +1,7 @@
 #include "Types.h"
 
+#include <string>
+
 void ToProto(const Value &value, catkit_proto::Value *proto_value)
 {
 	if (std::holds_alternative<NoneValue>(value))

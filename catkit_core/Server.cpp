@@ -11,6 +11,7 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <string>
 
 using namespace std;
 using namespace zmq;

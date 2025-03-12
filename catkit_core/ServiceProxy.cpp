@@ -7,6 +7,7 @@
 #include "service.pb.h"
 
 #include <iostream>
+#include <string>
 
 using namespace std::string_literals;
 

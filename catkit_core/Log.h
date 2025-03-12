@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstdint>
 
 #ifndef LOG_LEVEL
 	#define LOG_LEVEL 5

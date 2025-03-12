@@ -5,6 +5,8 @@
 #include <map>
 #include <vector>
 #include <climits>
+#include <cstdint>
+#include <string>
 
 #include "SharedMemory.h"
 #include "Event.h"

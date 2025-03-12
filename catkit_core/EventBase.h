@@ -4,6 +4,7 @@
 #include <functional>
 #include <stdexcept>
 #include <memory>
+#include <string>
 
 enum class EventImplementationType
 {

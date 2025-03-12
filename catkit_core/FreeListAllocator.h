@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <cstdint>
 
 // A simple lock-free free list allocator.
 class FreeListAllocator : public ShareableImpl<ShareableType::FreeListAllocator>

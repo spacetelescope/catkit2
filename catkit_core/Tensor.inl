@@ -1,6 +1,8 @@
 #include "Log.h"
 
 #include <type_traits>
+#include <cstdint>
+#include <complex>
 
 template<typename T>
 constexpr DataType GetDataType()

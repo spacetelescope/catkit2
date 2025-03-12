@@ -2,6 +2,8 @@
 
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <string> 
+#include <thread>
 
 using namespace zmq;
 using json = nlohmann::json;

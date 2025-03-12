@@ -4,6 +4,9 @@
 #include <pybind11/functional.h>
 #include <pybind11_json/pybind11_json.hpp>
 #include <cctype>
+#include <string>
+#include <vector>
+#include <variant>
 
 #include "DataStream.h"
 #include "Timing.h"
