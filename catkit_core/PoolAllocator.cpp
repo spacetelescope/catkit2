@@ -9,7 +9,7 @@ PoolAllocator::PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *h
 {
 }
 
-std::size_t PoolAllocator::GetMemorySize(std::uint32_t capacity)
+std::size_t PoolAllocator::GetSharedStateSize(std::uint32_t capacity)
 {
 	return 0;
 }
@@ -94,4 +94,9 @@ void PoolAllocator::Deallocate(BlockHandle index)
 	{
 		m_Next[index] = head;
 	} while (!m_Head->compare_exchange_weak(head, index));
+}
+
+ShareableType PoolAllocator::GetType() const
+{
+	return ShareableType::PoolAllocator;
 }

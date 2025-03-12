@@ -11,7 +11,7 @@ void benchmark_linux_scalability()
 
 	auto *handles = new FreeListAllocator::BlockHandle[N];
 
-	size_t buffer_size = FreeListAllocator::GetMemorySize(NUM_BLOCKS);
+	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);
@@ -49,7 +49,7 @@ void benchmark_threadtest()
 
 	auto *handles = new FreeListAllocator::BlockHandle[M];
 
-	size_t buffer_size = FreeListAllocator::GetMemorySize(NUM_BLOCKS);
+	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);
@@ -96,7 +96,7 @@ void benchmark_larson()
 		handles[i] = -1;
 	}
 
-	size_t buffer_size = FreeListAllocator::GetMemorySize(NUM_BLOCKS);
+	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);

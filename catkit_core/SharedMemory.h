@@ -20,7 +20,7 @@
 
 const int SHARED_MEMORY_FNAME_SIZE = 256;
 
-class SharedMemory
+class SharedMemory : public Shareable
 {
 public:
 	#ifdef _WIN32
@@ -35,7 +35,7 @@ private:
 public:
 	~SharedMemory();
 
-	std::size_t GetMemorySize();
+	std::size_t GetSharedStateSize();
 
 	static std::unique_ptr<SharedMemory> Create(StructStream &stream, std::string_view fname, size_t num_bytes_in_buffer);
 	static std::unique_ptr<SharedMemory> Create(StructStream &stream, size_t num_bytes_in_buffer);
@@ -44,6 +44,8 @@ public:
 	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
 
 	void *GetAddress();
+
+	ShareableType GetType() const override;
 
 private:
 	std::string m_FileName;

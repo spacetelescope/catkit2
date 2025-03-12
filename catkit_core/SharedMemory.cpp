@@ -26,7 +26,7 @@ SharedMemory::~SharedMemory()
 	}
 }
 
-std::size_t SharedMemory::GetMemorySize()
+std::size_t SharedMemory::GetSharedStateSize()
 {
 	return SHARED_MEMORY_FNAME_SIZE;
 }
@@ -125,4 +125,9 @@ SharedMemory::SharedMemory(std::string_view fname, FileObject file, bool is_owne
 void *SharedMemory::GetAddress()
 {
 	return m_Buffer;
+}
+
+ShareableType SharedMemory::GetType() const
+{
+	return ShareableType::SharedMemory;
 }

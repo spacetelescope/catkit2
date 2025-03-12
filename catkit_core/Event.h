@@ -26,7 +26,7 @@ private:
 	Event &m_Event;
 };
 
-class Event
+class Event : public Shareable
 {
 public:
 	Event();
@@ -40,6 +40,8 @@ public:
 
 	static std::unique_ptr<Event> Create(StructStream &stream, std::string id);
 	static std::unique_ptr<Event> Open(StructStream &stream);
+
+	ShareableType GetType() const override;
 
 private:
 	std::unique_ptr<EventConditionVariable> m_ConditionVariable;

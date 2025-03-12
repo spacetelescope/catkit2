@@ -473,3 +473,8 @@ double DataStream::GetFrameRate()
 
 	return m_Header->m_FrameRateCounter * std::exp(-FRAMERATE_DECAY * time_delta);
 }
+
+ShareableType DataStream::GetType() const
+{
+	return ShareableType::DataStream;
+}

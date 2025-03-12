@@ -11,19 +11,21 @@
 #include <array>
 
 // A simple lock-free pool allocator.
-class PoolAllocator
+class PoolAllocator : public Shareable
 {
 public:
 	using BlockHandle = std::uint32_t;
 	static const BlockHandle INVALID_HANDLE = std::numeric_limits<BlockHandle>::max();
 
-	static std::size_t GetMemorySize(std::uint32_t capacity);
+	static std::size_t GetSharedStateSize(std::uint32_t capacity);
 
 	static std::unique_ptr<PoolAllocator> Create(StructStream &stream, std::uint32_t capacity);
 	static std::unique_ptr<PoolAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate();
 	void Deallocate(BlockHandle index);
+
+	ShareableType GetType() const override;
 
 private:
 	PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next);

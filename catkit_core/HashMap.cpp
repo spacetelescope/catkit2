@@ -114,7 +114,7 @@ std::size_t HashMap::CalculateEntrySize(std::size_t max_key_size, std::size_t va
 	return entry_size;
 }
 
-std::size_t HashMap::GetMemorySize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
+std::size_t HashMap::GetSharedStateSize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
 {
 	auto entry_size = CalculateEntrySize(max_key_size, value_size);
 
@@ -246,4 +246,9 @@ void *HashMap::Find(std::string_view key) const
 
 	// Key not found.
 	return nullptr;
+}
+
+ShareableType HashMap::GetType() const
+{
+	return ShareableType::HashMap;
 }

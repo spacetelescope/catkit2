@@ -65,10 +65,10 @@ FreeListAllocator::FreeListAllocator(Header *header, std::unique_ptr<PoolAllocat
 {
 }
 
-std::size_t FreeListAllocator::GetMemorySize(std::size_t max_num_blocks)
+std::size_t FreeListAllocator::GetSharedStateSize(std::size_t max_num_blocks)
 {
 	std::size_t size = sizeof(Header);
-	size += PoolAllocator::GetMemorySize(max_num_blocks);
+	size += PoolAllocator::GetSharedStateSize(max_num_blocks);
 	size += sizeof(Block) * max_num_blocks;
 
 	return size;
@@ -538,4 +538,9 @@ size_t FreeListAllocator::GetNumFreeBlocks() const
 	}
 
 	return count;
+}
+
+ShareableType FreeListAllocator::GetType() const
+{
+	return ShareableType::FreeListAllocator;
 }

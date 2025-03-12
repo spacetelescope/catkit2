@@ -7,7 +7,7 @@
 
 int main(int argc, char **argv)
 {
-    std::size_t buffer_size = HashMap::GetMemorySize(65536, 13, sizeof(std::int16_t));
+    std::size_t buffer_size = HashMap::GetSharedStateSize(65536, 13, sizeof(std::int16_t));
     std::cout << "Buffer size: " << buffer_size << " bytes" << std::endl;
 
     char *buffer = new char[buffer_size];

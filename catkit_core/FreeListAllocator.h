@@ -10,7 +10,7 @@
 #include <cstdint>
 
 // A simple lock-free free list allocator.
-class FreeListAllocator
+class FreeListAllocator : public Shareable
 {
 public:
 	using BlockHandle = PoolAllocator::BlockHandle;
@@ -19,7 +19,7 @@ public:
 
 	static const BlockHandle INVALID_HANDLE = PoolAllocator::INVALID_HANDLE;
 
-	static std::size_t GetMemorySize(std::size_t max_num_blocks);
+	static std::size_t GetSharedStateSize(std::size_t max_num_blocks);
 
 	static std::unique_ptr<FreeListAllocator> Create(StructStream &stream, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size);
 	static std::unique_ptr<FreeListAllocator> Open(StructStream &stream);
@@ -80,6 +80,8 @@ public:
 	static_assert(offsetof(Header, total_buffer_size) == 8);
 	static_assert(offsetof(Header, head) == 12);
 	static_assert(sizeof(Header) == 16);
+
+	ShareableType GetType() const override;
 
 private:
 	FreeListAllocator(Header *header, std::unique_ptr<PoolAllocator> block_allocator, Block *blocks);

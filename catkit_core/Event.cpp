@@ -111,3 +111,8 @@ std::unique_ptr<Event> Event::Open(StructStream &stream)
 
 	return event;
 }
+
+ShareableType Event::GetType() const
+{
+	return ShareableType::Event;
+}

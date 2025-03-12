@@ -12,7 +12,7 @@
 // A hash map with the following limitations:
 // * entries cannot be removed.
 // * key is string type of fixed size.
-class HashMap
+class HashMap : public Shareable
 {
 private:
 	enum EntryFlags : uint8_t
@@ -41,13 +41,15 @@ private:
 public:
 	HashMap(char *data, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
 
-	static std::size_t GetMemorySize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
+	static std::size_t GetSharedStateSize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
 
 	static std::unique_ptr<HashMap> Create(StructStream &stream, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
 	static std::unique_ptr<HashMap> Open(StructStream &stream);
 
 	void *Insert(std::string_view key, const void *value = nullptr);
 	void *Find(std::string_view key) const;
+
+	ShareableType GetType() const override;
 };
 
 #endif // HASH_MAP_H

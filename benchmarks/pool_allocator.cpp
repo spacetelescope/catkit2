@@ -8,7 +8,7 @@ void benchmark_linux_scalability()
 	const size_t N = 10000000;
 	const size_t CAPACITY = 2 * N;
 
-	char *buffer = new char[PoolAllocator::GetMemorySize(CAPACITY)];
+	char *buffer = new char[PoolAllocator::GetSharedStateSize(CAPACITY)];
 	auto stream = StructStream(buffer);
 
 	auto allocator = PoolAllocator::Create(stream, CAPACITY);

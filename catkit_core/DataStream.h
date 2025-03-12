@@ -62,7 +62,7 @@ enum BufferHandlingMode
 	BM_OLDEST_FIRST_OVERWRITE
 };
 
-class DataStream
+class DataStream : public Shareable
 {
 private:
 	DataStream(DataStreamHeader *header, std::unique_ptr<SharedMemory> buffer_shared_memory, std::unique_ptr<SharedMemory> header_shared_memory, std::unique_ptr<Event> event);
@@ -112,6 +112,8 @@ public:
 	size_t GetOldestAvailableFrameId();
 
 	double GetFrameRate();
+
+	ShareableType GetType() const override;
 
 private:
 	DataStreamHeader *m_Header;

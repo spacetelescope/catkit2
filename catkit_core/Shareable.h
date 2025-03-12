@@ -40,9 +40,8 @@ public:
 	Shareable(Shareable &&) = delete;
 	Shareable &operator=(Shareable &&) = delete;
 
-	static std::unique_ptr<Shareable> Open(ShareableType type, void *memory_block);
+	static std::unique_ptr<Shareable> Open(StructStream &stream);
 
-	virtual std::size_t GetSharedStateSize() const = 0;
 	virtual ShareableType GetType() const = 0;
 };
 
