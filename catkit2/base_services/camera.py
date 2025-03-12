@@ -52,6 +52,11 @@ class CameraService(Service):
         self.offset_x = offset_x
         self.offset_y = offset_y
 
+        # frame orientation
+        self.rot90 = self.config.get('rot90', False)
+        self.flip_x = self.config.get('flip_x', False)
+        self.flip_y = self.config.get('flip_y', False)
+
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
 
@@ -81,6 +86,10 @@ class CameraService(Service):
 
         make_property_helper('sensor_width', read_only=True, dtype='int64')
         make_property_helper('sensor_height', read_only=True, dtype='int64')
+
+        make_property_helper('rot90', read_only=True)
+        make_property_helper('flip_x', read_only=True)
+        make_property_helper('flip_y', read_only=True)
 
         self.make_command('start_acquisition', self._start_acquisition)
         self.make_command('end_acquisition', self._end_acquisition)
@@ -114,14 +123,24 @@ class CameraService(Service):
             # Wait until we are commanded to stop acquisition.
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 img = self.capture_image()
-
-                self.images.submit_data(img)
+                flipped_img = self.rot_flip_image(img)
+                self.images.submit_data(flipped_img)
 
         finally:
             # Communicate with the simulator to stop camera acquisition.
             self.testbed.simulator.end_camera_acquisition(camera_name=self.id)
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
+    def rot_flip_image(self, img):
+        # rotation needs to happen first
+        if self.rot90:
+            img = np.rot90(img)
+        if self.flip_x:
+            img = np.flipud(img)
+        if self.flip_y:
+            img = np.fliplr(img)
+        return np.ascontiguousarray(img)  
+        
     def _start_acquisition(self):
         self.should_be_acquiring.set()
 
