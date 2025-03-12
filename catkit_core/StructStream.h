@@ -2,6 +2,7 @@
 #define STRUCT_STREAM_H
 
 #include <cstddef>
+#include <algorithm>
 
 class StructStream
 {
@@ -26,11 +27,11 @@ public:
 		return res;
 	}
 
-	template <typename T>
+	template <typename... Ts>
 	inline void AddPadding()
 	{
 		// Get alignment requirement of the type.
-		constexpr std::size_t align = alignof(T);
+		constexpr std::size_t align = std::max({alignof(Ts)...});
 
 		// Pad the buffer to satisfy alignment requirement.
 		m_Offset += (align - (m_Offset % align)) % align;
