@@ -21,7 +21,7 @@ class SafetyManualCheck(Service):
             self.sleep(0.1)
 
     def get_value(self):
-        return self.check_value[0]
+        return self.value[0]
 
     def set_value(self, new_value):
         # This makes sure that the new value is actually convertable to a self.dtype.
