@@ -103,26 +103,39 @@ private:
 	char m_Delimiter;
 };
 
-MessageBroker::MessageBroker(SharedState *shared_state)
-	: m_Header(shared_state->header),
-	ShareableImpl(shared_state, 0)
+MessageBroker::MessageBroker(MessageBrokerHeader *header)
 {
 }
 
-std::unique_ptr<MessageBroker> MessageBroker::Create(SharedState *shared_state, std::vector<std::shared_ptr<Memory>> memory_blocks)
+std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
+{
+	auto *header = stream.Extract<MessageBrokerHeader>();
+
+	GetHostName().copy(header->creator_hostname, HOST_NAME_SIZE);
+	header->time_of_creation = GetTimeStamp();
+	header->creator_pid = GetProcessId();
+
+	header->time_of_last_activity = GetTimeStamp();
+
+	//auto hash_map = HashMap::Create(stream, TOPIC_HASH_MAP_SIZE, TOPIC_MAX_KEY_SIZE, sizeof(TopicHeader) + )
+
+	return nullptr;
+}
+
+std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 {
 	return nullptr;
 }
 
-std::unique_ptr<MessageBroker> MessageBroker::Open(SharedState *shared_state)
+std::size_t MessageBroker::CalculateBufferSize()
 {
-	return nullptr;
+	return 0;
 }
 
 Message MessageBroker::PrepareMessage(const std::string &topic, size_t payload_size, uint8_t memory_block_id)
 {
 	Uuid trace_id;
-	m_UuidGenerator.Generate(trace_id);
+	m_UuidGenerator.Generate(&trace_id);
 
 	return PrepareMessage(topic, trace_id, payload_size, memory_block_id);
 }
@@ -168,14 +181,14 @@ Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, s
 	header->payload_info.memory_block_id = memory_block_id;
 	header->payload_info.total_size = payload_size;
 	header->payload_info.offset_in_buffer = offset;
-	m_UuidGenerator.Generate(header->payload_id);
+	m_UuidGenerator.Generate(&header->payload_id);
 
 	// Set the topic.
 	std::fill(header->topic, header->topic + sizeof(header->topic), '\0');
 	topic.copy(header->topic, TOPIC_MAX_KEY_SIZE - 1);
 
 	// Set the trace ID.
-	std::copy(trace_id, trace_id + sizeof(Uuid), header->trace_id);
+	header->trace_id = trace_id;
 
 	// Set the producer information.
 	std::fill(header->producer_hostname, header->producer_hostname + HOST_NAME_SIZE, '\0');
@@ -301,7 +314,7 @@ std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 		if (!topic_header)
 			return nullptr;
 
-		m_Events[topic] = Event::Create(topic, &topic_header->event_shared_state);
+		//m_Events[topic] = Event::Create(topic, &topic_header->event_shared_state);
 	}
 
 	return m_Events[topic];

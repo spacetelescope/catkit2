@@ -82,19 +82,29 @@ struct TopicHeader
 
 	std::uint64_t message_headers[TOPIC_MAX_NUM_MESSAGES];
 
-	Event::SharedState event_shared_state;
-
 	char metadata_keys[METADATA_MAX_STRLEN][MAX_NUM_METADATA_ENTRIES];
 };
 
 struct MessageBrokerHeader
 {
-	char version[VERSION_SIZE];
 	char creator_hostname[HOST_NAME_SIZE];
+	std::uint64_t time_of_creation;
+	int creator_pid;
+
 	std::uint64_t time_of_last_activity;
 
-	char buffer_shared_memory_id[MAX_SHARED_MEMORY_ID_SIZE];
-	CudaIpcHandle cuda_ipc_handles[MAX_NUM_GPUS];
+	TopicHeader topic_headers[TOPIC_HASH_MAP_SIZE];
+	//Event events[TOPIC_HASH_MAP_SIZE];
+	MessageHeader message_headers[TOPIC_MAX_NUM_MESSAGES];
+
+	//HashMap topics<TopicHeader + Event>;
+
+	//PoolAllocator message_header_allocator;
+	//FreeListAllocator allocators[MAX_NUM_MEMORY_BLOCKS];
+
+	//SharedMemory memory_blocks[MAX_NUM_MEMORY_BLOCKS];
+
+	//RingBuffer event_allocator;
 };
 
 class MessageBroker;
@@ -145,16 +155,16 @@ private:
 	bool m_HasBeenPublished;
 };
 
-class MessageBroker : public ShareableImpl<ShareableType::MessageBroker>
+class MessageBroker : public Shareable
 {
 	friend class Message;
 
 private:
-	MessageBroker(SharedState *shared_state);
+	MessageBroker(MessageBrokerHeader *header);
 
 public:
-	static std::unique_ptr<MessageBroker> Create(SharedState *shared_state, std::vector<std::shared_ptr<Memory>> memory_blocks); // TODO: Add parameters.
-	static std::unique_ptr<MessageBroker> Open(SharedState *shared_state);
+	static std::unique_ptr<MessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks); // TODO: Add parameters.
+	static std::unique_ptr<MessageBroker> Open(StructStream &stream);
 
 	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
 
@@ -174,7 +184,7 @@ private:
 
 	TopicHeader *GetTopicHeader(std::string_view topic);
 
-	MessageBrokerHeader &m_Header;
+	MessageBrokerHeader *m_Header;
 
 	std::unique_ptr<HashMap> m_TopicHeaders;
 	std::map<std::string_view, std::shared_ptr<Event>> m_Events;
@@ -186,12 +196,6 @@ private:
 	std::vector<std::shared_ptr<Memory>> m_MemoryBlocks;
 
 	UuidGenerator m_UuidGenerator;
-};
-
-template<>
-struct SharedStateInternal<ShareableType::MessageBroker>
-{
-	MessageBrokerHeader header;
 };
 
 #endif // MESSAGE_BROKER_H
