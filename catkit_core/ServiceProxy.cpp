@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <string>
+#include <stdexcept>
 
 using namespace std::string_literals;
 
@@ -61,6 +62,8 @@ Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 					return ((std::int64_t *) frame.GetData())[0];
 				case DataType::DT_FLOAT64:
 					return ((double *) frame.GetData())[0];
+				default:
+					throw std::logic_error("This should be unreachable.");
 			}
 		}
 		catch (std::runtime_error)
