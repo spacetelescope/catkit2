@@ -4,9 +4,11 @@ AccuFiz Interferometer
 This service operates a 4D Technologies AccuFiz Interferometer using the 4D InSight software and their Web Services API for communication. It handles image acquisition, processing, and data management.
 
 .. note::
-The AccuFiz Interferometer requires the 4D InSight software to be in listening mode and WebServices4D to be installed and configured correctly.
-The service communicates with the interferometer using HTTP requests to the Web Services API provided by the 4D InSight software and Web Service.
-Ensure that the mask file specified in the configuration is accessible to the 4D computer.
+    The AccuFiz Interferometer requires the 4D InSight software to be in listening mode and WebServices4D to be installed and configured correctly.
+
+    The service communicates with the interferometer using HTTP requests to the Web Services API provided by the 4D InSight software and Web Service.
+
+    Ensure that the mask file specified in the configuration is accessible to the 4D computer.
 
 
 Configuration
