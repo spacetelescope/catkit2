@@ -34,6 +34,14 @@ public:
 private:
 	SharedMemory(std::string_view fname, FileObject file, bool is_owner);
 
+	struct Header
+	{
+		std::uint64_t capacity;
+
+		// Pad to 128bytes.
+		char padding[128 - sizeof(capacity)];
+	};
+
 public:
 	~SharedMemory();
 
@@ -46,6 +54,7 @@ public:
 	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
 
 	void *GetAddress(std::size_t offset = 0) override;
+	std::size_t GetCapacity() const override;
 
 	ShareableType GetType() const override;
 
@@ -55,6 +64,8 @@ private:
 
 	FileObject m_File;
 	void *m_Buffer;
+
+	std::size_t m_Capacity;
 };
 
 #endif // SHARED_MEMORY_H
