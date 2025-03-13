@@ -79,3 +79,8 @@ bool RingBuffer::Pop(void *item)
 	// We successfully updated the tail.
 	return true;
 }
+
+ShareableType RingBuffer::GetType() const
+{
+	return ShareableType::RingBuffer;
+}

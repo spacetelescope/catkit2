@@ -9,7 +9,8 @@ void benchmark_linux_scalability()
 
     char *buffer = new char[RingBuffer::CalculateMetadataBufferSize(N, value_size)];
 
-	auto ring_buffer = RingBuffer::Create((RingBuffer::SharedState *) buffer, N, value_size);
+    auto stream = StructStream(buffer);
+	auto ring_buffer = RingBuffer::Create(stream, N, value_size);
 
     auto start = GetTimeStamp();
 
