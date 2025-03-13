@@ -4,7 +4,7 @@
 
 #include <stdexcept>
 #include <iostream>
-#include <string>
+#include <array>
 
 SharedMemory::~SharedMemory()
 {
@@ -26,10 +26,13 @@ SharedMemory::~SharedMemory()
 	}
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Create(SharedState *shared_state, std::string_view fname, size_t num_bytes_in_buffer)
+std::size_t SharedMemory::GetSharedStateSize()
 {
-	std::cout << "Creating shared memory " << fname << std::endl;
+	return SHARED_MEMORY_FNAME_SIZE;
+}
 
+std::unique_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_t num_bytes_in_buffer)
+{
 	std::string fname_string = std::string(fname);
 
 #ifdef _WIN32
@@ -54,26 +57,25 @@ std::unique_ptr<SharedMemory> SharedMemory::Create(SharedState *shared_state, st
 	}
 #endif
 
-	if (shared_state)
-	{
-		std::fill(shared_state->fname, shared_state->fname + SHARED_MEMORY_FNAME_SIZE, '\0');
-		fname.copy(shared_state->fname, SHARED_MEMORY_FNAME_SIZE - 1);
-	}
-
 	return std::unique_ptr<SharedMemory>(new SharedMemory(fname, file, true));
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Create(SharedState *shared_state, size_t num_bytes_in_buffer)
+std::unique_ptr<SharedMemory> SharedMemory::Create(StructStream &stream, size_t num_bytes_in_buffer)
 {
 	// Create a randomized file name.
 	std::string fname = std::to_string(GetTimeStamp()) + ".mem";
 
-	return Create(shared_state, fname, num_bytes_in_buffer);
+	return Create(stream, fname, num_bytes_in_buffer);
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_t num_bytes_in_buffer)
+std::unique_ptr<SharedMemory> SharedMemory::Create(StructStream &stream, std::string_view fname, size_t num_bytes_in_buffer)
 {
-	return Create(nullptr, fname, num_bytes_in_buffer);
+	// Copy over fname to stream.
+	auto arr = stream.Extract<std::array<char, SHARED_MEMORY_FNAME_SIZE>>();
+	arr->fill('\0');
+	fname.copy(arr->data(), SHARED_MEMORY_FNAME_SIZE - 1);
+
+	return Create(fname, num_bytes_in_buffer);
 }
 
 std::unique_ptr<SharedMemory> SharedMemory::Open(std::string_view fname)
@@ -95,16 +97,17 @@ std::unique_ptr<SharedMemory> SharedMemory::Open(std::string_view fname)
 	return std::unique_ptr<SharedMemory>(new SharedMemory(fname, file, false));
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Open(SharedState *shared_state)
+std::unique_ptr<SharedMemory> SharedMemory::Open(StructStream &stream)
 {
-	std::string_view fname{shared_state->fname};
+	auto arr = stream.Extract<std::array<char, SHARED_MEMORY_FNAME_SIZE>>();
+
+	std::string_view fname{arr->data()};
 
 	return Open(fname);
 }
 
 SharedMemory::SharedMemory(std::string_view fname, FileObject file, bool is_owner)
-	: m_File(file), m_FileName(fname), m_IsOwner(is_owner), m_Buffer(nullptr),
-	ShareableImpl(nullptr)
+	: m_File(file), m_FileName(fname), m_IsOwner(is_owner), m_Buffer(nullptr)
 {
 #ifdef _WIN32
 	m_Buffer = MapViewOfFile(m_File, FILE_MAP_ALL_ACCESS, 0, 0, 0);
@@ -122,4 +125,9 @@ SharedMemory::SharedMemory(std::string_view fname, FileObject file, bool is_owne
 void *SharedMemory::GetAddress()
 {
 	return m_Buffer;
+}
+
+ShareableType SharedMemory::GetType() const
+{
+	return ShareableType::SharedMemory;
 }

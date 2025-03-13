@@ -1,8 +1,11 @@
 #ifndef SHAREABLE_H
 #define SHAREABLE_H
 
+#include "StructStream.h"
+
 #include <cstddef>
 #include <memory>
+#include <algorithm>
 
 enum class ShareableType
 {
@@ -13,11 +16,6 @@ enum class ShareableType
 	PoolAllocator,
 	SharedMemory,
 	HashMap
-};
-
-template<enum ShareableType Type>
-struct SharedStateInternal
-{
 };
 
 /*
@@ -42,30 +40,19 @@ public:
 	Shareable(Shareable &&) = delete;
 	Shareable &operator=(Shareable &&) = delete;
 
-	static std::unique_ptr<Shareable> Open(ShareableType type, void *memory_block);
+	static std::unique_ptr<Shareable> Open(StructStream &stream);
 
-	virtual std::size_t GetSharedStateSize() const = 0;
 	virtual ShareableType GetType() const = 0;
 };
 
-template<enum ShareableType Type>
-class ShareableImpl : public Shareable
+template <typename T, std::size_t N>
+inline bool CheckVersion(StructStream &stream, const std::array<T, N> expected_version)
 {
-public:
-	using SharedState = SharedStateInternal<Type>;
+	// Get the version from the stream;
+	T *our_version = stream.Extract<T>(N);
 
-protected:
-	ShareableImpl(SharedState *shared_state, std::size_t dynamic_shared_state_size = 0);
-
-public:
-	std::size_t GetSharedStateSize() const override;
-	ShareableType GetType() const override;
-
-protected:
-	SharedState *m_SharedState;
-	std::size_t m_DynamicSharedStateSize;
-};
-
-#include "Shareable.inl"
+	// Return if the version strings are the same.
+	return std::equal(expected_version.begin(), expected_version.end(), our_version);
+}
 
 #endif // SHAREABLE_H

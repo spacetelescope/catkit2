@@ -13,7 +13,6 @@
 #include "Tensor.h"
 #include "Shareable.h"
 
-const char * const CURRENT_DATASTREAM_VERSION = "0.2";
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
 const long INFINITE_WAIT_TIME = LONG_MAX;
 
@@ -24,7 +23,7 @@ struct DataFrameMetadata
 
 struct DataStreamHeader
 {
-	char m_Version[32];
+	std::array<char, 4> m_Version;
 
 	char m_StreamName[256];
 	char m_StreamId[256];
@@ -48,16 +47,6 @@ struct DataStreamHeader
 	std::atomic_size_t m_NextRequestId;
 
 	double m_FrameRateCounter;
-
-	Event::SharedState m_EventSharedState;
-
-	SharedMemory::SharedState m_BufferSharedState;
-};
-
-template<>
-struct SharedStateInternal<ShareableType::DataStream>
-{
-	DataStreamHeader header;
 };
 
 class DataFrame : public Tensor
@@ -73,17 +62,17 @@ enum BufferHandlingMode
 	BM_OLDEST_FIRST_OVERWRITE
 };
 
-class DataStream : public ShareableImpl<ShareableType::DataStream>
+class DataStream : public Shareable
 {
 private:
-	DataStream(SharedState *shared_state, std::unique_ptr<SharedMemory> buffer_shared_memory, std::unique_ptr<SharedMemory> header_shared_memory);
+	DataStream(DataStreamHeader *header, std::unique_ptr<SharedMemory> buffer_shared_memory, std::unique_ptr<SharedMemory> header_shared_memory, std::unique_ptr<Event> event);
 
 public:
 	~DataStream();
 
 	static std::unique_ptr<DataStream> Create(std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::unique_ptr<DataStream> Create(SharedState *shared_state, std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer, std::unique_ptr<SharedMemory> header_shared_memory = nullptr);
-	static std::unique_ptr<DataStream> Open(SharedState *shared_state, std::unique_ptr<SharedMemory> header_shared_memory = nullptr);
+	static std::unique_ptr<DataStream> Create(StructStream &stream, std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer, std::unique_ptr<SharedMemory> header_shared_memory = nullptr);
+	static std::unique_ptr<DataStream> Open(StructStream &stream, std::unique_ptr<SharedMemory> header_shared_memory = nullptr);
 	static std::unique_ptr<DataStream> Open(std::string_view stream_id);
 
 	DataFrame RequestNewFrame();
@@ -123,6 +112,8 @@ public:
 	size_t GetOldestAvailableFrameId();
 
 	double GetFrameRate();
+
+	ShareableType GetType() const override;
 
 private:
 	DataStreamHeader *m_Header;

@@ -1,7 +1,20 @@
 #include "Event.h"
 
-Event::Event(SharedState *shared_state)
-	: ShareableImpl(shared_state)
+#include <array>
+
+const int EVENT_ID_MAX_SIZE = 256;
+
+struct Header
+{
+	std::array<char, EVENT_ID_MAX_SIZE> m_Id;
+
+	EventConditionVariable::SharedState m_ConditionVariable;
+	EventFutex::SharedState m_Futex;
+	EventSemaphore::SharedState m_Semaphore;
+	EventSpinLock::SharedState m_SpinLock;
+};
+
+Event::Event()
 {
 }
 
@@ -64,32 +77,42 @@ void Event::Unlock()
 	m_SpinLock->Unlock();
 }
 
-std::unique_ptr<Event> Event::Create(std::string id, SharedState *shared_state)
+std::unique_ptr<Event> Event::Create(StructStream &stream, std::string id)
 {
-	std::unique_ptr<Event> event(new Event(shared_state));
+	auto header = stream.Extract<Header>();
 
-	id.copy(shared_state->m_Id, EVENT_ID_MAX_SIZE);
+	header->m_Id.fill('\0');
+	id.copy(header->m_Id.data(), EVENT_ID_MAX_SIZE - 1);
+
+	auto event = std::unique_ptr<Event>(new Event());
 
 	// Create all event types.
-	event->m_ConditionVariable = EventConditionVariable::Create(id, &shared_state->m_ConditionVariable);
-	event->m_Futex = EventFutex::Create(id, &shared_state->m_Futex);
-	event->m_Semaphore = EventSemaphore::Create(id, &shared_state->m_Semaphore);
-	event->m_SpinLock = EventSpinLock::Create(id, &shared_state->m_SpinLock);
+	event->m_ConditionVariable = EventConditionVariable::Create(id, &header->m_ConditionVariable);
+	event->m_Futex = EventFutex::Create(id, &header->m_Futex);
+	event->m_Semaphore = EventSemaphore::Create(id, &header->m_Semaphore);
+	event->m_SpinLock = EventSpinLock::Create(id, &header->m_SpinLock);
 
 	return event;
 }
 
-std::unique_ptr<Event> Event::Open(SharedState *shared_state)
+std::unique_ptr<Event> Event::Open(StructStream &stream)
 {
-	std::unique_ptr<Event> event(new Event(shared_state));
+	std::unique_ptr<Event> event(new Event());
 
-	std::string id(shared_state->m_Id);
+	auto header = stream.Extract<Header>();
+
+	auto id = std::string(header->m_Id.data());
 
 	// Open all event types.
-	event->m_ConditionVariable = EventConditionVariable::Open(id, &shared_state->m_ConditionVariable);
-	event->m_Futex = EventFutex::Open(id, &shared_state->m_Futex);
-	event->m_Semaphore = EventSemaphore::Open(id, &shared_state->m_Semaphore);
-	event->m_SpinLock = EventSpinLock::Open(id, &shared_state->m_SpinLock);
+	event->m_ConditionVariable = EventConditionVariable::Open(id, &header->m_ConditionVariable);
+	event->m_Futex = EventFutex::Open(id, &header->m_Futex);
+	event->m_Semaphore = EventSemaphore::Open(id, &header->m_Semaphore);
+	event->m_SpinLock = EventSpinLock::Open(id, &header->m_SpinLock);
 
 	return event;
+}
+
+ShareableType Event::GetType() const
+{
+	return ShareableType::Event;
 }

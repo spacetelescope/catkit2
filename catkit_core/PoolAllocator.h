@@ -1,7 +1,7 @@
 #ifndef POOL_ALLOCATOR_H
 #define POOL_ALLOCATOR_H
 
-#include "Shareable.h"
+ #include "Shareable.h"
 
 #include <atomic>
 #include <cstdint>
@@ -11,49 +11,30 @@
 #include <array>
 
 // A simple lock-free pool allocator.
-class PoolAllocator : public ShareableImpl<ShareableType::PoolAllocator>
+class PoolAllocator : public Shareable
 {
 public:
 	using BlockHandle = std::uint32_t;
 	static const BlockHandle INVALID_HANDLE = std::numeric_limits<BlockHandle>::max();
 
-	static std::size_t CalculateMetadataBufferSize(std::uint32_t capacity);
+	static std::size_t GetSharedStateSize(std::uint32_t capacity);
 
-	static std::unique_ptr<PoolAllocator> Create(SharedState *shared_state, std::uint32_t capacity);
-	static std::unique_ptr<PoolAllocator> Open(SharedState *shared_state);
+	static std::unique_ptr<PoolAllocator> Create(StructStream &stream, std::uint32_t capacity);
+	static std::unique_ptr<PoolAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate();
 	void Deallocate(BlockHandle index);
 
-	struct Header
-	{
-		std::uint8_t version[4];
-		std::uint32_t capacity;
-		std::atomic<BlockHandle> head;
-	};
-
-	// Ensure a specific memory layout.
-	static_assert(offsetof(PoolAllocator::Header, version) == 0);
-	static_assert(offsetof(PoolAllocator::Header, capacity) == 4);
-	static_assert(offsetof(PoolAllocator::Header, head) == 8);
-	static_assert(sizeof(PoolAllocator::Header) == 12);
+	ShareableType GetType() const override;
 
 private:
-	PoolAllocator(SharedState *header, std::atomic<BlockHandle> *next);
+	PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next);
 
-	static void GetMemoryLayout(SharedState *shared_state, std::atomic<BlockHandle> **next);
-
-	Header &m_Header;
-
-	std::uint32_t &m_Capacity;
-	std::atomic<BlockHandle> &m_Head;
+	std::uint32_t m_Capacity;
+	std::atomic<BlockHandle> *m_Head;
 	std::atomic<BlockHandle> *m_Next;
-};
 
-template<>
-struct SharedStateInternal<ShareableType::PoolAllocator>
-{
-	PoolAllocator::Header header;
+	static_assert(std::atomic<BlockHandle>::is_always_lock_free);
 };
 
 #endif // POOL_ALLOCATOR_H

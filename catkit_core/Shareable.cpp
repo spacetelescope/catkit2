@@ -9,22 +9,24 @@
 #include "SharedMemory.h"
 #include "HashMap.h"
 
-std::unique_ptr<Shareable> Shareable::Open(ShareableType type, void *memory_block)
+std::unique_ptr<Shareable> Shareable::Open(StructStream &stream)
 {
+	ShareableType type = *stream.Extract<ShareableType>();
+
 	switch (type)
 	{
 	case ShareableType::DataStream:
-		return DataStream::Open(reinterpret_cast<DataStream::SharedState *>(memory_block));
+		return DataStream::Open(stream);
 	case ShareableType::Event:
-		return Event::Open(reinterpret_cast<Event::SharedState *>(memory_block));
+		return Event::Open(stream);
 	case ShareableType::FreeListAllocator:
-		return FreeListAllocator::Open(reinterpret_cast<FreeListAllocator::SharedState *>(memory_block));
-	case ShareableType::HashMap:
-		return HashMap::Open(reinterpret_cast<HashMap::SharedState *>(memory_block));
+		return FreeListAllocator::Open(stream);
 	case ShareableType::PoolAllocator:
-		return PoolAllocator::Open(reinterpret_cast<PoolAllocator::SharedState *>(memory_block));
+		return PoolAllocator::Open(stream);
 	case ShareableType::SharedMemory:
-		return SharedMemory::Open(reinterpret_cast<SharedMemory::SharedState *>(memory_block));
+		return SharedMemory::Open(stream);
+	case ShareableType::HashMap:
+		return HashMap::Open(stream);
 	default:
 		throw std::runtime_error("Unknown shareable type.");
 	}
