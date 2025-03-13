@@ -19,3 +19,9 @@ std::size_t LocalMemory::GetCapacity() const
 {
     return m_Capacity;
 }
+
+void LocalMemory::WriteReference(StructStream &stream)
+{
+    *stream.Extract<char *>() = m_Memory;
+    *stream.Extract<std::size_t>() = m_Capacity;
+}

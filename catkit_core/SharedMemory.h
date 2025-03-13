@@ -43,7 +43,7 @@ private:
 	};
 
 public:
-	~SharedMemory();
+	virtual ~SharedMemory();
 
 	std::size_t GetSharedStateSize();
 
@@ -53,8 +53,9 @@ public:
 	static std::unique_ptr<SharedMemory> Open(StructStream &stream);
 	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
 
-	void *GetAddress(std::size_t offset = 0) override;
-	std::size_t GetCapacity() const override;
+	virtual void *GetAddress(std::size_t offset = 0) override;
+	virtual std::size_t GetCapacity() const override;
+	virtual void WriteReference(StructStream &stream) override;
 
 	ShareableType GetType() const override;
 
