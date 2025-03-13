@@ -41,6 +41,8 @@ public:
 	static std::unique_ptr<Event> Create(StructStream &stream, std::string_view id);
 	static std::unique_ptr<Event> Open(StructStream &stream);
 
+	static constexpr std::size_t GetSharedStateSize();
+
 	ShareableType GetType() const override;
 
 private:

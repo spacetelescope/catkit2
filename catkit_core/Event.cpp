@@ -116,3 +116,8 @@ ShareableType Event::GetType() const
 {
 	return ShareableType::Event;
 }
+
+constexpr std::size_t Event::GetSharedStateSize()
+{
+	return sizeof(Header);
+}
