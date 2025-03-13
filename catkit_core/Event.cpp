@@ -2,18 +2,6 @@
 
 #include <array>
 
-const int EVENT_ID_MAX_SIZE = 256;
-
-struct Header
-{
-	std::array<char, EVENT_ID_MAX_SIZE> m_Id;
-
-	EventConditionVariable::SharedState m_ConditionVariable;
-	EventFutex::SharedState m_Futex;
-	EventSemaphore::SharedState m_Semaphore;
-	EventSpinLock::SharedState m_SpinLock;
-};
-
 Event::Event()
 {
 }
@@ -115,9 +103,4 @@ std::unique_ptr<Event> Event::Open(StructStream &stream)
 ShareableType Event::GetType() const
 {
 	return ShareableType::Event;
-}
-
-constexpr std::size_t Event::GetSharedStateSize()
-{
-	return sizeof(Header);
 }

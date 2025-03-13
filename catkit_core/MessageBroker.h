@@ -82,6 +82,8 @@ struct TopicHeader
 
 	std::uint64_t message_headers[TOPIC_MAX_NUM_MESSAGES];
 
+	std::array<char, Event::GetSharedStateSize()> event;
+
 	char metadata_keys[METADATA_MAX_STRLEN][MAX_NUM_METADATA_ENTRIES];
 };
 
@@ -93,11 +95,9 @@ struct MessageBrokerHeader
 
 	std::uint64_t time_of_last_activity;
 
-	TopicHeader topic_headers[TOPIC_HASH_MAP_SIZE];
-	//Event events[TOPIC_HASH_MAP_SIZE];
 	MessageHeader message_headers[TOPIC_MAX_NUM_MESSAGES];
 
-	//HashMap topics<TopicHeader + Event>;
+	//HashMap<TopicHeader> topic_headers;
 
 	//PoolAllocator message_header_allocator;
 	//FreeListAllocator allocators[MAX_NUM_MEMORY_BLOCKS];
