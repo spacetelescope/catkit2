@@ -6,6 +6,7 @@
 
 #include <string>
 #include <memory>
+#include <array>
 
 template <typename Event>
 class EventLockGuard
