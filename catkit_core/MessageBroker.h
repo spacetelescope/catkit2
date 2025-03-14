@@ -19,7 +19,7 @@ const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
 
 const size_t VERSION_SIZE = 8;
 const size_t TOPIC_HASH_MAP_SIZE = 16384;
-const size_t TOPIC_MAX_KEY_SIZE = 128;
+const size_t TOPIC_MAX_KEY_SIZE = 127;
 const size_t TOPIC_MAX_NUM_MESSAGES = 32;
 const size_t HOST_NAME_SIZE = 64;
 const size_t METADATA_MAX_STRLEN = 16;
