@@ -7,6 +7,7 @@
 #include "FreeListAllocator.h"
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
+#include "LocalMemory.h"
 #include "HashMap.h"
 #include "MessageBroker.h"
 #include "RingBuffer.h"
@@ -27,6 +28,8 @@ std::unique_ptr<Shareable> Shareable::Open(StructStream &stream)
 		return PoolAllocator::Open(stream);
 	case ShareableType::SharedMemory:
 		return SharedMemory::Open(stream);
+	case ShareableType::LocalMemory:
+		return LocalMemory::Open(stream);
 	case ShareableType::HashMap:
 		return HashMap::Open(stream);
 	case ShareableType::MessageBroker:
