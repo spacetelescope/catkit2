@@ -38,7 +38,7 @@ C++ compiler
 The catkit2 installation requires a pre-installed C++ compiler.
 
 - On Windows, you can for example install the Visual Studio Compiler, either by installing the Build Tools, or by installing the full IDE with compiler (the community edition is free).
-- On MacOS, nothing should be needed, but some machines require Xcode to be installed. It does install components on first startup, so it is recommended to start XCode on your mac if you have never used it (and accept the license agreement of XCode, which is required).
+- On MacOS, nothing should be needed, but some machines require Xcode to be installed. It does install components on first startup, so it is recommended to start XCode on your Mac if you have never used it (and accept the license agreement of XCode, which is required).
 - XCode 15 (Sonoma and higher) introduced some changes in the compiler location, which require the following environment variable update:
 
 .. code-block:: bash
