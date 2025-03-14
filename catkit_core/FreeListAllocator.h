@@ -10,7 +10,7 @@
 #include <cstdint>
 
 // A simple lock-free free list allocator.
-class FreeListAllocator : public ShareableImpl<ShareableType::FreeListAllocator>
+class FreeListAllocator : public Shareable
 {
 public:
 	using BlockHandle = PoolAllocator::BlockHandle;
@@ -19,10 +19,10 @@ public:
 
 	static const BlockHandle INVALID_HANDLE = PoolAllocator::INVALID_HANDLE;
 
-	static std::size_t ComputeMetadataBufferSize(std::size_t max_num_blocks);
+	static std::size_t GetSharedStateSize(std::size_t max_num_blocks);
 
-	static std::unique_ptr<FreeListAllocator> Create(SharedState *shared_state, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size);
-	static std::unique_ptr<FreeListAllocator> Open(SharedState *shared_state);
+	static std::unique_ptr<FreeListAllocator> Create(StructStream &stream, std::size_t max_num_blocks, std::size_t alignment, std::size_t buffer_size);
+	static std::unique_ptr<FreeListAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate(std::size_t size);
 	void Deallocate(BlockHandle index);
@@ -68,7 +68,6 @@ public:
 
 	struct Header
 	{
-		std::uint8_t version[4];
 		std::uint32_t max_num_blocks;
 		Size alignment;
 		Size total_buffer_size;
@@ -76,17 +75,16 @@ public:
 	};
 
 	// Ensure a specific memory layout.
-	static_assert(offsetof(Header, version) == 0);
-	static_assert(offsetof(Header, max_num_blocks) == 4);
-	static_assert(offsetof(Header, alignment) == 8);
-	static_assert(offsetof(Header, total_buffer_size) == 12);
-	static_assert(offsetof(Header, head) == 16);
-	static_assert(sizeof(Header) == 20);
+	static_assert(offsetof(Header, max_num_blocks) == 0);
+	static_assert(offsetof(Header, alignment) == 4);
+	static_assert(offsetof(Header, total_buffer_size) == 8);
+	static_assert(offsetof(Header, head) == 12);
+	static_assert(sizeof(Header) == 16);
+
+	ShareableType GetType() const override;
 
 private:
-	FreeListAllocator(SharedState *shared_state, std::unique_ptr<PoolAllocator> block_allocator, Block *blocks);
-
-	static void GetMemoryLayout(void *metadata_buffer, std::size_t max_num_blocks, void **block_allocator_memory, Block **blocks);
+	FreeListAllocator(Header *header, std::unique_ptr<PoolAllocator> block_allocator, Block *blocks);
 
 	Header &m_Header;
 
@@ -105,12 +103,6 @@ private:
 	bool MarkBlockAsFree(BlockHandle index, bool mark_free);
 
 	bool TryCoalesceBlocks(BlockHandle a, BlockHandle b, bool owner_of_a);
-};
-
-template<>
-struct SharedStateInternal<ShareableType::FreeListAllocator>
-{
-	FreeListAllocator::Header header;
 };
 
 #endif // FREE_LIST_ALLOCATOR_H

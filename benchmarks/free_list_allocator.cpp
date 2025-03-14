@@ -11,10 +11,11 @@ void benchmark_linux_scalability()
 
 	auto *handles = new FreeListAllocator::BlockHandle[N];
 
-	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
+	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	auto allocator = FreeListAllocator::Create((FreeListAllocator::SharedState *) buffer, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
+	auto stream = StructStream(buffer);
+	auto allocator = FreeListAllocator::Create(stream, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
 
 	auto start = GetTimeStamp();
 
@@ -48,10 +49,11 @@ void benchmark_threadtest()
 
 	auto *handles = new FreeListAllocator::BlockHandle[M];
 
-	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
+	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	auto allocator = FreeListAllocator::Create((FreeListAllocator::SharedState *) buffer, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
+	auto stream = StructStream(buffer);
+	auto allocator = FreeListAllocator::Create(stream, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
 
 	auto start = GetTimeStamp();
 
@@ -94,10 +96,11 @@ void benchmark_larson()
 		handles[i] = -1;
 	}
 
-	size_t buffer_size = FreeListAllocator::ComputeMetadataBufferSize(NUM_BLOCKS);
+	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
 	char *buffer = new char[buffer_size];
 
-	auto allocator = FreeListAllocator::Create((FreeListAllocator::SharedState *) buffer, NUM_BLOCKS, ALIGNMENT, MAX_SIZE * NUM_BLOCKS);
+	auto stream = StructStream(buffer);
+	auto allocator = FreeListAllocator::Create(stream, NUM_BLOCKS, ALIGNMENT, MAX_SIZE * NUM_BLOCKS);
 
 	auto *indices = new size_t[N];
 	auto *sizes = new size_t[N];
