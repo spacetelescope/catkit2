@@ -6,13 +6,16 @@
 #include "FreeListAllocator.h"
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
+#include "LocalMemory.h"
 #include "CudaSharedMemory.h"
 #include "UuidGenerator.h"
+#include "RingBuffer.h"
 
 #include <memory>
 #include <map>
+#include <array>
 
-const char * const MESSAGE_BROKER_VERSION = "0.1";
+const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
 
 const size_t VERSION_SIZE = 8;
 const size_t TOPIC_HASH_MAP_SIZE = 16384;
@@ -20,10 +23,13 @@ const size_t TOPIC_MAX_KEY_SIZE = 128;
 const size_t TOPIC_MAX_NUM_MESSAGES = 32;
 const size_t HOST_NAME_SIZE = 64;
 const size_t METADATA_MAX_STRLEN = 16;
+const size_t MAX_NUM_MESSAGES = 65536;
 const size_t MAX_NUM_DIMENSIONS = 4;
 const size_t MAX_NUM_METADATA_ENTRIES = 16;
 const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
-const size_t MAX_NUM_GPUS = 8;
+const size_t MAX_NUM_BLOCKS = 8192;
+const size_t MEMORY_ALIGNMENT = 32;
+const size_t NUM_EVENTS_IN_BUFFER = 64;
 
 const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
 
@@ -93,18 +99,11 @@ struct MessageBrokerHeader
 	std::uint64_t time_of_creation;
 	int creator_pid;
 
+	std::size_t num_memory_blocks;
+
 	std::uint64_t time_of_last_activity;
 
-	MessageHeader message_headers[TOPIC_MAX_NUM_MESSAGES];
-
-	//HashMap<TopicHeader> topic_headers;
-
-	//PoolAllocator message_header_allocator;
-	//FreeListAllocator allocators[MAX_NUM_MEMORY_BLOCKS];
-
-	//SharedMemory memory_blocks[MAX_NUM_MEMORY_BLOCKS];
-
-	//RingBuffer event_allocator;
+	MessageHeader message_headers[MAX_NUM_MESSAGES];
 };
 
 class MessageBroker;
@@ -160,7 +159,14 @@ class MessageBroker : public Shareable
 	friend class Message;
 
 private:
-	MessageBroker(MessageBrokerHeader *header);
+	MessageBroker(
+		MessageBrokerHeader *header,
+		std::unique_ptr<HashMap> topic_headers,
+		std::unique_ptr<PoolAllocator> message_header_allocator,
+		std::unique_ptr<RingBuffer> event_allocator,
+		std::vector<std::shared_ptr<FreeListAllocator>> allocators,
+		std::vector<std::shared_ptr<Memory>> memory_blocks
+	);
 
 public:
 	static std::unique_ptr<MessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks); // TODO: Add parameters.
@@ -168,13 +174,15 @@ public:
 
 	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
 
-	Message PrepareMessage(const std::string &topic, size_t payload_size, uint8_t memory_block_id = 0);
-	Message PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, uint8_t memory_block_id = 0);
+	Message PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id = 0);
+	Message PrepareMessage(std::string_view topic, Uuid trace_id, size_t payload_size, uint8_t memory_block_id = 0);
 
 	void PublishMessage(Message &message, bool is_final = true);
 
-	Message GetNextMessage(const std::string &topic, double timeout_in_seconds);
-	Message GetMessage(const std::string &topic, size_t frame_id);
+	Message GetNextMessage(std::string_view topic, double timeout_in_seconds);
+	Message GetMessage(std::string_view topic, size_t frame_id);
+
+	ShareableType GetType() const override;
 
 private:
 	std::shared_ptr<FreeListAllocator> GetAllocator(uint8_t memory_block_id);
@@ -188,6 +196,8 @@ private:
 
 	std::unique_ptr<HashMap> m_TopicHeaders;
 	std::map<std::string_view, std::shared_ptr<Event>> m_Events;
+
+	std::unique_ptr<RingBuffer> m_EventAllocator;
 
 	std::unique_ptr<PoolAllocator> m_MessageHeaderAllocator;
 	MessageHeader *m_MessageHeaders;

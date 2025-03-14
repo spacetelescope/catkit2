@@ -103,28 +103,93 @@ private:
 	char m_Delimiter;
 };
 
-MessageBroker::MessageBroker(MessageBrokerHeader *header)
+MessageBroker::MessageBroker(
+	MessageBrokerHeader *header,
+	std::unique_ptr<HashMap> topic_headers,
+	std::unique_ptr<PoolAllocator> message_header_allocator,
+	std::unique_ptr<RingBuffer> event_allocator,
+	std::vector<std::shared_ptr<FreeListAllocator>> allocators,
+	std::vector<std::shared_ptr<Memory>> memory_blocks
+)
+	: m_Header(header),
+	m_TopicHeaders(std::move(topic_headers)),
+	m_MessageHeaderAllocator(std::move(message_header_allocator)),
+	m_EventAllocator(std::move(event_allocator)),
+	m_Allocators(std::move(allocators)),
+	m_MemoryBlocks(memory_blocks)
 {
 }
 
 std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
 {
-	auto *header = stream.Extract<MessageBrokerHeader>();
+	auto header = stream.Extract<MessageBrokerHeader>();
 
 	GetHostName().copy(header->creator_hostname, HOST_NAME_SIZE);
 	header->time_of_creation = GetTimeStamp();
 	header->creator_pid = GetProcessId();
+	header->num_memory_blocks = memory_blocks.size();
 
 	header->time_of_last_activity = GetTimeStamp();
 
-	//auto hash_map = HashMap::Create(stream, TOPIC_HASH_MAP_SIZE, TOPIC_MAX_KEY_SIZE, sizeof(TopicHeader) + )
+	auto topic_headers = HashMap::Create(stream, TOPIC_HASH_MAP_SIZE, TOPIC_MAX_KEY_SIZE, sizeof(TopicHeader));
+
+	auto message_header_allocator = PoolAllocator::Create(stream, MAX_NUM_MESSAGES);
+
+	auto event_allocator = RingBuffer::Create(stream, NUM_EVENTS_IN_BUFFER, Event::GetSharedStateSize());
+
+	std::vector<std::unique_ptr<FreeListAllocator>> allocators;
+
+	for (auto memory_block : memory_blocks)
+	{
+		auto capacity = memory_block->GetCapacity();
+		auto allocator = FreeListAllocator::Create(stream, MAX_NUM_BLOCKS, MEMORY_ALIGNMENT, capacity);
+
+		allocators.push_back(std::move(allocator));
+
+		memory_block->WriteReference(stream);
+	}
 
 	return nullptr;
 }
 
 std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 {
-	return nullptr;
+	auto header = stream.Extract<MessageBrokerHeader>();
+
+	auto topic_headers = HashMap::Open(stream);
+	auto message_header_allocator = PoolAllocator::Open(stream);
+	auto event_allocator = RingBuffer::Open(stream);
+
+	std::vector<std::shared_ptr<FreeListAllocator>> allocators;
+	std::vector<std::shared_ptr<Memory>> memory_blocks;
+
+	for (std::size_t i = 0; i < header->num_memory_blocks; ++i)
+	{
+		auto allocator = FreeListAllocator::Open(stream);
+		allocators.push_back(std::move(allocator));
+
+		ShareableType type = *stream.Extract<ShareableType>();
+		switch (type)
+		{
+			case ShareableType::SharedMemory:
+				memory_blocks.push_back(SharedMemory::Open(stream));
+				break;
+			case ShareableType::LocalMemory:
+				memory_blocks.push_back(LocalMemory::Open(stream));
+				break;
+			default:
+				throw std::runtime_error("Unknown memory type.");
+		}
+	}
+
+	return std::unique_ptr<MessageBroker>(new MessageBroker(
+		header,
+		std::move(topic_headers),
+		std::move(message_header_allocator),
+		std::move(event_allocator),
+		std::move(allocators),
+		memory_blocks
+	));
 }
 
 std::size_t MessageBroker::CalculateBufferSize()
@@ -132,7 +197,7 @@ std::size_t MessageBroker::CalculateBufferSize()
 	return 0;
 }
 
-Message MessageBroker::PrepareMessage(const std::string &topic, size_t payload_size, uint8_t memory_block_id)
+Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id)
 {
 	Uuid trace_id;
 	m_UuidGenerator.Generate(&trace_id);
@@ -140,7 +205,7 @@ Message MessageBroker::PrepareMessage(const std::string &topic, size_t payload_s
 	return PrepareMessage(topic, trace_id, payload_size, memory_block_id);
 }
 
-Message MessageBroker::PrepareMessage(const std::string &topic, Uuid trace_id, size_t payload_size, uint8_t memory_block_id)
+Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, size_t payload_size, uint8_t memory_block_id)
 {
 	// Allocate a payload.
 	auto allocator = GetAllocator(memory_block_id);
@@ -284,6 +349,23 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	message.m_HasBeenPublished = is_final;
 }
 
+Message MessageBroker::GetNextMessage(std::string_view topic, double timeout_in_seconds)
+{
+	// TODO: add implementation.
+	return Message(nullptr, nullptr, true);
+}
+
+Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id)
+{
+	// TODO: add implementation.
+	return Message(nullptr, nullptr, true);
+}
+
+ShareableType MessageBroker::GetType() const
+{
+	return ShareableType::MessageBroker;
+}
+
 std::shared_ptr<FreeListAllocator> MessageBroker::GetAllocator(uint8_t memory_block_id)
 {
 	if (memory_block_id >= m_Allocators.size())
@@ -314,7 +396,9 @@ std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 		if (!topic_header)
 			return nullptr;
 
-		//m_Events[topic] = Event::Create(topic, &topic_header->event_shared_state);
+		// Temporary stream to read in the event.
+		auto stream = StructStream(topic_header->event.data());
+		m_Events[topic] = Event::Open(stream);
 	}
 
 	return m_Events[topic];
