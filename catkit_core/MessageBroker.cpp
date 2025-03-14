@@ -122,6 +122,8 @@ MessageBroker::MessageBroker(
 
 std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
 {
+	*stream.Extract<std::array<std::uint8_t, 4>>() = MESSAGE_BROKER_VERSION;
+
 	auto header = stream.Extract<MessageBrokerHeader>();
 
 	GetHostName().copy(header->creator_hostname, HOST_NAME_SIZE);
@@ -154,6 +156,8 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 {
+	CheckVersion(stream, MESSAGE_BROKER_VERSION);
+
 	auto header = stream.Extract<MessageBrokerHeader>();
 
 	auto topic_headers = HashMap::Open(stream);
