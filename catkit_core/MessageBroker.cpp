@@ -6,6 +6,10 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iostream>
+
+//#define DEBUG_PRINT(a) std::cout << a << std::endl
+#define DEBUG_PRINT(a)
 
 template<typename T>
 T fetch_max(std::atomic<T> &atom, T value)
@@ -116,7 +120,8 @@ MessageBroker::MessageBroker(
 	m_MessageHeaderAllocator(std::move(message_header_allocator)),
 	m_EventAllocator(std::move(event_allocator)),
 	m_Allocators(std::move(allocators)),
-	m_MemoryBlocks(memory_blocks)
+	m_MemoryBlocks(memory_blocks),
+	m_MessageHeaders(header->message_headers)
 {
 }
 
@@ -139,19 +144,26 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 	auto event_allocator = RingBuffer::Create(stream, NUM_EVENTS_IN_BUFFER, Event::GetSharedStateSize());
 
-	std::vector<std::unique_ptr<FreeListAllocator>> allocators;
+	std::vector<std::shared_ptr<FreeListAllocator>> allocators;
 
 	for (auto memory_block : memory_blocks)
 	{
 		auto capacity = memory_block->GetCapacity();
-		auto allocator = FreeListAllocator::Create(stream, MAX_NUM_BLOCKS, MEMORY_ALIGNMENT, capacity);
+		std::shared_ptr<FreeListAllocator> allocator = FreeListAllocator::Create(stream, MAX_NUM_BLOCKS, MEMORY_ALIGNMENT, capacity);
 
 		allocators.push_back(std::move(allocator));
 
 		memory_block->WriteReference(stream);
 	}
 
-	return nullptr;
+	return std::unique_ptr<MessageBroker>(new MessageBroker(
+		header,
+		std::move(topic_headers),
+		std::move(message_header_allocator),
+		std::move(event_allocator),
+		allocators,
+		memory_blocks
+	));
 }
 
 std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
@@ -191,7 +203,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 		std::move(topic_headers),
 		std::move(message_header_allocator),
 		std::move(event_allocator),
-		std::move(allocators),
+		allocators,
 		memory_blocks
 	));
 }
@@ -203,8 +215,12 @@ std::size_t MessageBroker::CalculateBufferSize()
 
 Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id)
 {
+	DEBUG_PRINT("Preparing message.");
+
 	Uuid trace_id;
 	m_UuidGenerator.Generate(&trace_id);
+
+	DEBUG_PRINT("Trace id generated.");
 
 	return PrepareMessage(topic, trace_id, payload_size, memory_block_id);
 }
@@ -219,12 +235,16 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 		throw std::runtime_error("Invalid device ID.");
 	}
 
+	DEBUG_PRINT("Gotten allocator.");
+
 	auto block_handle = allocator->Allocate(payload_size);
 
 	if (block_handle == FreeListAllocator::INVALID_HANDLE)
 	{
 		throw std::runtime_error("Could not allocate payload.");
 	}
+
+	DEBUG_PRINT("Block allocated.");
 
 	auto offset = allocator->GetOffset(block_handle);
 
@@ -233,6 +253,8 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 
 	// Allocate a message header.
 	auto message_header_handle = m_MessageHeaderAllocator->Allocate();
+
+	DEBUG_PRINT("Message header allocated: " << message_header_handle);
 
 	if (message_header_handle == PoolAllocator::INVALID_HANDLE)
 	{
@@ -246,15 +268,24 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 	// Access the message header.
 	auto header = &m_MessageHeaders[message_header_handle];
 
+	DEBUG_PRINT("Message header gotten.");
+
 	// Set the payload information.
 	header->payload_info.memory_block_id = memory_block_id;
+	DEBUG_PRINT("a");
+
 	header->payload_info.total_size = payload_size;
 	header->payload_info.offset_in_buffer = offset;
+
 	m_UuidGenerator.Generate(&header->payload_id);
+
+	DEBUG_PRINT("Payload set");
 
 	// Set the topic.
 	std::fill(header->topic, header->topic + sizeof(header->topic), '\0');
 	topic.copy(header->topic, TOPIC_MAX_KEY_SIZE - 1);
+
+	DEBUG_PRINT("Header topic set");
 
 	// Set the trace ID.
 	header->trace_id = trace_id;
@@ -271,6 +302,8 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 	// Set default values.
 	header->frame_id = INVALID_FRAME_ID;
 	header->producer_timestamp = 0;
+
+	DEBUG_PRINT("Header set");
 
 	return Message(header, payload, false);
 }
