@@ -75,7 +75,7 @@ public:
 
 	static SubtopicIterator end()
 	{
-		return SubtopicIterator({}, '\0', true);
+		return SubtopicIterator({}, '\0', false);
 	}
 
 private:
