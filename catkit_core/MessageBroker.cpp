@@ -316,7 +316,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	}
 
 	auto topic = std::string_view(message.m_Header->topic);
-	auto topic_header = (TopicHeader *) m_TopicHeaders->Find(topic);
+	auto main_topic_header = GetTopicHeader(topic);
 
 	if (message.m_Header->frame_id == INVALID_FRAME_ID)
 	{
@@ -342,14 +342,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	// Publish the message to all subtopics.
 	for (const auto &subtopic : SubtopicRange(topic))
 	{
-		auto topic_header = (TopicHeader *) m_TopicHeaders->Find(std::string(subtopic));
-
-		if (!topic_header)
-		{
-			// TODO: if the topic header doesn't exist, create it.
-
-		}
-
+		auto topic_header = GetTopicHeader(subtopic);
 		auto event = GetEvent(subtopic);
 
 		// Copy over message header reference.
