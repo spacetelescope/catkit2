@@ -1,7 +1,7 @@
 Installation
 ============
 
-Catkit2 consists of a core C++ library and a Python package that wraps this library. It also requires a number of C++ third party libraries to facilitate JSON encoding and decoding, Python bindings, linear algebra and high-speed communication over sockets. Compilation requires a C++ compiler conforming to the C++17 standard. Catkit2 performs installation of the core library and Python package using CMake and Conda.
+CATKit2 consists of a core C++ library and a Python package that wraps this library. It also requires a number of C++ third party libraries to facilitate JSON encoding and decoding, Python bindings, linear algebra and high-speed communication over sockets. Compilation requires a C++ compiler conforming to the C++17 standard. CATKit2 performs installation of the core library and Python package using CMake and Conda.
 
 Environment variables
 ---------------------
