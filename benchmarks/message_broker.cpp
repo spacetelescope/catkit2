@@ -16,13 +16,17 @@ int main(int argc, char *argv[])
 
 	std::cout << "Message broker created." << std::endl;
 
-	Message message = message_broker->PrepareMessage("test", 16);
+	for (int i = 0; i < 1024 * 1024; ++i)
+	{
+		Message message = message_broker->PrepareMessage("abc/def/ghi/set", 16);
 
-	std::cout << "Message prepared." << std::endl;
+		//std::cout << "Message prepared." << std::endl;
 
-	//message_broker->PublishMessage(message);
+		message_broker->PublishMessage(message);
 
-	std::cout << "Message published." << std::endl;
+		//std::cout << "Message published." << std::endl;
+		std::cout << i << std::endl;
+	}
 
 	return 0;
 }

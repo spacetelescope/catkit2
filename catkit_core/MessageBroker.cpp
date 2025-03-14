@@ -310,6 +310,8 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 
 void MessageBroker::PublishMessage(Message &message, bool is_final)
 {
+	DEBUG_PRINT("Publishing message.");
+
 	if (message.m_HasBeenPublished)
 	{
 		return;
@@ -318,23 +320,33 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	auto topic = std::string_view(message.m_Header->topic);
 	auto main_topic_header = GetTopicHeader(topic);
 
+	DEBUG_PRINT("Found topic header.");
+
 	if (message.m_Header->frame_id == INVALID_FRAME_ID)
 	{
+		DEBUG_PRINT("This is the first partial frame.");
+
 		// First partial frame. Assign a new frame ID.
-		message.m_Header->frame_id = topic_header->next_frame_id.fetch_add(1, std::memory_order_relaxed);
+		message.m_Header->frame_id = main_topic_header->next_frame_id.fetch_add(1, std::memory_order_relaxed);
 		message.m_Header->partial_frame_id = 0;
 
+		DEBUG_PRINT("Assigned new partial frame id.");
+
 		// If the ring buffer is full, make the oldest frame unavailable.
-		if ((topic_header->last_frame_id - topic_header->first_frame_id) >= TOPIC_MAX_NUM_MESSAGES)
+		if ((main_topic_header->last_frame_id - main_topic_header->first_frame_id) >= TOPIC_MAX_NUM_MESSAGES)
 		{
-			topic_header->first_frame_id++;
+			main_topic_header->first_frame_id++;
 		}
+
+		DEBUG_PRINT("Made the oldest frame unavailable.");
 	}
 	else
 	{
 		// Not the first partial frame. Use the same frame ID and increment the partial frame ID.
 		message.m_Header->partial_frame_id++;
 	}
+
+	DEBUG_PRINT("Set partial id.");
 
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
@@ -363,6 +375,8 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 
 	if (!is_final)
 	{
+		DEBUG_PRINT("Allocating a new message header, since the message is not final.");
+
 		// Copy the message header since it's gone after publishing.
 		auto message_header_handle = m_MessageHeaderAllocator->Allocate();
 
@@ -374,6 +388,8 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		auto new_message_header = &m_MessageHeaders[message_header_handle];
 		*new_message_header = *message.m_Header;
 		message.m_Header = new_message_header;
+
+		DEBUG_PRINT("Copied message header.");
 	}
 
 	message.m_HasBeenPublished = is_final;
@@ -421,6 +437,8 @@ std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 	// Look up the synchronization structure (not the shared data).
 	if (m_Events.find(topic) == m_Events.end())
 	{
+		DEBUG_PRINT("Event not found: creating a new event.");
+
 		auto topic_header = GetTopicHeader(topic);
 
 		if (!topic_header)
@@ -429,6 +447,8 @@ std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 		// Temporary stream to read in the event.
 		auto stream = StructStream(topic_header->event.data());
 		m_Events[topic] = Event::Open(stream);
+
+		DEBUG_PRINT("Created new event for topic " << topic);
 	}
 
 	return m_Events[topic];
@@ -436,12 +456,17 @@ std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 
 TopicHeader *MessageBroker::GetTopicHeader(std::string_view topic)
 {
+	DEBUG_PRINT("Getting a topic header for " << topic);
+
 	auto topic_header = (TopicHeader *) m_TopicHeaders->Find(topic);
 
 	if (topic_header)
 	{
+		DEBUG_PRINT("Found a topic header!");
 		return topic_header;
 	}
+
+	DEBUG_PRINT("Topic header not found: creating a new one.");
 
 	// The topic header doesn't exist, so create it.
 	TopicHeader temp_topic_header;
@@ -454,10 +479,13 @@ TopicHeader *MessageBroker::GetTopicHeader(std::string_view topic)
 
 	if (!topic_header)
 	{
+		DEBUG_PRINT("Someone else created it before us.");
+
 		// Someone scooped us while we were creating the topic header.
 		// Let's use the topic header created by the other actor.
 		topic_header = (TopicHeader *) m_TopicHeaders->Find(topic);
 	}
+	DEBUG_PRINT("Created a topic header!");
 
 	return topic_header;
 }
