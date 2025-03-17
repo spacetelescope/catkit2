@@ -248,6 +248,21 @@ void *HashMap::Find(std::string_view key) const
 	return nullptr;
 }
 
+std::vector<std::string> HashMap::GetAllKeys() const
+{
+	std::vector<std::string> res;
+
+	for (size_t i = 0; i < m_NumEntries; ++i)
+	{
+		EntryFlags flags = GetFlagsRef(i)->load(std::memory_order_relaxed);
+
+		if (flags == EntryFlags::OCCUPIED)
+			res.push_back(std::string(GetKey(i)));
+	}
+
+	return res;
+}
+
 ShareableType HashMap::GetType() const
 {
 	return ShareableType::HashMap;
