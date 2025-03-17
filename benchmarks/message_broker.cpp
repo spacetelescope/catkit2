@@ -2,6 +2,8 @@
 
 #include "MessageBroker.h"
 
+const size_t NUM_MESSAGES = 10000000;
+
 int main(int argc, char *argv[])
 {
 	char *buffer = new char[1024 * 1024 * 512];
@@ -16,17 +18,18 @@ int main(int argc, char *argv[])
 
 	std::cout << "Message broker created." << std::endl;
 
-	for (int i = 0; i < 1024 * 1024; ++i)
+	auto start = GetTimeStamp();
+
+	for (int i = 0; i < NUM_MESSAGES; ++i)
 	{
 		Message message = message_broker->PrepareMessage("abc/def/ghi/set", 16);
 
-		//std::cout << "Message prepared." << std::endl;
-
 		message_broker->PublishMessage(message);
-
-		//std::cout << "Message published." << std::endl;
-		std::cout << i << std::endl;
 	}
+
+	auto end = GetTimeStamp();
+
+	std::cout << NUM_MESSAGES / ((end - start) * 1e-9) << " messages per second" << std::endl;
 
 	return 0;
 }
