@@ -272,8 +272,7 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 
 	// Set the payload information.
 	header->payload_info.memory_block_id = memory_block_id;
-	DEBUG_PRINT("a");
-
+	header->payload_info.block_handle = block_handle;
 	header->payload_info.total_size = payload_size;
 	header->payload_info.offset_in_buffer = offset;
 
@@ -314,6 +313,8 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 
 	if (message.m_HasBeenPublished)
 	{
+		DEBUG_PRINT("Message has already been published.");
+
 		return;
 	}
 
@@ -333,6 +334,42 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		DEBUG_PRINT("Assigned new partial frame id.");
 
 		// If the ring buffer is full, make the oldest frame unavailable.
+		while (true)
+		{
+			// Get the first frame id.
+			std::uint64_t first_frame_id = main_topic_header->first_frame_id.load(std::memory_order_relaxed);
+
+			if ((message.m_Header->frame_id - first_frame_id) < TOPIC_MAX_NUM_MESSAGES)
+			{
+				// The queue is not yet full, so no need to deallocate message header and payload.
+				break;
+			}
+
+			DEBUG_PRINT("Removing the first message in the buffer.");
+
+			// Get the message header that belongs to this frame.
+			std::uint64_t first_frame_header_id = main_topic_header->message_headers[first_frame_id % TOPIC_MAX_NUM_MESSAGES];
+
+			// Make the frame unavailable.
+			if (!main_topic_header->first_frame_id.compare_exchange_strong(first_frame_id, first_frame_id + 1))
+			{
+				DEBUG_PRINT("Someone else removed this frame. Trying again.");
+				// We failed, so someone else is removing this message header and payload.
+				// We need to try again.
+				continue;
+			}
+
+			DEBUG_PRINT("Deallocating the message.");
+
+			// Deallocate the payload of this first frame.
+			auto header = m_MessageHeaders[first_frame_header_id];
+			auto allocator = GetAllocator(header.payload_info.memory_block_id);
+			allocator->Deallocate(header.payload_info.block_handle);
+
+			// Deallocate the header of this first frame.
+			m_MessageHeaderAllocator->Deallocate(first_frame_header_id);
+		}
+
 		if ((main_topic_header->last_frame_id - main_topic_header->first_frame_id) >= TOPIC_MAX_NUM_MESSAGES)
 		{
 			main_topic_header->first_frame_id++;
@@ -342,11 +379,12 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	}
 	else
 	{
+		DEBUG_PRINT("Assigning a partial frame id.");
 		// Not the first partial frame. Use the same frame ID and increment the partial frame ID.
 		message.m_Header->partial_frame_id++;
 	}
 
-	DEBUG_PRINT("Set partial id.");
+	DEBUG_PRINT("Starting to publish the message.");
 
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
@@ -371,6 +409,9 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 			// Signal the event structure.
 			event->Signal();
 		}
+
+		// Update the framerate counter for this topic.
+		// TODO
 	}
 
 	if (!is_final)

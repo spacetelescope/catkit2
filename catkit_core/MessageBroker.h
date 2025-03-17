@@ -52,6 +52,7 @@ struct ArrayInfo
 struct PayloadInfo
 {
 	std::uint8_t memory_block_id;
+	FreeListAllocator::BlockHandle block_handle;
 	std::uint64_t offset_in_buffer;
 	std::uint64_t total_size;
 
