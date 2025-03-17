@@ -154,6 +154,10 @@ private:
 	bool m_HasBeenPublished;
 };
 
+class MessageSubscription
+{
+};
+
 class MessageBroker : public Shareable
 {
 	friend class Message;
@@ -179,8 +183,20 @@ public:
 
 	void PublishMessage(Message &message, bool is_final = true);
 
-	Message GetNextMessage(std::string_view topic, double timeout_in_seconds);
-	Message GetMessage(std::string_view topic, size_t frame_id);
+	Message GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, void (*error_check)() = nullptr);
+	Message GetMessage(std::string_view topic, size_t frame_id, EventImplementationType wait_type, double timeout_in_seconds = -1, void (*error_check)() = nullptr);
+
+	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
+	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);
+
+	size_t GetNewestMessageId(std::string_view topic);
+	size_t GetOldestMessageId(std::string_view topic);
+
+	double GetMessageRate(std::string_view topic);
+
+	std::vector<std::string> GetAllMessageTopics();
+
+	MessageSubscription Subscribe(std::string_view topic);
 
 	ShareableType GetType() const override;
 

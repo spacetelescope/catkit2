@@ -395,14 +395,18 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	message.m_HasBeenPublished = is_final;
 }
 
-Message MessageBroker::GetNextMessage(std::string_view topic, double timeout_in_seconds)
+Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds, void (*error_check)())
 {
+	auto topic_header = GetTopicHeader(topic);
+
 	// TODO: add implementation.
 	return Message(nullptr, nullptr, true);
 }
 
-Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id)
+Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, EventImplementationType wait_type, double timeout_in_seconds, void (*error_check)())
 {
+	auto topic_header = GetTopicHeader(topic);
+
 	// TODO: add implementation.
 	return Message(nullptr, nullptr, true);
 }
@@ -420,6 +424,54 @@ std::shared_ptr<FreeListAllocator> MessageBroker::GetAllocator(uint8_t memory_bl
 	}
 
 	return m_Allocators[memory_block_id];
+}
+
+bool MessageBroker::IsMessageAvailable(std::string_view topic, size_t frame_id)
+{
+	auto topic_header = GetTopicHeader(topic);
+
+	return (frame_id >= topic_header->first_frame_id) && (frame_id < topic_header->last_frame_id);
+}
+
+bool MessageBroker::WillMessageBeAvailable(std::string_view topic, size_t frame_id)
+{
+	auto topic_header = GetTopicHeader(topic);
+
+	return frame_id >= topic_header->first_frame_id;
+}
+
+size_t MessageBroker::GetNewestMessageId(std::string_view topic)
+{
+	auto topic_header = GetTopicHeader(topic);
+
+	if (topic_header->last_frame_id == 0)
+		return 0;
+
+	return topic_header->last_frame_id - 1;
+}
+
+size_t MessageBroker::GetOldestMessageId(std::string_view topic)
+{
+	auto topic_header = GetTopicHeader(topic);
+
+	return topic_header->first_frame_id;
+}
+
+double MessageBroker::GetMessageRate(std::string_view topic)
+{
+	// TODO: implement.
+	return 0;
+}
+
+std::vector<std::string> MessageBroker::GetAllMessageTopics()
+{
+	return m_TopicHeaders->GetAllKeys();
+}
+
+MessageSubscription MessageBroker::Subscribe(std::string_view topic)
+{
+	// TODO: implement.
+	return MessageSubscription();
 }
 
 std::shared_ptr<Memory> MessageBroker::GetMemory(uint8_t memory_block_id)
