@@ -25,6 +25,7 @@ public:
 	static std::unique_ptr<FreeListAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate(std::size_t size);
+	void IncrementRefCount(BlockHandle index);
 	void Deallocate(BlockHandle index);
 
 	std::size_t GetOffset(BlockHandle index);
@@ -64,6 +65,7 @@ public:
 	{
 		std::atomic<BlockDescriptor> descriptor;
 		std::atomic<BlockHandle> next;
+		std::atomic_size_t ref_count;
 	};
 
 	struct Header

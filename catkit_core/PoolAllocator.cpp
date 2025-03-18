@@ -4,14 +4,19 @@
 
 const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
 
-PoolAllocator::PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next)
-	: m_Capacity(capacity), m_Head(head), m_Next(next)
+PoolAllocator::PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next, std::atomic_size_t *ref_count)
+	: m_Capacity(capacity), m_Head(head), m_Next(next), m_RefCount(ref_count)
 {
 }
 
 std::size_t PoolAllocator::GetSharedStateSize(std::uint32_t capacity)
 {
-	return 0;
+	std::size_t size = sizeof(uint32_t) + sizeof(std::atomic<BlockHandle>);
+	size += sizeof(std::atomic<BlockHandle>) * capacity;
+	size += sizeof(size_t);
+	size += sizeof(std::atomic_size_t) * capacity;
+
+	return size;
 }
 
 std::unique_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::uint32_t capacity)
@@ -25,6 +30,7 @@ std::unique_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::
 
 	std::atomic<BlockHandle> *head = stream.Extract<std::atomic<BlockHandle>>();
 	std::atomic<BlockHandle> *next = stream.Extract<std::atomic<BlockHandle>>(capacity);
+	std::atomic_size_t *ref_count = stream.Extract<std::atomic_size_t>(capacity);
 
 	// Initialize the linked list.
 	std::uninitialized_default_construct(head, head + 1);
@@ -34,17 +40,12 @@ std::unique_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::
 
 	for (std::size_t i = 0; i < capacity; ++i)
 	{
-		if (i == capacity - 1)
-		{
-			next[i] = INVALID_HANDLE;
-		}
-		else
-		{
-			next[i] = i + 1;
-		}
+		next[i].store(i + 1, std::memory_order_relaxed);
+		ref_count[i].store(0, std::memory_order_relaxed);
 	}
+	next[capacity - 1].store(INVALID_HANDLE, std::memory_order_relaxed);
 
-	return std::unique_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next));
+	return std::unique_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count));
 }
 
 std::unique_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
@@ -54,8 +55,9 @@ std::unique_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
 
 	auto head = stream.Extract<std::atomic<BlockHandle>>();
 	auto next = stream.Extract<std::atomic<BlockHandle>>(capacity);
+	auto *ref_count = stream.Extract<std::atomic_size_t>(capacity);
 
-	return std::unique_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next));
+	return std::unique_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count));
 }
 
 PoolAllocator::BlockHandle PoolAllocator::Allocate()
@@ -75,8 +77,27 @@ PoolAllocator::BlockHandle PoolAllocator::Allocate()
 		next = m_Next[head].load(std::memory_order_relaxed);
 	} while (!m_Head->compare_exchange_weak(head, next));
 
+	// Increase the reference count.
+	m_RefCount[head].fetch_add(1, std::memory_order_relaxed);
+
 	// Return the popped element.
 	return head;
+}
+
+void PoolAllocator::IncrementRefCount(BlockHandle index)
+{
+	if (index >= m_Capacity)
+	{
+		return;
+	}
+
+	if (m_RefCount[index].fetch_add(1, std::memory_order_relaxed) == 0)
+	{
+		// The reference count was 0, so we erroneously increased the ref count and
+		// someone else is deallocating the element. Undo the increment and return.
+		m_RefCount[index].fetch_sub(1, std::memory_order_relaxed);
+		return;
+	};
 }
 
 void PoolAllocator::Deallocate(BlockHandle index)
@@ -84,6 +105,12 @@ void PoolAllocator::Deallocate(BlockHandle index)
 	// Check if the element is within the pool bounds.
 	if (index >= m_Capacity)
 	{
+		return;
+	}
+
+	if (m_RefCount[index].fetch_sub(1, std::memory_order_relaxed) != 1)
+	{
+		// The reference count is not yet zero, so do not deallocate.
 		return;
 	}
 

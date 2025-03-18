@@ -158,6 +158,9 @@ typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t 
 					// This is guaranteed to succeed since we own the block.
 					RemoveBlock(index);
 
+					// Increment ref count.
+					m_Blocks[index].ref_count.fetch_add(1, std::memory_order_relaxed);
+
 					// Return the block.
 					return index;
 				}
@@ -201,6 +204,9 @@ typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t 
 
 		DEBUG_PRINT("Allocated block is " << descriptor.GetOffset() << ", " << descriptor.GetSize());
 
+		// Increment ref count.
+		m_Blocks[allocated_block_handle].ref_count.fetch_add(1, std::memory_order_relaxed);
+
 		// Return the allocated block.
 		return allocated_block_handle;
 	}
@@ -208,10 +214,32 @@ typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t 
 	return INVALID_HANDLE;
 }
 
+void FreeListAllocator::IncrementRefCount(BlockHandle index)
+{
+	if (index == INVALID_HANDLE)
+	{
+		return;
+	}
+
+	if (m_Blocks[index].ref_count.fetch_add(1, std::memory_order_relaxed) == 0)
+	{
+		// The reference count was 0, so we erroneously increased the ref count and
+		// someone else is deallocating the element. Undo the increment and return.
+		m_Blocks[index].ref_count.fetch_sub(1, std::memory_order_relaxed);
+		return;
+	};
+}
+
 void FreeListAllocator::Deallocate(BlockHandle index)
 {
 	if (index == INVALID_HANDLE)
 		return;
+
+	if (m_Blocks[index].ref_count.fetch_sub(1, std::memory_order_relaxed) != 1)
+	{
+		// The reference count is not yet zero, so do not deallocate.
+		return;
+	}
 
 	DEBUG_PRINT("Deallocating block " << index);
 	Block &block = m_Blocks[index];
