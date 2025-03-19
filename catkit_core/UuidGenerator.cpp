@@ -32,12 +32,12 @@ void UuidGenerator::Generate(Uuid *uuid)
 std::string Uuid::to_string() const
 {
 	std::ostringstream oss;
-	oss << std::hex << std::setw(2) << std::setfill('0');
+	oss << std::hex << std::setfill('0');
 
 	for (size_t i = 0; i < 16; ++i)
 	{
 		// Insert hex value of the current byte.
-		oss << static_cast<int>(data[i]);
+		oss << std::setw(2) << static_cast<int>(data[i]);
 
 		// Insert dashes at the correct positions.
 		if (i == 3 || i == 5 || i == 7 || i == 9)
