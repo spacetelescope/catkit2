@@ -79,7 +79,7 @@ uint64_t ns()
 
 	return compute_fraction(now.QuadPart, 1000000000, win_frequency.QuadPart);
 #else
-	return 0
+	return duration_cast<system_clock::time_point::duration>(nanoseconds(timestamp));
 #endif
 }
 
