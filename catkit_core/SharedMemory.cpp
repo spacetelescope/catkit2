@@ -64,6 +64,8 @@ std::unique_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_
 	Header *header = reinterpret_cast<Header *>(obj->m_Buffer);
 	header->capacity = num_bytes_in_buffer;
 
+	obj->m_Capacity = num_bytes_in_buffer;
+
 	return obj;
 }
 
