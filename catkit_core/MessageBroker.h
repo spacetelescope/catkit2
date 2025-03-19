@@ -64,8 +64,6 @@ struct MessageHeader
 	char topic[TOPIC_MAX_KEY_SIZE];
 
 	Uuid payload_id;
-	std::uint64_t frame_id;
-
 	Uuid trace_id;
 
 	char producer_hostname[HOST_NAME_SIZE];

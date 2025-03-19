@@ -299,7 +299,6 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 	header->end_byte = payload_size;
 
 	// Set default values.
-	header->frame_id = INVALID_FRAME_ID;
 	header->producer_timestamp = 0;
 
 	DEBUG_PRINT("Header set");
@@ -319,75 +318,13 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	}
 
 	auto topic = std::string_view(message.m_Header->topic);
-	auto main_topic_header = GetTopicHeader(topic);
-
-	DEBUG_PRINT("Found topic header.");
-
-	if (message.m_Header->frame_id == INVALID_FRAME_ID)
-	{
-		DEBUG_PRINT("This is the first partial frame.");
-
-		// First partial frame. Assign a new frame ID.
-		message.m_Header->frame_id = main_topic_header->next_frame_id.fetch_add(1, std::memory_order_relaxed);
-		message.m_Header->partial_frame_id = 0;
-
-		DEBUG_PRINT("Assigned new partial frame id.");
-
-		// If the ring buffer is full, make the oldest frame unavailable.
-		while (true)
-		{
-			// Get the first frame id.
-			std::uint64_t first_frame_id = main_topic_header->first_frame_id.load(std::memory_order_relaxed);
-
-			if ((message.m_Header->frame_id - first_frame_id) < TOPIC_MAX_NUM_MESSAGES)
-			{
-				// The queue is not yet full, so no need to deallocate message header and payload.
-				break;
-			}
-
-			DEBUG_PRINT("Removing the first message in the buffer.");
-
-			// Get the message header that belongs to this frame.
-			std::uint64_t first_frame_header_id = main_topic_header->message_headers[first_frame_id % TOPIC_MAX_NUM_MESSAGES];
-
-			// Make the frame unavailable.
-			if (!main_topic_header->first_frame_id.compare_exchange_strong(first_frame_id, first_frame_id + 1))
-			{
-				DEBUG_PRINT("Someone else removed this frame. Trying again.");
-				// We failed, so someone else is removing this message header and payload.
-				// We need to try again.
-				continue;
-			}
-
-			DEBUG_PRINT("Deallocating the message.");
-
-			// Deallocate the payload of this first frame.
-			auto header = m_MessageHeaders[first_frame_header_id];
-			auto allocator = GetAllocator(header.payload_info.memory_block_id);
-			allocator->Deallocate(header.payload_info.block_handle);
-
-			// Deallocate the header of this first frame.
-			m_MessageHeaderAllocator->Deallocate(first_frame_header_id);
-		}
-
-		if ((main_topic_header->last_frame_id - main_topic_header->first_frame_id) >= TOPIC_MAX_NUM_MESSAGES)
-		{
-			main_topic_header->first_frame_id++;
-		}
-
-		DEBUG_PRINT("Made the oldest frame unavailable.");
-	}
-	else
-	{
-		DEBUG_PRINT("Assigning a partial frame id.");
-		// Not the first partial frame. Use the same frame ID and increment the partial frame ID.
-		message.m_Header->partial_frame_id++;
-	}
 
 	DEBUG_PRINT("Starting to publish the message.");
 
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
+
+	auto allocator = GetAllocator(message.m_Header->payload_info.memory_block_id);
 
 	// Publish the message to all subtopics.
 	for (const auto &subtopic : SubtopicRange(topic))
@@ -395,16 +332,69 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		auto topic_header = GetTopicHeader(subtopic);
 		auto event = GetEvent(subtopic);
 
+		DEBUG_PRINT("Publishing to subtopic \"" << subtopic << "\".");
+
+		std::uint64_t first_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
+
+		std::uint64_t frame_id;
+		if (message.m_Header->partial_frame_id == 0)
+		{
+			// Get a frame ID.
+			frame_id = topic_header->next_frame_id.fetch_add(1, std::memory_order_relaxed);
+		}
+		else
+		{
+			frame_id = topic_header->last_frame_id.load(std::memory_order_relaxed) - 1;
+			message.m_Header->partial_frame_id++;
+		}
+
+		// Check if we need to remove an old frame from the topic.
+		if (frame_id - first_id >= TOPIC_MAX_NUM_MESSAGES)
+		{
+			DEBUG_PRINT("We need to remove a frame.");
+
+			while (true)
+			{
+				auto frame_to_remove = topic_header->first_frame_id.load(std::memory_order_relaxed);
+
+				auto message_handle = topic_header->message_headers[frame_to_remove % TOPIC_MAX_NUM_MESSAGES];
+
+				if (!topic_header->first_frame_id.compare_exchange_weak(frame_to_remove, frame_to_remove + 1))
+				{
+					// We failed, so someone else interrupted us while we were trying to deallocate
+					// the message. We need to try again.
+					continue;
+				}
+
+				DEBUG_PRINT("Removing frame " << frame_to_remove << " from topic " << topic);
+
+				// Deallocate the payload.
+				auto header = m_MessageHeaders[message_handle];
+				auto removal_allocator = GetAllocator(header.payload_info.memory_block_id);
+				removal_allocator->Deallocate(header.payload_info.block_handle);
+
+				// Deallocate the MessageHeader itself.
+				m_MessageHeaderAllocator->Deallocate(message_handle);
+
+				DEBUG_PRINT("Frame deleted.");
+
+				break;
+			}
+		}
+
 		// Copy over message header reference.
-		std::size_t message_header_index = message.m_Header - m_MessageHeaders;
-		topic_header->message_headers[message.m_Header->frame_id % TOPIC_MAX_NUM_MESSAGES] = message_header_index;
+		PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
+		topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES] = message_header_index;
+
+		m_MessageHeaderAllocator->IncrementRefCount(message_header_index);
+		allocator->IncrementRefCount(message.m_Header->payload_info.block_handle);
 
 		{
 			// Obtain a lock as we're about to signal the event structure.
 			auto lock = EventLockGuard(event);
 
 			// Make the message available.
-			fetch_max(topic_header->last_frame_id, message.m_Header->frame_id);
+			fetch_max(topic_header->last_frame_id, frame_id);
 
 			// Signal the event structure.
 			event->Signal();
@@ -412,7 +402,17 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 
 		// Update the framerate counter for this topic.
 		// TODO
+
+		// If the message is not final, only the bottom-level topic is updated.
+		if (!is_final)
+			break;
 	}
+
+	// Deallocate the message header and payload.
+	PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
+	m_MessageHeaderAllocator->Deallocate(message_header_index);
+
+	allocator->Deallocate(message.m_Header->payload_info.block_handle);
 
 	if (!is_final)
 	{
@@ -600,7 +600,7 @@ const Uuid &Message::GetPayloadId() const
 
 std::uint64_t Message::GetFrameId() const
 {
-	return m_Header->frame_id;
+	return 0;//m_FrameId;
 }
 
 std::uint16_t Message::GetPartialFrameId() const
