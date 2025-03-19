@@ -614,7 +614,7 @@ const Uuid &Message::GetTraceId() const
 	return m_Header->trace_id;
 }
 
-std::string_view Message::GetProducerHostnname() const
+std::string_view Message::GetProducerHostname() const
 {
 	return m_Header->producer_hostname;
 }

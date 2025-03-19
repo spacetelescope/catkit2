@@ -118,12 +118,11 @@ public:
 	std::string_view GetTopic() const;
 
 	const Uuid &GetPayloadId() const;
-	std::uint64_t GetFrameId() const;
 	std::uint16_t GetPartialFrameId() const;
 
 	const Uuid &GetTraceId() const;
 
-	std::string_view GetProducerHostnname() const;
+	std::string_view GetProducerHostname() const;
 	std::uint32_t GetProducerPid() const;
 	std::uint64_t GetProducerTimestamp() const;
 
