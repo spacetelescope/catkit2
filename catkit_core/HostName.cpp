@@ -11,7 +11,7 @@
 #include <unistd.h>
 #endif
 
-std::string GetHostName()
+std::string GetHostNameImpl()
 {
 #ifdef _WIN32
 	TCHAR info_buf[MAX_COMPUTERNAME_LENGTH + 1];
@@ -53,4 +53,11 @@ std::string GetHostName()
 
 	return name;
 #endif
+}
+
+std::string GetHostName()
+{
+	static std::string host_name = GetHostNameImpl();
+
+	return host_name;
 }
