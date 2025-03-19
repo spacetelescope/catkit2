@@ -528,21 +528,23 @@ std::shared_ptr<Memory> MessageBroker::GetMemory(uint8_t memory_block_id)
 std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
 {
 	// Look up the synchronization structure (not the shared data).
-	if (m_Events.find(topic) == m_Events.end())
-	{
-		DEBUG_PRINT("Event not found: creating a new event.");
+	auto it = m_Events.find(topic);
 
-		auto topic_header = GetTopicHeader(topic);
+	if (it != m_Events.end())
+		return it->second;
 
-		if (!topic_header)
-			return nullptr;
+	DEBUG_PRINT("Event not found: creating a new event.");
 
-		// Temporary stream to read in the event.
-		auto stream = StructStream(topic_header->event.data());
-		m_Events[topic] = Event::Open(stream);
+	auto topic_header = GetTopicHeader(topic);
 
-		DEBUG_PRINT("Created new event for topic " << topic);
-	}
+	if (!topic_header)
+		return nullptr;
+
+	// Temporary stream to read in the event.
+	auto stream = StructStream(topic_header->event.data());
+	m_Events[topic] = Event::Open(stream);
+
+	DEBUG_PRINT("Created new event for topic " << topic);
 
 	return m_Events[topic];
 }
