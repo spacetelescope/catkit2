@@ -22,7 +22,8 @@ const size_t TOPIC_HASH_MAP_SIZE = 16384;
 const size_t TOPIC_MAX_KEY_SIZE = 127;
 const size_t TOPIC_MAX_NUM_MESSAGES = 32;
 const size_t HOST_NAME_SIZE = 64;
-const size_t METADATA_MAX_STRLEN = 16;
+const size_t METADATA_MAX_STRLEN = 8;
+const size_t METADATA_MAX_KEYLEN = 7;
 const size_t MAX_NUM_MESSAGES = 65536;
 const size_t MAX_NUM_DIMENSIONS = 4;
 const size_t MAX_NUM_METADATA_ENTRIES = 16;
@@ -33,11 +34,25 @@ const size_t NUM_EVENTS_IN_BUFFER = 64;
 
 const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
 
-union MetadataEntry
+enum class MetadataType : std::uint8_t
 {
-	std::uint64_t integer;
+	Integer,
+	Float,
+	String
+};
+
+union MetadataValue
+{
+	std::int64_t integer;
 	double floating_point;
-	char string[METADATA_MAX_STRLEN];
+	std::array<char, METADATA_MAX_STRLEN> string;
+};
+
+struct MetadataEntry
+{
+	std::array<char, METADATA_MAX_KEYLEN> key;
+	MetadataType type;
+	MetadataValue value;
 };
 
 struct ArrayInfo
@@ -71,12 +86,13 @@ struct MessageHeader
 	std::uint64_t producer_timestamp;
 
 	PayloadInfo payload_info;
-
-	MetadataEntry metadata_entries[MAX_NUM_METADATA_ENTRIES];
-
-	std::uint16_t partial_frame_id;
 	std::uint64_t start_byte;
 	std::uint64_t end_byte;
+
+	std::uint16_t partial_frame_id;
+
+	std::uint8_t num_metadata_entries;
+	MetadataEntry metadata_entries[MAX_NUM_METADATA_ENTRIES];
 };
 
 struct TopicHeader
@@ -88,8 +104,6 @@ struct TopicHeader
 	std::uint64_t message_headers[TOPIC_MAX_NUM_MESSAGES];
 
 	std::array<char, Event::GetSharedStateSize()> event;
-
-	char metadata_keys[METADATA_MAX_STRLEN][MAX_NUM_METADATA_ENTRIES];
 };
 
 struct MessageBrokerHeader
@@ -134,10 +148,10 @@ public:
 	void *GetPayload() const;
 	std::size_t GetPayloadSize() const;
 
-	const MetadataEntry &GetMetadataEntry(std::uint8_t metadata_id) const;
-	void SetMetadataEntry(std::uint8_t metadata_id, std::uint64_t value);
-	void SetMetadataEntry(std::uint8_t metadata_id, double value);
-	void SetMetadataEntry(std::uint8_t metadata_id, std::string_view value);
+	MetadataEntry *GetMetadataEntry(std::string_view key, bool create_if_not_exists = false);
+	void SetMetadataEntry(std::string_view key, std::uint64_t value);
+	void SetMetadataEntry(std::string_view key, double value);
+	void SetMetadataEntry(std::string_view key, std::string_view value);
 
 	const std::uint64_t GetStartByte() const;
 	void SetStartByte(std::uint64_t start_byte);

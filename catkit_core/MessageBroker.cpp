@@ -293,13 +293,14 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 	std::fill(header->producer_hostname, header->producer_hostname + HOST_NAME_SIZE, '\0');
 	GetHostName().copy(header->producer_hostname, HOST_NAME_SIZE - 1);
 	header->producer_pid = GetProcessId();
+	header->producer_timestamp = 0;
 
 	header->partial_frame_id = 0;
 	header->start_byte = 0;
 	header->end_byte = payload_size;
 
-	// Set default values.
-	header->producer_timestamp = 0;
+	// Reset metadata.
+	header->num_metadata_entries = 0;
 
 	DEBUG_PRINT("Header set");
 
@@ -599,11 +600,6 @@ const Uuid &Message::GetPayloadId() const
 	return m_Header->payload_id;
 }
 
-std::uint64_t Message::GetFrameId() const
-{
-	return 0;//m_FrameId;
-}
-
 std::uint16_t Message::GetPartialFrameId() const
 {
 	return m_Header->partial_frame_id;
@@ -654,26 +650,53 @@ std::size_t Message::GetPayloadSize() const
 	return m_Header->payload_info.total_size;
 }
 
-const MetadataEntry &Message::GetMetadataEntry(std::uint8_t metadata_id) const
+MetadataEntry *Message::GetMetadataEntry(std::string_view key, bool create_if_not_exists)
 {
-	return m_Header->metadata_entries[metadata_id];
+	for (size_t i = 0; i < m_Header->num_metadata_entries; i++)
+		if (key == std::string_view(m_Header->metadata_entries[i].key.data()))
+			return &m_Header->metadata_entries[i];
+
+	if (!create_if_not_exists)
+		return nullptr;
+
+	// Create a new entry.
+	if (m_Header->num_metadata_entries >= MAX_NUM_METADATA_ENTRIES)
+	{
+		throw std::range_error("Metadata entries are full.");
+	}
+
+	auto entry_id = m_Header->num_metadata_entries++;
+	auto entry = &m_Header->metadata_entries[entry_id];
+
+	entry->key.fill('\0');
+	key.copy(entry->key.data(), entry->key.size() - 1);
+
+	return entry;
 }
 
-void Message::SetMetadataEntry(std::uint8_t metadata_id, std::uint64_t value)
+void Message::SetMetadataEntry(std::string_view key, std::uint64_t value)
 {
-	m_Header->metadata_entries[metadata_id].integer = value;
+	auto entry = GetMetadataEntry(key, true);
+
+	entry->type = MetadataType::Integer;
+	entry->value.integer = value;
 }
 
-void Message::SetMetadataEntry(std::uint8_t metadata_id, double value)
+void Message::SetMetadataEntry(std::string_view key, double value)
 {
-	m_Header->metadata_entries[metadata_id].floating_point = *reinterpret_cast<std::uint64_t *>(&value);
+	auto entry = GetMetadataEntry(key, true);
+
+	entry->type = MetadataType::Integer;
+	entry->value.floating_point = value;
 }
 
-void Message::SetMetadataEntry(std::uint8_t metadata_id, std::string_view value)
+void Message::SetMetadataEntry(std::string_view key, std::string_view value)
 {
-	char *dest = m_Header->metadata_entries[metadata_id].string;
-	std::fill(dest, dest + METADATA_MAX_STRLEN, '\0');
-	value.copy(dest, METADATA_MAX_STRLEN - 1);
+	auto entry = GetMetadataEntry(key, true);
+
+	entry->type = MetadataType::String;
+	entry->value.string.fill('\0');
+	value.copy(entry->value.string.data(), entry->value.string.size() - 1);
 }
 
 const std::uint64_t Message::GetStartByte() const
