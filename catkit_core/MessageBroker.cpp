@@ -317,13 +317,12 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		return;
 	}
 
-	auto topic = std::string_view(message.m_Header->topic);
-
-	DEBUG_PRINT("Starting to publish the message.");
-
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
 
+	DEBUG_PRINT("Starting to publish the message.");
+
+	auto topic = std::string_view(message.m_Header->topic);
 	auto allocator = GetAllocator(message.m_Header->payload_info.memory_block_id);
 
 	// Publish the message to all subtopics.

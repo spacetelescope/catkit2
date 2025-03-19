@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
 	auto end = GetTimeStamp();
 
 	std::cout << NUM_MESSAGES / ((end - start) * 1e-9) << " messages per second" << std::endl;
+	std::cout << (end - start) / NUM_MESSAGES << " ns per message" << std::endl;
 
 	return 0;
 }
