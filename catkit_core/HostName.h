@@ -3,6 +3,6 @@
 
 #include <string>
 
-std::string GetHostName();
+std::string_view GetHostName();
 
 #endif // HOSTNAME_H

@@ -55,7 +55,7 @@ std::string GetHostNameImpl()
 #endif
 }
 
-std::string GetHostName()
+std::string_view GetHostName()
 {
 	static std::string host_name = GetHostNameImpl();
 
