@@ -12,8 +12,8 @@
 #include "RingBuffer.h"
 
 #include <memory>
-#include <map>
 #include <array>
+#include <unordered_map>
 
 const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
 
@@ -210,7 +210,7 @@ private:
 	MessageBrokerHeader *m_Header;
 
 	std::unique_ptr<HashMap> m_TopicHeaders;
-	std::map<std::string_view, std::shared_ptr<Event>> m_Events;
+	std::unordered_map<std::string_view, std::shared_ptr<Event>> m_Events;
 
 	std::unique_ptr<RingBuffer> m_EventAllocator;
 
