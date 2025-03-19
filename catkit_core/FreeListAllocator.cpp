@@ -193,6 +193,12 @@ typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t 
 		PoolAllocator::BlockHandle allocated_block_handle = m_BlockAllocator->Allocate();
 		DEBUG_PRINT("Allocated block handle is " << allocated_block_handle);
 
+		if (allocated_block_handle == PoolAllocator::INVALID_HANDLE)
+		{
+			DEBUG_PRINT("Failed to allocate a block.");
+			return INVALID_HANDLE;
+		}
+
 		Block &allocated_block = m_Blocks[allocated_block_handle];
 
 		allocated_block.descriptor = BlockDescriptor(old_descriptor.GetOffset(), size, false);
