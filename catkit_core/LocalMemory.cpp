@@ -44,6 +44,13 @@ std::unique_ptr<LocalMemory> LocalMemory::Create(StructStream &stream, std::size
 	return std::move(res);
 }
 
+std::unique_ptr<LocalMemory> LocalMemory::Create(std::size_t num_bytes)
+{
+	// Allocate the memory.
+	char *memory = new char[num_bytes];
+	return std::unique_ptr<LocalMemory>(new LocalMemory(memory, num_bytes, true));
+}
+
 std::unique_ptr<LocalMemory> LocalMemory::Open(StructStream &stream)
 {
 	// Read metadata from stream.
