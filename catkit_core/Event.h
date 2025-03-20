@@ -27,6 +27,15 @@ private:
 	Event &m_Event;
 };
 
+enum class EventWaitMethod
+{
+	Default,
+	ConditionVariable,
+	Futex,
+	Semaphore,
+	SpinLock
+};
+
 class Event : public Shareable
 {
 private:
@@ -43,10 +52,7 @@ private:
 	};
 
 public:
-	Event();
-
-	void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)() = nullptr);
-	void Wait(long timeout_in_ms, std::function<bool()> condition, EventImplementationType event_type, void (*error_check)() = nullptr);
+	void Wait(long timeout_in_ms, std::function<bool()> condition, EventWaitMethod wait_method = EventWaitMethod::Default, void (*error_check)() = nullptr);
 	void Signal();
 
 	void Lock();
