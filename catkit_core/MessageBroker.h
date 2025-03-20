@@ -149,7 +149,7 @@ public:
 	std::size_t GetPayloadSize() const;
 
 	MetadataEntry *GetMetadataEntry(std::string_view key, bool create_if_not_exists = false);
-	void SetMetadataEntry(std::string_view key, std::uint64_t value);
+	void SetMetadataEntry(std::string_view key, std::int64_t value);
 	void SetMetadataEntry(std::string_view key, double value);
 	void SetMetadataEntry(std::string_view key, std::string_view value);
 
@@ -185,7 +185,7 @@ private:
 	);
 
 public:
-	static std::unique_ptr<MessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks); // TODO: Add parameters.
+	static std::unique_ptr<MessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks);
 	static std::unique_ptr<MessageBroker> Open(StructStream &stream);
 
 	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
@@ -195,8 +195,7 @@ public:
 
 	void PublishMessage(Message &message, bool is_final = true);
 
-	Message GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, void (*error_check)() = nullptr);
-	Message GetMessage(std::string_view topic, size_t frame_id, EventImplementationType wait_type, double timeout_in_seconds = -1, void (*error_check)() = nullptr);
+	Message GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr);
 
 	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
 	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);

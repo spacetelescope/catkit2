@@ -127,7 +127,11 @@ MessageBroker::MessageBroker(
 
 std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
 {
+	DEBUG_PRINT("Creating message broker");
+
 	*stream.Extract<std::array<std::uint8_t, 4>>() = MESSAGE_BROKER_VERSION;
+
+	DEBUG_PRINT("Written version.");
 
 	auto header = stream.Extract<MessageBrokerHeader>();
 
@@ -138,11 +142,15 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 	header->time_of_last_activity = GetTimeStamp();
 
+	DEBUG_PRINT("Extracted static parts.");
+
 	auto topic_headers = HashMap::Create(stream, TOPIC_HASH_MAP_SIZE, TOPIC_MAX_KEY_SIZE, sizeof(TopicHeader));
 
 	auto message_header_allocator = PoolAllocator::Create(stream, MAX_NUM_MESSAGES);
 
 	auto event_allocator = RingBuffer::Create(stream, NUM_EVENTS_IN_BUFFER, Event::GetSharedStateSize());
+
+	DEBUG_PRINT("Extracteing allocators.");
 
 	std::vector<std::shared_ptr<FreeListAllocator>> allocators;
 
@@ -155,6 +163,8 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 		memory_block->WriteReference(stream);
 	}
+
+	DEBUG_PRINT("Creating object.");
 
 	return std::unique_ptr<MessageBroker>(new MessageBroker(
 		header,
@@ -436,15 +446,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	message.m_HasBeenPublished = is_final;
 }
 
-Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds, void (*error_check)())
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	// TODO: add implementation.
-	return Message(nullptr, nullptr, true);
-}
-
-Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, EventImplementationType wait_type, double timeout_in_seconds, void (*error_check)())
+Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds, EventWaitMethod wait_method, void (*error_check)())
 {
 	auto topic_header = GetTopicHeader(topic);
 
@@ -674,7 +676,7 @@ MetadataEntry *Message::GetMetadataEntry(std::string_view key, bool create_if_no
 	return entry;
 }
 
-void Message::SetMetadataEntry(std::string_view key, std::uint64_t value)
+void Message::SetMetadataEntry(std::string_view key, std::int64_t value)
 {
 	auto entry = GetMetadataEntry(key, true);
 
