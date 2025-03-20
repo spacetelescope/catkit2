@@ -23,6 +23,12 @@
 #include "Client.h"
 #include "HostName.h"
 #include "Tracing.h"
+#include "MessageBroker.h"
+#include "LocalMemory.h"
+#include "SharedMemory.h"
+#include "Shareable.h"
+#include "Memory.h"
+#include "Event.h"
 
 #include "testbed.pb.h"
 
@@ -321,6 +327,61 @@ DataType GetDataTypeFromBufferInfo(py::buffer_info &buffer_info)
 		throw std::runtime_error("Buffer format " + buffer_info.format + " not recognized.");
 	}
 }
+
+class MetadataWrapper
+{
+public:
+	MetadataWrapper(Message *message)
+		: m_Message(message)
+	{
+	}
+
+	py::object GetItem(std::string key) const
+	{
+		auto entry = m_Message->GetMetadataEntry(key);
+
+		if (entry == nullptr)
+		{
+			throw pybind11::key_error(key);
+		}
+
+		switch (entry->type)
+		{
+		case MetadataType::Integer:
+			return py::int_(entry->value.integer);
+		case MetadataType::Float:
+			return py::float_(entry->value.floating_point);
+		case MetadataType::String:
+			return py::str(entry->value.string.data());
+		default:
+			throw std::runtime_error("Unknown metadata type.");
+		}
+	}
+
+	void SetItem(std::string key, const py::object &obj)
+	{
+		if (py::isinstance<py::int_>(obj))
+		{
+			m_Message->SetMetadataEntry(key, py::cast<std::int64_t>(obj));
+		}
+		else if (py::isinstance<py::float_>(obj))
+		{
+			m_Message->SetMetadataEntry(key, py::cast<double>(obj));
+		}
+		else if (py::isinstance<py::str>(obj))
+		{
+			m_Message->SetMetadataEntry(key, py::cast<std::string>(obj));
+		}
+		else
+		{
+			throw std::runtime_error("Metadata entry value must be an integer, float or string.");
+		}
+	}
+
+private:
+	Message *m_Message;
+	size_t m_NumEntries;
+};
 
 // A callback for long-running C++ functions. This function gets called
 // periodically during the function call to allow Python KeyboardInterrupt
@@ -691,6 +752,123 @@ PYBIND11_MODULE(catkit_bindings, m)
 	m.def("trace_counter", [](std::string name, std::string series, uint64_t timestamp, double counter) {
 		tracing_proxy.TraceCounter(name, series, timestamp, counter);
 	});
+
+	py::enum_<MetadataType>(m, "MetadataType")
+		.value("Integer", MetadataType::Integer)
+		.value("Float", MetadataType::Float)
+		.value("String", MetadataType::String);
+
+	py::class_<Shareable, std::shared_ptr<Shareable>>(m, "Shareable");
+
+	py::class_<Memory, std::shared_ptr<Memory>>(m, "Memory");
+
+	py::class_<SharedMemory, Shareable, Memory, std::shared_ptr<SharedMemory>>(m, "SharedMemory")
+		.def_static("create", [](std::string name, size_t size)
+		{
+			auto mem = SharedMemory::Create(name, size);
+
+			return std::shared_ptr<SharedMemory>(std::move(mem));
+		})
+		.def_static("open", [](std::string name)
+		{
+			auto mem = SharedMemory::Open(name);
+			return std::shared_ptr<SharedMemory>(std::move(mem));
+		})
+		.def("get_memory", [](std::shared_ptr<SharedMemory> memory)
+		{
+			auto address = memory->GetAddress();
+			size_t capacity = memory->GetCapacity();
+
+			return py::memoryview::from_memory(address, capacity);
+		});
+
+	py::class_<LocalMemory, Shareable, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
+		.def_static("create", [](size_t num_bytes)
+		{
+			auto mem = LocalMemory::Create(num_bytes);
+			return std::shared_ptr<LocalMemory>(std::move(mem));
+		})
+		.def("get_memory", [](std::shared_ptr<LocalMemory> memory)
+		{
+			auto address = memory->GetAddress();
+			size_t capacity = memory->GetCapacity();
+
+			return py::memoryview::from_memory(address, capacity);
+		});
+
+	py::class_<Uuid>(m, "Uuid")
+		.def(py::init<>())
+		.def("__str__", &Uuid::to_string)
+		.def("__repr__", &Uuid::to_string);
+
+	py::class_<UuidGenerator>(m, "UuidGenerator")
+		.def(py::init<>())
+		.def("generate", [](UuidGenerator& generator)
+		{
+			Uuid uuid;
+			generator.Generate(&uuid);
+			return uuid;
+		});
+
+	py::class_<MetadataWrapper>(m, "Metadata")
+		.def("__getitem__", &MetadataWrapper::GetItem)
+		.def("__setitem__", &MetadataWrapper::SetItem);
+
+	py::class_<Message>(m, "Message")
+		.def_property_readonly("topic", &Message::GetTopic)
+		.def_property_readonly("trace_id", &Message::GetTraceId)
+		.def_property_readonly("payload_id", &Message::GetPayloadId)
+		.def_property_readonly("producer_hostname", &Message::GetProducerHostname)
+		.def_property_readonly("producer_pid", &Message::GetProducerPid)
+		.def_property_readonly("producer_timestamp", &Message::GetProducerTimestamp)
+		.def_property("array_info", &Message::GetArrayInfo, &Message::SetArrayInfo)
+		.def_property_readonly("payload", [](const Message& m) {
+			return py::memoryview::from_memory(m.GetPayload(), m.GetPayloadSize());
+		})
+		.def_property_readonly("payload_size", &Message::GetPayloadSize)
+		.def_property_readonly("metadata", [](Message *message)
+		{
+			return MetadataWrapper(message);
+		})
+		.def_property("start_byte", &Message::GetStartByte, &Message::SetStartByte)
+		.def_property("end_byte", &Message::GetEndByte, &Message::SetEndByte);
+
+	py::enum_<EventWaitMethod>(m, "EventWaitMethod")
+		.value("Default", EventWaitMethod::Default)
+		.value("ConditionVariable", EventWaitMethod::ConditionVariable)
+		.value("Futex", EventWaitMethod::Futex)
+		.value("Semaphore", EventWaitMethod::Semaphore)
+		.value("SpinLock", EventWaitMethod::SpinLock);
+
+	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker")
+		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
+		{
+			auto stream = StructStream(header->GetAddress());
+			auto broker = MessageBroker::Create(stream, memory_blocks);
+
+			return std::shared_ptr<MessageBroker>(std::move(broker));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto broker = MessageBroker::Open(stream);
+
+			return std::shared_ptr<MessageBroker>(std::move(broker));
+		})
+		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string& topic, std::size_t payload_size, std::uint8_t memory_block_id)
+		{
+			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
+
+			return message;
+		})
+		.def("publish_message", [](std::shared_ptr<MessageBroker> broker, Message& message, bool is_final)
+		{
+			broker->PublishMessage(message, is_final);
+		})
+		.def("get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default)
+		{
+			return broker->GetMessage(topic, frame_id, timeout_in_seconds, wait_method, error_check_python);
+		});
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
