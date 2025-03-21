@@ -150,7 +150,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 	auto event_allocator = RingBuffer::Create(stream, NUM_EVENTS_IN_BUFFER, Event::GetSharedStateSize());
 
-	DEBUG_PRINT("Extracteing allocators.");
+	DEBUG_PRINT("Extracting allocators.");
 
 	std::vector<std::shared_ptr<FreeListAllocator>> allocators;
 
@@ -161,6 +161,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 		allocators.push_back(std::move(allocator));
 
+		*stream.Extract<ShareableType>() = memory_block->GetType();
 		memory_block->WriteReference(stream);
 	}
 

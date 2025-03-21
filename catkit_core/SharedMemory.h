@@ -22,7 +22,7 @@
 
 const int SHARED_MEMORY_FNAME_SIZE = 256;
 
-class SharedMemory : public Shareable, public Memory
+class SharedMemory : public Memory
 {
 public:
 	#ifdef _WIN32

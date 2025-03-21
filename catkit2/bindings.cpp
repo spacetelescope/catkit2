@@ -762,7 +762,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 	py::class_<Memory, std::shared_ptr<Memory>>(m, "Memory");
 
-	py::class_<SharedMemory, Shareable, Memory, std::shared_ptr<SharedMemory>>(m, "SharedMemory")
+	py::class_<SharedMemory, Memory, std::shared_ptr<SharedMemory>>(m, "SharedMemory")
 		.def_static("create", [](std::string name, size_t size)
 		{
 			auto mem = SharedMemory::Create(name, size);
@@ -782,7 +782,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			return py::memoryview::from_memory(address, capacity);
 		});
 
-	py::class_<LocalMemory, Shareable, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
+	py::class_<LocalMemory, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
 		.def_static("create", [](size_t num_bytes)
 		{
 			auto mem = LocalMemory::Create(num_bytes);

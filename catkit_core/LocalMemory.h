@@ -5,7 +5,7 @@
 #include "Shareable.h"
 #include "Util.h"
 
-class LocalMemory : public Shareable, public Memory
+class LocalMemory : public Memory
 {
 public:
     virtual ~LocalMemory();
