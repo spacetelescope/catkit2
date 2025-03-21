@@ -27,8 +27,15 @@ struct EventLocalState<EventImplementationType::Semaphore>
 };
 
 template<>
-inline void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+inline void EventSemaphore::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
 {
+	// Convert timeout to milliseconds.
+	unsigned long timeout_in_ms = INFINITY;
+	if (timeout_in_sec >= 0 && timeout_in_sec < INFINITY * 0.001)
+	{
+		timeout_in_ms = static_cast<unsigned long>(timeout_in_sec * 1000.0);
+	}
+
     Timer timer;
 	DWORD res = WAIT_OBJECT_0;
 
@@ -46,7 +53,7 @@ inline void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condi
 		}
 
 		// Wait for a maximum of 20ms to perform periodic error checking.
-		res = WaitForSingleObject(m_LocalState.m_Semaphore, (unsigned long) (std::min)(20L, timeout_in_ms));
+		res = WaitForSingleObject(m_LocalState.m_Semaphore, (unsigned long) (std::min)(20UL, timeout_in_ms));
 
 		if (res == WAIT_TIMEOUT && timer.GetTime() > (timeout_in_ms * 0.001))
 		{

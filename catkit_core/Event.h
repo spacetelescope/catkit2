@@ -52,7 +52,7 @@ private:
 	};
 
 public:
-	void Wait(long timeout_in_ms, std::function<bool()> condition, EventWaitMethod wait_method = EventWaitMethod::Default, void (*error_check)() = nullptr);
+	void Wait(double timeout_in_sec, std::function<bool()> condition, EventWaitMethod wait_method = EventWaitMethod::Default, void (*error_check)() = nullptr);
 	void Signal();
 
 	void Lock();

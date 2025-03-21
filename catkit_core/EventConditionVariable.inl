@@ -20,32 +20,32 @@ struct EventSharedState<EventImplementationType::ConditionVariable>
 };
 
 template<>
-inline void EventConditionVariable::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+inline void EventConditionVariable::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
 {
     Timer timer;
 
 	while (!condition())
 	{
 		// Wait for a maximum of 20ms to perform periodic error checking.
-		long timeout_wait = std::min(20L, timeout_in_ms);
+		double timeout_wait = std::min(0.020, timeout_in_sec);
 
 #ifdef __APPLE__
 		// Relative timespec.
 		timespec timeout;
-		timeout.tv_sec = timeout_wait / 1000;
-		timeout.tv_nsec = 1000000 * (timeout_wait % 1000);
+		timeout.tv_sec = static_cast<time_t>(timeout_wait);
+		timeout.tv_nsec = 1'000'000'000 * (timeout_wait - static_cast<time_t>(timeout_wait));
 
 		int res = pthread_cond_timedwait_relative_np(&(m_SharedState->m_Condition), &(m_SharedState->m_Mutex), &timeout);
 #else
 		// Absolute timespec.
 		timespec timeout;
 		clock_gettime(CLOCK_MONOTONIC, &timeout);
-		timeout.tv_sec += timeout_wait / 1000;
-		timeout.tv_nsec += 1000000 * (timeout_wait % 1000);
+		timeout.tv_sec += static_cast<time_t>(timeout_wait);
+		timeout.tv_nsec += 1'000'000'000 * (timeout_wait - static_cast<time_t>(timeout_wait));
 
 		int res = pthread_cond_timedwait(&(m_SharedState->m_Condition), &(m_SharedState->m_Mutex), &timeout);
 #endif // __APPLE__
-		if (res == ETIMEDOUT && timer.GetTime() > (timeout_in_ms * 0.001))
+		if (res == ETIMEDOUT && timer.GetTime() > timeout_in_sec)
 		{
 			throw std::runtime_error("Waiting time has expired.");
 		}

@@ -470,7 +470,7 @@ Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, doubl
 	auto topic_header = GetTopicHeader(topic);
 	auto event = GetEvent(topic);
 
-	bool wait = timeout_in_seconds > 0;
+	bool wait = timeout_in_seconds != 0;
 
 	if (!IsMessageAvailable(topic, frame_id))
 	{
@@ -481,7 +481,7 @@ Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, doubl
 			throw std::runtime_error("Message is not available yet.");
 
 		auto lock = EventLockGuard(event);
-		event->Wait(timeout_in_seconds, [topic_header, frame_id]() { return topic_header->last_frame_id > frame_id; }, wait_method, error_check);
+		event->Wait(timeout_in_seconds * 1000, [topic_header, frame_id]() { return topic_header->last_frame_id > frame_id; }, wait_method, error_check);
 	}
 
 	auto header = &m_MessageHeaders[topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES]];

@@ -1045,7 +1045,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default)
 		{
 			return broker->GetMessage(topic, frame_id, timeout_in_seconds, wait_method, error_check_python);
-		})
+		}, py::arg("topic"), py::arg("frame_id"), py::arg("timeout_in_sec") = std::numeric_limits<double>::infinity(), py::arg("wait_method"), py::call_guard<py::gil_scoped_release>())
 		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
 		.def("is_message_available", &MessageBroker::IsMessageAvailable)
 		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)

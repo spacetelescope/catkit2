@@ -12,7 +12,7 @@ EventImpl<Type>::~EventImpl()
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+void EventImpl<Type>::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
 {
 	throw std::runtime_error("This type of event implementation wasn't implemented.");
 }

@@ -42,7 +42,7 @@ public:
 	static std::unique_ptr<EventImpl<Type>> Open(std::string_view id, SharedState *shared_state);
 
 	// Note: implement the following functions for specific implementations.
-	inline void Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)());
+	inline void Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)());
 	inline void Signal();
 
 	inline void Lock();

@@ -367,7 +367,7 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 		// Wait until frame becomes available.
 		// Obtain a lock first.
 		auto lock = EventLockGuard(m_Event);
-		m_Event->Wait(wait_time_in_ms, [this, id]() { return this->m_Header->m_LastId > id; }, EventWaitMethod::Default, error_check);
+		m_Event->Wait(wait_time_in_ms / 1000.0, [this, id]() { return this->m_Header->m_LastId > id; }, EventWaitMethod::Default, error_check);
 	}
 
 	size_t offset = (id % m_Header->m_NumFramesInBuffer) * m_Header->m_NumBytesPerFrame;

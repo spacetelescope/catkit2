@@ -1,6 +1,6 @@
 #include "Event.h"
 
-void Event::Wait(long timeout_in_ms, std::function<bool()> condition, EventWaitMethod wait_method, void (*error_check)())
+void Event::Wait(double timeout_in_sec, std::function<bool()> condition, EventWaitMethod wait_method, void (*error_check)())
 {
 	// Set default wait method.
 	if (wait_method == EventWaitMethod::Default)
@@ -16,16 +16,16 @@ void Event::Wait(long timeout_in_ms, std::function<bool()> condition, EventWaitM
 	switch (wait_method)
 	{
 		case EventWaitMethod::ConditionVariable:
-			m_ConditionVariable->Wait(timeout_in_ms, condition, error_check);
+			m_ConditionVariable->Wait(timeout_in_sec, condition, error_check);
 			break;
 		case EventWaitMethod::Futex:
-			m_Futex->Wait(timeout_in_ms, condition, error_check);
+			m_Futex->Wait(timeout_in_sec, condition, error_check);
 			break;
 		case EventWaitMethod::Semaphore:
-			m_Semaphore->Wait(timeout_in_ms, condition, error_check);
+			m_Semaphore->Wait(timeout_in_sec, condition, error_check);
 			break;
 		case EventWaitMethod::SpinLock:
-			m_SpinLock->Wait(timeout_in_ms, condition, error_check);
+			m_SpinLock->Wait(timeout_in_sec, condition, error_check);
 			break;
 		default:
 			throw std::runtime_error("Unknown wait method.");
