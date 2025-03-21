@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <variant>
+#include <charconv>
 
 #include "DataStream.h"
 #include "Timing.h"
@@ -92,6 +93,76 @@ py::dtype GetNumpyDataType(DataType type)
 		default:
 			throw pybind11::type_error("Data type is unknown.");
 	}
+}
+
+ArrayInfo FormatStringToDtype(std::string_view format)
+{
+	if (format.size() == 0)
+		throw std::runtime_error("The format was incorrectly formatted.");
+
+	ArrayInfo array_info;
+
+	// Deduce the endian with a default.
+	array_info.byte_order = '=';
+
+	if (format[0] == '<' || format[0] == '>' || format[0] == '!' || format[0] == '=')
+	{
+		array_info.byte_order = format[0];
+		format = format.substr(1);
+	}
+
+	if (format.size() == 0)
+		throw std::runtime_error("The format was incorrectly formatted.");
+
+	// Deduce the data type from the character codes.
+	if (format[0] == 'b' ||
+		format[0] == 'h' ||
+		format[0] == 'i' ||
+		format[0] == 'l' ||
+		format[0] == 'q'
+	)
+	{
+		array_info.data_type = 'i';
+	}
+	else if (
+		format[0] == 'B' ||
+		format[0] == 'H' ||
+		format[0] == 'I' ||
+		format[0] == 'L' ||
+		format[0] == 'Q'
+	)
+	{
+		array_info.data_type = 'u';
+	}
+	else if (
+		format[0] == 'f' ||
+		format[0] == 'd' ||
+		format[0] == 'g' ||
+		format[0] == 'e'
+	)
+	{
+		array_info.data_type = 'f';
+	}
+	else if (format[0] == 'Z')
+	{
+		if (format.size() < 2)
+			throw std::runtime_error("The format was incorrection formatted.");
+
+		if (format[1] == 'f' || format[1] == 'd')
+		{
+			array_info.data_type = 'c';
+		}
+		else
+		{
+			throw std::runtime_error("The format was incorrectly formatted.");
+		}
+	}
+	else
+	{
+		throw std::runtime_error("The format was incorrectly formatted.");
+	}
+
+	return array_info;
 }
 
 py::object ToPython(const Value &value);
@@ -194,6 +265,49 @@ py::object ToPython(const Value &value)
 	{
 		throw std::runtime_error("Unknown value type.");
 	}
+}
+
+py::dtype DtypeToPython(const ArrayInfo *array_info)
+{
+	char dtype_buf[6];
+	dtype_buf[0] = array_info->byte_order;
+	dtype_buf[1] = array_info->data_type;
+
+	auto [ptr, ec] = std::to_chars(dtype_buf + 2, dtype_buf + sizeof(dtype_buf) - 1, array_info->item_size);
+	if (ec != std::errc())
+	{
+		auto error_message = std::make_error_code(ec).message();
+		throw std::runtime_error("Failed to convert item size to string: " + error_message);
+	}
+	*ptr = '\0';
+
+	std::cout << "Dtype buf: " << dtype_buf << std::endl;
+
+	return py::dtype(dtype_buf);
+}
+
+py::array ToPython(void *payload, const ArrayInfo *array_info)
+{
+	auto dtype = DtypeToPython(array_info);
+
+	std::vector<py::ssize_t> shape(array_info->ndim);
+	for (size_t i = 0; i < array_info->ndim; ++i)
+	{
+		shape.push_back(array_info->shape[i]);
+	}
+
+	std::vector<py::ssize_t> strides(array_info->ndim);
+	for (size_t i = 0; i < array_info->ndim; ++i)
+	{
+		strides.push_back(array_info->strides[i]);
+	}
+
+	return py::array(
+		dtype,
+		shape,
+		strides,
+		payload
+	);
 }
 
 Value ValueFromPython(const py::handle &python_value)
@@ -814,6 +928,43 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("__getitem__", &MetadataWrapper::GetItem)
 		.def("__setitem__", &MetadataWrapper::SetItem);
 
+	py::class_<ArrayInfo>(m, "ArrayInfo")
+		.def(py::init<>())
+		.def_property("dtype", [](ArrayInfo &info)
+		{
+			return DtypeToPython(&info);
+		}, [](ArrayInfo &info, py::dtype dtype)
+		{
+			info.data_type = dtype.kind();
+			info.item_size = dtype.itemsize();
+			info.byte_order = dtype.byteorder();
+		})
+		.def_property("item_size", [](ArrayInfo &info) { return info.item_size; }, [](ArrayInfo &info, uint8_t value) { info.item_size = value; })
+		.def_property("ndim", [](ArrayInfo &info) { return info.ndim; }, [](ArrayInfo &info, uint8_t value) { info.ndim = value; })
+		.def_property("shape", [](const ArrayInfo& ai) {
+			return std::vector<uint32_t>(ai.shape, ai.shape + ai.ndim);
+		}, [](ArrayInfo &info, const py::list &value)
+		{
+			info.ndim = static_cast<uint8_t>(value.size());
+			for (size_t i = 0; i < value.size(); ++i)
+			{
+				info.shape[i] = static_cast<uint32_t>(py::cast<int64_t>(value[i]));
+			}
+		})
+		.def_property("strides", [](const ArrayInfo& ai)
+		{
+			return std::vector<uint32_t>(ai.strides, ai.strides + ai.ndim);
+		}, [](ArrayInfo &info, const py::list &value)
+		{
+			info.ndim = static_cast<uint8_t>(value.size());
+			for (size_t i = 0; i < value.size(); ++i)
+			{
+				info.strides[i] = static_cast<uint32_t>(py::cast<int64_t>(value[i]));
+			}
+		})
+		.def_property_readonly("num_items", &ArrayInfo::GetNumItems)
+		.def_property_readonly("num_bytes", &ArrayInfo::GetNumBytes);
+
 	py::class_<Message>(m, "Message")
 		.def_property_readonly("topic", &Message::GetTopic)
 		.def_property_readonly("trace_id", &Message::GetTraceId)
@@ -822,8 +973,32 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("producer_pid", &Message::GetProducerPid)
 		.def_property_readonly("producer_timestamp", &Message::GetProducerTimestamp)
 		.def_property("array_info", &Message::GetArrayInfo, &Message::SetArrayInfo)
-		.def_property_readonly("payload", [](const Message& m) {
-			return py::memoryview::from_memory(m.GetPayload(), m.GetPayloadSize());
+		.def_property("payload", [](const Message& m) {
+			return ToPython(m.GetPayload(), &m.GetArrayInfo());
+		},
+		[](Message &m, py::buffer data)
+		{
+			py::buffer_info buffer_info = data.request();
+			ArrayInfo array_info = FormatStringToDtype(buffer_info.format);
+
+			array_info.item_size = buffer_info.itemsize;
+
+			// Deduce the number of dimensions.
+			array_info.ndim = buffer_info.ndim;
+			if (array_info.ndim > MAX_NUM_DIMENSIONS)
+				throw std::runtime_error("The array is too high-dimensional.");
+
+			// Copy over the shape and strides.
+			std::copy(buffer_info.shape.begin(), buffer_info.shape.end(), array_info.shape);
+			std::copy(buffer_info.strides.begin(), buffer_info.strides.end(), array_info.strides);
+
+			// Make sure our buffer is large enough.
+			if (array_info.GetNumBytes() > m.GetPayloadSize())
+				throw std::runtime_error("The buffer is too small.");
+
+			// All checks are complete. Let's copy the raw data.
+			std::memcpy(m.GetPayload(), buffer_info.ptr, array_info.GetNumBytes());
+			m.SetArrayInfo(array_info);
 		})
 		.def_property_readonly("payload_size", &Message::GetPayloadSize)
 		.def_property_readonly("metadata", [](Message *message)
@@ -839,6 +1014,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.value("Futex", EventWaitMethod::Futex)
 		.value("Semaphore", EventWaitMethod::Semaphore)
 		.value("SpinLock", EventWaitMethod::SpinLock);
+
+	py::class_<MessageSubscription>(m, "MessageSubscription");
 
 	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
@@ -868,7 +1045,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default)
 		{
 			return broker->GetMessage(topic, frame_id, timeout_in_seconds, wait_method, error_check_python);
-		});
+		})
+		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
+		.def("is_message_available", &MessageBroker::IsMessageAvailable)
+		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)
+		.def("get_newest_message_id", &MessageBroker::GetNewestMessageId)
+		.def("get_oldest_message_id", &MessageBroker::GetOldestMessageId)
+		.def("subscribe", &MessageBroker::Subscribe)
+		.def("get_message_rate", &MessageBroker::GetMessageRate);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
