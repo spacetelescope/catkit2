@@ -108,10 +108,20 @@ void PoolAllocator::Deallocate(BlockHandle index)
 		return;
 	}
 
-	if (m_RefCount[index].fetch_sub(1, std::memory_order_relaxed) != 1)
+	size_t old_ref_count = m_RefCount[index].fetch_sub(1, std::memory_order_relaxed);
+
+	if (old_ref_count != 1)
 	{
 		// The reference count is not yet zero, so do not deallocate.
 		return;
+	}
+
+	if (old_ref_count == 0)
+	{
+		// Something went horribly wrong with reference counting. Reset the ref count and raise an exception.
+		m_RefCount[index].fetch_add(1, std::memory_order_relaxed);
+
+		throw std::runtime_error("A double-free occurred.");
 	}
 
 	BlockHandle head = m_Head->load(std::memory_order_relaxed);;

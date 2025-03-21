@@ -244,10 +244,20 @@ void FreeListAllocator::Deallocate(BlockHandle index)
 	if (index == INVALID_HANDLE)
 		return;
 
-	if (m_Blocks[index].ref_count.fetch_sub(1, std::memory_order_relaxed) != 1)
+	size_t old_ref_count = m_Blocks[index].ref_count.fetch_sub(1, std::memory_order_relaxed);
+
+	if (old_ref_count != 1)
 	{
 		// The reference count is not yet zero, so do not deallocate.
 		return;
+	}
+
+	if (old_ref_count == 0)
+	{
+		// Something went horribly wrong with reference counting. Reset the ref count and raise an exception.
+		m_Blocks[index].ref_count.fetch_add(1, std::memory_order_relaxed);
+
+		throw std::runtime_error("A double-free occurred.");
 	}
 
 	DEBUG_PRINT("Deallocating block " << index);
