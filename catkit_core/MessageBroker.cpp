@@ -489,7 +489,6 @@ Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, doubl
 	auto memory = GetMemory(header->payload_info.memory_block_id);
 	auto payload = memory->GetAddress(offset);
 
-	// TODO: add implementation.
 	return Message(header, payload, true);
 }
 
