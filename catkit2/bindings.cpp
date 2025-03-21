@@ -1054,6 +1054,60 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("subscribe", &MessageBroker::Subscribe)
 		.def("get_message_rate", &MessageBroker::GetMessageRate);
 
+	py::class_<PoolAllocator, std::shared_ptr<PoolAllocator>>(m, "PoolAllocator")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t capacity)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = PoolAllocator::Create(stream, capacity);
+
+			return std::shared_ptr<PoolAllocator>(std::move(allocator));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = PoolAllocator::Open(stream);
+
+			return std::shared_ptr<PoolAllocator>(std::move(allocator));
+		})
+		.def("allocate", [](std::shared_ptr<PoolAllocator> allocator)
+		{
+			auto handle = allocator->Allocate();
+
+			if (handle == PoolAllocator::INVALID_HANDLE)
+				throw std::runtime_error("Failed to allocate memory from pool allocator.");
+
+			return handle;
+		})
+		.def("deallocate", &PoolAllocator::Deallocate)
+		.def("increment_ref_count", &PoolAllocator::IncrementRefCount);
+
+	py::class_<FreeListAllocator, std::shared_ptr<FreeListAllocator>>(m, "FreeListAllocator")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = FreeListAllocator::Create(stream, max_num_blocks, alignment, buffer_size);
+
+			return std::shared_ptr<FreeListAllocator>(std::move(allocator));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = FreeListAllocator::Open(stream);
+
+			return std::shared_ptr<FreeListAllocator>(std::move(allocator));
+		})
+		.def("allocate", [](std::shared_ptr<FreeListAllocator> allocator, std::size_t size)
+		{
+			auto handle = allocator->Allocate(size);
+
+			if (handle == FreeListAllocator::INVALID_HANDLE)
+				throw std::runtime_error("Failed to allocate memory from free list allocator.");
+
+			return handle;
+		})
+		.def("deallocate", &FreeListAllocator::Deallocate)
+		.def("increment_ref_count", &FreeListAllocator::IncrementRefCount);
+
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
 #else
