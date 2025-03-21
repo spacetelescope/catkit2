@@ -109,6 +109,9 @@ std::unique_ptr<FreeListAllocator> FreeListAllocator::Create(StructStream &strea
 	blocks[header->head].descriptor = BlockDescriptor(0, buffer_size, true);
 	blocks[header->head].next = INVALID_HANDLE;
 
+	for (size_t i = 0; i < max_num_blocks; ++i)
+		blocks[i].ref_count.store(0, std::memory_order_relaxed);
+
 	return std::unique_ptr<FreeListAllocator>(new FreeListAllocator(header, std::move(block_allocator), blocks));
 }
 
