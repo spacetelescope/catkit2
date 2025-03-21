@@ -450,9 +450,29 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds, EventWaitMethod wait_method, void (*error_check)())
 {
 	auto topic_header = GetTopicHeader(topic);
+	auto event = GetEvent(topic);
+
+	bool wait = timeout_in_seconds > 0;
+
+	if (!IsMessageAvailable(topic, frame_id))
+	{
+		if (!WillMessageBeAvailable(topic, frame_id))
+			throw std::runtime_error("Message will never be available anymore.");
+
+		if (!wait)
+			throw std::runtime_error("Message is not available yet.");
+
+		auto lock = EventLockGuard(event);
+		event->Wait(timeout_in_seconds, [topic_header, frame_id]() { return topic_header->last_frame_id > frame_id; }, wait_method, error_check);
+	}
+
+	auto header = &m_MessageHeaders[topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES]];
+	auto offset = header->payload_info.offset_in_buffer;
+	auto memory = GetMemory(header->payload_info.memory_block_id);
+	auto payload = memory->GetAddress(offset);
 
 	// TODO: add implementation.
-	return Message(nullptr, nullptr, true);
+	return Message(header, payload, true);
 }
 
 ShareableType MessageBroker::GetType() const
