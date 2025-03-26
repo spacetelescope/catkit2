@@ -8,6 +8,9 @@
 #include <cstdint>
 #include <iostream>
 
+// Decay rate for the frame rate estimate in 1/sec.
+const double FRAMERATE_DECAY = 2.5;
+
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
 
@@ -430,7 +433,18 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		}
 
 		// Update the framerate counter for this topic.
-		// TODO
+		if (frame_id > 0)
+		{
+			auto prev_message_header_id = topic_header->message_headers[(frame_id - 1) % TOPIC_MAX_NUM_MESSAGES];
+
+			std::uint64_t last_timestamp = m_MessageHeaders[prev_message_header_id].producer_timestamp;
+			double time_delta = double(std::int64_t(message.m_Header->producer_timestamp) - std::int64_t(last_timestamp)) * 1e-9;
+
+			if (time_delta < 0)
+				time_delta = 0;
+
+			topic_header->frame_rate = topic_header->frame_rate * std::exp(-FRAMERATE_DECAY * time_delta) + FRAMERATE_DECAY;
+		}
 
 		// If the message is not final, only the bottom-level topic is updated.
 		if (!is_final)
@@ -540,8 +554,18 @@ size_t MessageBroker::GetOldestMessageId(std::string_view topic)
 
 double MessageBroker::GetMessageRate(std::string_view topic)
 {
-	// TODO: implement.
-	return 0;
+	auto topic_header = GetTopicHeader(topic);
+	auto last_message_header_id = topic_header->message_headers[(topic_header->last_frame_id - 1) % TOPIC_MAX_NUM_MESSAGES];
+	auto last_timestamp = m_MessageHeaders[last_message_header_id].producer_timestamp;
+
+	auto timestamp = GetTimeStamp();
+
+	double time_delta = double(std::int64_t(timestamp) - std::int64_t(last_timestamp)) * 1e-9;
+
+	if (time_delta < 0)
+		time_delta = 0;
+
+	return topic_header->frame_rate * std::exp(-FRAMERATE_DECAY * time_delta);
 }
 
 std::vector<std::string> MessageBroker::GetAllMessageTopics()
@@ -609,6 +633,7 @@ TopicHeader *MessageBroker::GetTopicHeader(std::string_view topic)
 	temp_topic_header.next_frame_id = 0;
 	temp_topic_header.first_frame_id = 0;
 	temp_topic_header.last_frame_id = 0;
+	temp_topic_header.frame_rate = 0.0;
 
 	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
 

@@ -108,6 +108,8 @@ struct TopicHeader
 	std::uint64_t message_headers[TOPIC_MAX_NUM_MESSAGES];
 
 	std::array<char, Event::GetSharedStateSize()> event;
+
+	double frame_rate;
 };
 
 struct MessageBrokerHeader
