@@ -1,6 +1,5 @@
-import catkit2
-
-from catkit2.catkit_bindings import Memory, LocalMemory, SharedMemory, MessageBroker, get_timestamp
+from catkit2.catkit_bindings import LocalMemory, MessageBroker, get_timestamp
+import numpy as np
 
 def test_message_broker():
     header = LocalMemory.create(1024 * 1024 * 512)
@@ -8,7 +7,7 @@ def test_message_broker():
 
     broker = MessageBroker.create(header, [block])
 
-    for _ in range(10):
+    for _ in range(1):
         start = get_timestamp()
 
         message = broker.prepare_message("topic", 16, 0)
@@ -17,15 +16,16 @@ def test_message_broker():
         end = get_timestamp()
         print(f"Time taken: {end - start} ns")
 
-    N = 100000
+    N = 100
+
+    arr = np.random.randn(4, 4)
 
     start = get_timestamp()
 
     for _ in range(N):
-        message = broker.prepare_message("topic", 16, 0)
-        message.payload[:] = b'0123456789abcdef'
+        message = broker.prepare_message("topic", arr.nbytes, 0)
+        message.payload = arr
         broker.publish_message(message, True)
-
 
     end = get_timestamp()
     print(f"Time taken: {(end - start) / N} ns")
