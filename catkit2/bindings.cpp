@@ -281,8 +281,6 @@ py::dtype DtypeToPython(const ArrayInfo *array_info)
 	}
 	*ptr = '\0';
 
-	std::cout << "Dtype buf: " << dtype_buf << std::endl;
-
 	return py::dtype(dtype_buf);
 }
 
@@ -291,15 +289,12 @@ py::array ToPython(void *payload, const ArrayInfo *array_info)
 	auto dtype = DtypeToPython(array_info);
 
 	std::vector<py::ssize_t> shape(array_info->ndim);
-	for (size_t i = 0; i < array_info->ndim; ++i)
-	{
-		shape.push_back(array_info->shape[i]);
-	}
-
 	std::vector<py::ssize_t> strides(array_info->ndim);
+
 	for (size_t i = 0; i < array_info->ndim; ++i)
 	{
-		strides.push_back(array_info->strides[i]);
+		shape[i] = array_info->shape[i];
+		strides[i] = array_info->strides[i];
 	}
 
 	return py::array(
@@ -1045,7 +1040,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default)
 		{
 			return broker->GetMessage(topic, frame_id, timeout_in_seconds, wait_method, error_check_python);
-		}, py::arg("topic"), py::arg("frame_id"), py::arg("timeout_in_sec") = std::numeric_limits<double>::infinity(), py::arg("wait_method"), py::call_guard<py::gil_scoped_release>())
+		}, py::arg("topic"), py::arg("frame_id"), py::arg("timeout_in_sec") = std::numeric_limits<double>::infinity(), py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
 		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
 		.def("is_message_available", &MessageBroker::IsMessageAvailable)
 		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)
