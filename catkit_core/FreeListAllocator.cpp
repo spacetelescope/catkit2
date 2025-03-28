@@ -4,8 +4,8 @@
 #include <iostream>
 #include <algorithm>
 
-//#define DEBUG_PRINT(a) std::cout << a << std::endl
-#define DEBUG_PRINT(a)
+#define DEBUG_PRINT(a) std::cout << a << std::endl
+//#define DEBUG_PRINT(a)
 
 const std::size_t MAX_ATTEMPTS = 5;
 const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
@@ -53,6 +53,35 @@ bool FreeListAllocator::BlockDescriptor::IsFree() const
 void FreeListAllocator::BlockDescriptor::SetFree(const bool &is_free)
 {
 	m_SizeAndFreeFlag = (m_SizeAndFreeFlag & ~_FREE_FLAG) | (_FREE_FLAG * is_free);
+}
+
+FreeListAllocator::MarkedHandle::MarkedHandle()
+{
+}
+
+FreeListAllocator::MarkedHandle::MarkedHandle(BlockHandle handle)
+	: m_HandleAndMark(handle << 1)
+{
+}
+
+FreeListAllocator::BlockHandle FreeListAllocator::MarkedHandle::GetHandle() const
+{
+	return m_HandleAndMark >> 1;
+}
+
+void FreeListAllocator::MarkedHandle::SetHandle(const BlockHandle &handle)
+{
+	m_HandleAndMark = (handle << 1) | (m_HandleAndMark & 1);
+}
+
+bool FreeListAllocator::MarkedHandle::IsMarked() const
+{
+	return m_HandleAndMark & 1;
+}
+
+void FreeListAllocator::MarkedHandle::Mark()
+{
+	m_HandleAndMark |= 1;
 }
 
 FreeListAllocator::FreeListAllocator(Header *header, std::unique_ptr<PoolAllocator> block_allocator, Block *blocks)
@@ -106,8 +135,8 @@ std::unique_ptr<FreeListAllocator> FreeListAllocator::Create(StructStream &strea
 	// Initialize the free list.
 	header->head = block_allocator->Allocate();
 
-	blocks[header->head].descriptor = BlockDescriptor(0, buffer_size, true);
-	blocks[header->head].next = INVALID_HANDLE;
+	blocks[header->head.load()].descriptor = BlockDescriptor(0, buffer_size, true);
+	blocks[header->head.load()].next = INVALID_HANDLE;
 
 	for (size_t i = 0; i < max_num_blocks; ++i)
 		blocks[i].ref_count.store(0, std::memory_order_relaxed);
@@ -115,112 +144,137 @@ std::unique_ptr<FreeListAllocator> FreeListAllocator::Create(StructStream &strea
 	return std::unique_ptr<FreeListAllocator>(new FreeListAllocator(header, std::move(block_allocator), blocks));
 }
 
-typename FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
+FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
 {
+	if (size == 0)
+		return INVALID_HANDLE;
+
 	// Round up the size to the nearest multiple of the alignment.
 	size = (size + m_Alignment - 1) & ~(m_Alignment - 1);
 
-	DEBUG_PRINT("Allocating " << size);
+	DEBUG_PRINT("Allocating " << size << " bytes.");
 
-	for (size_t i = 0; i < MAX_ATTEMPTS; ++i)
+	MarkedHandle prev = INVALID_HANDLE;
+	MarkedHandle handle;
+	BlockDescriptor descriptor;
+
+	while (true)
 	{
-		BlockHandle index = FindFirstFreeBlock(size);
-		Block &free_block = m_Blocks[index];
+		bool successful = false;
 
-		if (index == INVALID_HANDLE)
+		// Try to either remove a free block of the perfect size, or split an existing block.
+		while (true)
 		{
-			DEBUG_PRINT("No free block found.");
-			return INVALID_HANDLE;
-		}
-
-		BlockDescriptor old_descriptor;
-		BlockDescriptor new_descriptor;
-
-		// Reduce the size of the free block.
-		do
-		{
-			old_descriptor = free_block.descriptor.load();
-
-			// If the block is too small or not free, we need to try again.
-			if (old_descriptor.GetSize() < size || !old_descriptor.IsFree())
+			// Re-read the handle.
+			if (prev.GetHandle() == INVALID_HANDLE)
 			{
-				// Break out of the nested loop and try again.
-				DEBUG_PRINT("Block is too small or not free. Size of block is " << old_descriptor.GetSize());
-				break;
+				handle = m_Head.load(std::memory_order_relaxed);
+			}
+			else
+			{
+				handle = m_Blocks[prev.GetHandle()].next.load(std::memory_order_relaxed);
 			}
 
-			if (old_descriptor.GetSize() == size)
+			// Check if we reached the end of the list.
+			if (handle.GetHandle() == INVALID_HANDLE)
+				break;
+
+			// Ignore blocks marked for removal.
+			if (handle.IsMarked())
+				break;
+
+			Block &block = m_Blocks[handle.GetHandle()];
+			descriptor = block.descriptor.load(std::memory_order_relaxed);
+
+			// Check that the block is free and large enough.
+			if (!descriptor.IsFree() || descriptor.GetSize() < size)
+				break;
+
+			DEBUG_PRINT("Found a free block of size " << descriptor.GetSize() << " > " << size << ".");
+
+			if (descriptor.GetSize() == size)
 			{
-				// The block is exactly the right size.
-				DEBUG_PRINT("Block is exactly the right size.");
-
-				// Mark the block as allocated.
-				if (MarkBlockAsFree(index, false))
+				// Block is the perfect size. Remove it from the linked list instead of replacing.
+				if (!Remove(handle.GetHandle()))
 				{
-					// Remove the block from the free list.
-					// This is guaranteed to succeed since we own the block.
-					RemoveBlock(index);
-
-					// Increment ref count.
-					m_Blocks[index].ref_count.fetch_add(1, std::memory_order_relaxed);
-
-					// Return the block.
-					return index;
+					DEBUG_PRINT("Failed to remove block from linked list.");
+					continue;
 				}
-				else
+			}
+			else
+			{
+				// Block is too large. Replace the block with a new block containing the residual size.
+				BlockHandle res = m_BlockAllocator->Allocate();
+				if (res == PoolAllocator::INVALID_HANDLE)
+					return INVALID_HANDLE;
+
+				BlockDescriptor res_descriptor(descriptor.GetOffset() + size, descriptor.GetSize() - size, true);
+				m_Blocks[res].descriptor.store(res_descriptor, std::memory_order_relaxed);
+
+				// Replace the found block with the new one.
+				if (!Replace(handle.GetHandle(), res))
 				{
-					// Try again.
+					DEBUG_PRINT("Failed to replace block in linked list.");
+
+					m_BlockAllocator->Deallocate(res);
 					continue;
 				}
 			}
 
-			// Reduce the size of the block by the requested size.
-			new_descriptor = old_descriptor;
-			new_descriptor.SetSize(old_descriptor.GetSize() - size);
-			new_descriptor.SetOffset(old_descriptor.GetOffset() + size);
-		} while (!free_block.descriptor.compare_exchange_weak(old_descriptor, new_descriptor));
+			successful = true;
+			break;
+		}
 
-		if (old_descriptor.GetSize() < size || !old_descriptor.IsFree())
+		if (!successful)
 		{
-			// Try again.
+			// Continue with the next block in the linked list.
+			prev = handle;
 			continue;
 		}
 
-		DEBUG_PRINT("Reduced the size of the free block: " << old_descriptor.GetSize() << ", " << new_descriptor.GetSize());
-		DEBUG_PRINT("Old descriptor offset: " << old_descriptor.GetOffset());
-		DEBUG_PRINT("Old descriptor size: " << old_descriptor.GetSize());
-		DEBUG_PRINT("New size: " << size);
+		DEBUG_PRINT("Succesfully allocated a piece of memory.");
 
-		// We now have a block that is large enough to allocate the requested size.
-		// Add a new block for the remaining free space.
-		PoolAllocator::BlockHandle allocated_block_handle = m_BlockAllocator->Allocate();
-		DEBUG_PRINT("Allocated block handle is " << allocated_block_handle);
+		m_Blocks[handle.GetHandle()].descriptor.store(BlockDescriptor(descriptor.GetOffset(), size, true));
+		m_Blocks[handle.GetHandle()].ref_count.store(1, std::memory_order_relaxed);
 
-		if (allocated_block_handle == PoolAllocator::INVALID_HANDLE)
-		{
-			DEBUG_PRINT("Failed to allocate a block.");
-			return INVALID_HANDLE;
-		}
+		DEBUG_PRINT("Returning new block.");
 
-		Block &allocated_block = m_Blocks[allocated_block_handle];
-
-		allocated_block.descriptor = BlockDescriptor(old_descriptor.GetOffset(), size, false);
-		allocated_block.next = INVALID_HANDLE;
-
-		DEBUG_PRINT("Done setting the descriptor.");
-
-		BlockDescriptor descriptor = allocated_block.descriptor.load();
-
-		DEBUG_PRINT("Allocated block is " << descriptor.GetOffset() << ", " << descriptor.GetSize());
-
-		// Increment ref count.
-		m_Blocks[allocated_block_handle].ref_count.fetch_add(1, std::memory_order_relaxed);
-
-		// Return the allocated block.
-		return allocated_block_handle;
+		return handle.GetHandle();
 	}
 
 	return INVALID_HANDLE;
+}
+
+void FreeListAllocator::Deallocate(BlockHandle handle)
+{
+	if (handle == INVALID_HANDLE)
+		return;
+
+	size_t old_ref_count = m_Blocks[handle].ref_count.fetch_sub(1, std::memory_order_relaxed);
+
+	if (old_ref_count != 1)
+	{
+		// The reference count is not yet zero, so do not deallocate.
+		return;
+	}
+
+	if (old_ref_count == 0)
+	{
+		// Something went horribly wrong with reference counting. Reset the ref count and raise an exception.
+		m_Blocks[handle].ref_count.fetch_add(1, std::memory_order_relaxed);
+
+		throw std::runtime_error("A double-free occurred.");
+	}
+
+	DEBUG_PRINT("Deallocating block " << handle);
+
+	// Insert the block back on the free list.
+	if (!Insert(handle))
+		throw std::runtime_error("The block was already on the free list.");
+
+	DEBUG_PRINT("Deallocated block " << handle);
+
+	// TODO: coalesce all blocks.
 }
 
 void FreeListAllocator::IncrementRefCount(BlockHandle index)
@@ -237,90 +291,6 @@ void FreeListAllocator::IncrementRefCount(BlockHandle index)
 		m_Blocks[index].ref_count.fetch_sub(1, std::memory_order_relaxed);
 		return;
 	};
-}
-
-void FreeListAllocator::Deallocate(BlockHandle index)
-{
-	if (index == INVALID_HANDLE)
-		return;
-
-	size_t old_ref_count = m_Blocks[index].ref_count.fetch_sub(1, std::memory_order_relaxed);
-
-	if (old_ref_count != 1)
-	{
-		// The reference count is not yet zero, so do not deallocate.
-		return;
-	}
-
-	if (old_ref_count == 0)
-	{
-		// Something went horribly wrong with reference counting. Reset the ref count and raise an exception.
-		m_Blocks[index].ref_count.fetch_add(1, std::memory_order_relaxed);
-
-		throw std::runtime_error("A double-free occurred.");
-	}
-
-	DEBUG_PRINT("Deallocating block " << index);
-	Block &block = m_Blocks[index];
-
-	bool owns_index = true;
-
-	// Try to coalesce the block with its neighbors.
-	while (true)
-	{
-		BlockHandle prev = INVALID_HANDLE;
-		BlockHandle next = m_Head.load();
-
-		DEBUG_PRINT("Finding the prev and next blocks.");
-
-		while (next != INVALID_HANDLE && m_Blocks[next].descriptor.load().GetOffset() < block.descriptor.load().GetOffset())
-		{
-			prev = next;
-			next = m_Blocks[next].next.load();
-		}
-
-		// Prev and next are the blocks that are adjacent to the block we are deallocating.
-		// Try to coalesce the block with its neighbors.
-
-		if (TryCoalesceBlocks(index, prev, owns_index))
-		{
-			// The coalescense attempt was successful.
-			// The index block is no longer valid. Deallocate it and set the prev block to us.
-
-			if (!owns_index)
-				RemoveBlock(index);
-
-			m_BlockAllocator->Deallocate(index);
-
-			index = prev;
-			owns_index = false;
-
-			continue;
-		}
-
-		if (TryCoalesceBlocks(index, next, owns_index))
-		{
-			// The coalescense attempt was successful.
-			// The next block is no longer valid. Deallocate it.
-
-			RemoveBlock(index);
-			m_BlockAllocator->Deallocate(index);
-
-			index = next;
-			owns_index = false;
-
-			continue;
-		}
-
-		break;
-	}
-
-	// If we didn't coalesce the block with its neighbors, add it to the free list.
-	if (owns_index)
-	{
-		InsertBlockSorted(index);
-		MarkBlockAsFree(index, true);
-	}
 }
 
 // Try to coalesce two blocks, one of which is owned by us.
@@ -413,17 +383,25 @@ bool FreeListAllocator::TryCoalesceBlocks(BlockHandle a, BlockHandle b, bool own
 
 FreeListAllocator::BlockHandle FreeListAllocator::FindFirstFreeBlock(Size size)
 {
-	BlockHandle current = m_Head.load();
+	MarkedHandle current = m_Head.load();
 
-	while (current != INVALID_HANDLE)
+	while (current.GetHandle() != INVALID_HANDLE)
 	{
-		Block &block = m_Blocks[current];
+	 	Block &block = m_Blocks[current.GetHandle()];
+
+		// Ignore blocks that are marked for removal.
+		if (current.IsMarked())
+		{
+			current = block.next.load();
+			continue;
+		}
+
 		BlockDescriptor descriptor = block.descriptor.load();
 
 		// Also check the free flag. The block might be on the free list but temporarily reserved.
 		if (descriptor.GetSize() >= size && descriptor.IsFree())
 		{
-			return current;
+			return current.GetHandle();
 		}
 
 		current = block.next.load();
@@ -437,97 +415,200 @@ std::size_t FreeListAllocator::GetOffset(BlockHandle index)
 	return m_Blocks[index].descriptor.load().GetOffset();
 }
 
-void FreeListAllocator::InsertBlockSorted(BlockHandle index)
+std::pair<FreeListAllocator::MarkedHandle, FreeListAllocator::MarkedHandle> FreeListAllocator::Search(Offset offset)
 {
-	BlockHandle previous = INVALID_HANDLE;
-	BlockHandle current;
+	DEBUG_PRINT("Searching for offset " << offset);
 
-	do
+	while (true)
 	{
-		current = m_Head.load();
+		MarkedHandle t = INVALID_HANDLE;
+		MarkedHandle t_next = m_Head.load();
+		MarkedHandle left_node_next;
 
-		while (current != INVALID_HANDLE && m_Blocks[current].descriptor.load().GetOffset() < m_Blocks[index].descriptor.load().GetOffset())
+		MarkedHandle left_node;
+		MarkedHandle right_node;
+
+		// Find left_node and right_node;
+		do
 		{
-			previous = current;
-			current = m_Blocks[current].next;
-		}
-
-		if (current == index)
-		{
-			// The block is already on the free list.
-			DEBUG_PRINT("Block " << index << " is already on the free list.");
-			return;
-		}
-
-		m_Blocks[index].next = current;
-
-		if (previous == INVALID_HANDLE)
-		{
-			DEBUG_PRINT("Attempting to insert the block at the head.");
-
-			if (m_Head.compare_exchange_weak(current, index))
+			if (!t_next.IsMarked())
 			{
-				// Successfully inserted the block.
-				DEBUG_PRINT("Successfully inserted the block.");
-				return;
+				left_node = t;
+				left_node_next = t_next;
 			}
+
+			t = t_next.GetHandle();
+
+			if (t.GetHandle() == INVALID_HANDLE)
+				break;
+
+			t_next = m_Blocks[t.GetHandle()].next.load();
+		} while (t_next.IsMarked() || (m_Blocks[t.GetHandle()].descriptor.load().GetOffset() < offset));
+
+		right_node = t;
+
+		// Check nodes are adjacent.
+		if (left_node_next.GetHandle() == right_node.GetHandle())
+		{
+			if ((right_node.GetHandle() != INVALID_HANDLE) && (m_Blocks[right_node.GetHandle()].next.load().IsMarked()))
+			{
+				continue;
+			}
+			else
+			{
+				return {left_node, right_node};
+			}
+		}
+
+		// Remove one or more marked nodes.
+		if (left_node.GetHandle() == INVALID_HANDLE)
+		{
+			DEBUG_PRINT("Removing nodes from head of list. New head is " << right_node.GetHandle() << ".");
+
+			// We are removing nodes from the head of the list.
+			BlockHandle expected = left_node_next.GetHandle();
+			if (!m_Head.compare_exchange_strong(expected, right_node.GetHandle()))
+				continue;
 		}
 		else
 		{
-			DEBUG_PRINT("Attempting to insert the block in the middle.");
+			DEBUG_PRINT("Removing nodes from middle of list. Connecting " << left_node.GetHandle() << " to " << right_node.GetHandle() << ".");
 
-			if (m_Blocks[previous].next.compare_exchange_weak(current, index))
-			{
-				// Successfully inserted the block.
-				DEBUG_PRINT("Successfully inserted the block.");
-				return;
-			}
+			// We are removing nodes from the middle of the list.
+			if (!m_Blocks[left_node.GetHandle()].next.compare_exchange_strong(left_node_next, right_node))
+				continue;
 		}
-	} while (true);
+
+		if ((right_node.GetHandle() != INVALID_HANDLE) && (m_Blocks[right_node.GetHandle()].next.load().IsMarked()))
+		{
+			continue;
+		}
+		else
+		{
+			return {left_node, right_node};
+		}
+	}
 }
 
-bool FreeListAllocator::RemoveBlock(BlockHandle index)
+bool FreeListAllocator::Insert(BlockHandle handle)
 {
-	BlockHandle previous = INVALID_HANDLE;
-	BlockHandle current;
+	DEBUG_PRINT("Inserting block " << handle);
 
-	DEBUG_PRINT("Removing block " << index);
-
-	do
+	while (true)
 	{
-		current = m_Head.load();
+		// Find the previous and next node.
+		auto [left_node, right_node] = Search(m_Blocks[handle].descriptor.load().GetOffset());
 
-		// Find the previous block.
-		while (current != index && current != INVALID_HANDLE)
+		DEBUG_PRINT("Left node: " << left_node.GetHandle() << ", right node: " << right_node.GetHandle());
+
+		// If the node was already on the list, we failed.
+		if (right_node.GetHandle() == handle)
+			return false;
+
+		// Link the next node.
+		m_Blocks[handle].next.store(right_node, std::memory_order_relaxed);
+
+		// Insert the new node.
+		if (left_node.GetHandle() == INVALID_HANDLE)
 		{
-			previous = current;
-			current = m_Blocks[current].next;
+			DEBUG_PRINT("Inserting at head");
+
+			// We are inserting at the head.
+			BlockHandle expected = right_node.GetHandle();
+			if (m_Head.compare_exchange_strong(expected, handle))
+				return true;
 		}
-
-		if (current == INVALID_HANDLE)
+		else
 		{
-			// The block was not on the free list, even though it was supposed to be free.
-			DEBUG_PRINT("Block was not on the free list.");
+			DEBUG_PRINT("Inserting in middle");
+			// We are inserting in the middle.
+			if (m_Blocks[left_node.GetHandle()].next.compare_exchange_strong(right_node, handle))
+				return true;
+		}
+	}
+}
+
+bool FreeListAllocator::Replace(BlockHandle old_handle, BlockHandle new_handle)
+{
+	DEBUG_PRINT("Replacing block " << old_handle << " with " << new_handle);
+
+	while (true)
+	{
+		// Find the previous and next node.
+		auto [left_node, right_node] = Search(m_Blocks[old_handle].descriptor.load().GetOffset());
+
+		DEBUG_PRINT("Left node: " << left_node.GetHandle() << ", right node: " << right_node.GetHandle());
+
+		// If the node was already on the list, we failed.
+		if (right_node.GetHandle() != old_handle)
+		{
+			DEBUG_PRINT("Old block was not on list. Failed.");
 			return false;
 		}
 
-		if (previous == INVALID_HANDLE)
+		// Link the next node.
+		MarkedHandle next = m_Blocks[old_handle].next.load(std::memory_order_relaxed);
+
+		if (next.IsMarked())
 		{
-			if (m_Head.compare_exchange_weak(current, m_Blocks[index].next))
-			{
-				// Successfully removed the block.
-				return true;
-			}
+			DEBUG_PRINT("Next node is marked for removal. Trying again.");
+			continue;
 		}
-		else
+
+		m_Blocks[new_handle].next.store(next, std::memory_order_relaxed);
+		DEBUG_PRINT("Block " << new_handle << " is now linked to block " << next.GetHandle());
+
+		MarkedHandle new_next = new_handle;
+		new_next.Mark();
+
+		// Link the new node and logically remove the old.
+		if (m_Blocks[old_handle].next.compare_exchange_strong(next, new_next))
+			break;
+	}
+
+	DEBUG_PRINT("Logically replaced block " << old_handle << " with " << new_handle);
+
+	// Physically remove the node.
+	Search(m_Blocks[new_handle].descriptor.load().GetOffset());
+
+	DEBUG_PRINT("Physically removed block " << old_handle);
+
+	return true;
+}
+
+bool FreeListAllocator::Remove(BlockHandle handle)
+{
+	DEBUG_PRINT("Removing block " << handle);
+
+	MarkedHandle next = m_Blocks[handle].next.load(std::memory_order_relaxed);
+
+	while (true)
+	{
+		// If the node is already marked, we failed.
+		if (next.IsMarked())
 		{
-			if (m_Blocks[previous].next.compare_exchange_weak(current, m_Blocks[index].next))
-			{
-				// Successfully removed the block.
-				return true;
-			}
+			DEBUG_PRINT("Block " << handle << " is already marked for removal. Failed.");
+			return false;
 		}
-	} while (true);
+
+		MarkedHandle next_marked = next;
+		next_marked.Mark();
+
+		// Logically remove the node.
+		if (m_Blocks[handle].next.compare_exchange_strong(next, next_marked))
+			break;
+
+		DEBUG_PRINT("Failed to logically remove block " << handle << ". Trying again.");
+	}
+
+	DEBUG_PRINT("Logically removed block " << handle);
+
+	// Physically remove the node.
+	Search(m_Blocks[handle].descriptor.load().GetOffset());
+
+	DEBUG_PRINT("Physically removed block " << handle);
+
+	return true;
 }
 
 bool FreeListAllocator::MarkBlockAsFree(BlockHandle handle, bool mark_free)
@@ -560,14 +641,18 @@ bool FreeListAllocator::MarkBlockAsFree(BlockHandle handle, bool mark_free)
 
 void FreeListAllocator::PrintState()
 {
-	BlockHandle current = m_Head;
+	MarkedHandle current = m_Head.load();
 
-	while (current != INVALID_HANDLE)
+	while (current.GetHandle() != INVALID_HANDLE)
 	{
-		Block &block = m_Blocks[current];
+		// Ignore blocks that are marked for removal.
+		if (current.IsMarked())
+			continue;
+
+		Block &block = m_Blocks[current.GetHandle()];
 		BlockDescriptor descriptor = block.descriptor.load();
 
-		std::cout << "Free block " << current << " has (offset, size) = (" << descriptor.GetOffset() << ", " << descriptor.GetSize() << ")." << std::endl;
+		std::cout << "Free block " << current.GetHandle() << " has (offset, size) = (" << descriptor.GetOffset() << ", " << descriptor.GetSize() << ")." << std::endl;
 
 		current = block.next;
 	}
@@ -576,12 +661,16 @@ void FreeListAllocator::PrintState()
 size_t FreeListAllocator::GetNumFreeBlocks() const
 {
 	size_t count = 0;
-	BlockHandle current = m_Head;
+	MarkedHandle current = m_Head.load();
 
-	while (current != INVALID_HANDLE)
+	while (current.GetHandle() != INVALID_HANDLE)
 	{
+		// Ignore blocks that are marked for removal.
+		if (current.IsMarked())
+			continue;
+
 		++count;
-		current = m_Blocks[current].next;
+		current = m_Blocks[current.GetHandle()].next;
 	}
 
 	return count;

@@ -17,7 +17,7 @@ public:
 	using Offset = std::uint32_t;
 	using Size = std::uint32_t;
 
-	static const BlockHandle INVALID_HANDLE = PoolAllocator::INVALID_HANDLE;
+	static const BlockHandle INVALID_HANDLE = PoolAllocator::INVALID_HANDLE >> 1;
 
 	static std::size_t GetSharedStateSize(std::size_t max_num_blocks);
 
@@ -61,10 +61,29 @@ public:
 	// Check that the BlockDescriptor is lock-free atomic.
 	static_assert(std::atomic<BlockDescriptor>::is_always_lock_free);
 
+	class MarkedHandle
+	{
+	public:
+		MarkedHandle();
+		MarkedHandle(BlockHandle handle);
+
+		BlockHandle GetHandle() const;
+		void SetHandle(const BlockHandle &handle);
+
+		bool IsMarked() const;
+		void Mark();
+
+	private:
+		BlockHandle m_HandleAndMark;
+	};
+
+	// Check that the MarkedHandle is lock-free atomic.
+	static_assert(std::atomic<BlockDescriptor>::is_always_lock_free);
+
 	struct Block
 	{
 		std::atomic<BlockDescriptor> descriptor;
-		std::atomic<BlockHandle> next;
+		std::atomic<MarkedHandle> next;
 		std::atomic_size_t ref_count;
 	};
 
@@ -99,12 +118,19 @@ private:
 
 	BlockHandle FindFirstFreeBlock(Size size);
 
-	void InsertBlockSorted(BlockHandle index);
-	bool RemoveBlock(BlockHandle index);
+	void SearchInsertPoint(Offset offset, BlockHandle &left_node_next, BlockHandle &right_node);
+
+	//void InsertBlockSorted(BlockHandle index);
+	//bool RemoveBlock(BlockHandle index);
 
 	bool MarkBlockAsFree(BlockHandle index, bool mark_free);
 
 	bool TryCoalesceBlocks(BlockHandle a, BlockHandle b, bool owner_of_a);
+
+	std::pair<MarkedHandle, MarkedHandle> Search(Offset offset);
+	bool Insert(BlockHandle block);
+	bool Replace(BlockHandle old_block, BlockHandle new_block);
+	bool Remove(BlockHandle block);
 };
 
 #endif // FREE_LIST_ALLOCATOR_H
