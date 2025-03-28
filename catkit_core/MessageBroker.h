@@ -202,6 +202,7 @@ public:
 	void PublishMessage(Message &message, bool is_final = true);
 
 	Message GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr);
+	Message GetNewestMessage(std::string_view topic);
 
 	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
 	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);
@@ -218,6 +219,8 @@ public:
 	ShareableType GetType() const override;
 
 private:
+	Message GetMessage(TopicHeader *topic_header, size_t frame_id);
+
 	std::shared_ptr<FreeListAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
 

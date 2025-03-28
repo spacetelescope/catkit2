@@ -482,7 +482,6 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds, EventWaitMethod wait_method, void (*error_check)())
 {
 	auto topic_header = GetTopicHeader(topic);
-	auto event = GetEvent(topic);
 
 	bool wait = timeout_in_seconds != 0;
 
@@ -494,16 +493,34 @@ Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, doubl
 		if (!wait)
 			throw std::runtime_error("Message is not available yet.");
 
+		auto event = GetEvent(topic);
 		auto lock = EventLockGuard(event);
 		event->Wait(timeout_in_seconds * 1000, [topic_header, frame_id]() { return topic_header->last_frame_id > frame_id; }, wait_method, error_check);
 	}
 
+	return GetMessage(topic_header, frame_id);
+}
+
+Message MessageBroker::GetMessage(TopicHeader* topic_header, size_t frame_id)
+{
 	auto header = &m_MessageHeaders[topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES]];
 	auto offset = header->payload_info.offset_in_buffer;
 	auto memory = GetMemory(header->payload_info.memory_block_id);
 	auto payload = memory->GetAddress(offset);
 
 	return Message(header, payload, true);
+}
+
+Message MessageBroker::GetNewestMessage(std::string_view topic)
+{
+	auto topic_header = GetTopicHeader(topic);
+
+	if (topic_header->last_frame_id == 0)
+		throw std::runtime_error("Message topic does not have any frames when trying to get the newest message.");
+
+	auto frame_id = topic_header->last_frame_id - 1;
+
+	return GetMessage(topic_header, frame_id);
 }
 
 ShareableType MessageBroker::GetType() const

@@ -1041,6 +1041,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			return broker->GetMessage(topic, frame_id, timeout_in_seconds, wait_method, error_check_python);
 		}, py::arg("topic"), py::arg("frame_id"), py::arg("timeout_in_sec") = std::numeric_limits<double>::infinity(), py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
+		.def("get_newest_message", &MessageBroker::GetNewestMessage)
 		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
 		.def("is_message_available", &MessageBroker::IsMessageAvailable)
 		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)
@@ -1101,7 +1102,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 			return handle;
 		})
 		.def("deallocate", &FreeListAllocator::Deallocate)
-		.def("increment_ref_count", &FreeListAllocator::IncrementRefCount);
+		.def("increment_ref_count", &FreeListAllocator::IncrementRefCount)
+		.def("print_state", &FreeListAllocator::PrintState);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
