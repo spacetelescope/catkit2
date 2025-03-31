@@ -4,8 +4,8 @@
 #include <iostream>
 #include <algorithm>
 
-#define DEBUG_PRINT(a) std::cout << a << std::endl
-//#define DEBUG_PRINT(a)
+//#define DEBUG_PRINT(a) std::cout << a << std::endl
+#define DEBUG_PRINT(a)
 
 const std::size_t MAX_ATTEMPTS = 5;
 const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
@@ -177,18 +177,23 @@ FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
 
 			// Check if we reached the end of the list.
 			if (handle.GetHandle() == INVALID_HANDLE)
-				break;
+				return INVALID_HANDLE;
 
 			// Ignore blocks marked for removal.
 			if (handle.IsMarked())
+			{
+				DEBUG_PRINT("Block is marked for removal.");
 				break;
+			}
 
 			Block &block = m_Blocks[handle.GetHandle()];
 			descriptor = block.descriptor.load(std::memory_order_relaxed);
 
 			// Check that the block is free and large enough.
 			if (!descriptor.IsFree() || descriptor.GetSize() < size)
+			{
 				break;
+			}
 
 			DEBUG_PRINT("Found a free block of size " << descriptor.GetSize() << " > " << size << ".");
 
@@ -274,7 +279,8 @@ void FreeListAllocator::Deallocate(BlockHandle handle)
 
 	DEBUG_PRINT("Deallocated block " << handle);
 
-	// TODO: coalesce all blocks.
+	// Coalesce all blocks.
+	CoalesceAll();
 }
 
 void FreeListAllocator::IncrementRefCount(BlockHandle index)
@@ -291,6 +297,105 @@ void FreeListAllocator::IncrementRefCount(BlockHandle index)
 		m_Blocks[index].ref_count.fetch_sub(1, std::memory_order_relaxed);
 		return;
 	};
+}
+
+bool FreeListAllocator::CoalesceAll()
+{
+	DEBUG_PRINT("Coalescing all blocks.");
+
+	MarkedHandle handle = m_Head.load(std::memory_order_relaxed);
+
+	while (handle.GetHandle() != INVALID_HANDLE)
+	{
+		MarkedHandle next = m_Blocks[handle.GetHandle()].next.load(std::memory_order_relaxed);
+
+		// Skip blocks marked for deletion.
+		if (handle.IsMarked())
+		{
+			handle = next;
+			continue;
+		}
+
+		// Try to coalesce the block with the next one.
+		BlockHandle new_handle = Coalesce(handle.GetHandle(), next.GetHandle());
+
+		if (new_handle == INVALID_HANDLE)
+		{
+			// Coalescence failed. Continue on as usual.
+			handle = next;
+		}
+		else
+		{
+			// Coalescence succeeded. Continue with the coalesced block.
+			handle = new_handle;
+		}
+	}
+
+	return true;
+}
+
+FreeListAllocator::BlockHandle FreeListAllocator::Coalesce(BlockHandle a, BlockHandle b)
+{
+	if (a == INVALID_HANDLE || b == INVALID_HANDLE)
+		return INVALID_HANDLE;
+
+	MarkedHandle b_next = m_Blocks[b].next.load(std::memory_order_relaxed);
+
+	// If either block is marked for deletion, we can't coalesce with it.
+	if (b_next.IsMarked())
+		return INVALID_HANDLE;
+
+	// Check if the blocks are adjacent.
+	BlockDescriptor descriptor_a = m_Blocks[a].descriptor.load();
+	BlockDescriptor descriptor_b = m_Blocks[b].descriptor.load();
+
+	if (descriptor_a.GetOffset() + descriptor_a.GetSize() != descriptor_b.GetOffset())
+	{
+		// Blocks are not adjacent.
+		return INVALID_HANDLE;
+	}
+
+	DEBUG_PRINT("Coalescing blocks " << a << " and " << b << ".");
+
+	// Make a combined block descriptor.
+	BlockDescriptor combined = BlockDescriptor(descriptor_a.GetOffset(), descriptor_a.GetSize() + descriptor_b.GetSize(), true);
+
+	// Allocate a new block.
+	BlockHandle new_block = m_BlockAllocator->Allocate();
+	if (new_block == PoolAllocator::INVALID_HANDLE)
+	{
+		DEBUG_PRINT("Failed to allocate new block for coalescence.");
+
+		// Failed to allocate a new block, so we can't coalesce with this one.
+		return INVALID_HANDLE;
+	}
+
+	// Remove block a.
+	if (!Remove(a))
+	{
+		DEBUG_PRINT("Failed to remove block " << a << ".");
+		return INVALID_HANDLE;
+	}
+
+	DEBUG_PRINT("Removed block " << a << ".");
+
+	m_Blocks[new_block].descriptor.store(combined);
+
+	// Replace block b with the new block.
+	if (!Replace(b, new_block))
+	{
+		// Failed to replace block b with the new block, so the coalescence failed.
+		m_BlockAllocator->Deallocate(new_block);
+		Insert(a);
+
+		return INVALID_HANDLE;
+	}
+
+	// Deallocate the blocks that we just replaced.
+	m_BlockAllocator->Deallocate(a);
+	m_BlockAllocator->Deallocate(b);
+
+	return new_block;
 }
 
 // Try to coalesce two blocks, one of which is owned by us.
@@ -551,7 +656,7 @@ bool FreeListAllocator::Replace(BlockHandle old_handle, BlockHandle new_handle)
 
 		if (next.IsMarked())
 		{
-			DEBUG_PRINT("Next node is marked for removal. Trying again.");
+			DEBUG_PRINT("Old node is marked for removal. Trying again.");
 			continue;
 		}
 
@@ -645,11 +750,15 @@ void FreeListAllocator::PrintState()
 
 	while (current.GetHandle() != INVALID_HANDLE)
 	{
+		Block &block = m_Blocks[current.GetHandle()];
+
 		// Ignore blocks that are marked for removal.
 		if (current.IsMarked())
+		{
+			current = block.next;
 			continue;
+		}
 
-		Block &block = m_Blocks[current.GetHandle()];
 		BlockDescriptor descriptor = block.descriptor.load();
 
 		std::cout << "Free block " << current.GetHandle() << " has (offset, size) = (" << descriptor.GetOffset() << ", " << descriptor.GetSize() << ")." << std::endl;
@@ -666,10 +775,9 @@ size_t FreeListAllocator::GetNumFreeBlocks() const
 	while (current.GetHandle() != INVALID_HANDLE)
 	{
 		// Ignore blocks that are marked for removal.
-		if (current.IsMarked())
-			continue;
+		if (!current.IsMarked())
+			++count;
 
-		++count;
 		current = m_Blocks[current.GetHandle()].next;
 	}
 

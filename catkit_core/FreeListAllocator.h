@@ -127,6 +127,9 @@ private:
 
 	bool TryCoalesceBlocks(BlockHandle a, BlockHandle b, bool owner_of_a);
 
+	bool CoalesceAll();
+	BlockHandle Coalesce(BlockHandle a, BlockHandle b);
+
 	std::pair<MarkedHandle, MarkedHandle> Search(Offset offset);
 	bool Insert(BlockHandle block);
 	bool Replace(BlockHandle old_block, BlockHandle new_block);
