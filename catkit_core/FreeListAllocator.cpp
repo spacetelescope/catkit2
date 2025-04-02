@@ -177,7 +177,10 @@ FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
 
 			// Check if we reached the end of the list.
 			if (handle.GetHandle() == INVALID_HANDLE)
-				return INVALID_HANDLE;
+			{
+				DEBUG_PRINT("Reached end of list, restarting.");
+				continue;
+			}
 
 			// Ignore blocks marked for removal.
 			if (handle.IsMarked())
