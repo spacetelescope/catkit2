@@ -30,6 +30,7 @@
 #include "Shareable.h"
 #include "Memory.h"
 #include "Event.h"
+#include "BuddyAllocator.h"
 
 #include "testbed.pb.h"
 
@@ -1104,6 +1105,32 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("deallocate", &FreeListAllocator::Deallocate)
 		.def("increment_ref_count", &FreeListAllocator::IncrementRefCount)
 		.def("print_state", &FreeListAllocator::PrintState);
+
+	py::class_<BuddyAllocator, std::shared_ptr<BuddyAllocator>>(m, "BuddyAllocator")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t depth)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = BuddyAllocator::Create(stream, max_size, depth);
+
+			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = BuddyAllocator::Open(stream);
+
+			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
+		})
+		.def("allocate", [](std::shared_ptr<BuddyAllocator> allocator, std::size_t size)
+		{
+			auto handle = allocator->Allocate(size);
+
+			if (handle == BuddyAllocator::INVALID_HANDLE)
+				throw std::runtime_error("Failed to allocate memory from buddy allocator.");
+
+			return handle;
+		})
+		.def("deallocate", &BuddyAllocator::Deallocate);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
