@@ -17,7 +17,8 @@ enum class ShareableType
 	SharedMemory,
 	HashMap,
 	MessageBroker,
-	RingBuffer
+	RingBuffer,
+	BuddyAllocator
 };
 
 /*

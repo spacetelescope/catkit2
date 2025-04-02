@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+#include <array>
+
+const std::array<std::uint8_t, 4> BUDDY_ALLOCATOR_VERSION = {0, 0, 0, 0};
 
 // Cross-platform implementation of std::bit_width() (in absence of C++20)
 template <typename T>
@@ -75,14 +78,46 @@ constexpr inline bool IsFree(std::uint8_t val)
 	return ~(val & BUSY);
 }
 
-BuddyAllocator::BuddyAllocator(std::size_t max_size, std::size_t depth)
-	: m_MaxSize(max_size), m_Depth(depth), m_Tree(new std::atomic_uint8_t[1 << (depth + 1)])
+BuddyAllocator::BuddyAllocator(std::size_t max_size, std::size_t depth, std::atomic_uint8_t *tree)
+	: m_MaxSize(max_size), m_Depth(depth), m_Tree(tree)
 {
 }
 
-BuddyAllocator::~BuddyAllocator()
+std::unique_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std::size_t max_size, std::size_t depth)
 {
-	delete[] m_Tree;
+	*stream.Extract<std::array<std::uint8_t, 4>>() = BUDDY_ALLOCATOR_VERSION;
+
+	*stream.Extract<std::size_t>() = max_size;
+	*stream.Extract<std::size_t>() = depth;
+	auto tree = stream.Extract<std::atomic_uint8_t>(1 << (depth + 1));
+
+	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(max_size, depth, tree));
+}
+
+std::unique_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
+{
+	CheckVersion(stream, BUDDY_ALLOCATOR_VERSION);
+
+	auto max_size = *stream.Extract<std::size_t>();
+	auto depth = *stream.Extract<std::size_t>();
+
+	auto tree = stream.Extract<std::atomic_uint8_t>(1 << (depth + 1));
+
+	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(max_size, depth, tree));
+}
+
+std::size_t BuddyAllocator::GetSharedStateSize(std::size_t max_size, std::size_t depth)
+{
+	// Version + padding.
+	std::size_t size = sizeof(BUDDY_ALLOCATOR_VERSION) + 4;
+
+	// Max size + depth.
+	size += 2 * sizeof(std::size_t);
+
+	// Tree.
+	size += (1 << (depth + 1)) * sizeof(std::atomic_uint8_t);
+
+	return size;
 }
 
 BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
@@ -223,4 +258,9 @@ inline std::size_t BuddyAllocator::GetLevel(Handle handle) const
 inline std::size_t BuddyAllocator::GetSize(Handle handle) const
 {
 	return m_MaxSize >> GetLevel(handle);
+}
+
+ShareableType BuddyAllocator::GetType() const
+{
+	return ShareableType::BuddyAllocator;
 }

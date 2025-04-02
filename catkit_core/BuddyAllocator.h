@@ -1,39 +1,49 @@
 #ifndef BUDDY_ALLOCATOR_H
 #define BUDDY_ALLOCATOR_H
 
+#include "Shareable.h"
+
 #include <cstdint>
 #include <cstddef>
 #include <limits>
 #include <atomic>
+#include <memory>
 
-class BuddyAllocator
+class BuddyAllocator : public Shareable
 {
 public:
-	BuddyAllocator(std::size_t max_size, std::size_t depth);
-    ~BuddyAllocator();
+	virtual ~BuddyAllocator() = default;
 
-    using Handle = std::size_t;
+	static std::unique_ptr<BuddyAllocator> Create(StructStream &stream, std::size_t max_size, std::size_t depth);
+	static std::unique_ptr<BuddyAllocator> Open(StructStream &stream);
 
-    static constexpr Handle INVALID_HANDLE = 0;
+	ShareableType GetType() const override;
+	static std::size_t GetSharedStateSize(std::size_t max_size, std::size_t depth);
 
-    Handle Allocate(std::size_t size);
-    void Deallocate(Handle handle);
+	using Handle = std::size_t;
 
-    std::size_t GetOffset(Handle handle) const;
+	static constexpr Handle INVALID_HANDLE = 0;
+
+	Handle Allocate(std::size_t size);
+	void Deallocate(Handle handle);
+
+	std::size_t GetOffset(Handle handle) const;
 
 private:
-    Handle TryAllocate(Handle index);
+	BuddyAllocator(std::size_t max_size, std::size_t depth, std::atomic_uint8_t *tree);
 
-    void FreeNode(Handle handle, Handle upper_bound);
-    void Unmark(Handle handle, Handle upper_bound);
+	Handle TryAllocate(Handle index);
 
-    std::size_t GetLevel(Handle n) const;
-    std::size_t GetSize(Handle n) const;
+	void FreeNode(Handle handle, Handle upper_bound);
+	void Unmark(Handle handle, Handle upper_bound);
 
-    std::size_t m_MaxSize;
-    std::size_t m_Depth;
+	std::size_t GetLevel(Handle n) const;
+	std::size_t GetSize(Handle n) const;
 
-    std::atomic_uint8_t *m_Tree;
+	std::size_t m_MaxSize;
+	std::size_t m_Depth;
+
+	std::atomic_uint8_t *m_Tree;
 };
 
 #endif // BUDDY_ALLOCATOR_H

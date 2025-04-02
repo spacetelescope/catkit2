@@ -11,6 +11,7 @@
 #include "HashMap.h"
 #include "MessageBroker.h"
 #include "RingBuffer.h"
+#include "BuddyAllocator.h"
 
 std::unique_ptr<Shareable> Shareable::Open(StructStream &stream)
 {
@@ -36,6 +37,8 @@ std::unique_ptr<Shareable> Shareable::Open(StructStream &stream)
 		return MessageBroker::Open(stream);
 	case ShareableType::RingBuffer:
 		return RingBuffer::Open(stream);
+	case ShareableType::BuddyAllocator:
+		return BuddyAllocator::Open(stream);
 	default:
 		throw std::runtime_error("Unknown shareable type.");
 	}
