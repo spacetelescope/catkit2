@@ -1,3 +1,53 @@
 #include "EventBase.h"
 
 using EventSpinLock = EventImpl<EventImplementationType::SpinLock>;
+
+const std::size_t NUM_ITERATIONS_BETWEEN_CHECKS = 16;
+
+template<>
+struct EventSharedState<EventImplementationType::SpinLock>
+{
+	std::atomic_size_t m_Counter;
+};
+
+template<>
+inline void EventSpinLock::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
+{
+	Timer timer;
+
+	std::size_t current_counter = m_SharedState->m_Counter.load(std::memory_order_relaxed);
+	std::size_t i = 0;
+
+	while (!condition())
+	{
+		while (true)
+		{
+			if (m_SharedState->m_Counter.load(std::memory_order_relaxed) == current_counter)
+				break;
+
+			if (++i == NUM_ITERATIONS_BETWEEN_CHECKS)
+			{
+				// If we've been waiting for a long time, then the lock is probably deadlocked.
+				if (error_check != nullptr)
+					error_check();
+
+				if (timer.GetTime() > timeout_in_sec)
+					return;
+
+				i = 0;
+			}
+		}
+	}
+}
+
+template<>
+inline void EventSpinLock::Signal()
+{
+	m_SharedState->m_Counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+template<>
+inline void EventSpinLock::CreateImpl(std::string_view id, SharedState *shared_state)
+{
+	shared_state->m_Counter.store(0);
+}
