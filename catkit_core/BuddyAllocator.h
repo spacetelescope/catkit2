@@ -30,7 +30,7 @@ public:
 	std::size_t GetOffset(Handle handle) const;
 
 private:
-	BuddyAllocator(std::size_t max_size, std::size_t depth, std::atomic_uint8_t *tree);
+	BuddyAllocator(std::size_t max_size, std::size_t depth, std::atomic_uint8_t *tree, std::atomic_size_t *last_success);
 
 	Handle TryAllocate(Handle index);
 
@@ -44,6 +44,7 @@ private:
 	std::size_t m_Depth;
 
 	std::atomic_uint8_t *m_Tree;
+	std::atomic_size_t *m_LastSuccessfulAllocation;
 };
 
 #endif // BUDDY_ALLOCATOR_H

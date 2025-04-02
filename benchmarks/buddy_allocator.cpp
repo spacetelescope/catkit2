@@ -5,10 +5,8 @@
 void benchmark_linux_scalability()
 {
 	const size_t N = 10000000;
-
-	const size_t NUM_BLOCKS = N * 2;
 	const size_t BLOCK_SIZE = 32;
-	const size_t DEPTH = 20;
+	const size_t DEPTH = 25;
 	const size_t MAX_SIZE = BLOCK_SIZE * (1 << DEPTH);
 
 	auto *handles = new BuddyAllocator::Handle[N];
