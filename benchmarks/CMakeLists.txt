@@ -54,6 +54,11 @@ add_executable(message_broker message_broker.cpp)
 target_include_directories(message_broker PUBLIC ../catkit_core)
 target_link_libraries(message_broker PUBLIC catkit_core)
 
+# BuddyAllocator benchmark
+add_executable(buddy_allocator buddy_allocator.cpp)
+target_include_directories(buddy_allocator PUBLIC ../catkit_core)
+target_link_libraries(buddy_allocator PUBLIC catkit_core)
+
 # Add install files
 install(TARGETS datastream_latency DESTINATION bin)
 install(TARGETS datastream_submit DESTINATION bin)
@@ -64,3 +69,4 @@ install(TARGETS hash_map DESTINATION bin)
 install(TARGETS uuid_generator DESTINATION bin)
 install(TARGETS ring_buffer DESTINATION bin)
 install(TARGETS message_broker DESTINATION bin)
+install(TARGETS buddy_allocator DESTINATION bin)
