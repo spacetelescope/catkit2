@@ -1130,7 +1130,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return handle;
 		})
-		.def("deallocate", &BuddyAllocator::Deallocate);
+		.def("deallocate", &BuddyAllocator::Deallocate)
+		.def("print_state", &BuddyAllocator::PrintState);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

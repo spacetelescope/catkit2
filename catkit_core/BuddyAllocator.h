@@ -14,11 +14,11 @@ class BuddyAllocator : public Shareable
 public:
 	virtual ~BuddyAllocator() = default;
 
-	static std::unique_ptr<BuddyAllocator> Create(StructStream &stream, std::size_t max_size, std::size_t depth);
+	static std::unique_ptr<BuddyAllocator> Create(StructStream &stream, std::size_t max_size, std::size_t min_size);
 	static std::unique_ptr<BuddyAllocator> Open(StructStream &stream);
 
 	ShareableType GetType() const override;
-	static std::size_t GetSharedStateSize(std::size_t max_size, std::size_t depth);
+	static std::size_t GetSharedStateSize(std::size_t max_size, std::size_t min_size);
 
 	using Handle = std::size_t;
 
@@ -29,8 +29,10 @@ public:
 
 	std::size_t GetOffset(Handle handle) const;
 
+	void PrintState() const;
+
 private:
-	BuddyAllocator(std::size_t max_size, std::size_t depth, std::atomic_uint8_t *tree, std::atomic_size_t *last_success);
+	BuddyAllocator(std::size_t max_size, std::size_t min_size, std::atomic_uint8_t *tree, std::atomic_size_t *last_success);
 
 	Handle TryAllocate(Handle index);
 
