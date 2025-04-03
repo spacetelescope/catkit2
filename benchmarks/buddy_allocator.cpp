@@ -6,16 +6,15 @@ void benchmark_linux_scalability()
 {
 	const size_t N = 10000000;
 	const size_t BLOCK_SIZE = 32;
-	const size_t DEPTH = 25;
-	const size_t MAX_SIZE = BLOCK_SIZE * (1 << DEPTH);
+	const size_t MAX_SIZE = BLOCK_SIZE * (1 << 25);
 
 	auto *handles = new BuddyAllocator::Handle[N];
 
-	size_t buffer_size = BuddyAllocator::GetSharedStateSize(MAX_SIZE, DEPTH);
+	size_t buffer_size = BuddyAllocator::GetSharedStateSize(MAX_SIZE, BLOCK_SIZE);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);
-	auto allocator = BuddyAllocator::Create(stream, MAX_SIZE, DEPTH);
+	auto allocator = BuddyAllocator::Create(stream, MAX_SIZE, BLOCK_SIZE);
 
 	auto start = GetTimeStamp();
 
@@ -50,11 +49,11 @@ void benchmark_threadtest()
 
 	auto *handles = new BuddyAllocator::Handle[M];
 
-	size_t buffer_size = BuddyAllocator::GetSharedStateSize(MAX_SIZE, DEPTH);
+	size_t buffer_size = BuddyAllocator::GetSharedStateSize(MAX_SIZE, BLOCK_SIZE);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);
-	auto allocator = BuddyAllocator::Create(stream, MAX_SIZE, DEPTH);
+	auto allocator = BuddyAllocator::Create(stream, MAX_SIZE, BLOCK_SIZE);
 
 	auto start = GetTimeStamp();
 
@@ -87,30 +86,28 @@ void benchmark_larson()
 
 	const size_t N = 10000000;
 	const size_t M = 1000;
-	const size_t MIN_SIZE = 16;
-	const size_t MAX_SIZE = 128;
-	const size_t BLOCK_SIZE = MAX_SIZE;
-	const size_t DEPTH = 24;
+	const size_t MIN_SIZE = 1;
+	const size_t MAX_SIZE = 16;
+	const size_t BLOCK_SIZE = 16;
+	const size_t DEPTH = 20;
 	const size_t SIZE = BLOCK_SIZE * (1 << DEPTH);
 
 	auto *handles = new BuddyAllocator::Handle[M];
 	for (size_t i = 0; i < M; ++i)
-	{
-		handles[i] = -1;
-	}
+		handles[i] = BuddyAllocator::INVALID_HANDLE;
 
-	size_t buffer_size = BuddyAllocator::GetSharedStateSize(SIZE, DEPTH);
+	size_t buffer_size = BuddyAllocator::GetSharedStateSize(SIZE, BLOCK_SIZE);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);
-	auto allocator = BuddyAllocator::Create(stream, SIZE, DEPTH);
+	auto allocator = BuddyAllocator::Create(stream, SIZE, BLOCK_SIZE);
 
 	auto *indices = new size_t[N];
 	auto *sizes = new size_t[N];
 	for (size_t i = 0; i < N; ++i)
 	{
 		indices[i] = rand() % M;
-		sizes[i] = (MIN_SIZE + (rand() % (MAX_SIZE - MIN_SIZE))) * ALIGNMENT;
+		sizes[i] = (MIN_SIZE + (rand() % (MAX_SIZE - MIN_SIZE))) * BLOCK_SIZE;
 	}
 
 	auto start = GetTimeStamp();
@@ -120,7 +117,7 @@ void benchmark_larson()
 		size_t index = indices[i];
 		size_t size = sizes[i];
 
-		if (handles[index] != -1)
+		if (handles[index] != BuddyAllocator::INVALID_HANDLE)
 		{
 			allocator->Deallocate(handles[index]);
 		}
