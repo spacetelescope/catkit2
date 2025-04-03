@@ -132,7 +132,7 @@ std::unique_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std
 
 	for (std::size_t i = 0; i < depth + 1; ++i)
 	{
-		last_success[i].store(1 << (depth - 1));
+		last_success[i].store((1 << (depth - 1)) - 1);
 	}
 
 	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(max_size, min_size, tree, last_success));
@@ -198,7 +198,7 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 	Handle i;
 	std::size_t k = 0;
 
-	std::size_t start = m_LastSuccessfulAllocation[level].load(std::memory_order_relaxed) - begin;
+	std::size_t start = m_LastSuccessfulAllocation[level].load(std::memory_order_relaxed) - begin + 1;
 	DEBUG_PRINT("Starting search at " << start);
 
 	while (k < (end - begin))
