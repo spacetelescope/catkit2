@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <array>
 #include <iostream>
+#include <stdexcept>
 
 template <typename UnsignedType>
 constexpr UnsignedType round_up_to_power_of_2(UnsignedType v)

@@ -1,5 +1,8 @@
 #include "EventBase.h"
 
+#include <atomic>
+#include <cstddef>
+
 using EventSpinLock = EventImpl<EventImplementationType::SpinLock>;
 
 const std::size_t NUM_ITERATIONS_BETWEEN_CHECKS = 16;

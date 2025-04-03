@@ -1,6 +1,7 @@
 #include "PoolAllocator.h"
 
 #include <algorithm>
+#include <stdexcept>
 
 const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
 
