@@ -15,6 +15,12 @@ ProtoClass Deserialize(const std::string &data);
 
 void Sleep(double sleep_time_in_sec, std::function<bool()> cancellation_callback = nullptr);
 
+template <typename UnsignedType>
+constexpr UnsignedType round_up_to_power_of_2(UnsignedType v);
+
+template <typename UnsignedType>
+constexpr UnsignedType round_down_to_power_of_2(UnsignedType v);
+
 #include "Util.inl"
 
 #endif // UTIL_H
