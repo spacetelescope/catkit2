@@ -6,6 +6,21 @@
 #include <array>
 #include <iostream>
 
+template <typename UnsignedType>
+constexpr UnsignedType round_up_to_power_of_2(UnsignedType v)
+{
+	static_assert(std::is_unsigned_v<UnsignedType>);
+
+	v--;
+
+	for (std::size_t i = 1; i < sizeof(v) * 8; i *= 2)
+	{
+		v |= v >> i;
+	}
+
+	return ++v;
+}
+
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
 
@@ -83,7 +98,7 @@ constexpr inline bool IsFree(std::uint8_t val)
 }
 
 BuddyAllocator::BuddyAllocator(std::size_t max_size, std::size_t min_size, std::atomic_uint8_t *tree, std::atomic_size_t *last_success)
-	: m_MaxSize(max_size), m_Depth(bit_width(max_size / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
+	: m_MaxSize(max_size), m_MinSize(min_size), m_Depth(bit_width(max_size / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
 {
 	// Check that min_size and max_size are powers of two.
 	if ((min_size & (min_size - 1)) != 0)
@@ -163,16 +178,19 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 	if (size > m_MaxSize || size == 0)
 		return INVALID_HANDLE;
 
-	std::size_t level = bit_width(m_MaxSize / size) - 1;
-	if (level > m_Depth)
+	size = round_up_to_power_of_2(size);
+
+	if (size < m_MinSize)
 	{
-		level = m_Depth;
+		size = m_MinSize;
 	}
 
 	DEBUG_PRINT("Level " << level << ".");
 
-	Handle begin = 1 << (level - 1);
-	Handle end = 1 << level;
+	Handle begin = m_MaxSize / size;
+	Handle end = begin << 1;
+
+	auto level = GetLevel(begin);
 
 	DEBUG_PRINT("Range: " << begin << " to " << end << ".");
 
@@ -200,7 +218,7 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 			}
 			else
 			{
-				auto d = GetLevel(i) - GetLevel(failed_at);
+				auto d = level - GetLevel(failed_at);
 				k += ((failed_at + 1) << d) - i;
 
 				DEBUG_PRINT("Failed at " << failed_at);
@@ -242,11 +260,13 @@ BuddyAllocator::Handle BuddyAllocator::TryAllocate(Handle n)
 	DEBUG_PRINT("Setting node " << n << " and all ancestors to busy.");
 
 	auto current = n;
+	auto level = GetLevel(current);
 
-	while (GetLevel(current) > 0)
+	while (level > 0)
 	{
 		auto child = current;
 		current = current >> 1;
+		level--;
 
 		std::uint8_t curr_val = m_Tree[current].load(std::memory_order_relaxed);
 		std::uint8_t new_val;
@@ -257,7 +277,7 @@ BuddyAllocator::Handle BuddyAllocator::TryAllocate(Handle n)
 			{
 				DEBUG_PRINT("Failed on node " << current << ". Rewinding.");
 
-				FreeNode(n, GetLevel(child));
+				FreeNode(n, level + 1);
 				return current;
 			}
 
@@ -272,11 +292,12 @@ void BuddyAllocator::FreeNode(Handle n, std::size_t upper_bound)
 {
 	Handle current = n >> 1;
 	Handle runner = n;
+	auto level = GetLevel(runner);
 
 	DEBUG_PRINT("Marking all ancestors of " << n << " at level " << GetLevel(n) << ".");
 
 	// Phase 1: mark all ancestors of the node as coalescing.
-	while (GetLevel(runner) > upper_bound)
+	while (level > upper_bound)
 	{
 		auto coal_bit = COAL_LEFT >> (runner & 1);
 		auto old_val = m_Tree[current].fetch_or(coal_bit, std::memory_order_relaxed);
@@ -288,6 +309,7 @@ void BuddyAllocator::FreeNode(Handle n, std::size_t upper_bound)
 
 		runner = current;
 		current = current >> 1;
+		level--;
 	}
 
 	DEBUG_PRINT("Mark node " << n << " as free");
@@ -306,6 +328,7 @@ void BuddyAllocator::Unmark(Handle n, std::size_t upper_bound)
 {
 	Handle current = n;
 	Handle child;
+	auto level = GetLevel(n);
 
 	std::uint8_t curr_val;
 	std::uint8_t new_val;
@@ -314,6 +337,7 @@ void BuddyAllocator::Unmark(Handle n, std::size_t upper_bound)
 	{
 		child = current;
 		current = current >> 1;
+		level--;
 
 		curr_val = m_Tree[current].load(std::memory_order_relaxed);
 
@@ -331,7 +355,7 @@ void BuddyAllocator::Unmark(Handle n, std::size_t upper_bound)
 			DEBUG_PRINT("Unmarked node " << current << " as coalescing.");
 		} while (!m_Tree[current].compare_exchange_weak(curr_val, new_val, std::memory_order_relaxed));
 
-	} while (GetLevel(current) > upper_bound && !IsOccBuddy(new_val, child));
+	} while (level > upper_bound && !IsOccBuddy(new_val, child));
 }
 
 inline std::size_t BuddyAllocator::GetLevel(Handle handle) const

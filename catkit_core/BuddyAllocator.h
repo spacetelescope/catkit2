@@ -43,6 +43,7 @@ private:
 	std::size_t GetSize(Handle n) const;
 
 	std::size_t m_MaxSize;
+	std::size_t m_MinSize;
 	std::size_t m_Depth;
 
 	std::atomic_uint8_t *m_Tree;
