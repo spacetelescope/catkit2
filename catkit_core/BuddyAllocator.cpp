@@ -11,7 +11,7 @@
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
 
-const std::array<std::uint8_t, 4> BUDDY_ALLOCATOR_VERSION = {0, 0, 0, 0};
+const std::array<std::uint16_t, 4> BUDDY_ALLOCATOR_VERSION = {0, 0, 0, 0};
 
 // Cross-platform implementation of std::bit_width() (in absence of C++20)
 template <typename T>
@@ -42,49 +42,52 @@ constexpr int bit_width(T x)
 #endif
 }
 
-const std::uint8_t OCC_RIGHT = 0x1;
-const std::uint8_t OCC_LEFT = 0x2;
-const std::uint8_t COAL_RIGHT = 0x4;
-const std::uint8_t COAL_LEFT = 0x8;
-const std::uint8_t OCC = 0x10;
-const std::uint8_t BUSY = (OCC | OCC_LEFT | OCC_RIGHT);
+const std::uint16_t REF_ZERO = 1u << 15;
+const std::uint16_t OCC = 1u << 14;
+const std::uint16_t OCC_LEFT = 1u << 13;
+const std::uint16_t OCC_RIGHT = 1u << 12;
+const std::uint16_t COAL_LEFT = 1u << 11;
+const std::uint16_t COAL_RIGHT = 1u << 10;
 
-constexpr inline std::uint8_t CleanCoal(std::uint8_t val, std::size_t child)
+const std::uint16_t BUSY = (OCC | OCC_LEFT | OCC_RIGHT);
+const std::uint16_t REF_MASK = ~(OCC | OCC_LEFT | OCC_RIGHT | COAL_LEFT | COAL_RIGHT);
+
+constexpr inline std::uint16_t CleanCoal(std::uint16_t val, std::size_t child)
 {
 	return val & ~(COAL_LEFT >> (child & 1));
 }
 
-constexpr inline std::uint8_t Mark(std::uint8_t val, std::size_t child)
+constexpr inline std::uint16_t Mark(std::uint16_t val, std::size_t child)
 {
 	return val | (OCC_LEFT >> (child & 1));
 }
 
-constexpr inline std::uint8_t Unmark(std::uint8_t val, std::size_t child)
+constexpr inline std::uint16_t Unmark(std::uint16_t val, std::size_t child)
 {
 	return val & ~((OCC_LEFT | COAL_LEFT) >> (child & 1));
 }
 
-constexpr inline bool IsCoal(std::uint8_t val, std::size_t child)
+constexpr inline bool IsCoal(std::uint16_t val, std::size_t child)
 {
 	return val & (COAL_LEFT >> (child & 1));
 }
 
-constexpr inline bool IsOccBuddy(std::uint8_t val, std::size_t child)
+constexpr inline bool IsOccBuddy(std::uint16_t val, std::size_t child)
 {
 	return val & (OCC_RIGHT << (child & 1));
 }
 
-constexpr inline bool IsCoalBuddy(std::uint8_t val, std::size_t child)
+constexpr inline bool IsCoalBuddy(std::uint16_t val, std::size_t child)
 {
 	return val & (COAL_RIGHT << (child & 1));
 }
 
-constexpr inline bool IsFree(std::uint8_t val)
+constexpr inline bool IsFree(std::uint16_t val)
 {
 	return ~(val & BUSY);
 }
 
-BuddyAllocator::BuddyAllocator(std::size_t max_size, std::size_t min_size, std::atomic_uint8_t *tree, std::atomic_size_t *last_success)
+BuddyAllocator::BuddyAllocator(std::size_t max_size, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success)
 	: m_MaxSize(max_size), m_MinSize(min_size), m_Depth(bit_width(max_size / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
 {
 	// Check that min_size and max_size are powers of two.
@@ -101,14 +104,14 @@ BuddyAllocator::BuddyAllocator(std::size_t max_size, std::size_t min_size, std::
 
 std::unique_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std::size_t max_size, std::size_t min_size)
 {
-	*stream.Extract<std::array<std::uint8_t, 4>>() = BUDDY_ALLOCATOR_VERSION;
+	*stream.Extract<std::array<std::uint16_t, 4>>() = BUDDY_ALLOCATOR_VERSION;
 
 	*stream.Extract<std::size_t>() = max_size;
 	*stream.Extract<std::size_t>() = min_size;
 
 	auto depth = bit_width(max_size / min_size) - 1;
 
-	auto tree = stream.Extract<std::atomic_uint8_t>(1 << (depth + 1));
+	auto tree = stream.Extract<std::atomic_uint16_t>(1 << (depth + 1));
 	auto last_success = stream.Extract<std::atomic_size_t>(depth + 1);
 
 	for (std::size_t i = 0; i < (1 << (depth + 1)); ++i)
@@ -133,7 +136,7 @@ std::unique_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
 
 	auto depth = bit_width(max_size / min_size);
 
-	auto tree = stream.Extract<std::atomic_uint8_t>(1 << (depth + 1));
+	auto tree = stream.Extract<std::atomic_uint16_t>(1 << (depth + 1));
 	auto last_success = stream.Extract<std::atomic_size_t>(depth);
 
 	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(max_size, min_size, tree, last_success));
@@ -150,7 +153,7 @@ std::size_t BuddyAllocator::GetSharedStateSize(std::size_t max_size, std::size_t
 	auto depth = bit_width(max_size / min_size);
 
 	// Tree.
-	size += (1 << (depth + 1)) * sizeof(std::atomic_uint8_t);
+	size += (1 << (depth + 1)) * sizeof(std::atomic_uint16_t);
 
 	// Last success.
 	size += depth * sizeof(std::atomic_size_t);
@@ -218,13 +221,49 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 	return INVALID_HANDLE;
 }
 
-void BuddyAllocator::Deallocate(Handle handle)
+bool BuddyAllocator::IncrementRefCount(Handle handle)
+{
+	// Increment the reference counter, but check for zero reference bit.
+	return (m_Tree[handle].fetch_add(1, std::memory_order_relaxed) & REF_ZERO) == 0;
+}
+
+bool BuddyAllocator::Deallocate(Handle handle)
 {
 	DEBUG_PRINT("Deallocating handle " << handle);
+
+	// Decrement the ref counter.
+	auto old_val = m_Tree[handle].fetch_sub(1, std::memory_order_relaxed);
+
+	if ((old_val & REF_MASK) == 1)
+	{
+		// The counter should now be zero. Let's try to set the REF_ZERO bit to indicate this.
+		std::uint16_t expected = old_val - 1;
+
+		do
+		{
+			std::uint16_t new_val = expected | REF_ZERO;
+
+			bool success = m_Tree[handle].compare_exchange_weak(expected, new_val, std::memory_order_relaxed);
+
+			// If the replace was successful, we were the one setting the ref count to zero.
+			// So let's free the node.
+			if (success)
+				break;
+
+			// If we were unsuccesful, let's look if someone increased the ref count.
+			// Incrementing linearizes before decrement, so the counter wasn't "actually" zero.
+			// So we shouldn't free the node.
+			// If someone modified the other bits, we should try again to set REF_ZERO.
+			if (expected & REF_MASK)
+				return false;
+		} while (true);
+	}
 
 	FreeNode(handle, 0);
 
 	//m_LastSuccessfulAllocation[GetLevel(handle)].store(handle, std::memory_order_relaxed);
+
+	return true;
 }
 
 std::size_t BuddyAllocator::GetOffset(Handle handle) const
@@ -236,9 +275,10 @@ BuddyAllocator::Handle BuddyAllocator::TryAllocate(Handle n)
 {
 	DEBUG_PRINT("Trying to allocate node " << n);
 
-	std::uint8_t expected = 0;
+	std::uint16_t expected = 0;
 
-	if (!m_Tree[n].compare_exchange_strong(expected, BUSY, std::memory_order_relaxed))
+	// Try to own the node, and set the ref_count to one.
+	if (!m_Tree[n].compare_exchange_strong(expected, BUSY + 1, std::memory_order_relaxed))
 	{
 		DEBUG_PRINT("Failed to allocate node " << n);
 		return n;
@@ -255,8 +295,8 @@ BuddyAllocator::Handle BuddyAllocator::TryAllocate(Handle n)
 		current = current >> 1;
 		level--;
 
-		std::uint8_t curr_val = m_Tree[current].load(std::memory_order_relaxed);
-		std::uint8_t new_val;
+		std::uint16_t curr_val = m_Tree[current].load(std::memory_order_relaxed);
+		std::uint16_t new_val;
 
 		do
 		{
@@ -317,8 +357,8 @@ void BuddyAllocator::Unmark(Handle n, std::size_t upper_bound)
 	Handle child;
 	auto level = GetLevel(n);
 
-	std::uint8_t curr_val;
-	std::uint8_t new_val;
+	std::uint16_t curr_val;
+	std::uint16_t new_val;
 
 	do
 	{

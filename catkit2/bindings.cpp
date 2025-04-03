@@ -31,6 +31,8 @@
 #include "Memory.h"
 #include "Event.h"
 #include "BuddyAllocator.h"
+#include "PoolAllocator.h"
+#include "FreeListAllocator.h"
 
 #include "testbed.pb.h"
 
@@ -1130,6 +1132,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return handle;
 		})
+		.def("increment_ref_count", &BuddyAllocator::IncrementRefCount)
 		.def("deallocate", &BuddyAllocator::Deallocate)
 		.def("print_state", &BuddyAllocator::PrintState);
 

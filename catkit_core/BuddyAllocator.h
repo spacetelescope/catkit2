@@ -25,14 +25,15 @@ public:
 	static constexpr Handle INVALID_HANDLE = 0;
 
 	Handle Allocate(std::size_t size);
-	void Deallocate(Handle handle);
+	bool IncrementRefCount(Handle handle);
+	bool Deallocate(Handle handle);
 
 	std::size_t GetOffset(Handle handle) const;
 
 	void PrintState() const;
 
 private:
-	BuddyAllocator(std::size_t max_size, std::size_t min_size, std::atomic_uint8_t *tree, std::atomic_size_t *last_success);
+	BuddyAllocator(std::size_t max_size, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success);
 
 	Handle TryAllocate(Handle index);
 
@@ -46,7 +47,7 @@ private:
 	std::size_t m_MinSize;
 	std::size_t m_Depth;
 
-	std::atomic_uint8_t *m_Tree;
+	std::atomic_uint16_t *m_Tree;
 	std::atomic_size_t *m_LastSuccessfulAllocation;
 };
 
