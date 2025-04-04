@@ -41,3 +41,31 @@ constexpr UnsignedType round_down_to_power_of_2(UnsignedType v)
 
     return v - (v >> 1);
 }
+
+template <typename T>
+constexpr int bit_width(T x)
+{
+	static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>, "bit_width requires an unsigned integral type");
+
+	if (x == 0)
+		return 0;
+
+#if defined(__GNUC__) || defined(__clang__)
+	return std::numeric_limits<unsigned int>::digits - __builtin_clz((unsigned int) x);
+#elif defined(_MSC_VER)
+	unsigned long index;
+	_BitScanReverse(&index, x);
+	return index + 1;
+#else
+	// Portable fallback
+	int width = 0;
+
+	while (x)
+	{
+		x >>= 1;
+		++width;
+	}
+
+	return width;
+#endif
+}
