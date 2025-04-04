@@ -134,10 +134,10 @@ std::unique_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
 	auto max_size = *stream.Extract<std::size_t>();
 	auto min_size = *stream.Extract<std::size_t>();
 
-	auto depth = bit_width(max_size / min_size);
+	auto depth = bit_width(max_size / min_size) - 1;
 
 	auto tree = stream.Extract<std::atomic_uint16_t>(1 << (depth + 1));
-	auto last_success = stream.Extract<std::atomic_size_t>(depth);
+	auto last_success = stream.Extract<std::atomic_size_t>(depth + 1);
 
 	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(max_size, min_size, tree, last_success));
 }
@@ -175,13 +175,13 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 		size = m_MinSize;
 	}
 
-	DEBUG_PRINT("Level " << level << ".");
 
 	Handle begin = m_MaxSize / size;
 	Handle end = begin << 1;
 
 	auto level = GetLevel(begin);
 
+	DEBUG_PRINT("Level " << level << ".");
 	DEBUG_PRINT("Range: " << begin << " to " << end << ".");
 
 	Handle i;
@@ -268,7 +268,7 @@ bool BuddyAllocator::Deallocate(Handle handle)
 
 std::size_t BuddyAllocator::GetOffset(Handle handle) const
 {
-	return (handle - (1 >> GetLevel(handle))) * GetSize(handle);
+	return (handle - (1 << GetLevel(handle))) * GetSize(handle);
 }
 
 BuddyAllocator::Handle BuddyAllocator::TryAllocate(Handle n)
