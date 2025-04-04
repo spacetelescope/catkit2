@@ -37,8 +37,8 @@ private:
 
 	Handle TryAllocate(Handle index);
 
-	void FreeNode(Handle handle, Handle upper_bound);
-	void Unmark(Handle handle, Handle upper_bound);
+	void FreeNode(Handle handle, std::size_t upper_bound);
+	void Unmark(Handle handle, std::size_t upper_bound);
 
 	std::size_t GetLevel(Handle n) const;
 	std::size_t GetSize(Handle n) const;
