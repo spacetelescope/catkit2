@@ -36,7 +36,7 @@ constexpr UnsignedType round_down_to_power_of_2(UnsignedType v)
 {
 	static_assert(std::is_unsigned_v<UnsignedType>);
 
-    for (size_t i = 1; i < sizeof(v) * 8; ++i)
+    for (size_t i = 1; i < sizeof(v) * 8; i *= 2)
         v |= v >> i;
 
     return v - (v >> 1);
