@@ -42,12 +42,12 @@ constexpr int bit_width(T x)
 #endif
 }
 
-const std::uint16_t REF_ZERO = 1u << 15;
-const std::uint16_t OCC = 1u << 14;
-const std::uint16_t OCC_LEFT = 1u << 13;
-const std::uint16_t OCC_RIGHT = 1u << 12;
-const std::uint16_t COAL_LEFT = 1u << 11;
-const std::uint16_t COAL_RIGHT = 1u << 10;
+const std::uint16_t REF_ZERO = 1ull << 15;
+const std::uint16_t OCC = 1ull << 14;
+const std::uint16_t OCC_LEFT = 1ull << 13;
+const std::uint16_t OCC_RIGHT = 1ull << 12;
+const std::uint16_t COAL_LEFT = 1ull << 11;
+const std::uint16_t COAL_RIGHT = 1ull << 10;
 
 const std::uint16_t BUSY = (OCC | OCC_LEFT | OCC_RIGHT);
 const std::uint16_t REF_MASK = ~(OCC | OCC_LEFT | OCC_RIGHT | COAL_LEFT | COAL_RIGHT);
@@ -87,29 +87,29 @@ constexpr inline bool IsFree(std::uint16_t val)
 	return ~(val & BUSY);
 }
 
-BuddyAllocator::BuddyAllocator(std::size_t max_size, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success)
-	: m_MaxSize(max_size), m_MinSize(min_size), m_Depth(bit_width(max_size / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
+BuddyAllocator::BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success)
+	: m_Capacity(capacity), m_MinSize(min_size), m_Depth(bit_width(capacity / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
 {
-	// Check that min_size and max_size are powers of two.
+	// Check that min_size and capacity are powers of two.
 	if ((min_size & (min_size - 1)) != 0)
 		throw std::runtime_error("Min size must be a power of two.");
 
-	if ((max_size & (max_size - 1)) != 0)
+	if ((capacity & (capacity - 1)) != 0)
 		throw std::runtime_error("Max size must be a power of two.");
 
-	// Check that max_size is greater than or equal to min_size.
-	if (max_size < min_size)
+	// Check that capacity is greater than or equal to min_size.
+	if (capacity < min_size)
 		throw std::runtime_error("Max size must be greater than or equal to min size.");
 }
 
-std::unique_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std::size_t max_size, std::size_t min_size)
+std::unique_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std::size_t capacity, std::size_t min_size)
 {
 	*stream.Extract<std::array<std::uint16_t, 4>>() = BUDDY_ALLOCATOR_VERSION;
 
-	*stream.Extract<std::size_t>() = max_size;
+	*stream.Extract<std::size_t>() = capacity;
 	*stream.Extract<std::size_t>() = min_size;
 
-	auto depth = bit_width(max_size / min_size) - 1;
+	auto depth = bit_width(capacity / min_size) - 1;
 
 	auto tree = stream.Extract<std::atomic_uint16_t>(1 << (depth + 1));
 	auto last_success = stream.Extract<std::atomic_size_t>(depth + 1);
@@ -124,25 +124,25 @@ std::unique_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std
 		last_success[i].store((1 << (depth - 1)) - 1);
 	}
 
-	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(max_size, min_size, tree, last_success));
+	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
 }
 
 std::unique_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
 {
 	CheckVersion(stream, BUDDY_ALLOCATOR_VERSION);
 
-	auto max_size = *stream.Extract<std::size_t>();
+	auto capacity = *stream.Extract<std::size_t>();
 	auto min_size = *stream.Extract<std::size_t>();
 
-	auto depth = bit_width(max_size / min_size) - 1;
+	auto depth = bit_width(capacity / min_size) - 1;
 
 	auto tree = stream.Extract<std::atomic_uint16_t>(1 << (depth + 1));
 	auto last_success = stream.Extract<std::atomic_size_t>(depth + 1);
 
-	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(max_size, min_size, tree, last_success));
+	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
 }
 
-std::size_t BuddyAllocator::GetSharedStateSize(std::size_t max_size, std::size_t min_size)
+std::size_t BuddyAllocator::GetSharedStateSize(std::size_t capacity, std::size_t min_size)
 {
 	// Version + padding.
 	std::size_t size = sizeof(BUDDY_ALLOCATOR_VERSION) + 4;
@@ -150,7 +150,7 @@ std::size_t BuddyAllocator::GetSharedStateSize(std::size_t max_size, std::size_t
 	// Max size + depth.
 	size += 2 * sizeof(std::size_t);
 
-	auto depth = bit_width(max_size / min_size);
+	auto depth = bit_width(capacity / min_size);
 
 	// Tree.
 	size += (1 << (depth + 1)) * sizeof(std::atomic_uint16_t);
@@ -165,7 +165,7 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 {
 	DEBUG_PRINT("Allocating " << size << " bytes.");
 
-	if (size > m_MaxSize || size == 0)
+	if (size > m_Capacity || size == 0)
 		return INVALID_HANDLE;
 
 	size = round_up_to_power_of_2(size);
@@ -176,7 +176,7 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 	}
 
 
-	Handle begin = m_MaxSize / size;
+	Handle begin = m_Capacity / size;
 	Handle end = begin << 1;
 
 	auto level = GetLevel(begin);
@@ -392,7 +392,7 @@ inline std::size_t BuddyAllocator::GetLevel(Handle handle) const
 
 inline std::size_t BuddyAllocator::GetSize(Handle handle) const
 {
-	return m_MaxSize >> GetLevel(handle);
+	return m_Capacity >> GetLevel(handle);
 }
 
 ShareableType BuddyAllocator::GetType() const

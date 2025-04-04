@@ -33,7 +33,7 @@ public:
 	void PrintState() const;
 
 private:
-	BuddyAllocator(std::size_t max_size, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success);
+	BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success);
 
 	Handle TryAllocate(Handle index);
 
@@ -43,7 +43,7 @@ private:
 	std::size_t GetLevel(Handle n) const;
 	std::size_t GetSize(Handle n) const;
 
-	std::size_t m_MaxSize;
+	std::size_t m_Capacity;
 	std::size_t m_MinSize;
 	std::size_t m_Depth;
 
