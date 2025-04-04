@@ -133,7 +133,7 @@ MessageBroker::MessageBroker(
 	std::unique_ptr<HashMap> topic_headers,
 	std::unique_ptr<PoolAllocator> message_header_allocator,
 	std::unique_ptr<RingBuffer> event_allocator,
-	std::vector<std::shared_ptr<FreeListAllocator>> allocators,
+	std::vector<std::shared_ptr<BuddyAllocator>> allocators,
 	std::vector<std::shared_ptr<Memory>> memory_blocks
 )
 	: m_Header(header),
@@ -173,12 +173,14 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 	DEBUG_PRINT("Extracting allocators.");
 
-	std::vector<std::shared_ptr<FreeListAllocator>> allocators;
+	std::vector<std::shared_ptr<BuddyAllocator>> allocators;
 
 	for (auto memory_block : memory_blocks)
 	{
 		auto capacity = memory_block->GetCapacity();
-		std::shared_ptr<FreeListAllocator> allocator = FreeListAllocator::Create(stream, MAX_NUM_BLOCKS, MEMORY_ALIGNMENT, capacity);
+		capacity = round_down_to_power_of_2(capacity);
+
+		std::shared_ptr<BuddyAllocator> allocator = BuddyAllocator::Create(stream, capacity, MEMORY_ALIGNMENT);
 
 		allocators.push_back(std::move(allocator));
 
@@ -208,12 +210,12 @@ std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 	auto message_header_allocator = PoolAllocator::Open(stream);
 	auto event_allocator = RingBuffer::Open(stream);
 
-	std::vector<std::shared_ptr<FreeListAllocator>> allocators;
+	std::vector<std::shared_ptr<BuddyAllocator>> allocators;
 	std::vector<std::shared_ptr<Memory>> memory_blocks;
 
 	for (std::size_t i = 0; i < header->num_memory_blocks; ++i)
 	{
-		auto allocator = FreeListAllocator::Open(stream);
+		auto allocator = BuddyAllocator::Open(stream);
 		allocators.push_back(std::move(allocator));
 
 		ShareableType type = *stream.Extract<ShareableType>();
@@ -271,7 +273,7 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 
 	auto block_handle = allocator->Allocate(payload_size);
 
-	if (block_handle == FreeListAllocator::INVALID_HANDLE)
+	if (block_handle == BuddyAllocator::INVALID_HANDLE)
 	{
 		throw std::runtime_error("Could not allocate payload.");
 	}
@@ -528,7 +530,7 @@ ShareableType MessageBroker::GetType() const
 	return ShareableType::MessageBroker;
 }
 
-std::shared_ptr<FreeListAllocator> MessageBroker::GetAllocator(uint8_t memory_block_id)
+std::shared_ptr<BuddyAllocator> MessageBroker::GetAllocator(uint8_t memory_block_id)
 {
 	if (memory_block_id >= m_Allocators.size())
 	{

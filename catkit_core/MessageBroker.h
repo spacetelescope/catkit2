@@ -3,7 +3,7 @@
 
 #include "HashMap.h"
 #include "Event.h"
-#include "FreeListAllocator.h"
+#include "BuddyAllocator.h"
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
 #include "LocalMemory.h"
@@ -71,7 +71,7 @@ struct ArrayInfo
 struct PayloadInfo
 {
 	std::uint8_t memory_block_id;
-	FreeListAllocator::BlockHandle block_handle;
+	BuddyAllocator::Handle block_handle;
 	std::uint64_t offset_in_buffer;
 	std::uint64_t total_size;
 
@@ -186,7 +186,7 @@ private:
 		std::unique_ptr<HashMap> topic_headers,
 		std::unique_ptr<PoolAllocator> message_header_allocator,
 		std::unique_ptr<RingBuffer> event_allocator,
-		std::vector<std::shared_ptr<FreeListAllocator>> allocators,
+		std::vector<std::shared_ptr<BuddyAllocator>> allocators,
 		std::vector<std::shared_ptr<Memory>> memory_blocks
 	);
 
@@ -221,7 +221,7 @@ public:
 private:
 	Message GetMessage(TopicHeader *topic_header, size_t frame_id);
 
-	std::shared_ptr<FreeListAllocator> GetAllocator(uint8_t memory_block_id);
+	std::shared_ptr<BuddyAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
 
 	std::shared_ptr<Event> GetEvent(std::string_view topic);
@@ -238,7 +238,7 @@ private:
 	std::unique_ptr<PoolAllocator> m_MessageHeaderAllocator;
 	MessageHeader *m_MessageHeaders;
 
-	std::vector<std::shared_ptr<FreeListAllocator>> m_Allocators;
+	std::vector<std::shared_ptr<BuddyAllocator>> m_Allocators;
 	std::vector<std::shared_ptr<Memory>> m_MemoryBlocks;
 
 	UuidGenerator m_UuidGenerator;
