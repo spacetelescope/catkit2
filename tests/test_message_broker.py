@@ -29,5 +29,3 @@ def test_message_broker():
 
     end = get_timestamp()
     print(f"Time taken: {(end - start) / N} ns")
-
-test_message_broker()
