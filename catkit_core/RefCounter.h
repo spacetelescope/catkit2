@@ -1,19 +1,24 @@
 #ifndef REF_COUNTER_H
 #define REF_COUNTER_H
 
-#include <cstdint>
 #include <atomic>
+#include <type_traits>
 
 // A wait-free reference counter.
 //
 // This implementation is based on Daniel Anderson's CppCon 2024 talk.
+template<typename T>
 class RefCounter
 {
+	static_assert(std::is_integral_v<T>, "RefCounter can only be used with integral types.");
+	static_assert(std::is_unsigned_v<T>, "RefCounter can only be used with unsigned types.");
+	static_assert(std::atomic<T>::is_always_lock_free, "RefCounter requires atomic operations to be lock-free.");
+
 private:
 	// MSB of the counter indicates whether it's zero or not.
-	static constexpr std::uint64_t is_zero = 1ull << 63;
+	static constexpr T is_zero = T(1) << (8 * sizeof(T) - 1);
 
-	std::atomic<std::uint64_t> m_Counter;
+	std::atomic<T> m_Counter;
 
 public:
 	inline RefCounter() : m_Counter(1)
