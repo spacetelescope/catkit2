@@ -31,6 +31,7 @@ private:
 	std::size_t m_ValueSize;
 	std::size_t m_EntrySize;
 
+	std::uint32_t GetHash(std::string_view key) const;
 	std::size_t GetIndex(std::string_view key) const;
 
 	std::string_view GetKey(std::size_t entry) const;
