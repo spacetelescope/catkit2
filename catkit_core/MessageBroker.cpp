@@ -132,14 +132,14 @@ MessageBroker::MessageBroker(
 	MessageBrokerHeader *header,
 	std::unique_ptr<HashMap> topic_headers,
 	std::unique_ptr<PoolAllocator> message_header_allocator,
-	std::unique_ptr<RingBuffer> event_allocator,
+	std::unique_ptr<Event> event,
 	std::vector<std::shared_ptr<BuddyAllocator>> allocators,
 	std::vector<std::shared_ptr<Memory>> memory_blocks
 )
 	: m_Header(header),
 	m_TopicHeaders(std::move(topic_headers)),
 	m_MessageHeaderAllocator(std::move(message_header_allocator)),
-	m_EventAllocator(std::move(event_allocator)),
+	m_Event(std::move(event)),
 	m_Allocators(std::move(allocators)),
 	m_MemoryBlocks(memory_blocks),
 	m_MessageHeaders(header->message_headers)
@@ -169,7 +169,8 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 	auto message_header_allocator = PoolAllocator::Create(stream, MAX_NUM_MESSAGES);
 
-	auto event_allocator = RingBuffer::Create(stream, NUM_EVENTS_IN_BUFFER, Event::GetSharedStateSize());
+	std::string id = "catkit2_message_broker_" + std::to_string(header->creator_pid) + "_" + std::to_string(header->time_of_creation);
+	auto event = Event::Create(stream, id);
 
 	DEBUG_PRINT("Extracting allocators.");
 
@@ -194,7 +195,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 		header,
 		std::move(topic_headers),
 		std::move(message_header_allocator),
-		std::move(event_allocator),
+		std::move(event),
 		allocators,
 		memory_blocks
 	));
@@ -208,7 +209,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 
 	auto topic_headers = HashMap::Open(stream);
 	auto message_header_allocator = PoolAllocator::Open(stream);
-	auto event_allocator = RingBuffer::Open(stream);
+	auto event = Event::Open(stream);
 
 	std::vector<std::shared_ptr<BuddyAllocator>> allocators;
 	std::vector<std::shared_ptr<Memory>> memory_blocks;
@@ -236,7 +237,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 		header,
 		std::move(topic_headers),
 		std::move(message_header_allocator),
-		std::move(event_allocator),
+		std::move(event),
 		allocators,
 		memory_blocks
 	));
@@ -364,7 +365,6 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	for (const auto &subtopic : SubtopicRange(topic))
 	{
 		auto topic_header = GetTopicHeader(subtopic);
-		auto event = GetEvent(subtopic);
 
 		DEBUG_PRINT("Publishing to subtopic \"" << subtopic << "\".");
 
@@ -423,18 +423,12 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		m_MessageHeaderAllocator->IncrementRefCount(message_header_index);
 		allocator->IncrementRefCount(message.m_Header->payload_info.block_handle);
 
-		{
-			// Obtain a lock as we're about to signal the event structure.
-			auto lock = EventLockGuard(event);
-
-			// Make the message available.
-			fetch_max(topic_header->last_frame_id, frame_id);
-
-			// Signal the event structure.
-			event->Signal();
-		}
+		// Make the message available.
+		fetch_max(topic_header->last_frame_id, frame_id);
 
 		// Update the framerate counter for this topic.
+		// TODO: put this after the event signaling, since we don't want this in the
+		// critical path.
 		if (frame_id > 0)
 		{
 			auto prev_message_header_id = topic_header->message_headers[(frame_id - 1) % TOPIC_MAX_NUM_MESSAGES];
@@ -451,6 +445,13 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		// If the message is not final, only the bottom-level topic is updated.
 		if (!is_final)
 			break;
+	}
+
+	{
+		// Signal the event structure.
+		auto lock = EventLockGuard(m_Event);
+
+		m_Event->Signal();
 	}
 
 	// Deallocate the message header and payload.
@@ -495,9 +496,8 @@ Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, doubl
 		if (!wait)
 			throw std::runtime_error("Message is not available yet.");
 
-		auto event = GetEvent(topic);
-		auto lock = EventLockGuard(event);
-		event->Wait(timeout_in_seconds * 1000, [topic_header, frame_id]() { return topic_header->last_frame_id > frame_id; }, wait_method, error_check);
+		auto lock = EventLockGuard(m_Event);
+		m_Event->Wait(timeout_in_seconds * 1000, [topic_header, frame_id]() { return topic_header->last_frame_id > frame_id; }, wait_method, error_check);
 	}
 
 	return GetMessage(topic_header, frame_id);
@@ -606,30 +606,6 @@ std::shared_ptr<Memory> MessageBroker::GetMemory(uint8_t memory_block_id)
 	}
 
 	return m_MemoryBlocks[memory_block_id];
-}
-
-std::shared_ptr<Event> MessageBroker::GetEvent(std::string_view topic)
-{
-	// Look up the synchronization structure (not the shared data).
-	auto it = m_Events.find(topic);
-
-	if (it != m_Events.end())
-		return it->second;
-
-	DEBUG_PRINT("Event not found: creating a new event.");
-
-	auto topic_header = GetTopicHeader(topic);
-
-	if (!topic_header)
-		return nullptr;
-
-	// Temporary stream to read in the event.
-	auto stream = StructStream(topic_header->event.data());
-	m_Events[topic] = Event::Open(stream);
-
-	DEBUG_PRINT("Created new event for topic " << topic);
-
-	return m_Events[topic];
 }
 
 TopicHeader *MessageBroker::GetTopicHeader(std::string_view topic)

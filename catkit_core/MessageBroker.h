@@ -105,11 +105,9 @@ struct TopicHeader
 	std::atomic_uint64_t first_frame_id;
 	std::atomic_uint64_t last_frame_id;
 
-	std::uint64_t message_headers[TOPIC_MAX_NUM_MESSAGES];
-
-	std::array<char, Event::GetSharedStateSize()> event;
-
 	double frame_rate;
+
+	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
 };
 
 struct MessageBrokerHeader
@@ -185,7 +183,7 @@ private:
 		MessageBrokerHeader *header,
 		std::unique_ptr<HashMap> topic_headers,
 		std::unique_ptr<PoolAllocator> message_header_allocator,
-		std::unique_ptr<RingBuffer> event_allocator,
+		std::unique_ptr<Event> event,
 		std::vector<std::shared_ptr<BuddyAllocator>> allocators,
 		std::vector<std::shared_ptr<Memory>> memory_blocks
 	);
@@ -224,16 +222,13 @@ private:
 	std::shared_ptr<BuddyAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
 
-	std::shared_ptr<Event> GetEvent(std::string_view topic);
-
 	TopicHeader *GetTopicHeader(std::string_view topic);
 
 	MessageBrokerHeader *m_Header;
 
 	std::unique_ptr<HashMap> m_TopicHeaders;
-	std::unordered_map<std::string_view, std::shared_ptr<Event>> m_Events;
 
-	std::unique_ptr<RingBuffer> m_EventAllocator;
+	std::shared_ptr<Event> m_Event;
 
 	std::unique_ptr<PoolAllocator> m_MessageHeaderAllocator;
 	MessageHeader *m_MessageHeaders;
