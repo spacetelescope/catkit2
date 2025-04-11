@@ -75,6 +75,7 @@ def make_getter(command, stream_name):
 
         # Submit retrieved value to stream.
         stream = getattr(self, stream_name)
+        print(f"value= {value}")
         stream.submit_data(np.array([value]).astype(stream.dtype))
 
         return value
@@ -123,14 +124,19 @@ class ThorlabsMcls1(Service):
         self.UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
         response_buffer = response_buffer.value.decode()
         split = response_buffer.split(",")
-
+        print(split)
         for i, thing in enumerate(split):
-            # The list has a format of "Port, Device, Port, Device". Once we find device named VCPO, minus 1 for port.
-            if 'VCP0' in thing:
+            # The list has a format of "Port, Device, Port, Device". Once we find device named VCP11, minus 1 for port.
+            # It seems that the VCP port can change occasionally for reasons we do not understand.
+            # Last time this happened we identified the COM port in the device manager by unplugging / replugging
+            # and then figuring the corresponding VCP port from the above debugging message.
+
+            if 'VCP11' in thing:
                 self.port = split[i - 1]
+                print(f'port number from thing ={self.port}')
                 break
         else:
-            raise Exception('Device VCP0 not found')
+            raise Exception('Device VCP11 not found')
 
         self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
