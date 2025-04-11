@@ -4,39 +4,9 @@
 #include <array>
 
 const std::array<std::uint8_t, 4> HYBRID_POOL_ALLOCATOR_VERSION = {0, 0, 0, 0};
-
-
-HybridPoolAllocator::MarkedHandle::MarkedHandle()
-{
-}
-
-HybridPoolAllocator::MarkedHandle::MarkedHandle(BuddyAllocator::Handle handle)
-	: m_HandleAndMark(handle << 1)
-{
-}
-
-BuddyAllocator::Handle HybridPoolAllocator::MarkedHandle::GetHandle() const
-{
-	return m_HandleAndMark >> 1;
-}
-
-void HybridPoolAllocator::MarkedHandle::SetHandle(const BuddyAllocator::Handle &handle)
-{
-	m_HandleAndMark = (handle << 1) | (m_HandleAndMark & 1);
-}
-
-bool HybridPoolAllocator::MarkedHandle::IsMarked() const
-{
-	return m_HandleAndMark & 1;
-}
-
-void HybridPoolAllocator::MarkedHandle::Mark()
-{
-	m_HandleAndMark |= 1;
-}
-
-HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Block *blocks, std::atomic<MarkedHandle> *caches)
-	: m_Capacity(capacity), m_MinSize(min_size), m_MinSizePool(min_size_pool), m_Allocator(std::move(allocator)), m_Blocks(blocks), m_Caches(caches)
+/*
+HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic<HandleAndRefCount> *caches)
+	: m_Capacity(capacity), m_MinSize(min_size), m_MinSizePool(min_size_pool), m_Allocator(std::move(allocator)), m_Pools(pools), m_Caches(caches)
 {
 }
 
@@ -56,18 +26,18 @@ std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Create(StructStream &s
 	auto buddy_allocator_depth = depth - 6; // 6 = log2(64)
 	auto buddy_allocator_num_blocks = 1ull << (buddy_allocator_depth + 1);
 
-	Block *blocks = stream.Extract<Block>(buddy_allocator_num_blocks);
+	Pool *pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
 
-	auto *caches = stream.Extract<std::atomic<MarkedHandle>>(depth + 1);
+	auto *caches = stream.Extract<std::atomic<HandleAndRefCount>>(depth + 1);
 
 	// Initialize the blocks.
 	for (std::size_t i = 0; i < buddy_allocator_num_blocks; ++i)
 	{
-		blocks[i].map = 0;
-		blocks[i].next = MarkedHandle(BuddyAllocator::INVALID_HANDLE);
+		pools[i].map = 0;
+		pools[i].next_and_ref_count.SetHandle(BuddyAllocator::INVALID_HANDLE);
 	}
 
-	return std::unique_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), blocks, caches));
+	return std::unique_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools, caches));
 }
 
 std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Open(StructStream &stream)
@@ -84,10 +54,10 @@ std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Open(StructStream &str
 	auto buddy_allocator_depth = depth - 6; // 6 = log2(64)
 	auto buddy_allocator_num_blocks = 1ull << (buddy_allocator_depth + 1);
 
-	auto blocks = stream.Extract<Block>(buddy_allocator_num_blocks);
-	auto caches = stream.Extract<std::atomic<MarkedHandle>>(depth + 1);
+	auto pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
+	auto caches = stream.Extract<std::atomic<HandleAndRefCount>>(depth + 1);
 
-	return std::unique_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), blocks, caches));
+	return std::unique_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools, caches));
 }
 
 ShareableType HybridPoolAllocator::GetType() const
@@ -111,20 +81,32 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 	}
 
 	std::size_t level = GetLevel(size);
-	auto cache_handle = m_Caches[level].load(std::memory_order_relaxed);
+	auto current = m_Caches[level].Get().second;
 
-	while (cache_handle.GetHandle() != BuddyAllocator::INVALID_HANDLE)
+	while (current != BuddyAllocator::INVALID_HANDLE)
 	{
-		if (cache_handle.IsMarked())
+		Pool &pool = m_Pools[current];
+		auto next_and_ref_count = pool.next_and_ref_count.load(std::memory_order_relaxed);
+		auto [next, is_marked] = next_and_ref_count.Get();
+
+		if (is_marked)
 		{
 			// This pool is marked for deletion. Ignore and move to the next.
-			cache_handle = m_Blocks[cache_handle.GetHandle()].next.load(std::memory_order_relaxed);
+			current = next;
 			continue;
 		}
 
-		Block &block = m_Blocks[cache_handle.GetHandle()];
+		// Try to allocate from this pool.
+		if (!pool.IncrementRefCount())
+		{
+			// We were unsuccessful in incrementing the reference count.
+			// This means that someone else deallocated the last slot in this pool,
+			// and is currently deallocating this pool. Move to the next pool.
+			current = next;
+			continue;
+		}
 
-		auto val = block.map.load(std::memory_order_relaxed);
+		auto val = pool.map.load(std::memory_order_relaxed);
 		Handle sub_handle;
 		std::uint64_t mask;
 
@@ -141,7 +123,7 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 			sub_handle = (64 - __builtin_clzll(val_inv) - 1);
 			mask = (1ull << sub_handle);
 
-			val = block.map.fetch_or(mask, std::memory_order_relaxed);
+			val = pool.map.fetch_or(mask, std::memory_order_relaxed);
 		} while (val & mask);
 
 		// Check whether we were the one that set the map bit from 0 to 1, which means
@@ -152,35 +134,35 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 		if (!(val & mask) && val != 0)
 		{
 			// We successfully allocated from the pool, since we're the one who turned the bit from 0 to 1.
-			return (cache_handle.GetHandle() << 6) + sub_handle;
+			return (current << 6) + sub_handle;
 		}
 
 		// Move to the next block.
-		cache_handle = m_Blocks[cache_handle.GetHandle()].next.load(std::memory_order_relaxed);
+		current = next;
 	}
 
 	// No slot in any pool was available. Allocate a new pool.
-	if (cache_handle.GetHandle() == INVALID_HANDLE)
+	if (current == INVALID_HANDLE)
 	{
 		// Allocate a new pool.
-		cache_handle = m_Allocator->Allocate(size * 64);
+		current = m_Allocator->Allocate(size * 64);
 
-		if (cache_handle.GetHandle() == INVALID_HANDLE)
+		if (current == INVALID_HANDLE)
 		{
 			throw std::runtime_error("Failed to allocate a new pool.");
 		}
 
-		Block &block = m_Blocks[cache_handle.GetHandle()];
+		Pool &pool = m_Pools[current];
 
 		// Allocate the first element in this pool for us.
-		block.map.store(1);
+		pool.map.store(1);
 
 		// Use CAS to add the new pool to the list of caches.
 		auto head = m_Caches[level].load(std::memory_order_relaxed);
 
 		do
 		{
-			block.next.store(head, std::memory_order_relaxed);
+			pool.next.store(head, std::memory_order_relaxed);
 		} while (!m_Caches[level].compare_exchange_weak(head, cache_handle));
 	}
 
@@ -212,7 +194,7 @@ bool HybridPoolAllocator::Deallocate(Handle handle)
 		Handle sub_handle = (handle & ((1 << 6) - 1));
 		std::uint64_t mask = 1ull << sub_handle;
 
-		Block &block = m_Blocks[cache_handle];
+		Pool &block = m_Pools[cache_handle];
 
 		// Update the pool bitmap.
 		auto val = block.map.fetch_and(~mask, std::memory_order_relaxed);
@@ -229,3 +211,4 @@ bool HybridPoolAllocator::Deallocate(Handle handle)
 
 	return true;
 }
+*/
