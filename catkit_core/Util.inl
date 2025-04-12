@@ -42,6 +42,7 @@ constexpr UnsignedType round_down_to_power_of_2(UnsignedType v)
     return v - (v >> 1);
 }
 
+// Note: this function is defined in C++20, but we need to support C++17.
 template <typename T>
 constexpr int bit_width(T x)
 {
@@ -51,11 +52,27 @@ constexpr int bit_width(T x)
 		return 0;
 
 #if defined(__GNUC__) || defined(__clang__)
-	return std::numeric_limits<unsigned int>::digits - __builtin_clz((unsigned int) x);
+	if constexpr (sizeof(T) == 8)
+	{
+		return std::numeric_limits<unsigned long long>::digits - __builtin_clzll(x);
+	}
+	else
+	{
+		return std::numeric_limits<unsigned int>::digits - __builtin_clz((unsigned int) x);
+	}
 #elif defined(_MSC_VER)
 	unsigned long index;
-	_BitScanReverse(&index, x);
-	return index + 1;
+
+	if constexpr (sizeof(T) == 8)
+	{
+		_BitScanReverse64(&index, x);
+		return index + 1;
+	}
+	else
+	{
+		_BitScanReverse(&index, (unsigned int) x);
+		return index + 1;
+	}
 #else
 	// Portable fallback
 	int width = 0;
