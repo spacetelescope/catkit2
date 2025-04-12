@@ -13,32 +13,30 @@
 class HybridPoolAllocator : public Shareable
 {
 private:
-
-	struct HandleAndRefCount
-	{
-		std::atomic_uint64_t m_HandleAndRefCount;
-
-		std::pair<BuddyAllocator::Handle, bool> Get() const;
-
-		const std::uint64_t HANDLE_MASK = 0xFFFFFFFFFFFF0000;
-		const std::uint64_t REF_COUNT_MASK = 0x7FFF;
-		const std::uint64_t REF_COUNT_FLAG = 0x8000;
-	};
-
 	struct Pool
 	{
 		std::atomic_uint64_t map;
-		std::atomic<HandleAndRefCount> next_and_ref_count;
-		std::array<std::uint16_t, 64> slot_ref_count;
+		std::atomic_uint64_t next_and_ref_count;
+		std::array<std::atomic_uint16_t, 64> slot_ref_count;
 
 		bool IncrementRefCount();
 		bool DecrementRefCount();
+
+		static std::pair<BuddyAllocator::Handle, bool> UnpackNextAndRefCount(std::uint64_t next_and_ref_count);
+		static std::uint64_t PackNextAndRefCount(BuddyAllocator::Handle next, std::uint16_t ref_count);
+		static std::uint64_t SetNext(std::uint64_t next_and_ref_count, BuddyAllocator::Handle handle);
+
+		static const std::size_t HANDLE_SIZE = 48;
+		static const std::size_t REF_COUNT_SIZE = 16;
+		static const std::uint64_t HANDLE_MASK = 0xFFFFFFFFFFFF0000;
+		static const std::uint64_t REF_COUNT_MASK = 0x7FFF;
+		static const std::uint64_t REF_COUNT_FLAG = 0x8000;
 	};
 
 	using Handle = BuddyAllocator::Handle;
 	const Handle INVALID_HANDLE = BuddyAllocator::INVALID_HANDLE;
 
-	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic<HandleAndRefCount> *caches);
+	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic_uint64_t *caches);
 
 public:
 	static std::unique_ptr<HybridPoolAllocator> Create(StructStream &stream, std::size_t capacity, std::size_t min_size, std::size_t min_size_pool);
@@ -53,9 +51,7 @@ public:
 
 private:
 	std::size_t GetLevel(Handle handle);
-
-	void AllocatePool(std::size_t level);
-	void DeallocatePool(BuddyAllocator::Handle handle);
+	void HealCache(std::size_t level);
 
 	std::size_t m_Capacity;
 	std::size_t m_MinSize;
@@ -65,7 +61,7 @@ private:
 
 	Pool *m_Pools;
 
-	std::atomic<HandleAndRefCount> *m_Caches;
+	std::atomic<BuddyAllocator::Handle> *m_Caches;
 };
 
 #endif // HYBRID_POOL_ALLOCATOR_H

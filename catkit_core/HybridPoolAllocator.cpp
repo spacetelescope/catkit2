@@ -2,10 +2,64 @@
 #include "Util.h"
 
 #include <array>
+#include <stdexcept>
 
 const std::array<std::uint8_t, 4> HYBRID_POOL_ALLOCATOR_VERSION = {0, 0, 0, 0};
-/*
-HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic<HandleAndRefCount> *caches)
+
+bool HybridPoolAllocator::Pool::IncrementRefCount()
+{
+	// Check if the zero-flag was set before incrementing.
+	return (next_and_ref_count.fetch_add(1) & REF_COUNT_FLAG) == 0;
+}
+
+bool HybridPoolAllocator::Pool::DecrementRefCount()
+{
+	// Decrement the reference count.
+	auto old = next_and_ref_count.fetch_sub(1);
+
+	// Check if we just set the ref count to zero.
+	if (old & REF_COUNT_MASK == 1)
+	{
+		// The counter is now zero. We need to set the zero-flag to indicate this,
+		// otherwise it doesn't count. Use a CAS loop for this.
+		std::uint64_t desired;
+		do
+		{
+			if (old & ~HANDLE_MASK != 0)
+			{
+				// Either the zero-flag was set by someone else, or the ref count
+				// was incremented by someone else. Either way, we're not the one
+				// to set the zero flag.
+				return false;
+			}
+
+			old &= HANDLE_MASK;
+			desired = old | REF_COUNT_FLAG;
+		} while (next_and_ref_count.compare_exchange_weak(old, desired));
+
+		// We successfully set the zero-flag.
+		return true;
+	}
+
+	return false;
+}
+
+std::pair<BuddyAllocator::Handle, bool> HybridPoolAllocator::Pool::UnpackNextAndRefCount(std::uint64_t next_and_ref_count)
+{
+	return {next_and_ref_count >> REF_COUNT_SIZE, next_and_ref_count & REF_COUNT_FLAG};
+}
+
+std::uint64_t HybridPoolAllocator::Pool::PackNextAndRefCount(BuddyAllocator::Handle next, std::uint16_t ref_count)
+{
+	return (next << REF_COUNT_SIZE) | (ref_count & REF_COUNT_MASK);
+}
+
+std::uint64_t HybridPoolAllocator::Pool::SetNext(std::uint64_t next_and_ref_count, BuddyAllocator::Handle handle)
+{
+	return (next_and_ref_count & HANDLE_MASK) | (handle & ~HANDLE_MASK);
+}
+
+HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic_uint64_t *caches)
 	: m_Capacity(capacity), m_MinSize(min_size), m_MinSizePool(min_size_pool), m_Allocator(std::move(allocator)), m_Pools(pools), m_Caches(caches)
 {
 }
@@ -28,13 +82,13 @@ std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Create(StructStream &s
 
 	Pool *pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
 
-	auto *caches = stream.Extract<std::atomic<HandleAndRefCount>>(depth + 1);
+	auto *caches = stream.Extract<std::atomic_uint64_t>(depth + 1);
 
 	// Initialize the blocks.
 	for (std::size_t i = 0; i < buddy_allocator_num_blocks; ++i)
 	{
 		pools[i].map = 0;
-		pools[i].next_and_ref_count.SetHandle(BuddyAllocator::INVALID_HANDLE);
+		pools[i].next_and_ref_count = Pool::PackNextAndRefCount(BuddyAllocator::INVALID_HANDLE, 0);
 	}
 
 	return std::unique_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools, caches));
@@ -55,7 +109,7 @@ std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Open(StructStream &str
 	auto buddy_allocator_num_blocks = 1ull << (buddy_allocator_depth + 1);
 
 	auto pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
-	auto caches = stream.Extract<std::atomic<HandleAndRefCount>>(depth + 1);
+	auto caches = stream.Extract<std::atomic_uint64_t>(depth + 1);
 
 	return std::unique_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools, caches));
 }
@@ -81,13 +135,14 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 	}
 
 	std::size_t level = GetLevel(size);
-	auto current = m_Caches[level].Get().second;
+	BuddyAllocator::Handle current = m_Caches[level];
 
 	while (current != BuddyAllocator::INVALID_HANDLE)
 	{
 		Pool &pool = m_Pools[current];
+
 		auto next_and_ref_count = pool.next_and_ref_count.load(std::memory_order_relaxed);
-		auto [next, is_marked] = next_and_ref_count.Get();
+		auto [next, is_marked] = Pool::UnpackNextAndRefCount(next_and_ref_count);
 
 		if (is_marked)
 		{
@@ -120,7 +175,7 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 				break;
 			}
 
-			sub_handle = (64 - __builtin_clzll(val_inv) - 1);
+			sub_handle = bit_width(val_inv) - 1;
 			mask = (1ull << sub_handle);
 
 			val = pool.map.fetch_or(mask, std::memory_order_relaxed);
@@ -155,18 +210,18 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 		Pool &pool = m_Pools[current];
 
 		// Allocate the first element in this pool for us.
-		pool.map.store(1);
+		pool.map.store(1, std::memory_order_relaxed);
 
 		// Use CAS to add the new pool to the list of caches.
-		auto head = m_Caches[level].load(std::memory_order_relaxed);
+		BuddyAllocator::Handle head = m_Caches[level].load(std::memory_order_relaxed);
 
 		do
 		{
-			pool.next.store(head, std::memory_order_relaxed);
-		} while (!m_Caches[level].compare_exchange_weak(head, cache_handle));
+			pool.next_and_ref_count.store(Pool::PackNextAndRefCount(head, 1), std::memory_order_relaxed);
+		} while (!m_Caches[level].compare_exchange_weak(head, current));
 	}
 
-	return cache_handle.GetHandle() << 6;
+	return current << 6;
 }
 
 bool HybridPoolAllocator::IncrementRefCount(Handle handle)
@@ -194,16 +249,18 @@ bool HybridPoolAllocator::Deallocate(Handle handle)
 		Handle sub_handle = (handle & ((1 << 6) - 1));
 		std::uint64_t mask = 1ull << sub_handle;
 
-		Pool &block = m_Pools[cache_handle];
+		Pool &pool = m_Pools[cache_handle];
 
 		// Update the pool bitmap.
-		auto val = block.map.fetch_and(~mask, std::memory_order_relaxed);
+		auto val = pool.map.fetch_and(~mask, std::memory_order_relaxed);
 
-		// If this is the last block in the cache, return it to the allocator.
-		if (val == mask)
+		// Decrement the pool reference count.
+		if (!pool.DecrementRefCount())
 		{
-			// Pop the cache from the linked list.
-			// First mark the cache as
+			// The pool is now empty. Remove it from the cache.
+			// The zero-bit is used as the mark, so we don't need to mark the
+			// pool for deletion.
+			HealCache(level);
 		}
 
 		m_Allocator->Deallocate(cache_handle);
@@ -211,4 +268,8 @@ bool HybridPoolAllocator::Deallocate(Handle handle)
 
 	return true;
 }
-*/
+
+void HybridPoolAllocator::HealCache(std::size_t level)
+{
+	// TODO
+}
