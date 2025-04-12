@@ -253,7 +253,7 @@ Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_siz
 	DEBUG_PRINT("Preparing message.");
 
 	Uuid trace_id;
-	m_UuidGenerator.Generate(&trace_id);
+	Uuid::Generate(&trace_id);
 
 	DEBUG_PRINT("Trace id generated.");
 
@@ -311,7 +311,7 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 	header->payload_info.total_size = payload_size;
 	header->payload_info.offset_in_buffer = offset;
 
-	m_UuidGenerator.Generate(&header->payload_id);
+	Uuid::Generate(&header->payload_id);
 
 	DEBUG_PRINT("Payload set");
 

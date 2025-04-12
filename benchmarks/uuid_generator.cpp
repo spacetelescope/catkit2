@@ -1,4 +1,4 @@
-#include "UuidGenerator.h"
+#include "Uuid.h"
 #include "Timing.h"
 
 #include <iostream>
@@ -6,8 +6,6 @@
 int main()
 {
 	const size_t N = 100000000;
-
-	UuidGenerator generator;
 
 	Uuid uuid;
 
@@ -17,7 +15,7 @@ int main()
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		generator.Generate(&uuid);
+		Uuid::Generate(&uuid);
 	}
 
 	auto end = GetTimeStamp();

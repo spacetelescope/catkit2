@@ -8,7 +8,7 @@
 #include "SharedMemory.h"
 #include "LocalMemory.h"
 #include "CudaSharedMemory.h"
-#include "UuidGenerator.h"
+#include "Uuid.h"
 #include "RingBuffer.h"
 
 #include <memory>
@@ -235,8 +235,6 @@ private:
 
 	std::vector<std::shared_ptr<BuddyAllocator>> m_Allocators;
 	std::vector<std::shared_ptr<Memory>> m_MemoryBlocks;
-
-	UuidGenerator m_UuidGenerator;
 };
 
 #endif // MESSAGE_BROKER_H

@@ -910,17 +910,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 	py::class_<Uuid>(m, "Uuid")
 		.def(py::init<>())
-		.def("__str__", &Uuid::to_string)
-		.def("__repr__", &Uuid::to_string);
-
-	py::class_<UuidGenerator>(m, "UuidGenerator")
-		.def(py::init<>())
-		.def("generate", [](UuidGenerator& generator)
+		.def_static("generate", []()
 		{
 			Uuid uuid;
-			generator.Generate(&uuid);
+			uuid.Generate(&uuid);
 			return uuid;
-		});
+		})
+		.def("__str__", &Uuid::to_string)
+		.def("__repr__", &Uuid::to_string);
 
 	py::class_<MetadataWrapper>(m, "Metadata")
 		.def("__getitem__", &MetadataWrapper::GetItem)

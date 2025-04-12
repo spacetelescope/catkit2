@@ -7,18 +7,9 @@
 struct Uuid {
     unsigned char data[16];
 
+	static void Generate(Uuid *uuid);
+
     std::string to_string() const;
-};
-
-class UuidGenerator
-{
-public:
-	UuidGenerator();
-
-	void Generate(Uuid *uuid);
-
-private:
-	std::mt19937_64 m_Engines[2];
 };
 
 #endif // UUID_GENERATOR_H
