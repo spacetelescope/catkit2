@@ -94,7 +94,7 @@ class OceanOpticsSpectrometerSim(Service):
         This function is called when the service is started.
         '''
         while not self.should_shut_down:
-            intensities = self.take_one_spectrum(self.pixels_number)
+            intensities = self.take_one_spectrum()
             self.spectra.submit_data(np.array(intensities, dtype='float32'))
             self.is_saturating.submit_data(np.array([0], dtype='int8'))
 
