@@ -33,12 +33,10 @@ private:
 		static const std::uint64_t REF_COUNT_FLAG = 0x8000;
 	};
 
-	using Handle = BuddyAllocator::Handle;
-	const Handle INVALID_HANDLE = BuddyAllocator::INVALID_HANDLE;
-
-	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic_uint64_t *caches);
-
 public:
+	using Handle = BuddyAllocator::Handle;
+	static const Handle INVALID_HANDLE = BuddyAllocator::INVALID_HANDLE;
+
 	static std::unique_ptr<HybridPoolAllocator> Create(StructStream &stream, std::size_t capacity, std::size_t min_size, std::size_t min_size_pool);
 	static std::unique_ptr<HybridPoolAllocator> Open(StructStream &stream);
 
@@ -50,7 +48,9 @@ public:
 	bool Deallocate(Handle handle);
 
 private:
-	std::size_t GetLevel(Handle handle);
+	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic<BuddyAllocator::Handle> *caches);
+
+	std::size_t GetLevel(Handle handle) const;
 	void HealCache(std::size_t level);
 
 	std::size_t m_Capacity;

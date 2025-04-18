@@ -18,14 +18,14 @@ bool HybridPoolAllocator::Pool::DecrementRefCount()
 	auto old = next_and_ref_count.fetch_sub(1);
 
 	// Check if we just set the ref count to zero.
-	if (old & REF_COUNT_MASK == 1)
+	if ((old & REF_COUNT_MASK) == 1)
 	{
 		// The counter is now zero. We need to set the zero-flag to indicate this,
 		// otherwise it doesn't count. Use a CAS loop for this.
 		std::uint64_t desired;
 		do
 		{
-			if (old & ~HANDLE_MASK != 0)
+			if ((old & ~HANDLE_MASK) != 0)
 			{
 				// Either the zero-flag was set by someone else, or the ref count
 				// was incremented by someone else. Either way, we're not the one
@@ -59,7 +59,7 @@ std::uint64_t HybridPoolAllocator::Pool::SetNext(std::uint64_t next_and_ref_coun
 	return (next_and_ref_count & HANDLE_MASK) | (handle & ~HANDLE_MASK);
 }
 
-HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic_uint64_t *caches)
+HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools, std::atomic<BuddyAllocator::Handle> *caches)
 	: m_Capacity(capacity), m_MinSize(min_size), m_MinSizePool(min_size_pool), m_Allocator(std::move(allocator)), m_Pools(pools), m_Caches(caches)
 {
 }
@@ -82,7 +82,7 @@ std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Create(StructStream &s
 
 	Pool *pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
 
-	auto *caches = stream.Extract<std::atomic_uint64_t>(depth + 1);
+	auto *caches = stream.Extract<std::atomic<BuddyAllocator::Handle>>(depth + 1);
 
 	// Initialize the blocks.
 	for (std::size_t i = 0; i < buddy_allocator_num_blocks; ++i)
@@ -109,7 +109,7 @@ std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Open(StructStream &str
 	auto buddy_allocator_num_blocks = 1ull << (buddy_allocator_depth + 1);
 
 	auto pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
-	auto caches = stream.Extract<std::atomic_uint64_t>(depth + 1);
+	auto caches = stream.Extract<std::atomic<BuddyAllocator::Handle>>(depth + 1);
 
 	return std::unique_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools, caches));
 }
@@ -121,7 +121,7 @@ ShareableType HybridPoolAllocator::GetType() const
 
 std::size_t HybridPoolAllocator::GetSharedStateSize(std::size_t capacity, std::size_t min_size)
 {
-	return 0;
+	return 1024 * 1024 * 512;
 }
 
 HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
@@ -272,4 +272,9 @@ bool HybridPoolAllocator::Deallocate(Handle handle)
 void HybridPoolAllocator::HealCache(std::size_t level)
 {
 	// TODO
+}
+
+std::size_t HybridPoolAllocator::GetLevel(Handle handle) const
+{
+	return bit_width(handle) - 1;
 }
