@@ -85,7 +85,7 @@ PoolAllocator::BlockHandle PoolAllocator::Allocate()
 	return head;
 }
 
-void PoolAllocator::IncrementRefCount(BlockHandle index)
+void PoolAllocator::Acquire(BlockHandle index)
 {
 	if (index >= m_Capacity)
 	{
@@ -101,7 +101,7 @@ void PoolAllocator::IncrementRefCount(BlockHandle index)
 	};
 }
 
-void PoolAllocator::Deallocate(BlockHandle index)
+void PoolAllocator::Release(BlockHandle index)
 {
 	// Check if the element is within the pool bounds.
 	if (index >= m_Capacity)

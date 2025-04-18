@@ -295,7 +295,7 @@ Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, siz
 	{
 		// Deallocate allocated memory block.
 		// TODO: Do this with RAII.
-		allocator->Deallocate(block_handle);
+		allocator->Release(block_handle);
 
 		throw std::runtime_error("Could not allocate message header.");
 	}
@@ -405,10 +405,10 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 				// Deallocate the payload.
 				auto header = m_MessageHeaders[message_handle];
 				auto removal_allocator = GetAllocator(header.payload_info.memory_block_id);
-				removal_allocator->Deallocate(header.payload_info.block_handle);
+				removal_allocator->Release(header.payload_info.block_handle);
 
 				// Deallocate the MessageHeader itself.
-				m_MessageHeaderAllocator->Deallocate(message_handle);
+				m_MessageHeaderAllocator->Release(message_handle);
 
 				DEBUG_PRINT("Frame deleted.");
 
@@ -420,8 +420,8 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
 		topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES] = message_header_index;
 
-		m_MessageHeaderAllocator->IncrementRefCount(message_header_index);
-		allocator->IncrementRefCount(message.m_Header->payload_info.block_handle);
+		m_MessageHeaderAllocator->Acquire(message_header_index);
+		allocator->Acquire(message.m_Header->payload_info.block_handle);
 
 		// Make the message available.
 		fetch_max(topic_header->last_frame_id, frame_id);
@@ -456,9 +456,9 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 
 	// Deallocate the message header and payload.
 	PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
-	m_MessageHeaderAllocator->Deallocate(message_header_index);
+	m_MessageHeaderAllocator->Release(message_header_index);
 
-	allocator->Deallocate(message.m_Header->payload_info.block_handle);
+	allocator->Release(message.m_Header->payload_info.block_handle);
 
 	if (!is_final)
 	{

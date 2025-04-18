@@ -25,7 +25,7 @@ void benchmark_linux_scalability()
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		allocator->Deallocate(handles[i]);
+		allocator->Release(handles[i]);
 	}
 
 	auto end = GetTimeStamp();
@@ -66,7 +66,7 @@ void benchmark_threadtest()
 
 		for (size_t j = 0; j < N; ++j)
 		{
-			allocator->Deallocate(handles[j]);
+			allocator->Release(handles[j]);
 		}
 	}
 
@@ -119,7 +119,7 @@ void benchmark_larson()
 
 		if (handles[index] != BuddyAllocator::INVALID_HANDLE)
 		{
-			allocator->Deallocate(handles[index]);
+			allocator->Release(handles[index]);
 		}
 
 		handles[index] = allocator->Allocate(size);

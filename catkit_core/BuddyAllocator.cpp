@@ -191,13 +191,13 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 	return INVALID_HANDLE;
 }
 
-bool BuddyAllocator::IncrementRefCount(Handle handle)
+bool BuddyAllocator::Acquire(Handle handle)
 {
 	// Increment the reference counter, but check for zero reference bit.
 	return (m_Tree[handle].fetch_add(1, std::memory_order_relaxed) & REF_ZERO) == 0;
 }
 
-bool BuddyAllocator::Deallocate(Handle handle)
+bool BuddyAllocator::Release(Handle handle)
 {
 	DEBUG_PRINT("Deallocating handle " << handle);
 

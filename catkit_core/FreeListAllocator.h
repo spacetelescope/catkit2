@@ -25,8 +25,8 @@ public:
 	static std::unique_ptr<FreeListAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate(std::size_t size);
-	void IncrementRefCount(BlockHandle index);
-	void Deallocate(BlockHandle index);
+	void Acquire(BlockHandle index);
+	void Release(BlockHandle index);
 
 	std::size_t GetOffset(BlockHandle index);
 

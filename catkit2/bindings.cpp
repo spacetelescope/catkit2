@@ -33,6 +33,7 @@
 #include "BuddyAllocator.h"
 #include "PoolAllocator.h"
 #include "FreeListAllocator.h"
+#include "HybridPoolAllocator.h"
 
 #include "testbed.pb.h"
 
@@ -1074,8 +1075,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return handle;
 		})
-		.def("deallocate", &PoolAllocator::Deallocate)
-		.def("increment_ref_count", &PoolAllocator::IncrementRefCount);
+		.def("release", &PoolAllocator::Release)
+		.def("acquire", &PoolAllocator::Acquire);
 
 	py::class_<FreeListAllocator, std::shared_ptr<FreeListAllocator>>(m, "FreeListAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
@@ -1101,15 +1102,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return handle;
 		})
-		.def("deallocate", &FreeListAllocator::Deallocate)
-		.def("increment_ref_count", &FreeListAllocator::IncrementRefCount)
+		.def("release", &FreeListAllocator::Release)
+		.def("acquire", &FreeListAllocator::Acquire)
 		.def("print_state", &FreeListAllocator::PrintState);
 
 	py::class_<BuddyAllocator, std::shared_ptr<BuddyAllocator>>(m, "BuddyAllocator")
-		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t depth)
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size)
 		{
 			auto stream = StructStream(memory->GetAddress());
-			auto allocator = BuddyAllocator::Create(stream, max_size, depth);
+			auto allocator = BuddyAllocator::Create(stream, max_size, min_size);
 
 			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
 		})
@@ -1129,9 +1130,36 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return handle;
 		})
-		.def("increment_ref_count", &BuddyAllocator::IncrementRefCount)
-		.def("deallocate", &BuddyAllocator::Deallocate)
+		.def("acquire", &BuddyAllocator::Acquire)
+		.def("release", &BuddyAllocator::Release)
 		.def("print_state", &BuddyAllocator::PrintState);
+
+	py::class_<HybridPoolAllocator, std::shared_ptr<HybridPoolAllocator>>(m, "HybridPoolAllocator")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size, std::size_t min_size_pool)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = HybridPoolAllocator::Create(stream, max_size, min_size, min_size_pool);
+
+			return std::shared_ptr<HybridPoolAllocator>(std::move(allocator));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = HybridPoolAllocator::Open(stream);
+
+			return std::shared_ptr<HybridPoolAllocator>(std::move(allocator));
+		})
+		.def("allocate", [](std::shared_ptr<HybridPoolAllocator> allocator, std::size_t size)
+		{
+			auto handle = allocator->Allocate(size);
+
+			if (handle == HybridPoolAllocator::INVALID_HANDLE)
+				throw std::runtime_error("Failed to allocate memory from buddy allocator.");
+
+			return handle;
+		})
+		.def("acquire", &HybridPoolAllocator::Acquire)
+		.def("release", &HybridPoolAllocator::Release);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

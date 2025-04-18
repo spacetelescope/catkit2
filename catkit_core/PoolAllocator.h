@@ -23,8 +23,8 @@ public:
 	static std::unique_ptr<PoolAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate();
-	void IncrementRefCount(BlockHandle index);
-	void Deallocate(BlockHandle index);
+	void Acquire(BlockHandle index);
+	void Release(BlockHandle index);
 
 	ShareableType GetType() const override;
 

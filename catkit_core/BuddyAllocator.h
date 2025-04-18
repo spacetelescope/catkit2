@@ -25,8 +25,8 @@ public:
 	static constexpr Handle INVALID_HANDLE = 0;
 
 	Handle Allocate(std::size_t size);
-	bool IncrementRefCount(Handle handle);
-	bool Deallocate(Handle handle);
+	bool Acquire(Handle handle);
+	bool Release(Handle handle);
 
 	std::size_t GetOffset(Handle handle) const;
 

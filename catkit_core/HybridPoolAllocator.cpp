@@ -141,7 +141,7 @@ bool HybridPoolAllocator::Acquire(Handle handle)
 	if (size >= m_MinSizePool)
 	{
 		// This is a block in the allocator.
-		return m_Allocator->IncrementRefCount(handle);
+		return m_Allocator->Acquire(handle);
 	}
 	else
 	{
@@ -167,7 +167,7 @@ bool HybridPoolAllocator::Release(Handle handle)
 	if (size >= m_MinSizePool)
 	{
 		// This is a block in the allocator.
-		return m_Allocator->Deallocate(handle);
+		return m_Allocator->Release(handle);
 	}
 	else
 	{
@@ -199,7 +199,7 @@ bool HybridPoolAllocator::Release(Handle handle)
 		if (pool.map == 0)
 		{
 			// The pool is now empty.
-			m_Allocator->Deallocate(pool_handle);
+			m_Allocator->Release(pool_handle);
 
 			// Find the pool in the bucket.
 			auto it = std::find(bucket.begin(), bucket.end(), pool_handle);

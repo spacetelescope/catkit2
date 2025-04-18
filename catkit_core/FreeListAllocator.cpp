@@ -224,7 +224,7 @@ FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
 				{
 					DEBUG_PRINT("Failed to replace block in linked list.");
 
-					m_BlockAllocator->Deallocate(res);
+					m_BlockAllocator->Release(res);
 					continue;
 				}
 			}
@@ -253,7 +253,7 @@ FreeListAllocator::BlockHandle FreeListAllocator::Allocate(std::size_t size)
 	return INVALID_HANDLE;
 }
 
-void FreeListAllocator::Deallocate(BlockHandle handle)
+void FreeListAllocator::Release(BlockHandle handle)
 {
 	if (handle == INVALID_HANDLE)
 		return;
@@ -286,7 +286,7 @@ void FreeListAllocator::Deallocate(BlockHandle handle)
 	CoalesceAll();
 }
 
-void FreeListAllocator::IncrementRefCount(BlockHandle index)
+void FreeListAllocator::Acquire(BlockHandle index)
 {
 	if (index == INVALID_HANDLE)
 	{
@@ -388,15 +388,15 @@ FreeListAllocator::BlockHandle FreeListAllocator::Coalesce(BlockHandle a, BlockH
 	if (!Replace(b, new_block))
 	{
 		// Failed to replace block b with the new block, so the coalescence failed.
-		m_BlockAllocator->Deallocate(new_block);
+		m_BlockAllocator->Release(new_block);
 		Insert(a);
 
 		return INVALID_HANDLE;
 	}
 
 	// Deallocate the blocks that we just replaced.
-	m_BlockAllocator->Deallocate(a);
-	m_BlockAllocator->Deallocate(b);
+	m_BlockAllocator->Release(a);
+	m_BlockAllocator->Release(b);
 
 	return new_block;
 }
