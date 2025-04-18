@@ -7,7 +7,7 @@ void benchmark_linux_scalability()
 	const size_t N = 10000000;
 	const size_t BLOCK_SIZE = 32;
 	const size_t MAX_SIZE = BLOCK_SIZE * (1 << 25);
-	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 16;
+	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 64;
 
 	auto *handles = new HybridPoolAllocator::Handle[N];
 
@@ -47,7 +47,7 @@ void benchmark_threadtest()
 	const size_t BLOCK_SIZE = 32;
 	const size_t DEPTH = 24;
 	const size_t MAX_SIZE = BLOCK_SIZE * (1 << DEPTH);
-	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 16;
+	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 64;
 
 	auto *handles = new HybridPoolAllocator::Handle[M];
 
@@ -93,7 +93,7 @@ void benchmark_larson()
 	const size_t BLOCK_SIZE = 16;
 	const size_t DEPTH = 24;
 	const size_t SIZE = BLOCK_SIZE * (1 << DEPTH);
-	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 16;
+	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 64;
 
 	auto *handles = new HybridPoolAllocator::Handle[M];
 	for (size_t i = 0; i < M; ++i)
@@ -139,8 +139,8 @@ void benchmark_larson()
 
 int main(int argc, char **argv)
 {
-	//benchmark_linux_scalability();
-	//benchmark_threadtest();
+	benchmark_linux_scalability();
+	benchmark_threadtest();
 	benchmark_larson();
 
 	return 0;

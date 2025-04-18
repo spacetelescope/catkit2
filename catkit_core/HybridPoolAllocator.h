@@ -38,7 +38,7 @@ public:
 	bool Acquire(Handle handle);
 	bool Release(Handle handle);
 
-private:
+public:
 	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools);
 
 	std::size_t GetLevelFromHandle(Handle handle) const;

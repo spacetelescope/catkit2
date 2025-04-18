@@ -3,7 +3,6 @@
 
 #include <array>
 #include <stdexcept>
-#include <iostream>
 
 const std::array<std::uint8_t, 4> HYBRID_POOL_ALLOCATOR_VERSION = {0, 0, 0, 0};
 
@@ -20,12 +19,11 @@ std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Create(StructStream &s
 	*stream.Extract<std::size_t>() = min_size;
 	*stream.Extract<std::size_t>() = min_size_pool;
 
-	auto allocator_min_size = 64 * min_size;
+	auto allocator_min_size = std::min(min_size_pool, 64 * min_size);
 
 	std::unique_ptr<BuddyAllocator> allocator = BuddyAllocator::Create(stream, capacity, allocator_min_size);
 
-	auto depth = bit_width(capacity / min_size);
-	auto buddy_allocator_depth = depth - 6; // 6 = log2(64)
+	auto buddy_allocator_depth = bit_width(capacity / allocator_min_size) - 1;
 	auto buddy_allocator_num_blocks = 1ull << (buddy_allocator_depth + 1);
 
 	Pool *pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
@@ -44,10 +42,11 @@ std::unique_ptr<HybridPoolAllocator> HybridPoolAllocator::Open(StructStream &str
 	auto min_size = *stream.Extract<std::size_t>();
 	auto min_size_pool = *stream.Extract<std::size_t>();
 
+	auto allocator_min_size = std::min(min_size_pool, 64 * min_size);
+
 	auto allocator = BuddyAllocator::Open(stream);
 
-	auto depth = bit_width(capacity / min_size);
-	auto buddy_allocator_depth = depth - 6; // 6 = log2(64)
+	auto buddy_allocator_depth = bit_width(capacity / allocator_min_size) - 1;
 	auto buddy_allocator_num_blocks = 1ull << (buddy_allocator_depth + 1);
 
 	auto pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
@@ -62,13 +61,11 @@ ShareableType HybridPoolAllocator::GetType() const
 
 std::size_t HybridPoolAllocator::GetSharedStateSize(std::size_t capacity, std::size_t min_size)
 {
-	return 1024 * 1024 * 512;
+	return 1024 * 1024 * 1024;
 }
 
 HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 {
-	std::cout << "Allocate: " << size << std::endl;
-
 	size = round_up_to_power_of_2(size);
 
 	if (size < m_MinSize)
@@ -104,12 +101,6 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 
 		if (~(pool.map) == 0)
 		{
-			std::cout << "Erasing pool " << handle << " with size " << bucket.size() << std::endl;
-
-			for (auto a : bucket)
-				std::cout << a << " ";
-			std::cout << std::endl;
-
 			// The pool is full. Remove it from the bucket.
 			bucket.erase(std::next(it).base());
 		}
@@ -130,7 +121,6 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 
 	Pool &pool = m_Pools[new_handle];
 
-	std::cout << "Adding pool to bucket " << new_handle << " with size " << bucket.size() << std::endl;
 	bucket.emplace_back(new_handle);
 
 	// Set the map and reset the reference count of this slot.
@@ -146,7 +136,7 @@ bool HybridPoolAllocator::Acquire(Handle handle)
 	std::size_t level = GetLevelFromHandle(handle);
 
 	// Get the size of blocks at this level.
-	std::size_t size = m_Capacity >> (level - 1);
+	std::size_t size = m_Capacity >> level;
 
 	if (size >= m_MinSizePool)
 	{
@@ -168,13 +158,11 @@ bool HybridPoolAllocator::Acquire(Handle handle)
 
 bool HybridPoolAllocator::Release(Handle handle)
 {
-	std::cout << "Release: " << handle << std::endl;
-
 	// Get the level of this block.
 	std::size_t level = GetLevelFromHandle(handle);
 
 	// Get the size of blocks at this level.
-	std::size_t size = m_Capacity >> (level - 1);
+	std::size_t size = m_Capacity >> level;
 
 	if (size >= m_MinSizePool)
 	{
@@ -202,8 +190,6 @@ bool HybridPoolAllocator::Release(Handle handle)
 		// we free the slot.
 		if (~(pool.map) == 0)
 		{
-			std::cout << "Adding pool to bucket " << pool_handle << " with size " << bucket.size() << std::endl;
-
 			bucket.emplace_back(pool_handle);
 		}
 
@@ -214,11 +200,6 @@ bool HybridPoolAllocator::Release(Handle handle)
 		{
 			// The pool is now empty.
 			m_Allocator->Deallocate(pool_handle);
-
-			std::cout << "Erasing pool " << pool_handle << " with size " << bucket.size() << std::endl;
-			for (auto a : bucket)
-				std::cout << a << " ";
-			std::cout << std::endl;
 
 			// Find the pool in the bucket.
 			auto it = std::find(bucket.begin(), bucket.end(), pool_handle);

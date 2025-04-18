@@ -146,7 +146,6 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 		size = m_MinSize;
 	}
 
-
 	Handle begin = m_Capacity / size;
 	Handle end = begin << 1;
 
@@ -384,6 +383,8 @@ void BuddyAllocator::PrintState() const
 		for (Handle i = begin; i < end; ++i)
 		{
 			auto val = m_Tree[i].load(std::memory_order_relaxed);
+			if (val == 0)
+				continue;
 
 			bool occ = val & OCC;
 			bool occ_right = val & OCC_RIGHT;
