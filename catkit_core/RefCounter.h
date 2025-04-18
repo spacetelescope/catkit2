@@ -36,7 +36,7 @@ public:
 		if (m_Counter.fetch_sub(1) == 1)
 		{
 			// The counter is now zero. We need to set the MSB to indicate this.
-			std::uint64_t e = 0;
+			T e = 0;
 
 			// If we fail, it means that someone else incremented the ref counter before us.
 			// Increment linearizes before decrement, so the counter wasn't "actually" zero.
