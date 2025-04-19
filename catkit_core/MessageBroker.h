@@ -3,7 +3,7 @@
 
 #include "HashMap.h"
 #include "Event.h"
-#include "BuddyAllocator.h"
+#include "HybridPoolAllocator.h"
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
 #include "LocalMemory.h"
@@ -30,6 +30,7 @@ const size_t MAX_NUM_METADATA_ENTRIES = 16;
 const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
 const size_t MAX_NUM_BLOCKS = 8192;
 const size_t MEMORY_ALIGNMENT = 32;
+const size_t MIN_SIZE_POOL = 1024;
 const size_t NUM_EVENTS_IN_BUFFER = 64;
 
 const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
@@ -71,7 +72,7 @@ struct ArrayInfo
 struct PayloadInfo
 {
 	std::uint8_t memory_block_id;
-	BuddyAllocator::Handle block_handle;
+	HybridPoolAllocator::Handle block_handle;
 	std::uint64_t offset_in_buffer;
 	std::uint64_t total_size;
 
@@ -184,7 +185,7 @@ private:
 		std::unique_ptr<HashMap> topic_headers,
 		std::unique_ptr<PoolAllocator> message_header_allocator,
 		std::unique_ptr<Event> event,
-		std::vector<std::shared_ptr<BuddyAllocator>> allocators,
+		std::vector<std::shared_ptr<HybridPoolAllocator>> allocators,
 		std::vector<std::shared_ptr<Memory>> memory_blocks
 	);
 
@@ -219,7 +220,7 @@ public:
 private:
 	Message GetMessage(TopicHeader *topic_header, size_t frame_id);
 
-	std::shared_ptr<BuddyAllocator> GetAllocator(uint8_t memory_block_id);
+	std::shared_ptr<HybridPoolAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
 
 	TopicHeader *GetTopicHeader(std::string_view topic);
@@ -233,7 +234,7 @@ private:
 	std::unique_ptr<PoolAllocator> m_MessageHeaderAllocator;
 	MessageHeader *m_MessageHeaders;
 
-	std::vector<std::shared_ptr<BuddyAllocator>> m_Allocators;
+	std::vector<std::shared_ptr<HybridPoolAllocator>> m_Allocators;
 	std::vector<std::shared_ptr<Memory>> m_MemoryBlocks;
 };
 
