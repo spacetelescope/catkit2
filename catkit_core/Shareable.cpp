@@ -4,7 +4,6 @@
 
 #include "DataStream.h"
 #include "Event.h"
-#include "FreeListAllocator.h"
 #include "PoolAllocator.h"
 #include "SharedMemory.h"
 #include "LocalMemory.h"
@@ -24,8 +23,6 @@ std::unique_ptr<Shareable> Shareable::Open(StructStream &stream)
 		return DataStream::Open(stream);
 	case ShareableType::Event:
 		return Event::Open(stream);
-	case ShareableType::FreeListAllocator:
-		return FreeListAllocator::Open(stream);
 	case ShareableType::PoolAllocator:
 		return PoolAllocator::Open(stream);
 	case ShareableType::SharedMemory:

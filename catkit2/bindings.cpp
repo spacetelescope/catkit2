@@ -32,7 +32,6 @@
 #include "Event.h"
 #include "BuddyAllocator.h"
 #include "PoolAllocator.h"
-#include "FreeListAllocator.h"
 #include "HybridPoolAllocator.h"
 
 #include "testbed.pb.h"
@@ -1077,34 +1076,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def("release", &PoolAllocator::Release)
 		.def("acquire", &PoolAllocator::Acquire);
-
-	py::class_<FreeListAllocator, std::shared_ptr<FreeListAllocator>>(m, "FreeListAllocator")
-		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t max_num_blocks, std::size_t alignment, std::size_t buffer_size)
-		{
-			auto stream = StructStream(memory->GetAddress());
-			auto allocator = FreeListAllocator::Create(stream, max_num_blocks, alignment, buffer_size);
-
-			return std::shared_ptr<FreeListAllocator>(std::move(allocator));
-		})
-		.def_static("open", [](std::shared_ptr<Memory> memory)
-		{
-			auto stream = StructStream(memory->GetAddress());
-			auto allocator = FreeListAllocator::Open(stream);
-
-			return std::shared_ptr<FreeListAllocator>(std::move(allocator));
-		})
-		.def("allocate", [](std::shared_ptr<FreeListAllocator> allocator, std::size_t size)
-		{
-			auto handle = allocator->Allocate(size);
-
-			if (handle == FreeListAllocator::INVALID_HANDLE)
-				throw std::runtime_error("Failed to allocate memory from free list allocator.");
-
-			return handle;
-		})
-		.def("release", &FreeListAllocator::Release)
-		.def("acquire", &FreeListAllocator::Acquire)
-		.def("print_state", &FreeListAllocator::PrintState);
 
 	py::class_<BuddyAllocator, std::shared_ptr<BuddyAllocator>>(m, "BuddyAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size)

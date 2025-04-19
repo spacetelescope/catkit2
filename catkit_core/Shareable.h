@@ -11,7 +11,6 @@ enum class ShareableType
 {
 	DataStream,
 	Event,
-	FreeListAllocator,
 	LocalMemory,
 	PoolAllocator,
 	SharedMemory,
