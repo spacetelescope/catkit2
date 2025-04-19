@@ -38,11 +38,14 @@ public:
 	bool Acquire(Handle handle);
 	bool Release(Handle handle);
 
+	std::size_t GetOffset(Handle handle) const;
+
 public:
 	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools);
 
 	std::size_t GetLevelFromHandle(Handle handle) const;
 	std::size_t GetLevelFromSize(std::size_t size) const;
+	std::size_t GetSizeFromHandle(Handle handle) const;
 
 	std::size_t m_Capacity;
 	std::size_t m_MinSize;

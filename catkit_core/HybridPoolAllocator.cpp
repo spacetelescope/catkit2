@@ -210,6 +210,11 @@ bool HybridPoolAllocator::Release(Handle handle)
 	}
 }
 
+std::size_t HybridPoolAllocator::GetOffset(Handle handle) const
+{
+	return (handle - (1 << GetLevelFromHandle(handle))) * GetSizeFromHandle(handle);
+}
+
 std::size_t HybridPoolAllocator::GetLevelFromHandle(Handle handle) const
 {
 	return bit_width(handle) - 1;
@@ -218,6 +223,11 @@ std::size_t HybridPoolAllocator::GetLevelFromHandle(Handle handle) const
 std::size_t HybridPoolAllocator::GetLevelFromSize(std::size_t size) const
 {
 	return GetLevelFromHandle(m_Capacity / size);
+}
+
+std::size_t HybridPoolAllocator::GetSizeFromHandle(Handle handle) const
+{
+	return m_Capacity >> GetLevelFromHandle(handle);
 }
 
 HybridPoolAllocator::Bucket &HybridPoolAllocator::GetBucket(std::size_t level)
