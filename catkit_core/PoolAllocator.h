@@ -19,8 +19,8 @@ public:
 
 	static std::size_t GetSharedStateSize(std::uint32_t capacity);
 
-	static std::unique_ptr<PoolAllocator> Create(StructStream &stream, std::uint32_t capacity);
-	static std::unique_ptr<PoolAllocator> Open(StructStream &stream);
+	static std::shared_ptr<PoolAllocator> Create(StructStream &stream, std::uint32_t capacity);
+	static std::shared_ptr<PoolAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate();
 	void Acquire(BlockHandle index);

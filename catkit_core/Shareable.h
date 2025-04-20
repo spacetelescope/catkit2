@@ -43,7 +43,7 @@ public:
 	Shareable(Shareable &&) = delete;
 	Shareable &operator=(Shareable &&) = delete;
 
-	static std::unique_ptr<Shareable> Open(StructStream &stream);
+	static std::shared_ptr<Shareable> Open(StructStream &stream);
 
 	virtual ShareableType GetType() const = 0;
 };

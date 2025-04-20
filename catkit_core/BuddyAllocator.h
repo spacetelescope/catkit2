@@ -14,8 +14,8 @@ class BuddyAllocator : public Shareable
 public:
 	virtual ~BuddyAllocator() = default;
 
-	static std::unique_ptr<BuddyAllocator> Create(StructStream &stream, std::size_t max_size, std::size_t min_size);
-	static std::unique_ptr<BuddyAllocator> Open(StructStream &stream);
+	static std::shared_ptr<BuddyAllocator> Create(StructStream &stream, std::size_t max_size, std::size_t min_size);
+	static std::shared_ptr<BuddyAllocator> Open(StructStream &stream);
 
 	ShareableType GetType() const override;
 	static std::size_t GetSharedStateSize(std::size_t max_size, std::size_t min_size);

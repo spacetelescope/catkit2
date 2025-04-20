@@ -201,16 +201,16 @@ class MessageBroker : public Shareable
 private:
 	MessageBroker(
 		MessageBrokerHeader *header,
-		std::unique_ptr<HashMap> topic_headers,
-		std::unique_ptr<PoolAllocator> message_header_allocator,
-		std::unique_ptr<Event> event,
+		std::shared_ptr<HashMap> topic_headers,
+		std::shared_ptr<PoolAllocator> message_header_allocator,
+		std::shared_ptr<Event> event,
 		std::vector<std::shared_ptr<HybridPoolAllocator>> allocators,
 		std::vector<std::shared_ptr<Memory>> memory_blocks
 	);
 
 public:
-	static std::unique_ptr<MessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks);
-	static std::unique_ptr<MessageBroker> Open(StructStream &stream);
+	static std::shared_ptr<MessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks);
+	static std::shared_ptr<MessageBroker> Open(StructStream &stream);
 
 	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
 
@@ -246,11 +246,11 @@ private:
 
 	MessageBrokerHeader *m_Header;
 
-	std::unique_ptr<HashMap> m_TopicHeaders;
+	std::shared_ptr<HashMap> m_TopicHeaders;
 
 	std::shared_ptr<Event> m_Event;
 
-	std::unique_ptr<PoolAllocator> m_MessageHeaderAllocator;
+	std::shared_ptr<PoolAllocator> m_MessageHeaderAllocator;
 	MessageHeader *m_MessageHeaders;
 
 	std::vector<std::shared_ptr<HybridPoolAllocator>> m_Allocators;

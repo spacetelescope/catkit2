@@ -20,7 +20,7 @@ std::size_t PoolAllocator::GetSharedStateSize(std::uint32_t capacity)
 	return size;
 }
 
-std::unique_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::uint32_t capacity)
+std::shared_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::uint32_t capacity)
 {
 	// Add padding to ensure consistent alignment from object to object.
 	stream.AddPadding<BlockHandle>();
@@ -46,10 +46,10 @@ std::unique_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::
 	}
 	next[capacity - 1].store(INVALID_HANDLE, std::memory_order_relaxed);
 
-	return std::unique_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count));
+	return std::shared_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count));
 }
 
-std::unique_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
+std::shared_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
 {
 	CheckVersion(stream, VERSION);
 	auto capacity = *stream.Extract<std::uint32_t>();
@@ -58,7 +58,7 @@ std::unique_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
 	auto next = stream.Extract<std::atomic<BlockHandle>>(capacity);
 	auto *ref_count = stream.Extract<std::atomic_size_t>(capacity);
 
-	return std::unique_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count));
+	return std::shared_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count));
 }
 
 PoolAllocator::BlockHandle PoolAllocator::Allocate()

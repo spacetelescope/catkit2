@@ -38,8 +38,8 @@ public:
 	~EventImpl();
 
 	// Note: do not implement these functions for specific implementations.
-	static std::unique_ptr<EventImpl<Type>> Create(std::string_view id, SharedState *shared_state);
-	static std::unique_ptr<EventImpl<Type>> Open(std::string_view id, SharedState *shared_state);
+	static std::shared_ptr<EventImpl<Type>> Create(std::string_view id, SharedState *shared_state);
+	static std::shared_ptr<EventImpl<Type>> Open(std::string_view id, SharedState *shared_state);
 
 	// Note: implement the following functions for specific implementations.
 	inline void Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)());

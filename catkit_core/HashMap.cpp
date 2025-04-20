@@ -148,7 +148,7 @@ std::size_t HashMap::GetSharedStateSize(std::size_t num_entries, std::size_t max
 	return sizeof(size_t) * 3 + entry_size * num_entries;
 }
 
-std::unique_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
+std::shared_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
 {
 	*stream.Extract<std::size_t>() = num_entries;
 	*stream.Extract<std::size_t>() = max_key_size;
@@ -156,7 +156,7 @@ std::unique_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_e
 
 	auto data = stream.Extract<char>(CalculateEntrySize(max_key_size, value_size) * num_entries);
 
-	auto map = std::unique_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size));
+	auto map = std::shared_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size));
 
 	// Initialize the map.
 	for (std::size_t i = 0; i < map->m_NumEntries; ++i)
@@ -168,14 +168,14 @@ std::unique_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_e
 	return map;
 }
 
-std::unique_ptr<HashMap> HashMap::Open(StructStream &stream)
+std::shared_ptr<HashMap> HashMap::Open(StructStream &stream)
 {
 	auto num_entries = *stream.Extract<std::size_t>();
 	auto max_key_size = *stream.Extract<std::size_t>();
 	auto value_size = *stream.Extract<std::size_t>();
 	auto data = stream.Extract<char>(CalculateEntrySize(max_key_size, value_size) * num_entries);
 
-	return std::unique_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size));
+	return std::shared_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size));
 }
 
 void *HashMap::Insert(std::string_view key, const void *value)

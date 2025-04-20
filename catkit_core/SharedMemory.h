@@ -47,11 +47,11 @@ public:
 
 	std::size_t GetSharedStateSize();
 
-	static std::unique_ptr<SharedMemory> Create(StructStream &stream, std::string_view fname, size_t num_bytes_in_buffer);
-	static std::unique_ptr<SharedMemory> Create(StructStream &stream, size_t num_bytes_in_buffer);
-	static std::unique_ptr<SharedMemory> Create(std::string_view fname, size_t num_bytes_in_buffer);
-	static std::unique_ptr<SharedMemory> Open(StructStream &stream);
-	static std::unique_ptr<SharedMemory> Open(std::string_view fname);
+	static std::shared_ptr<SharedMemory> Create(StructStream &stream, std::string_view fname, size_t num_bytes_in_buffer);
+	static std::shared_ptr<SharedMemory> Create(StructStream &stream, size_t num_bytes_in_buffer);
+	static std::shared_ptr<SharedMemory> Create(std::string_view fname, size_t num_bytes_in_buffer);
+	static std::shared_ptr<SharedMemory> Open(StructStream &stream);
+	static std::shared_ptr<SharedMemory> Open(std::string_view fname);
 
 	virtual void *GetAddress(std::size_t offset = 0) override;
 	virtual std::size_t GetCapacity() const override;

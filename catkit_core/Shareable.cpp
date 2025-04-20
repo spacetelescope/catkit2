@@ -13,7 +13,7 @@
 #include "BuddyAllocator.h"
 #include "HybridPoolAllocator.h"
 
-std::unique_ptr<Shareable> Shareable::Open(StructStream &stream)
+std::shared_ptr<Shareable> Shareable::Open(StructStream &stream)
 {
 	ShareableType type = *stream.Extract<ShareableType>();
 

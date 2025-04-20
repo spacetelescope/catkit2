@@ -28,8 +28,8 @@ public:
 	using Handle = BuddyAllocator::Handle;
 	static const Handle INVALID_HANDLE = BuddyAllocator::INVALID_HANDLE;
 
-	static std::unique_ptr<HybridPoolAllocator> Create(StructStream &stream, std::size_t capacity, std::size_t min_size, std::size_t min_size_pool);
-	static std::unique_ptr<HybridPoolAllocator> Open(StructStream &stream);
+	static std::shared_ptr<HybridPoolAllocator> Create(StructStream &stream, std::size_t capacity, std::size_t min_size, std::size_t min_size_pool);
+	static std::shared_ptr<HybridPoolAllocator> Open(StructStream &stream);
 
 	ShareableType GetType() const override;
 	static std::size_t GetSharedStateSize(std::size_t capacity, std::size_t min_size);
@@ -41,7 +41,7 @@ public:
 	std::size_t GetOffset(Handle handle) const;
 
 public:
-	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::unique_ptr<BuddyAllocator> allocator, Pool *pools);
+	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::shared_ptr<BuddyAllocator> allocator, Pool *pools);
 
 	std::size_t GetLevelFromHandle(Handle handle) const;
 	std::size_t GetLevelFromSize(std::size_t size) const;
@@ -51,7 +51,7 @@ public:
 	std::size_t m_MinSize;
 	std::size_t m_MinSizePool;
 
-	std::unique_ptr<BuddyAllocator> m_Allocator;
+	std::shared_ptr<BuddyAllocator> m_Allocator;
 
 	Pool *m_Pools;
 

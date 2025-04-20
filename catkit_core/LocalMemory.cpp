@@ -30,11 +30,11 @@ void LocalMemory::WriteReference(StructStream &stream)
 	*stream.Extract<int>() = GetProcessId();
 }
 
-std::unique_ptr<LocalMemory> LocalMemory::Create(StructStream &stream, std::size_t num_bytes)
+std::shared_ptr<LocalMemory> LocalMemory::Create(StructStream &stream, std::size_t num_bytes)
 {
 	// Allocate the memory.
 	char *memory = new char[num_bytes];
-	auto res = std::unique_ptr<LocalMemory>(new LocalMemory(memory, num_bytes, true));
+	auto res = std::shared_ptr<LocalMemory>(new LocalMemory(memory, num_bytes, true));
 
 	// Write metadata to stream.
 	*stream.Extract<char *>() = res->m_Memory;
@@ -44,14 +44,14 @@ std::unique_ptr<LocalMemory> LocalMemory::Create(StructStream &stream, std::size
 	return std::move(res);
 }
 
-std::unique_ptr<LocalMemory> LocalMemory::Create(std::size_t num_bytes)
+std::shared_ptr<LocalMemory> LocalMemory::Create(std::size_t num_bytes)
 {
 	// Allocate the memory.
 	char *memory = new char[num_bytes];
-	return std::unique_ptr<LocalMemory>(new LocalMemory(memory, num_bytes, true));
+	return std::shared_ptr<LocalMemory>(new LocalMemory(memory, num_bytes, true));
 }
 
-std::unique_ptr<LocalMemory> LocalMemory::Open(StructStream &stream)
+std::shared_ptr<LocalMemory> LocalMemory::Open(StructStream &stream)
 {
 	// Read metadata from stream.
 	auto memory = *stream.Extract<char *>();
@@ -61,7 +61,7 @@ std::unique_ptr<LocalMemory> LocalMemory::Open(StructStream &stream)
 	if (pid != GetProcessId())
 		throw std::runtime_error("This local memory was created on a different process.");
 
-	return std::unique_ptr<LocalMemory>(new LocalMemory(memory, num_bytes, false));
+	return std::shared_ptr<LocalMemory>(new LocalMemory(memory, num_bytes, false));
 }
 
 ShareableType LocalMemory::GetType() const

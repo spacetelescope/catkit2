@@ -11,7 +11,7 @@ RingBuffer::RingBuffer(Header *header, char *buffer)
 {
 }
 
-std::unique_ptr<RingBuffer> RingBuffer::Create(StructStream &stream, std::size_t buffer_size, std::size_t value_size)
+std::shared_ptr<RingBuffer> RingBuffer::Create(StructStream &stream, std::size_t buffer_size, std::size_t value_size)
 {
 	auto header = stream.Extract<Header>();
 	auto buffer = stream.Extract<char>(buffer_size * value_size);
@@ -22,15 +22,15 @@ std::unique_ptr<RingBuffer> RingBuffer::Create(StructStream &stream, std::size_t
 	header->m_Head.store(0);
 	header->m_Tail.store(0);
 
-	return std::unique_ptr<RingBuffer>(new RingBuffer(header, buffer));
+	return std::shared_ptr<RingBuffer>(new RingBuffer(header, buffer));
 }
 
-std::unique_ptr<RingBuffer> RingBuffer::Open(StructStream &stream)
+std::shared_ptr<RingBuffer> RingBuffer::Open(StructStream &stream)
 {
 	auto header = stream.Extract<Header>();
 	auto buffer = stream.Extract<char>(header->m_BufferSize * header->m_ValueSize);
 
-	return std::unique_ptr<RingBuffer>(new RingBuffer(header, buffer));
+	return std::shared_ptr<RingBuffer>(new RingBuffer(header, buffer));
 }
 
 std::size_t RingBuffer::CalculateMetadataBufferSize(std::size_t buffer_size, std::size_t value_size)

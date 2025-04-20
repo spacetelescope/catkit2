@@ -58,8 +58,8 @@ public:
 	void Lock();
 	void Unlock();
 
-	static std::unique_ptr<Event> Create(StructStream &stream, std::string_view id);
-	static std::unique_ptr<Event> Open(StructStream &stream);
+	static std::shared_ptr<Event> Create(StructStream &stream, std::string_view id);
+	static std::shared_ptr<Event> Open(StructStream &stream);
 
 	static constexpr std::size_t GetSharedStateSize()
 	{
@@ -69,10 +69,10 @@ public:
 	ShareableType GetType() const override;
 
 private:
-	std::unique_ptr<EventConditionVariable> m_ConditionVariable;
-	std::unique_ptr<EventFutex> m_Futex;
-	std::unique_ptr<EventSemaphore> m_Semaphore;
-	std::unique_ptr<EventSpinLock> m_SpinLock;
+	std::shared_ptr<EventConditionVariable> m_ConditionVariable;
+	std::shared_ptr<EventFutex> m_Futex;
+	std::shared_ptr<EventSemaphore> m_Semaphore;
+	std::shared_ptr<EventSpinLock> m_SpinLock;
 };
 
 #endif // EVENT_H

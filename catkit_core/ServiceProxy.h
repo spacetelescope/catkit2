@@ -54,7 +54,7 @@ private:
 	std::shared_ptr<TestbedProxy> m_Testbed;
 	std::string m_ServiceId;
 
-	std::unique_ptr<Client> m_Client;
+	std::shared_ptr<Client> m_Client;
 
 	std::vector<std::string> m_PropertyNames;
 	std::vector<std::string> m_CommandNames;

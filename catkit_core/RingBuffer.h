@@ -22,8 +22,8 @@ private:
 	RingBuffer(Header *header, char *buffer);
 
 public:
-	static std::unique_ptr<RingBuffer> Create(StructStream &stream, std::size_t buffer_size, std::size_t value_size);
-	static std::unique_ptr<RingBuffer> Open(StructStream &stream);
+	static std::shared_ptr<RingBuffer> Create(StructStream &stream, std::size_t buffer_size, std::size_t value_size);
+	static std::shared_ptr<RingBuffer> Open(StructStream &stream);
 
 	static std::size_t CalculateMetadataBufferSize(std::size_t buffer_size, std::size_t value_size);
 

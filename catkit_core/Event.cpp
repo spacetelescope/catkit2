@@ -59,14 +59,14 @@ void Event::Unlock()
 	m_ConditionVariable->Unlock();
 }
 
-std::unique_ptr<Event> Event::Create(StructStream &stream, std::string_view id)
+std::shared_ptr<Event> Event::Create(StructStream &stream, std::string_view id)
 {
 	auto header = stream.Extract<Header>();
 
 	header->m_Id.fill('\0');
 	id.copy(header->m_Id.data(), EVENT_ID_MAX_SIZE - 1);
 
-	auto event = std::unique_ptr<Event>(new Event());
+	auto event = std::shared_ptr<Event>(new Event());
 
 	// Create all event types.
 	event->m_ConditionVariable = EventConditionVariable::Create(id, &header->m_ConditionVariable);
@@ -77,9 +77,9 @@ std::unique_ptr<Event> Event::Create(StructStream &stream, std::string_view id)
 	return event;
 }
 
-std::unique_ptr<Event> Event::Open(StructStream &stream)
+std::shared_ptr<Event> Event::Open(StructStream &stream)
 {
-	std::unique_ptr<Event> event(new Event());
+	std::shared_ptr<Event> event(new Event());
 
 	auto header = stream.Extract<Header>();
 

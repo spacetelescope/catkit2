@@ -130,9 +130,9 @@ private:
 
 MessageBroker::MessageBroker(
 	MessageBrokerHeader *header,
-	std::unique_ptr<HashMap> topic_headers,
-	std::unique_ptr<PoolAllocator> message_header_allocator,
-	std::unique_ptr<Event> event,
+	std::shared_ptr<HashMap> topic_headers,
+	std::shared_ptr<PoolAllocator> message_header_allocator,
+	std::shared_ptr<Event> event,
 	std::vector<std::shared_ptr<HybridPoolAllocator>> allocators,
 	std::vector<std::shared_ptr<Memory>> memory_blocks
 )
@@ -146,7 +146,7 @@ MessageBroker::MessageBroker(
 {
 }
 
-std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
+std::shared_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
 {
 	DEBUG_PRINT("Creating message broker");
 
@@ -191,7 +191,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 	DEBUG_PRINT("Creating object.");
 
-	return std::unique_ptr<MessageBroker>(new MessageBroker(
+	return std::shared_ptr<MessageBroker>(new MessageBroker(
 		header,
 		std::move(topic_headers),
 		std::move(message_header_allocator),
@@ -201,7 +201,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 	));
 }
 
-std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
+std::shared_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 {
 	CheckVersion(stream, MESSAGE_BROKER_VERSION);
 
@@ -233,7 +233,7 @@ std::unique_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 		}
 	}
 
-	return std::unique_ptr<MessageBroker>(new MessageBroker(
+	return std::shared_ptr<MessageBroker>(new MessageBroker(
 		header,
 		std::move(topic_headers),
 		std::move(message_header_allocator),

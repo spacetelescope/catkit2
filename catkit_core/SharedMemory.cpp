@@ -32,7 +32,7 @@ std::size_t SharedMemory::GetSharedStateSize()
 	return SHARED_MEMORY_FNAME_SIZE;
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_t num_bytes_in_buffer)
+std::shared_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_t num_bytes_in_buffer)
 {
 	std::string fname_string = std::string(fname);
 
@@ -58,7 +58,7 @@ std::unique_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_
 	}
 #endif
 
-	auto obj = std::unique_ptr<SharedMemory>(new SharedMemory(fname, file, true));
+	auto obj = std::shared_ptr<SharedMemory>(new SharedMemory(fname, file, true));
 
 	// Set the header for metadata.
 	Header *header = reinterpret_cast<Header *>(obj->m_Buffer);
@@ -69,7 +69,7 @@ std::unique_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_
 	return obj;
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Create(StructStream &stream, size_t num_bytes_in_buffer)
+std::shared_ptr<SharedMemory> SharedMemory::Create(StructStream &stream, size_t num_bytes_in_buffer)
 {
 	// Create a randomized file name.
 	std::string fname = std::to_string(GetTimeStamp()) + ".mem";
@@ -77,7 +77,7 @@ std::unique_ptr<SharedMemory> SharedMemory::Create(StructStream &stream, size_t 
 	return Create(stream, fname, num_bytes_in_buffer);
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Create(StructStream &stream, std::string_view fname, size_t num_bytes_in_buffer)
+std::shared_ptr<SharedMemory> SharedMemory::Create(StructStream &stream, std::string_view fname, size_t num_bytes_in_buffer)
 {
 	// Copy over fname to stream.
 	auto arr = stream.Extract<std::array<char, SHARED_MEMORY_FNAME_SIZE>>();
@@ -87,7 +87,7 @@ std::unique_ptr<SharedMemory> SharedMemory::Create(StructStream &stream, std::st
 	return Create(fname, num_bytes_in_buffer);
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Open(std::string_view fname)
+std::shared_ptr<SharedMemory> SharedMemory::Open(std::string_view fname)
 {
 	std::string fname_string = std::string(fname);
 
@@ -103,7 +103,7 @@ std::unique_ptr<SharedMemory> SharedMemory::Open(std::string_view fname)
 		throw std::runtime_error("Something went wrong while opening shared memory.");
 #endif
 
-	auto res = std::unique_ptr<SharedMemory>(new SharedMemory(fname, file, false));
+	auto res = std::shared_ptr<SharedMemory>(new SharedMemory(fname, file, false));
 
 	// Get the header for metadata.
 	Header *header = reinterpret_cast<Header *>(res->m_Buffer);
@@ -112,7 +112,7 @@ std::unique_ptr<SharedMemory> SharedMemory::Open(std::string_view fname)
 	return res;
 }
 
-std::unique_ptr<SharedMemory> SharedMemory::Open(StructStream &stream)
+std::shared_ptr<SharedMemory> SharedMemory::Open(StructStream &stream)
 {
 	auto arr = stream.Extract<std::array<char, SHARED_MEMORY_FNAME_SIZE>>();
 

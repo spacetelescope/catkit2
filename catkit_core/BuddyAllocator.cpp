@@ -73,7 +73,7 @@ BuddyAllocator::BuddyAllocator(std::size_t capacity, std::size_t min_size, std::
 		throw std::runtime_error("Max size must be greater than or equal to min size.");
 }
 
-std::unique_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std::size_t capacity, std::size_t min_size)
+std::shared_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std::size_t capacity, std::size_t min_size)
 {
 	*stream.Extract<std::array<std::uint8_t, 4>>() = BUDDY_ALLOCATOR_VERSION;
 
@@ -95,10 +95,10 @@ std::unique_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std
 		last_success[i].store((1 << (depth - 1)) - 1);
 	}
 
-	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
+	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
 }
 
-std::unique_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
+std::shared_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
 {
 	CheckVersion(stream, BUDDY_ALLOCATOR_VERSION);
 
@@ -110,7 +110,7 @@ std::unique_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
 	auto tree = stream.Extract<std::atomic_uint16_t>(1 << (depth + 1));
 	auto last_success = stream.Extract<std::atomic_size_t>(depth + 1);
 
-	return std::unique_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
+	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
 }
 
 std::size_t BuddyAllocator::GetSharedStateSize(std::size_t capacity, std::size_t min_size)
