@@ -26,7 +26,7 @@ const size_t METADATA_MAX_STRLEN = 8;
 const size_t METADATA_MAX_KEYLEN = 7;
 const size_t MAX_NUM_MESSAGES = 65536;
 const size_t MAX_NUM_DIMENSIONS = 4;
-const size_t MAX_NUM_METADATA_ENTRIES = 16;
+const size_t MAX_NUM_METADATA_ENTRIES = 12;
 const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
 const size_t MAX_NUM_BLOCKS = 8192;
 const size_t MEMORY_ALIGNMENT = 32;
@@ -171,13 +171,32 @@ private:
 	bool m_HasBeenPublished;
 };
 
+enum class MessageSubscriptionMode
+{
+	// Only the latest messages are processed, skipping older ones
+	NewestOnly,
+	// Messages are processed in order without skipping
+	Sequential,
+};
+
 class MessageSubscription
 {
+	friend class MessageBroker;
+
+public:
+	Message GetNextMessage(double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr);
+
+private:
+	MessageSubscription(TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode);
+
+	TopicHeader *m_TopicHeader;
+	std::uint64_t m_NextFrameIdToRead;
+	MessageSubscriptionMode m_SubscriptionMode;
 };
 
 class MessageBroker : public Shareable
 {
-	friend class Message;
+	friend class MessageSubscription;
 
 private:
 	MessageBroker(
