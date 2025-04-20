@@ -594,8 +594,8 @@ std::vector<std::string> MessageBroker::GetAllMessageTopics()
 
 MessageSubscription MessageBroker::Subscribe(std::string_view topic)
 {
-	// TODO: implement.
-	return MessageSubscription();
+	auto topic_header = GetTopicHeader(topic);
+	return MessageSubscription(topic_header, topic_header->next_frame_id.load(), MessageSubscriptionMode::NewestOnly);
 }
 
 std::shared_ptr<Memory> MessageBroker::GetMemory(uint8_t memory_block_id)
@@ -777,4 +777,14 @@ const std::uint64_t Message::GetEndByte() const
 void Message::SetEndByte(std::uint64_t end_byte)
 {
 	m_Header->end_byte = end_byte;
+}
+
+MessageSubscription::MessageSubscription(TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode)
+	: m_TopicHeader(topic_header), m_NextFrameIdToRead(starting_frame_id), m_SubscriptionMode(mode)
+{
+}
+
+Message MessageSubscription::GetNextMessage(double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
+{
+	return Message(nullptr, nullptr, false);
 }
