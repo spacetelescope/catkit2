@@ -1019,13 +1019,13 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			return subscription.GetNextMessage(timeout_in_seconds, wait_method, error_check_python);
 		}, py::arg("timeout_in_sec") = -1, py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
-		.def("try_get_next_message", [](MessageSubscription &subscription)
+		.def("try_get_next_message", [](MessageSubscription &subscription) -> py::object
 		{
 			auto res = subscription.TryGetNextMessage();
 			if (res)
 				return py::cast(res.value());
 
-			return py::object();
+			return py::none();
 		})
 		.def_property_readonly("next_message_id", &MessageSubscription::GetNextMessageId);
 
@@ -1049,26 +1049,48 @@ PYBIND11_MODULE(catkit_bindings, m)
 			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
 
 			return message;
-		})
+		}, py::arg("topic"), py::arg("payload_size"), py::arg("memory_block_id") = 0)
+		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string& topic, std::size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
+		{
+			if (trace_id.is_none())
+			{
+				return broker->PrepareMessage(topic, payload_size, memory_block_id);
+			}
+			else
+			{
+				return broker->PrepareMessage(topic, payload_size, py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("payload_size"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
 		.def("publish_message", [](std::shared_ptr<MessageBroker> broker, Message& message, bool is_final)
 		{
 			broker->PublishMessage(message, is_final);
-		})
-		.def("try_get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id)
+		}, py::arg("message"), py::arg("is_final") = true)
+		.def("publish_data", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
+		{
+			if (trace_id.is_none())
+			{
+				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), memory_block_id);
+			}
+			else
+			{
+				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("data"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("try_get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
 		{
 			auto res = broker->TryGetMessage(topic, frame_id);
 			if (res)
 				return py::cast(res.value());
 
-			return py::object();
+			return py::none();
 		}, py::arg("topic"), py::arg("frame_id"))
-		.def("get_newest_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic)
+		.def("get_newest_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic) -> py::object
 		{
 			auto res = broker->GetNewestMessage(topic);
 			if (res)
 				return py::cast(res.value());
 
-			return py::object();
+			return py::none();
 		}, py::arg("topic"))
 		.def("is_message_available", &MessageBroker::IsMessageAvailable)
 		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)
@@ -1079,18 +1101,13 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("subscribe", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::object starting_frame_id, MessageSubscriptionMode mode)
 		{
 			// Check if the starting frame ID is a number or None.
-			if (py::isinstance<py::int_>(starting_frame_id))
-			{
-				return broker->Subscribe(topic, py::cast<std::uint64_t>(starting_frame_id), mode);
-
-			}
-			else if (py::isinstance<py::none>(starting_frame_id))
+			if (starting_frame_id.is_none())
 			{
 				return broker->Subscribe(topic, mode);
 			}
 			else
 			{
-				throw py::value_error("Invalid starting frame ID. It must be an integer or None.");
+				return broker->Subscribe(topic, py::cast<std::uint64_t>(starting_frame_id), mode);
 			}
 		}, py::arg("topic"), py::arg("starting_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
 

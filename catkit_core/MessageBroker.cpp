@@ -287,10 +287,10 @@ Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_siz
 
 	DEBUG_PRINT("Trace id generated.");
 
-	return PrepareMessage(topic, trace_id, payload_size, memory_block_id);
+	return PrepareMessage(topic, payload_size, trace_id, memory_block_id);
 }
 
-Message MessageBroker::PrepareMessage(std::string_view topic, Uuid trace_id, size_t payload_size, uint8_t memory_block_id)
+Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
 {
 	// Allocate a payload.
 	auto allocator = GetAllocator(memory_block_id);
@@ -454,7 +454,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 		allocator->Acquire(message.m_Header->payload_info.block_handle);
 
 		// Make the message available.
-		fetch_max(topic_header->last_frame_id, frame_id);
+		fetch_max(topic_header->last_frame_id, frame_id + 1);
 
 		// Update the framerate counter for this topic.
 		// TODO: put this after the event signaling, since we don't want this in the
@@ -510,6 +510,47 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	}
 
 	message.m_HasBeenPublished = is_final;
+}
+
+void MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id)
+{
+	Uuid trace_id;
+	Uuid::Generate(&trace_id);
+
+	PublishData(topic, data, data_size, trace_id, memory_block_id);
+}
+
+void MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id)
+{
+	auto message = PrepareMessage(topic, data_size, trace_id, memory_block_id);
+
+	// Copy the data to the payload.
+	std::memcpy(message.m_Payload, data, data_size);
+
+	// Set the array information.
+	ArrayInfo &array_info = message.m_Header->payload_info.array_info;
+
+	array_info.data_type = 'u';
+	array_info.byte_order = '=';
+	array_info.item_size = 1;
+	array_info.ndim = 1;
+	array_info.shape[0] = data_size;
+	array_info.strides[0] = 1;
+
+	PublishMessage(message);
+}
+
+void MessageBroker::PublishData(std::string_view topic, const Tensor &tensor, uint8_t memory_block_id)
+{
+	Uuid trace_id;
+	Uuid::Generate(&trace_id);
+
+	PublishData(topic, tensor, trace_id, memory_block_id);
+}
+
+void MessageBroker::PublishData(std::string_view topic, const Tensor &tensor, Uuid trace_id, uint8_t memory_block_id)
+{
+	// TODO.
 }
 
 std::optional<Message> MessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)

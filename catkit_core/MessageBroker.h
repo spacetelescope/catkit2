@@ -9,7 +9,7 @@
 #include "LocalMemory.h"
 #include "CudaSharedMemory.h"
 #include "Uuid.h"
-#include "RingBuffer.h"
+#include "Tensor.h"
 
 #include <memory>
 #include <array>
@@ -226,25 +226,55 @@ public:
 
 	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
 
+	// Prepare a message for publishing.
 	Message PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id = 0);
-	Message PrepareMessage(std::string_view topic, Uuid trace_id, size_t payload_size, uint8_t memory_block_id = 0);
 
+	// Prepare a message for publishing with a trace ID.
+	Message PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0);
+
+	// Publish a message.
 	void PublishMessage(Message &message, bool is_final = true);
 
+	// Convenience function for publishing data.
+	void PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id = 0);
+
+	// Convenience function for publishing data with a trace ID.
+	void PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id = 0);
+
+	// Convenience function for publishing a tensor.
+	void PublishData(std::string_view topic, const Tensor &tensor, uint8_t memory_block_id = 0);
+
+	// Convenience function for publishing a tensor with a trace ID.
+	void PublishData(std::string_view topic, const Tensor &tensor, Uuid trace_id, uint8_t memory_block_id = 0);
+
+	// Try to get a message by topic and frame ID.
 	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
+
+	// Get the newest message for a topic.
 	std::optional<Message> GetNewestMessage(std::string_view topic);
 
+	// Check for message availability.
 	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
+
+	// Check if a message will be available in the future.
 	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);
 
+	// Get the newest message ID for a topic.
 	size_t GetNewestMessageId(std::string_view topic);
+
+	// Get the oldest message ID for a topic.
 	size_t GetOldestMessageId(std::string_view topic);
 
+	// Get the message rate for a topic.
 	double GetMessageRate(std::string_view topic);
 
+	// Get the message topics for all messages in this broker.
 	std::vector<std::string> GetAllMessageTopics();
 
+	// Subscribe to a topic for receiving messages.
 	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+
+	// Subscribe to a topic for receiving messages with a starting frame ID.
 	MessageSubscription Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
 
 	ShareableType GetType() const override;
