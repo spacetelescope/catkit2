@@ -228,6 +228,11 @@ bool BuddyAllocator::Release(Handle handle)
 				return false;
 		} while (true);
 	}
+	else
+	{
+		// Reference count is not zero, so we can't free the node.
+		return false;
+	}
 
 	FreeNode(handle, 0);
 

@@ -23,8 +23,8 @@ public:
 	static std::shared_ptr<PoolAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate();
-	void Acquire(BlockHandle index);
-	void Release(BlockHandle index);
+	bool Acquire(BlockHandle index);
+	bool Release(BlockHandle index);
 
 	ShareableType GetType() const override;
 

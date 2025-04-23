@@ -85,11 +85,11 @@ PoolAllocator::BlockHandle PoolAllocator::Allocate()
 	return head;
 }
 
-void PoolAllocator::Acquire(BlockHandle index)
+bool PoolAllocator::Acquire(BlockHandle index)
 {
 	if (index >= m_Capacity)
 	{
-		return;
+		return false;
 	}
 
 	if (m_RefCount[index].fetch_add(1, std::memory_order_relaxed) == 0)
@@ -97,16 +97,18 @@ void PoolAllocator::Acquire(BlockHandle index)
 		// The reference count was 0, so we erroneously increased the ref count and
 		// someone else is deallocating the element. Undo the increment and return.
 		m_RefCount[index].fetch_sub(1, std::memory_order_relaxed);
-		return;
+		return false;
 	};
+
+	return true;
 }
 
-void PoolAllocator::Release(BlockHandle index)
+bool PoolAllocator::Release(BlockHandle index)
 {
 	// Check if the element is within the pool bounds.
 	if (index >= m_Capacity)
 	{
-		return;
+		return false;
 	}
 
 	size_t old_ref_count = m_RefCount[index].fetch_sub(1, std::memory_order_relaxed);
@@ -114,7 +116,7 @@ void PoolAllocator::Release(BlockHandle index)
 	if (old_ref_count != 1)
 	{
 		// The reference count is not yet zero, so do not deallocate.
-		return;
+		return false;
 	}
 
 	if (old_ref_count == 0)
@@ -132,6 +134,8 @@ void PoolAllocator::Release(BlockHandle index)
 	{
 		m_Next[index] = head;
 	} while (!m_Head->compare_exchange_weak(head, index));
+
+	return true;
 }
 
 ShareableType PoolAllocator::GetType() const
