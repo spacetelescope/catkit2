@@ -9,7 +9,6 @@
 #include "LocalMemory.h"
 #include "HashMap.h"
 #include "MessageBroker.h"
-#include "RingBuffer.h"
 #include "BuddyAllocator.h"
 #include "HybridPoolAllocator.h"
 
@@ -33,8 +32,6 @@ std::shared_ptr<Shareable> Shareable::Open(StructStream &stream)
 		return HashMap::Open(stream);
 	case ShareableType::MessageBroker:
 		return MessageBroker::Open(stream);
-	case ShareableType::RingBuffer:
-		return RingBuffer::Open(stream);
 	case ShareableType::BuddyAllocator:
 		return BuddyAllocator::Open(stream);
 	case ShareableType::HybridPoolAllocator:
