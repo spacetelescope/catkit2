@@ -1,0 +1,45 @@
+from catkit2.catkit_bindings import Event, LocalMemory
+import time
+import threading
+import pytest
+
+def event_wait(event, signal, waiting, condition):
+    print(condition[0] != 0)
+    with event:
+        waiting.set()
+
+        event.wait(lambda: condition[0] != 0, 21)
+
+        signal.set()
+
+def test_event():
+    memory = LocalMemory.create(1024)
+    event = Event.create(memory, 'test_event')
+
+    signaled = threading.Event()
+    waiting = threading.Event()
+
+    condition = [0]
+
+    thread = threading.Thread(target=event_wait, args=(event, signaled, waiting, condition))
+    thread.start()
+
+    waiting.wait()
+
+    # Ensure the event is not triggered unless signaled.
+    with pytest.raises(RuntimeError):
+        with event:
+            event.wait(lambda: condition[0] != 0, 0.1)
+
+    # Signal the event.
+    with event:
+        condition[0] = 1
+        event.signal()
+
+    # Wait for the wait to end.
+    signaled.wait(1)
+
+    # Ensure that the wait actually ended and was triggered.
+    assert signaled.is_set()
+
+    thread.join()

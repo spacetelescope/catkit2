@@ -33,6 +33,8 @@
 #include "BuddyAllocator.h"
 #include "PoolAllocator.h"
 #include "HybridPoolAllocator.h"
+#include "Event.h"
+#include "Uuid.h"
 
 #include "testbed.pb.h"
 
@@ -909,7 +911,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 		});
 
 	py::class_<Uuid>(m, "Uuid")
-		.def(py::init<>())
 		.def_static("generate", []()
 		{
 			Uuid uuid;
@@ -1009,6 +1010,37 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.value("Futex", EventWaitMethod::Futex)
 		.value("Semaphore", EventWaitMethod::Semaphore)
 		.value("SpinLock", EventWaitMethod::SpinLock);
+
+	py::class_<Event, std::shared_ptr<Event>>(m, "Event")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::string id)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			return Event::Create(stream, id);
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			return Event::Open(stream);
+		})
+		.def("wait", [](std::shared_ptr<Event> event, py::object condition, double timeout_in_seconds, EventWaitMethod wait_method)
+		{
+			event->Wait(timeout_in_seconds, [condition]()
+			{
+				py::gil_scoped_acquire acquire;
+
+				return py::cast<bool>(condition());
+			}, wait_method, error_check_python);
+		}, py::arg("condition"), py::arg("timeout_in_sec") = -1, py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
+		.def("signal", &Event::Signal)
+		.def("__enter__", [](std::shared_ptr<Event> event)
+		{
+			event->Lock();
+			return event;
+		})
+		.def("__exit__", [] (std::shared_ptr<Event> event, const std::optional<pybind11::type> &exc_type, const std::optional<pybind11::object> &exc_value, const std::optional<pybind11::object> &traceback)
+		{
+			event->Unlock();
+		});
 
 	py::enum_<MessageSubscriptionMode>(m, "MessageSubscriptionMode")
 		.value("NewestOnly", MessageSubscriptionMode::NewestOnly)

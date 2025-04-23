@@ -45,9 +45,14 @@ def test_message_subscription(broker):
 
     assert subscription_sequential.try_get_next_message() is None
 
+    subscription_newest2 = broker.subscribe(topic, starting_frame_id=1, mode=MessageSubscriptionMode.NewestOnly)
+    assert subscription_newest2.next_message_id == 2
+
+    subscription_sequential2 = broker.subscribe(topic, starting_frame_id=1, mode=MessageSubscriptionMode.Sequential)
+    assert subscription_sequential2.next_message_id == 1
+
 dtypes = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64', 'complex64', 'complex128']
 shapes = [[10], [10, 10], [10, 10, 10], [10, 10, 10, 10]]
-
 
 @pytest.mark.parametrize("shape", shapes)
 @pytest.mark.parametrize("dtype", dtypes)
@@ -85,7 +90,6 @@ def test_message_broker_publish(broker):
 def test_message_broker_trace_id(broker):
     topic = "test_message_broker_trace_id"
     data = b'hello world'
-    arr = np.frombuffer(data, dtype='uint8')
 
     broker.publish_data(topic, data)
     message_1 = broker.get_newest_message(topic)
