@@ -984,8 +984,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 				throw std::runtime_error("The array is too high-dimensional.");
 
 			// Copy over the shape and strides.
-			std::copy(buffer_info.shape.begin(), buffer_info.shape.end(), array_info.shape);
-			std::copy(buffer_info.strides.begin(), buffer_info.strides.end(), array_info.strides);
+			std::transform(buffer_info.shape.begin(), buffer_info.shape.end(), array_info.shape, [](const auto& val) { return static_cast<uint32_t>(val); });
+			std::transform(buffer_info.strides.begin(), buffer_info.strides.end(), array_info.strides, [](const auto& val) { return static_cast<uint32_t>(val); });
 
 			// Make sure our buffer is large enough.
 			if (array_info.GetNumBytes() > m.GetPayloadSize())
