@@ -1031,16 +1031,16 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return py::cast<bool>(condition());
 			}, wait_method, error_check_python);
 		}, py::arg("condition"), py::arg("timeout_in_sec") = -1, py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
-		.def("signal", &Event::Signal)
+		.def("signal", &Event::Signal, py::call_guard<py::gil_scoped_release>())
 		.def("__enter__", [](std::shared_ptr<Event> event)
 		{
 			event->Lock();
 			return event;
-		})
+		}, py::call_guard<py::gil_scoped_release>())
 		.def("__exit__", [] (std::shared_ptr<Event> event, const std::optional<pybind11::type> &exc_type, const std::optional<pybind11::object> &exc_value, const std::optional<pybind11::object> &traceback)
 		{
 			event->Unlock();
-		});
+		}, py::call_guard<py::gil_scoped_release>());
 
 	py::enum_<MessageSubscriptionMode>(m, "MessageSubscriptionMode")
 		.value("NewestOnly", MessageSubscriptionMode::NewestOnly)

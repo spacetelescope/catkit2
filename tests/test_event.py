@@ -8,7 +8,7 @@ def event_wait(event, signal, waiting, condition):
     with event:
         waiting.set()
 
-        event.wait(lambda: condition[0] != 0, 21)
+        event.wait(lambda: condition[0] != 0, 2)
 
         signal.set()
 
@@ -24,7 +24,8 @@ def test_event():
     thread = threading.Thread(target=event_wait, args=(event, signaled, waiting, condition))
     thread.start()
 
-    waiting.wait()
+    waiting.wait(1)
+    assert waiting.is_set()
 
     # Ensure the event is not triggered unless signaled.
     with pytest.raises(RuntimeError):
