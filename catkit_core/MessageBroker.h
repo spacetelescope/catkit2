@@ -110,10 +110,10 @@ struct TopicHeader
 
 	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
 
-	bool IsMessageAvailable(std::uint64_t frame_id);
-	bool WillMessageBeAvailable(std::uint64_t frame_id);
-	std::uint64_t GetOldestMessageId();
-	std::uint64_t GetNewestMessageId();
+	bool IsMessageAvailable(std::size_t frame_id);
+	bool WillMessageBeAvailable(std::size_t frame_id);
+	std::size_t GetOldestMessageId();
+	std::size_t GetNewestMessageId();
 
 	double GetMessageRate();
 };
