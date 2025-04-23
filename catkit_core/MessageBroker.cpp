@@ -128,6 +128,36 @@ private:
 	char m_Delimiter;
 };
 
+bool TopicHeader::IsMessageAvailable(std::size_t frame_id)
+{
+	size_t first = first_frame_id.load(std::memory_order_relaxed);
+	size_t last = last_frame_id.load(std::memory_order_relaxed);
+
+	return (frame_id >= first) && (frame_id < last);
+}
+
+bool TopicHeader::WillMessageBeAvailable(std::size_t frame_id)
+{
+	size_t first = first_frame_id.load(std::memory_order_relaxed);
+
+	return frame_id >= first;
+}
+
+std::size_t TopicHeader::GetOldestMessageId()
+{
+	return first_frame_id.load(std::memory_order_relaxed);
+}
+
+std::size_t TopicHeader::GetNewestMessageId()
+{
+	size_t last = last_frame_id.load(std::memory_order_relaxed);
+
+	if (last == 0)
+		return 0;
+
+	return last - 1;
+}
+
 MessageBroker::MessageBroker(
 	MessageBrokerHeader *header,
 	std::shared_ptr<HashMap> topic_headers,
@@ -482,29 +512,19 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	message.m_HasBeenPublished = is_final;
 }
 
-Message MessageBroker::GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds, EventWaitMethod wait_method, void (*error_check)())
+std::optional<Message> MessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	bool wait = timeout_in_seconds != 0;
+	if (!topic_header->IsMessageAvailable(frame_id))
+		return std::nullopt;
 
-	if (!IsMessageAvailable(topic, frame_id))
-	{
-		if (!WillMessageBeAvailable(topic, frame_id))
-			throw std::runtime_error("Message will never be available anymore.");
-
-		if (!wait)
-			throw std::runtime_error("Message is not available yet.");
-
-		auto lock = EventLockGuard(m_Event);
-		m_Event->Wait(timeout_in_seconds * 1000, [topic_header, frame_id]() { return topic_header->last_frame_id > frame_id; }, wait_method, error_check);
-	}
-
-	return GetMessage(topic_header, frame_id);
+	return FetchMessage(topic_header, frame_id);
 }
 
-Message MessageBroker::GetMessage(TopicHeader* topic_header, size_t frame_id)
+Message MessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame_id)
 {
+	// Assume that the frame is available.
 	auto header = &m_MessageHeaders[topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES]];
 	auto offset = header->payload_info.offset_in_buffer;
 	auto memory = GetMemory(header->payload_info.memory_block_id);
@@ -513,16 +533,16 @@ Message MessageBroker::GetMessage(TopicHeader* topic_header, size_t frame_id)
 	return Message(header, payload, true);
 }
 
-Message MessageBroker::GetNewestMessage(std::string_view topic)
+std::optional<Message> MessageBroker::GetNewestMessage(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
 
 	if (topic_header->last_frame_id == 0)
-		throw std::runtime_error("Message topic does not have any frames when trying to get the newest message.");
+		return std::nullopt;
 
 	auto frame_id = topic_header->last_frame_id - 1;
 
-	return GetMessage(topic_header, frame_id);
+	return FetchMessage(topic_header, frame_id);
 }
 
 ShareableType MessageBroker::GetType() const
@@ -544,31 +564,28 @@ bool MessageBroker::IsMessageAvailable(std::string_view topic, size_t frame_id)
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	return (frame_id >= topic_header->first_frame_id) && (frame_id < topic_header->last_frame_id);
+	return topic_header->IsMessageAvailable(frame_id);
 }
 
 bool MessageBroker::WillMessageBeAvailable(std::string_view topic, size_t frame_id)
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	return frame_id >= topic_header->first_frame_id;
+	return topic_header->WillMessageBeAvailable(frame_id);
 }
 
 size_t MessageBroker::GetNewestMessageId(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	if (topic_header->last_frame_id == 0)
-		return 0;
-
-	return topic_header->last_frame_id - 1;
+	return topic_header->GetNewestMessageId();
 }
 
 size_t MessageBroker::GetOldestMessageId(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	return topic_header->first_frame_id;
+	return topic_header->GetOldestMessageId();
 }
 
 double MessageBroker::GetMessageRate(std::string_view topic)
@@ -592,10 +609,19 @@ std::vector<std::string> MessageBroker::GetAllMessageTopics()
 	return m_TopicHeaders->GetAllKeys();
 }
 
-MessageSubscription MessageBroker::Subscribe(std::string_view topic)
+MessageSubscription MessageBroker::Subscribe(std::string_view topic, MessageSubscriptionMode mode)
 {
 	auto topic_header = GetTopicHeader(topic);
-	return MessageSubscription(topic_header, topic_header->next_frame_id.load(), MessageSubscriptionMode::NewestOnly);
+	auto starting_frame_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
+
+	return MessageSubscription(shared_from_this(), topic_header, starting_frame_id, mode);
+}
+
+MessageSubscription MessageBroker::Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode)
+{
+	auto topic_header = GetTopicHeader(topic);
+
+	return MessageSubscription(shared_from_this(), topic_header, starting_frame_id, mode);
 }
 
 std::shared_ptr<Memory> MessageBroker::GetMemory(uint8_t memory_block_id)
@@ -779,12 +805,74 @@ void Message::SetEndByte(std::uint64_t end_byte)
 	m_Header->end_byte = end_byte;
 }
 
-MessageSubscription::MessageSubscription(TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode)
-	: m_TopicHeader(topic_header), m_NextFrameIdToRead(starting_frame_id), m_SubscriptionMode(mode)
+MessageSubscription::MessageSubscription(std::shared_ptr<MessageBroker> message_broker, TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode)
+	: m_MessageBroker(message_broker), m_TopicHeader(topic_header), m_NextFrameIdToRead(starting_frame_id), m_SubscriptionMode(mode)
 {
 }
 
 Message MessageSubscription::GetNextMessage(double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
 {
-	return Message(nullptr, nullptr, false);
+	std::uint64_t frame_id = GetNextMessageId();
+
+	// Check if the frame is available.
+	if (m_TopicHeader->IsMessageAvailable(frame_id))
+	{
+		m_NextFrameIdToRead = frame_id + 1;
+
+		return m_MessageBroker->FetchMessage(m_TopicHeader, frame_id);
+	}
+
+	// Otherwise, wait for it.
+	auto lock = EventLockGuard(m_MessageBroker->m_Event);
+	m_MessageBroker->m_Event->Wait(timeout_in_seconds, [this, frame_id]() { return m_TopicHeader->last_frame_id > frame_id; }, wait_type, error_check);
+
+	m_NextFrameIdToRead = frame_id + 1;
+
+	return m_MessageBroker->FetchMessage(m_TopicHeader, frame_id);
+}
+
+std::optional<Message> MessageSubscription::TryGetNextMessage()
+{
+	std::uint64_t frame_id = GetNextMessageId();
+
+	// Check if the frame is available.
+	if (!m_TopicHeader->IsMessageAvailable(frame_id))
+		return std::nullopt;
+
+	m_NextFrameIdToRead = frame_id + 1;
+
+	return m_MessageBroker->FetchMessage(m_TopicHeader, frame_id);
+}
+
+std::uint64_t MessageSubscription::GetNextMessageId()
+{
+	size_t frame_id = m_NextFrameIdToRead;
+	size_t newest_frame_id = m_TopicHeader->last_frame_id.load(std::memory_order_relaxed);
+	size_t oldest_frame_id = m_TopicHeader->first_frame_id.load(std::memory_order_relaxed);
+
+	if (newest_frame_id != 0)
+		newest_frame_id--;
+
+	switch (m_SubscriptionMode)
+	{
+		case MessageSubscriptionMode::NewestOnly:
+
+		// If the frame we are aiming to read is not the newest,
+		// return the newest frame instead.
+		if (newest_frame_id > frame_id)
+			frame_id = newest_frame_id;
+
+		break;
+
+		case MessageSubscriptionMode::Sequential:
+
+		// If the frame was discarded already,
+		// return the oldest available frame instead.
+		if (frame_id < oldest_frame_id)
+			frame_id = oldest_frame_id;
+
+		break;
+	}
+
+	return frame_id;
 }

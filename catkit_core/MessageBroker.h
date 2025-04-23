@@ -13,7 +13,7 @@
 
 #include <memory>
 #include <array>
-#include <unordered_map>
+#include <optional>
 
 const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
 
@@ -109,6 +109,13 @@ struct TopicHeader
 	double frame_rate;
 
 	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
+
+	bool IsMessageAvailable(std::uint64_t frame_id);
+	bool WillMessageBeAvailable(std::uint64_t frame_id);
+	std::uint64_t GetOldestMessageId();
+	std::uint64_t GetNewestMessageId();
+
+	double GetMessageRate();
 };
 
 struct MessageBrokerHeader
@@ -185,16 +192,21 @@ class MessageSubscription
 
 public:
 	Message GetNextMessage(double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr);
+	std::optional<Message> TryGetNextMessage();
+
+	std::uint64_t GetNextMessageId();
 
 private:
-	MessageSubscription(TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode);
+	MessageSubscription(std::shared_ptr<MessageBroker>, TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode);
 
+	std::shared_ptr<MessageBroker> m_MessageBroker;
 	TopicHeader *m_TopicHeader;
+
 	std::uint64_t m_NextFrameIdToRead;
 	MessageSubscriptionMode m_SubscriptionMode;
 };
 
-class MessageBroker : public Shareable
+class MessageBroker : public Shareable, public std::enable_shared_from_this<MessageBroker>
 {
 	friend class MessageSubscription;
 
@@ -219,8 +231,8 @@ public:
 
 	void PublishMessage(Message &message, bool is_final = true);
 
-	Message GetMessage(std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr);
-	Message GetNewestMessage(std::string_view topic);
+	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
+	std::optional<Message> GetNewestMessage(std::string_view topic);
 
 	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
 	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);
@@ -232,12 +244,13 @@ public:
 
 	std::vector<std::string> GetAllMessageTopics();
 
-	MessageSubscription Subscribe(std::string_view topic);
+	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+	MessageSubscription Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
 
 	ShareableType GetType() const override;
 
 private:
-	Message GetMessage(TopicHeader *topic_header, size_t frame_id);
+	Message FetchMessage(TopicHeader *topic_header, size_t frame_id);
 
 	std::shared_ptr<HybridPoolAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);

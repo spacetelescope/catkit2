@@ -1010,7 +1010,24 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.value("Semaphore", EventWaitMethod::Semaphore)
 		.value("SpinLock", EventWaitMethod::SpinLock);
 
-	py::class_<MessageSubscription>(m, "MessageSubscription");
+	py::enum_<MessageSubscriptionMode>(m, "MessageSubscriptionMode")
+		.value("NewestOnly", MessageSubscriptionMode::NewestOnly)
+		.value("Sequential", MessageSubscriptionMode::Sequential);
+
+	py::class_<MessageSubscription>(m, "MessageSubscription")
+		.def("get_next_message", [](MessageSubscription &subscription, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default)
+		{
+			return subscription.GetNextMessage(timeout_in_seconds, wait_method, error_check_python);
+		}, py::arg("timeout_in_sec") = -1, py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
+		.def("try_get_next_message", [](MessageSubscription &subscription)
+		{
+			auto res = subscription.TryGetNextMessage();
+			if (res)
+				return py::cast(res.value());
+
+			return py::object();
+		})
+		.def_property_readonly("next_message_id", &MessageSubscription::GetNextMessageId);
 
 	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
@@ -1037,18 +1054,45 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			broker->PublishMessage(message, is_final);
 		})
-		.def("get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default)
+		.def("try_get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id)
 		{
-			return broker->GetMessage(topic, frame_id, timeout_in_seconds, wait_method, error_check_python);
-		}, py::arg("topic"), py::arg("frame_id"), py::arg("timeout_in_sec") = std::numeric_limits<double>::infinity(), py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
-		.def("get_newest_message", &MessageBroker::GetNewestMessage)
-		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
+			auto res = broker->TryGetMessage(topic, frame_id);
+			if (res)
+				return py::cast(res.value());
+
+			return py::object();
+		}, py::arg("topic"), py::arg("frame_id"))
+		.def("get_newest_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic)
+		{
+			auto res = broker->GetNewestMessage(topic);
+			if (res)
+				return py::cast(res.value());
+
+			return py::object();
+		}, py::arg("topic"))
 		.def("is_message_available", &MessageBroker::IsMessageAvailable)
 		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)
 		.def("get_newest_message_id", &MessageBroker::GetNewestMessageId)
 		.def("get_oldest_message_id", &MessageBroker::GetOldestMessageId)
-		.def("subscribe", &MessageBroker::Subscribe)
-		.def("get_message_rate", &MessageBroker::GetMessageRate);
+		.def("get_message_rate", &MessageBroker::GetMessageRate)
+		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
+		.def("subscribe", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::object starting_frame_id, MessageSubscriptionMode mode)
+		{
+			// Check if the starting frame ID is a number or None.
+			if (py::isinstance<py::int_>(starting_frame_id))
+			{
+				return broker->Subscribe(topic, py::cast<std::uint64_t>(starting_frame_id), mode);
+
+			}
+			else if (py::isinstance<py::none>(starting_frame_id))
+			{
+				return broker->Subscribe(topic, mode);
+			}
+			else
+			{
+				throw py::value_error("Invalid starting frame ID. It must be an integer or None.");
+			}
+		}, py::arg("topic"), py::arg("starting_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
 
 	py::class_<PoolAllocator, std::shared_ptr<PoolAllocator>>(m, "PoolAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t capacity)
