@@ -7,6 +7,41 @@
 #include <array>
 #include <algorithm>
 
+#ifdef _WIN32
+	//Returns the last Win32 error, in string format. Returns an empty string if there is no error.
+	std::string GetLastErrorAsString(DWORD error_message_id)
+	{
+		//Get the error message ID, if any.
+		if(error_message_id == 0) {
+			return std::string(); //No error message has been recorded
+		}
+
+		LPSTR message_buffer = nullptr;
+
+		//Ask Win32 to give us the string version of that message ID.
+		//The parameters we pass in, tell Win32 to create the buffer that holds the message for us (because we don't yet know how long the message string will be).
+		size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, error_message_id, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) &message_buffer, 0, NULL);
+
+		//Copy the error message into a std::string.
+		std::string message(message_buffer, size);
+
+		//Free the Win32's string's buffer.
+		LocalFree(message_buffer);
+
+		return message;
+	}
+#else
+	#include <cerrno>
+	#include <cstring>
+
+	std::string ErrnoAsString(int error_id)
+	{
+		char *e = std::strerror(error_id);
+		return e ? e : "";
+	}
+#endif
+
 SharedMemory::~SharedMemory()
 {
 	if (m_Buffer)
