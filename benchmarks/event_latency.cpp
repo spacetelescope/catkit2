@@ -12,7 +12,11 @@
 #include <numeric>
 #include <cmath>
 
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 const size_t NUM_ITERATIONS = 100000;
 
