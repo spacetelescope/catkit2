@@ -113,7 +113,7 @@ std::shared_ptr<SharedMemory> SharedMemory::Create(std::string_view fname, size_
 		// Throw an error containing the error message.
 		std::string error_message = ErrnoAsString(errno);
 
-		shm_unlink((id + ".mem").c_str());
+		shm_unlink(fname_string.c_str());
 		close(file);
 
 		throw std::runtime_error("Something went wrong while setting the size of shared memory: " + error_message);
