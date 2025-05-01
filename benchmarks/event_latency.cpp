@@ -104,7 +104,8 @@ void receive(size_t core_id, EventWaitMethod method)
 	double sq_sum = std::inner_product(latencies.begin(), latencies.end(), latencies.begin(), 0.0);
 	double stdev = std::sqrt(sq_sum / latencies.size() - mean * mean);
 
-	std::cout << mean << ", ";//" +/- " << stdev << " ns" << std::endl;
+	std::cout << mean;
+}
 }
 
 void main()
@@ -139,6 +140,14 @@ void main()
 
 				submit_thread.join();
 				receive_thread.join();
+
+			if (j != num_cores - 1)
+			{
+				std::cout << ", ";
+			}
+			else
+			{
+				std::cout << std::endl;
 			}
 		}
 	}
