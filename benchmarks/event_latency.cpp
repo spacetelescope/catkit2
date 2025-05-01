@@ -25,11 +25,14 @@ void SetThreadAffinity(int core_id)
 #ifdef _WIN32
 	DWORD_PTR mask = 1ULL << core_id;
 	SetThreadAffinityMask(GetCurrentThread(), mask);
-#else
+#elif __linux__
 	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);
 	CPU_SET(core_id, &cpuset);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+#else
+	// MacOS and other platforms may not support thread affinity in the same way.
+	std::err << "Thread affinity is not supported on this platform." << std::endl;
 #endif
 }
 
