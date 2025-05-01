@@ -110,40 +110,68 @@ void receive(size_t core_id, EventWaitMethod method)
 
 	std::cout << mean;
 }
+
+void print_usage()
+{
+	std::cerr << "Usage: event_latency (default | semaphore | futex | spinlock)" << std::endl;
 }
 
-void main()
+void main(int argc, char *argv[])
 {
-	std::cout << "Event latency benchmark." << std::endl;
+	// Parse argument.
+	if (argc < 2)
+	{
+		print_usage();
+		return;
+	}
+
+	std::string wait_method_str = argv[1];
+	EventWaitMethod wait_method;
+	if (wait_method_str == "default")
+	{
+		wait_method = EventWaitMethod::Default;
+	}
+	else if (wait_method_str == "semaphore")
+	{
+		wait_method = EventWaitMethod::Semaphore;
+	}
+	else if (wait_method_str == "futex")
+	{
+		wait_method = EventWaitMethod::Futex;
+	}
+	else if (wait_method_str == "spinlock")
+	{
+		wait_method = EventWaitMethod::SpinLock;
+	}
+	else
+	{
+		print_usage();
+		return;
+	}
 
 	// Create the buffer.
 	buffer = new char[1024 * 1024];
 
 	std::size_t num_cores = std::thread::hardware_concurrency();
-	std::cout << "Number of cores: " << num_cores << std::endl;
 
-	for (auto method : {EventWaitMethod::Default, EventWaitMethod::SpinLock})
+	for (std::size_t i = 0; i < num_cores; ++i)
 	{
-		std::cout << "Method: " << static_cast<int>(method) << std::endl;
-
-		for (std::size_t i = 0; i < num_cores; ++i)
+		for (std::size_t j = 0; j < num_cores; ++j)
 		{
-			for (std::size_t j = 0; j < num_cores; ++j)
+			ready = false;
+
+			auto receive_thread = std::thread(receive, j, wait_method);
+
+			// Make sure the receive thread is ready before starting the submit thread.
+			while (!ready)
 			{
-				ready = false;
+				std::this_thread::yield();
+			}
 
-				auto receive_thread = std::thread(receive, j, method);
+			auto submit_thread = std::thread(submit, i);
 
-				// Make sure the receive thread is ready before starting the submit thread.
-				while (!ready)
-				{
-					std::this_thread::yield();
-				}
-
-				auto submit_thread = std::thread(submit, i);
-
-				submit_thread.join();
-				receive_thread.join();
+			submit_thread.join();
+			receive_thread.join();
 
 			if (j != num_cores - 1)
 			{
