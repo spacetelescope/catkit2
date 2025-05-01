@@ -113,7 +113,7 @@ void receive(size_t core_id, EventWaitMethod method)
 
 void print_usage()
 {
-	std::cerr << "Usage: event_latency (default | semaphore | futex | spinlock)" << std::endl;
+	std::cerr << "Usage: event_latency (default | condition_variable | semaphore | futex | spinlock)" << std::endl;
 }
 
 int main(int argc, char *argv[])
@@ -130,6 +130,10 @@ int main(int argc, char *argv[])
 	if (wait_method_str == "default")
 	{
 		wait_method = EventWaitMethod::Default;
+	}
+	else if (wait_method_str == "condition_variable")
+	{
+		wait_method = EventWaitMethod::ConditionVariable;
 	}
 	else if (wait_method_str == "semaphore")
 	{
