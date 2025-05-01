@@ -116,13 +116,13 @@ void print_usage()
 	std::cerr << "Usage: event_latency (default | semaphore | futex | spinlock)" << std::endl;
 }
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	// Parse argument.
 	if (argc < 2)
 	{
 		print_usage();
-		return;
+		return 1;
 	}
 
 	std::string wait_method_str = argv[1];
@@ -146,7 +146,7 @@ void main(int argc, char *argv[])
 	else
 	{
 		print_usage();
-		return;
+		return 2;
 	}
 
 	// Create the buffer.
@@ -185,4 +185,6 @@ void main(int argc, char *argv[])
 	}
 
 	delete[] buffer;
+
+	return 0;
 }
