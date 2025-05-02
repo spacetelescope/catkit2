@@ -5,7 +5,11 @@
 #include <ctime>
 
 #ifdef __linux__
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif // _GNU_SOURCE
 #include <sys/syscall.h>
+#include <unistd.h>
 #include <linux/futex.h>
 #endif // __linux__
 
