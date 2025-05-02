@@ -1,8 +1,9 @@
 #include "LogForwarder.h"
 
+#include <zmq.hpp>
 #include <nlohmann/json.hpp>
 #include <iostream>
-#include <string> 
+#include <string>
 #include <thread>
 
 using namespace zmq;

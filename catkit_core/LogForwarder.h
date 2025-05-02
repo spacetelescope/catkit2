@@ -1,8 +1,6 @@
 #ifndef LOGFORWARDER_H
 #define LOGFORWARDER_H
 
-#include <zmq.hpp>
-
 #include <string>
 #include <queue>
 #include <mutex>

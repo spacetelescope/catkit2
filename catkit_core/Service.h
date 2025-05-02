@@ -6,7 +6,6 @@
 #include <map>
 #include <thread>
 
-#include <zmq.hpp>
 #include <nlohmann/json.hpp>
 
 #include "Property.h"

@@ -9,7 +9,6 @@
 #include "ServiceState.h"
 #include "Util.h"
 
-#include <zmq.hpp>
 #include <nlohmann/json.hpp>
 
 #include <string>
