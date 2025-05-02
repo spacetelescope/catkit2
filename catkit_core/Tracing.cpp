@@ -3,9 +3,8 @@
 #include "Timing.h"
 #include "Util.h"
 #include "Log.h"
+#include "Networking.h"
 #include "tracing.pb.h"
-
-#include <zmq.hpp>
 
 using namespace std;
 
@@ -161,13 +160,16 @@ struct BuildProtoEvent
 
 void TracingProxy::MessageLoop()
 {
-	zmq::context_t context;
-	zmq::socket_t socket(context, ZMQ_PUSH);
+	context_t *context = (context_t *) zmq_ctx_new();
+	socket_t *socket = (socket_t *) zmq_socket(context, ZMQ_PUSH);
 
-	socket.set(zmq::sockopt::linger, 0);
-	socket.set(zmq::sockopt::sndtimeo, 10);
+	int linger = 0;
+	int sndtimeo = 10;
 
-	socket.connect("tcp://"s + m_Host + ":" + to_string(m_Port));
+	zmq_setsockopt(socket, ZMQ_LINGER, &linger, sizeof(linger));
+	zmq_setsockopt(socket, ZMQ_SNDTIMEO, &sndtimeo, sizeof(sndtimeo));
+
+	zmq_connect(socket, ("tcp://"s + m_Host + ":" + to_string(m_Port)).c_str());
 
 	TraceEvent event;
 
@@ -192,20 +194,22 @@ void TracingProxy::MessageLoop()
 		// Convert the TraceEvent to a ProtoBuf serialized string.
 		string message = std::visit(BuildProtoEvent{}, event);
 
-		// Construct message.
-		zmq::message_t message_zmq(message.size());
-		memcpy(message_zmq.data(), message.c_str(), message.size());
-
-		// Send message to socket.
-		zmq::send_result_t res;
-		do
+		// Send message.
+		while (!m_ShutDown)
 		{
-			res = socket.send(message_zmq, zmq::send_flags::none);
+			if (zmq_send(socket, message.c_str(), message.size(), 0) < 0)
+			{
+				if (zmq_errno() == EAGAIN)
+					continue;
+
+				LOG_ERROR(std::string("Error sending message to tracer: ") + zmq_strerror(zmq_errno()));
+				break;
+			}
 		}
-		while (!res.has_value() && m_ShutDown);
 	}
 
-	socket.close();
+	zmq_close(socket);
+	zmq_ctx_destroy(context);
 }
 
 void TracingProxy::SetProcessName(string process_name)
