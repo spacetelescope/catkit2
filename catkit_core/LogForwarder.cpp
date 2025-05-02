@@ -93,7 +93,7 @@ void LogForwarder::MessageLoop()
 				if (zmq_errno() == EAGAIN)
 					continue;
 
-				LOG_ERROR(std::string("Error sending message to log forwarder: ") + zmq_strerror(zmq_errno()));
+				// There was an error while sending, but we cannot emit log messages here so ignoring it.
 				break;
 			}
 		}
