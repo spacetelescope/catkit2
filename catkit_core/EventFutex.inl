@@ -79,4 +79,10 @@ inline void EventFutex::Signal()
 	}
 }
 
+template<>
+inline void EventFutex::CreateImpl(std::string_view id, SharedState *shared_state)
+{
+	shared_state->m_Futex = 0;
+}
+
 #endif // __linux__
