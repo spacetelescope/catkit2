@@ -41,7 +41,7 @@ template<>
 inline void EventConditionVariable::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
 {
 	Timer timer;
-	PThreadLockGuard(&m_SharedState->m_Mutex);
+	auto lock = PThreadLockGuard(&m_SharedState->m_Mutex);
 
 	while (!condition())
 	{
@@ -77,7 +77,7 @@ inline void EventConditionVariable::Wait(double timeout_in_sec, std::function<bo
 template<>
 inline void EventConditionVariable::Signal()
 {
-	PThreadLockGuard(&m_SharedState->m_Mutex);
+	auto lock = PThreadLockGuard(&m_SharedState->m_Mutex);
 
 	pthread_cond_broadcast(&(m_SharedState->m_Condition));
 }
