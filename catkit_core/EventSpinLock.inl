@@ -19,15 +19,20 @@ inline void EventSpinLock::Wait(double timeout_in_sec, std::function<bool()> con
 {
 	Timer timer;
 
-	std::size_t current_counter = m_SharedState->m_Counter.load(std::memory_order_relaxed);
+	std::size_t current_counter = m_SharedState->m_Counter.load(std::memory_order_acquire);
 	std::size_t i = 0;
 
 	while (!condition())
 	{
 		while (true)
 		{
-			if (m_SharedState->m_Counter.load(std::memory_order_acquire) != current_counter)
+			std::size_t new_counter = m_SharedState->m_Counter.load(std::memory_order_acquire);
+
+			if (new_counter != current_counter)
+			{
+				current_counter = new_counter;
 				break;
+			}
 
 			if (++i == NUM_ITERATIONS_BETWEEN_CHECKS)
 			{
@@ -36,7 +41,7 @@ inline void EventSpinLock::Wait(double timeout_in_sec, std::function<bool()> con
 					error_check();
 
 				if (timer.GetTime() > timeout_in_sec)
-					throw std::runtime_error("Waiting time has expired.");
+					throw std::runtime_error("Waiting time has expired2.");
 
 				i = 0;
 
