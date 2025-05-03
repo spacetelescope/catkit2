@@ -5,12 +5,12 @@ import pytest
 
 def event_wait(event, signal, waiting, condition):
     print(condition[0] != 0)
-    with event:
-        waiting.set()
 
-        event.wait(lambda: condition[0] != 0, 2)
+    waiting.set()
 
-        signal.set()
+    event.wait(lambda: condition[0] != 0, 2)
+
+    signal.set()
 
 def test_event():
     memory = LocalMemory.create(1024)
@@ -31,13 +31,11 @@ def test_event():
 
     # Ensure the event is not triggered unless signaled.
     with pytest.raises(RuntimeError):
-        with event:
-            event.wait(lambda: condition[0] != 0, 0.1)
+        event.wait(lambda: condition[0] != 0, 0.1)
 
     # Signal the event.
-    with event:
-        condition[0] = 1
-        event.signal()
+    condition[0] = 1
+    event.signal()
 
     # Wait for the wait to end.
     signaled.wait(1)
