@@ -41,24 +41,6 @@ void Event::Signal()
 	m_ConditionVariable->Signal();
 }
 
-void Event::Lock()
-{
-	// Lock all event types.
-	m_SpinLock->Lock();
-	m_Futex->Lock();
-	m_Semaphore->Lock();
-	m_ConditionVariable->Lock();
-}
-
-void Event::Unlock()
-{
-	// Unlock all event types.
-	m_Semaphore->Unlock();
-	m_Futex->Unlock();
-	m_SpinLock->Unlock();
-	m_ConditionVariable->Unlock();
-}
-
 std::shared_ptr<Event> Event::Create(StructStream &stream, std::string_view id)
 {
 	auto header = stream.Extract<Header>();

@@ -23,16 +23,6 @@ void EventImpl<Type>::Signal()
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::Lock()
-{
-}
-
-template<enum EventImplementationType Type>
-void EventImpl<Type>::Unlock()
-{
-}
-
-template<enum EventImplementationType Type>
 std::shared_ptr<EventImpl<Type>> EventImpl<Type>::Create(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	if (!shared_state)

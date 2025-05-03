@@ -477,12 +477,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 			break;
 	}
 
-	{
-		// Signal the event structure.
-		auto lock = EventLockGuard(m_Event);
-
-		m_Event->Signal();
-	}
+	m_Event->Signal();
 
 	// Deallocate the message header and payload.
 	PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
@@ -864,7 +859,6 @@ Message MessageSubscription::GetNextMessage(double timeout_in_seconds, EventWait
 	}
 
 	// Otherwise, wait for it.
-	auto lock = EventLockGuard(m_MessageBroker->m_Event);
 	m_MessageBroker->m_Event->Wait(timeout_in_seconds, [this, frame_id]() { return m_TopicHeader->last_frame_id > frame_id; }, wait_type, error_check);
 
 	m_NextFrameIdToRead = frame_id + 1;

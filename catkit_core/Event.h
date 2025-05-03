@@ -8,25 +8,6 @@
 #include <memory>
 #include <array>
 
-template <typename Event>
-class EventLockGuard
-{
-public:
-	inline EventLockGuard(Event &event)
-		: m_Event(event)
-	{
-		m_Event->Lock();
-	}
-
-	inline ~EventLockGuard()
-	{
-		m_Event->Unlock();
-	}
-
-private:
-	Event &m_Event;
-};
-
 enum class EventWaitMethod
 {
 	Default,
@@ -54,9 +35,6 @@ private:
 public:
 	void Wait(double timeout_in_sec, std::function<bool()> condition, EventWaitMethod wait_method = EventWaitMethod::Default, void (*error_check)() = nullptr);
 	void Signal();
-
-	void Lock();
-	void Unlock();
 
 	static std::shared_ptr<Event> Create(StructStream &stream, std::string_view id);
 	static std::shared_ptr<Event> Open(StructStream &stream);

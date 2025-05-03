@@ -19,10 +19,29 @@ struct EventSharedState<EventImplementationType::ConditionVariable>
 	pthread_cond_t m_Condition;
 };
 
+class PThreadLockGuard
+{
+public:
+	inline PThreadLockGuard(pthread_mutex_t *mutex)
+		: m_Mutex(mutex)
+	{
+		pthread_mutex_lock(m_Mutex);
+	}
+
+	inline ~PThreadLockGuard()
+	{
+		pthread_mutex_unlock(m_Mutex);
+	}
+
+private:
+	pthread_mutex_t *m_Mutex;
+};
+
 template<>
 inline void EventConditionVariable::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
 {
-    Timer timer;
+	Timer timer;
+	PThreadLockGuard(&m_SharedState->m_Mutex);
 
 	while (!condition())
 	{
@@ -58,25 +77,15 @@ inline void EventConditionVariable::Wait(double timeout_in_sec, std::function<bo
 template<>
 inline void EventConditionVariable::Signal()
 {
-    pthread_cond_broadcast(&(m_SharedState->m_Condition));
-}
+	PThreadLockGuard(&m_SharedState->m_Mutex);
 
-template<>
-inline void EventConditionVariable::Lock()
-{
-    pthread_mutex_lock(&(m_SharedState->m_Mutex));
-}
-
-template<>
-inline void EventConditionVariable::Unlock()
-{
-    pthread_mutex_unlock(&(m_SharedState->m_Mutex));
+	pthread_cond_broadcast(&(m_SharedState->m_Condition));
 }
 
 template<>
 inline void EventConditionVariable::CreateImpl(std::string_view id, EventConditionVariable::SharedState *shared_state)
 {
-    pthread_mutexattr_t mutex_attr;
+	pthread_mutexattr_t mutex_attr;
 	pthread_mutexattr_init(&mutex_attr);
 	pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED);
 	pthread_mutex_init(&(shared_state->m_Mutex), &mutex_attr);

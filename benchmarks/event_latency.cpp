@@ -32,7 +32,7 @@ void SetThreadAffinity(int core_id)
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 #else
 	// MacOS and other platforms may not support thread affinity in the same way.
-	std::err << "Thread affinity is not supported on this platform." << std::endl;
+	std::cerr << "Thread affinity is not supported on this platform." << std::endl;
 #endif
 }
 
@@ -71,10 +71,7 @@ void submit(size_t core_id)
 		auto timestamp = GetTimeStamp();
 		timestamp_start.store(timestamp, std::memory_order_relaxed);
 
-		{
-			EventLockGuard lock(event);
-			event->Signal();
-		}
+		event->Signal();
 	}
 }
 
@@ -92,14 +89,11 @@ void receive(size_t core_id, EventWaitMethod method)
 	{
 		ready = true;
 
+		// Wait for the event to be signaled.
+		event->Wait(2, []()
 		{
-			EventLockGuard lock(event);
-
-			// Wait for the event to be signaled.
-			event->Wait(2, []() {
-				return !ready;
-			}, method);
-		}
+			return !ready;
+		}, method);
 
 		auto timestamp_end = GetTimeStamp();
 		latencies[i] = double(timestamp_end) - double(timestamp_start.load(std::memory_order_relaxed));
