@@ -17,7 +17,7 @@ def test_message_subscription(broker):
     subscription_sequential = broker.subscribe(topic, mode=MessageSubscriptionMode.Sequential)
 
     for i in range(3):
-        arr = np.array([i]).astype('int32')
+        arr = np.array([i + 10]).astype('int32')
         message = broker.prepare_message(topic, arr.nbytes)
         message.payload = arr
         broker.publish_message(message)
@@ -33,15 +33,15 @@ def test_message_subscription(broker):
     assert message_2 is not None
     assert message_3 is not None
 
-    assert message_1.payload[0] == 2
-    assert message_2.payload[0] == 0
-    assert message_3.payload[0] == 1
+    assert message_1.payload[0] == 12
+    assert message_2.payload[0] == 10
+    assert message_3.payload[0] == 11
 
     assert subscription_newest.try_get_next_message() is None
 
     m = subscription_sequential.try_get_next_message()
     assert m is not None
-    assert m.payload[0] == 2
+    assert m.payload[0] == 12
 
     assert subscription_sequential.try_get_next_message() is None
 
