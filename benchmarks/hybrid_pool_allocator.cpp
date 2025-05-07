@@ -1,21 +1,21 @@
-#include "FreeListAllocator.h"
+#include "HybridPoolAllocator.h"
 #include "Timing.h"
 #include <iostream>
 
 void benchmark_linux_scalability()
 {
 	const size_t N = 10000000;
+	const size_t BLOCK_SIZE = 32;
+	const size_t MAX_SIZE = BLOCK_SIZE * (1 << 25);
+	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 64;
 
-	const size_t NUM_BLOCKS = N * 2;
-	const size_t ALIGNMENT = 32;
+	auto *handles = new HybridPoolAllocator::Handle[N];
 
-	auto *handles = new FreeListAllocator::BlockHandle[N];
-
-	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
+	size_t buffer_size = HybridPoolAllocator::GetSharedStateSize(MAX_SIZE, BLOCK_SIZE);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);
-	auto allocator = FreeListAllocator::Create(stream, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
+	auto allocator = HybridPoolAllocator::Create(stream, MAX_SIZE, BLOCK_SIZE, MIN_POOL_SIZE);
 
 	auto start = GetTimeStamp();
 
@@ -26,7 +26,7 @@ void benchmark_linux_scalability()
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		allocator->Deallocate(handles[i]);
+		allocator->Release(handles[i]);
 	}
 
 	auto end = GetTimeStamp();
@@ -44,16 +44,18 @@ void benchmark_threadtest()
 {
 	const size_t N = 100;
 	const size_t M = 100000;
-	const size_t NUM_BLOCKS = N * 2;
-	const size_t ALIGNMENT = 32;
+	const size_t BLOCK_SIZE = 32;
+	const size_t DEPTH = 24;
+	const size_t MAX_SIZE = BLOCK_SIZE * (1 << DEPTH);
+	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 64;
 
-	auto *handles = new FreeListAllocator::BlockHandle[M];
+	auto *handles = new HybridPoolAllocator::Handle[M];
 
-	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
+	size_t buffer_size = HybridPoolAllocator::GetSharedStateSize(MAX_SIZE, BLOCK_SIZE);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);
-	auto allocator = FreeListAllocator::Create(stream, NUM_BLOCKS, ALIGNMENT, NUM_BLOCKS * ALIGNMENT);
+	auto allocator = HybridPoolAllocator::Create(stream, MAX_SIZE, BLOCK_SIZE, MIN_POOL_SIZE);
 
 	auto start = GetTimeStamp();
 
@@ -66,7 +68,7 @@ void benchmark_threadtest()
 
 		for (size_t j = 0; j < N; ++j)
 		{
-			allocator->Deallocate(handles[j]);
+			allocator->Release(handles[j]);
 		}
 	}
 
@@ -86,28 +88,29 @@ void benchmark_larson()
 
 	const size_t N = 10000000;
 	const size_t M = 1000;
-	const size_t MIN_SIZE = 16;
-	const size_t MAX_SIZE = 128;
-	const size_t NUM_BLOCKS = M * 2;
+	const size_t MIN_SIZE = 1;
+	const size_t MAX_SIZE = 16;
+	const size_t BLOCK_SIZE = 16;
+	const size_t DEPTH = 24;
+	const size_t SIZE = BLOCK_SIZE * (1 << DEPTH);
+	const size_t MIN_POOL_SIZE = BLOCK_SIZE * 64;
 
-	auto *handles = new FreeListAllocator::BlockHandle[M];
+	auto *handles = new HybridPoolAllocator::Handle[M];
 	for (size_t i = 0; i < M; ++i)
-	{
-		handles[i] = -1;
-	}
+		handles[i] = HybridPoolAllocator::INVALID_HANDLE;
 
-	size_t buffer_size = FreeListAllocator::GetSharedStateSize(NUM_BLOCKS);
+	size_t buffer_size = HybridPoolAllocator::GetSharedStateSize(SIZE, BLOCK_SIZE);
 	char *buffer = new char[buffer_size];
 
 	auto stream = StructStream(buffer);
-	auto allocator = FreeListAllocator::Create(stream, NUM_BLOCKS, ALIGNMENT, MAX_SIZE * NUM_BLOCKS);
+	auto allocator = HybridPoolAllocator::Create(stream, SIZE, BLOCK_SIZE, MIN_POOL_SIZE);
 
 	auto *indices = new size_t[N];
 	auto *sizes = new size_t[N];
 	for (size_t i = 0; i < N; ++i)
 	{
 		indices[i] = rand() % M;
-		sizes[i] = (MIN_SIZE + (rand() % (MAX_SIZE - MIN_SIZE))) * ALIGNMENT;
+		sizes[i] = (MIN_SIZE + (rand() % (MAX_SIZE - MIN_SIZE))) * BLOCK_SIZE;
 	}
 
 	auto start = GetTimeStamp();
@@ -117,9 +120,9 @@ void benchmark_larson()
 		size_t index = indices[i];
 		size_t size = sizes[i];
 
-		if (handles[index] != -1)
+		if (handles[index] != HybridPoolAllocator::INVALID_HANDLE)
 		{
-			allocator->Deallocate(handles[index]);
+			allocator->Release(handles[index]);
 		}
 
 		handles[index] = allocator->Allocate(size);

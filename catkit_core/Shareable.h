@@ -11,11 +11,13 @@ enum class ShareableType
 {
 	DataStream,
 	Event,
-	FreeListAllocator,
 	LocalMemory,
 	PoolAllocator,
 	SharedMemory,
-	HashMap
+	HashMap,
+	MessageBroker,
+	BuddyAllocator,
+	HybridPoolAllocator
 };
 
 /*
@@ -40,7 +42,7 @@ public:
 	Shareable(Shareable &&) = delete;
 	Shareable &operator=(Shareable &&) = delete;
 
-	static std::unique_ptr<Shareable> Open(StructStream &stream);
+	static std::shared_ptr<Shareable> Open(StructStream &stream);
 
 	virtual ShareableType GetType() const = 0;
 };

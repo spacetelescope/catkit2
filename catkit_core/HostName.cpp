@@ -2,6 +2,9 @@
 
 #include <cstring>
 #include <locale>
+#include <vector>
+#include <string>
+#include <stdexcept>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -11,7 +14,7 @@
 #include <unistd.h>
 #endif
 
-std::string GetHostName()
+std::string GetHostNameImpl()
 {
 #ifdef _WIN32
 	TCHAR info_buf[MAX_COMPUTERNAME_LENGTH + 1];
@@ -34,7 +37,7 @@ std::string GetHostName()
 			throw std::runtime_error("Host name cannot be converted to ASCII.");
 		}
 
-		return std::string(buffer[0]);
+		return std::string(&buffer[0]);
 #else
 		return std::string(info_buf);
 #endif
@@ -53,4 +56,11 @@ std::string GetHostName()
 
 	return name;
 #endif
+}
+
+std::string_view GetHostName()
+{
+	static std::string host_name = GetHostNameImpl();
+
+	return host_name;
 }

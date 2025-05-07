@@ -12,7 +12,7 @@ EventImpl<Type>::~EventImpl()
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+void EventImpl<Type>::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
 {
 	throw std::runtime_error("This type of event implementation wasn't implemented.");
 }
@@ -33,12 +33,12 @@ void EventImpl<Type>::Unlock()
 }
 
 template<enum EventImplementationType Type>
-std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Create(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+std::shared_ptr<EventImpl<Type>> EventImpl<Type>::Create(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	if (!shared_state)
 		throw std::runtime_error("The passed shared data was a nullptr.");
 
-	auto obj = std::unique_ptr<EventImpl<Type>>(new EventImpl<Type>());
+	auto obj = std::shared_ptr<EventImpl<Type>>(new EventImpl<Type>());
 
 	obj->CreateImpl(id, shared_state);
 
@@ -49,12 +49,12 @@ std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Create(const std::string &id, 
 }
 
 template<enum EventImplementationType Type>
-std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Open(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+std::shared_ptr<EventImpl<Type>> EventImpl<Type>::Open(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	if (!shared_state)
 		throw std::runtime_error("The passed shared data was a nullptr.");
 
-	auto obj = std::unique_ptr<EventImpl<Type>>(new EventImpl<Type>());
+	auto obj = std::shared_ptr<EventImpl<Type>>(new EventImpl<Type>());
 
 	obj->OpenImpl(id, shared_state);
 
@@ -65,13 +65,13 @@ std::unique_ptr<EventImpl<Type>> EventImpl<Type>::Open(const std::string &id, Ev
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::CreateImpl(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+void EventImpl<Type>::CreateImpl(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	// Do nothing.
 }
 
 template<enum EventImplementationType Type>
-void EventImpl<Type>::OpenImpl(const std::string &id, EventImpl<Type>::SharedState *shared_state)
+void EventImpl<Type>::OpenImpl(std::string_view id, EventImpl<Type>::SharedState *shared_state)
 {
 	// Do nothing.
 }

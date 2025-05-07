@@ -4,6 +4,7 @@ from catkit2.catkit_bindings import trace_connect, trace_disconnect
 import time
 import zmq
 import json
+import os
 
 
 PROCESS_NAME = 'our_process_name'
@@ -14,9 +15,10 @@ SERIES_NAME = 'series'
 INTERVAL_NAME_1 = 'a'
 INTERVAL_NAME_2 = 'ab'
 
-def test_trace_writer(unused_port):
+def test_trace_writer(unused_port, tmpdir):
     input_port = unused_port()
     output_port = unused_port()
+    fname = os.path.join(tmpdir, FNAME)
 
     writer = TraceWriter('127.0.0.1', output_port)
     trace_connect(PROCESS_NAME, '127.0.0.1', input_port)
@@ -30,7 +32,7 @@ def test_trace_writer(unused_port):
     time.sleep(0.3)
 
     try:
-        with writer.open(FNAME):
+        with writer.open(fname):
 
             with trace_interval(INTERVAL_NAME_1):
                 with trace_interval(INTERVAL_NAME_2):
@@ -51,7 +53,7 @@ def test_trace_writer(unused_port):
         tracing_distributor.stop()
 
     # Check the written JSON file.
-    with open(FNAME) as f:
+    with open(fname) as f:
         data = f.read()[:-2] + ']'
 
         entries = json.loads(data)

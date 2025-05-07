@@ -24,7 +24,7 @@ void benchmark_linux_scalability()
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		allocator->Deallocate(handles[i]);
+		allocator->Release(handles[i]);
 	}
 
 	auto end = GetTimeStamp();

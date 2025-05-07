@@ -65,15 +65,15 @@ enum BufferHandlingMode
 class DataStream : public Shareable
 {
 private:
-	DataStream(DataStreamHeader *header, std::unique_ptr<SharedMemory> buffer_shared_memory, std::unique_ptr<SharedMemory> header_shared_memory, std::unique_ptr<Event> event);
+	DataStream(DataStreamHeader *header, std::shared_ptr<SharedMemory> buffer_shared_memory, std::shared_ptr<SharedMemory> header_shared_memory, std::shared_ptr<Event> event);
 
 public:
 	~DataStream();
 
-	static std::unique_ptr<DataStream> Create(std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
-	static std::unique_ptr<DataStream> Create(StructStream &stream, std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer, std::unique_ptr<SharedMemory> header_shared_memory = nullptr);
-	static std::unique_ptr<DataStream> Open(StructStream &stream, std::unique_ptr<SharedMemory> header_shared_memory = nullptr);
-	static std::unique_ptr<DataStream> Open(std::string_view stream_id);
+	static std::shared_ptr<DataStream> Create(std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
+	static std::shared_ptr<DataStream> Create(StructStream &stream, std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer, std::shared_ptr<SharedMemory> header_shared_memory = nullptr);
+	static std::shared_ptr<DataStream> Open(StructStream &stream, std::shared_ptr<SharedMemory> header_shared_memory = nullptr);
+	static std::shared_ptr<DataStream> Open(std::string_view stream_id);
 
 	DataFrame RequestNewFrame();
 	void SubmitFrame(size_t id);
@@ -124,8 +124,8 @@ private:
 	size_t m_NextFrameIdToRead;
 	BufferHandlingMode m_BufferHandlingMode;
 
-	std::unique_ptr<SharedMemory> m_HeaderSharedMemory;
-	std::unique_ptr<SharedMemory> m_BufferSharedMemory;
+	std::shared_ptr<SharedMemory> m_HeaderSharedMemory;
+	std::shared_ptr<SharedMemory> m_BufferSharedMemory;
 };
 
 #endif // DATASTREAM_H

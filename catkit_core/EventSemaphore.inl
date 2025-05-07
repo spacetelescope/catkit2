@@ -27,8 +27,15 @@ struct EventLocalState<EventImplementationType::Semaphore>
 };
 
 template<>
-inline void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condition, void (*error_check)())
+inline void EventSemaphore::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
 {
+	// Convert timeout to milliseconds.
+	unsigned long timeout_in_ms = INFINITY;
+	if (timeout_in_sec >= 0 && timeout_in_sec < INFINITY * 0.001)
+	{
+		timeout_in_ms = static_cast<unsigned long>(timeout_in_sec * 1000.0);
+	}
+
     Timer timer;
 	DWORD res = WAIT_OBJECT_0;
 
@@ -46,7 +53,7 @@ inline void EventSemaphore::Wait(long timeout_in_ms, std::function<bool()> condi
 		}
 
 		// Wait for a maximum of 20ms to perform periodic error checking.
-		res = WaitForSingleObject(m_LocalState.m_Semaphore, (unsigned long) (std::min)(20L, timeout_in_ms));
+		res = WaitForSingleObject(m_LocalState.m_Semaphore, (unsigned long) (std::min)(20UL, timeout_in_ms));
 
 		if (res == WAIT_TIMEOUT && timer.GetTime() > (timeout_in_ms * 0.001))
 		{
@@ -91,9 +98,9 @@ inline void EventSemaphore::Signal()
 }
 
 template<>
-inline void EventSemaphore::CreateImpl(const std::string &id, SharedState *shared_state)
+inline void EventSemaphore::CreateImpl(std::string_view id, SharedState *shared_state)
 {
-    m_LocalState.m_Semaphore = CreateSemaphore(NULL, 0, 9999, (id + ".sem").c_str());
+    m_LocalState.m_Semaphore = CreateSemaphore(NULL, 0, 9999, (std::string(id) + ".sem").c_str());
 
 	if (m_LocalState.m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while creating semaphore.");
@@ -102,9 +109,9 @@ inline void EventSemaphore::CreateImpl(const std::string &id, SharedState *share
 }
 
 template<>
-inline void EventSemaphore::OpenImpl(const std::string &id, SharedState *shared_state)
+inline void EventSemaphore::OpenImpl(std::string_view id, SharedState *shared_state)
 {
-    m_LocalState.m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (id + ".sem").c_str());
+    m_LocalState.m_Semaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, (std::string(id) + ".sem").c_str());
 
 	if (m_LocalState.m_Semaphore == NULL)
 		throw std::runtime_error("Something went wrong while opening semaphore.");

@@ -19,20 +19,22 @@ public:
 
 	static std::size_t GetSharedStateSize(std::uint32_t capacity);
 
-	static std::unique_ptr<PoolAllocator> Create(StructStream &stream, std::uint32_t capacity);
-	static std::unique_ptr<PoolAllocator> Open(StructStream &stream);
+	static std::shared_ptr<PoolAllocator> Create(StructStream &stream, std::uint32_t capacity);
+	static std::shared_ptr<PoolAllocator> Open(StructStream &stream);
 
 	BlockHandle Allocate();
-	void Deallocate(BlockHandle index);
+	bool Acquire(BlockHandle index);
+	bool Release(BlockHandle index);
 
 	ShareableType GetType() const override;
 
 private:
-	PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next);
+	PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next, std::atomic_size_t *ref_count);
 
 	std::uint32_t m_Capacity;
 	std::atomic<BlockHandle> *m_Head;
 	std::atomic<BlockHandle> *m_Next;
+	std::atomic_size_t *m_RefCount;
 
 	static_assert(std::atomic<BlockHandle>::is_always_lock_free);
 };

@@ -24,11 +24,6 @@ add_executable(timestamp timestamp.cpp)
 target_include_directories(timestamp PUBLIC ../catkit_core)
 target_link_libraries(timestamp PUBLIC catkit_core)
 
-# Free list allocator benchmark
-add_executable(free_list_allocator free_list_allocator.cpp)
-target_include_directories(free_list_allocator PUBLIC ../catkit_core)
-target_link_libraries(free_list_allocator PUBLIC catkit_core)
-
 # Pool allocator benchmark
 add_executable(pool_allocator pool_allocator.cpp)
 target_include_directories(pool_allocator PUBLIC ../catkit_core)
@@ -39,10 +34,33 @@ add_executable(hash_map hash_map.cpp)
 target_include_directories(hash_map PUBLIC ../catkit_core)
 target_link_libraries(hash_map PUBLIC catkit_core)
 
+# Uuid generator benchmark
+add_executable(uuid_generator uuid_generator.cpp)
+target_include_directories(uuid_generator PUBLIC ../catkit_core)
+target_link_libraries(uuid_generator PUBLIC catkit_core)
+
+# MessageBroker benchmark
+add_executable(message_broker message_broker.cpp)
+target_include_directories(message_broker PUBLIC ../catkit_core)
+target_link_libraries(message_broker PUBLIC catkit_core)
+
+# BuddyAllocator benchmark
+add_executable(buddy_allocator buddy_allocator.cpp)
+target_include_directories(buddy_allocator PUBLIC ../catkit_core)
+target_link_libraries(buddy_allocator PUBLIC catkit_core)
+
+# HybridPoolAllocator benchmark
+add_executable(hybrid_pool_allocator hybrid_pool_allocator.cpp)
+target_include_directories(hybrid_pool_allocator PUBLIC ../catkit_core)
+target_link_libraries(hybrid_pool_allocator PUBLIC catkit_core)
+
 # Add install files
 install(TARGETS datastream_latency DESTINATION bin)
 install(TARGETS datastream_submit DESTINATION bin)
 install(TARGETS timestamp DESTINATION bin)
-install(TARGETS free_list_allocator DESTINATION bin)
 install(TARGETS pool_allocator DESTINATION bin)
 install(TARGETS hash_map DESTINATION bin)
+install(TARGETS uuid_generator DESTINATION bin)
+install(TARGETS message_broker DESTINATION bin)
+install(TARGETS buddy_allocator DESTINATION bin)
+install(TARGETS hybrid_pool_allocator DESTINATION bin)

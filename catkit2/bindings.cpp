@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <variant>
+#include <charconv>
 
 #include "DataStream.h"
 #include "Timing.h"
@@ -23,6 +24,17 @@
 #include "Client.h"
 #include "HostName.h"
 #include "Tracing.h"
+#include "MessageBroker.h"
+#include "LocalMemory.h"
+#include "SharedMemory.h"
+#include "Shareable.h"
+#include "Memory.h"
+#include "Event.h"
+#include "BuddyAllocator.h"
+#include "PoolAllocator.h"
+#include "HybridPoolAllocator.h"
+#include "Event.h"
+#include "Uuid.h"
 
 #include "testbed.pb.h"
 
@@ -86,6 +98,76 @@ py::dtype GetNumpyDataType(DataType type)
 		default:
 			throw pybind11::type_error("Data type is unknown.");
 	}
+}
+
+ArrayInfo FormatStringToDtype(std::string_view format)
+{
+	if (format.size() == 0)
+		throw std::runtime_error("The format was incorrectly formatted.");
+
+	ArrayInfo array_info;
+
+	// Deduce the endian with a default.
+	array_info.byte_order = '=';
+
+	if (format[0] == '<' || format[0] == '>' || format[0] == '!' || format[0] == '=')
+	{
+		array_info.byte_order = format[0];
+		format = format.substr(1);
+	}
+
+	if (format.size() == 0)
+		throw std::runtime_error("The format was incorrectly formatted.");
+
+	// Deduce the data type from the character codes.
+	if (format[0] == 'b' ||
+		format[0] == 'h' ||
+		format[0] == 'i' ||
+		format[0] == 'l' ||
+		format[0] == 'q'
+	)
+	{
+		array_info.data_type = 'i';
+	}
+	else if (
+		format[0] == 'B' ||
+		format[0] == 'H' ||
+		format[0] == 'I' ||
+		format[0] == 'L' ||
+		format[0] == 'Q'
+	)
+	{
+		array_info.data_type = 'u';
+	}
+	else if (
+		format[0] == 'f' ||
+		format[0] == 'd' ||
+		format[0] == 'g' ||
+		format[0] == 'e'
+	)
+	{
+		array_info.data_type = 'f';
+	}
+	else if (format[0] == 'Z')
+	{
+		if (format.size() < 2)
+			throw std::runtime_error("The format was incorrection formatted.");
+
+		if (format[1] == 'f' || format[1] == 'd')
+		{
+			array_info.data_type = 'c';
+		}
+		else
+		{
+			throw std::runtime_error("The format was incorrectly formatted.");
+		}
+	}
+	else
+	{
+		throw std::runtime_error("The format was incorrectly formatted.");
+	}
+
+	return array_info;
 }
 
 py::object ToPython(const Value &value);
@@ -188,6 +270,44 @@ py::object ToPython(const Value &value)
 	{
 		throw std::runtime_error("Unknown value type.");
 	}
+}
+
+py::dtype DtypeToPython(const ArrayInfo *array_info)
+{
+	char dtype_buf[6];
+	dtype_buf[0] = array_info->byte_order;
+	dtype_buf[1] = array_info->data_type;
+
+	auto [ptr, ec] = std::to_chars(dtype_buf + 2, dtype_buf + sizeof(dtype_buf) - 1, array_info->item_size);
+	if (ec != std::errc())
+	{
+		auto error_message = std::make_error_code(ec).message();
+		throw std::runtime_error("Failed to convert item size to string: " + error_message);
+	}
+	*ptr = '\0';
+
+	return py::dtype(dtype_buf);
+}
+
+py::array ToPython(void *payload, const ArrayInfo *array_info)
+{
+	auto dtype = DtypeToPython(array_info);
+
+	std::vector<py::ssize_t> shape(array_info->ndim);
+	std::vector<py::ssize_t> strides(array_info->ndim);
+
+	for (size_t i = 0; i < array_info->ndim; ++i)
+	{
+		shape[i] = array_info->shape[i];
+		strides[i] = array_info->strides[i];
+	}
+
+	return py::array(
+		dtype,
+		shape,
+		strides,
+		payload
+	);
 }
 
 Value ValueFromPython(const py::handle &python_value)
@@ -321,6 +441,61 @@ DataType GetDataTypeFromBufferInfo(py::buffer_info &buffer_info)
 		throw std::runtime_error("Buffer format " + buffer_info.format + " not recognized.");
 	}
 }
+
+class MetadataWrapper
+{
+public:
+	MetadataWrapper(Message *message)
+		: m_Message(message)
+	{
+	}
+
+	py::object GetItem(std::string key) const
+	{
+		auto entry = m_Message->GetMetadataEntry(key);
+
+		if (entry == nullptr)
+		{
+			throw pybind11::key_error(key);
+		}
+
+		switch (entry->type)
+		{
+		case MetadataType::Integer:
+			return py::int_(entry->value.integer);
+		case MetadataType::Float:
+			return py::float_(entry->value.floating_point);
+		case MetadataType::String:
+			return py::str(entry->value.string.data());
+		default:
+			throw std::runtime_error("Unknown metadata type.");
+		}
+	}
+
+	void SetItem(std::string key, const py::object &obj)
+	{
+		if (py::isinstance<py::int_>(obj))
+		{
+			m_Message->SetMetadataEntry(key, py::cast<std::int64_t>(obj));
+		}
+		else if (py::isinstance<py::float_>(obj))
+		{
+			m_Message->SetMetadataEntry(key, py::cast<double>(obj));
+		}
+		else if (py::isinstance<py::str>(obj))
+		{
+			m_Message->SetMetadataEntry(key, py::cast<std::string>(obj));
+		}
+		else
+		{
+			throw std::runtime_error("Metadata entry value must be an integer, float or string.");
+		}
+	}
+
+private:
+	Message *m_Message;
+	size_t m_NumEntries;
+};
 
 // A callback for long-running C++ functions. This function gets called
 // periodically during the function call to allow Python KeyboardInterrupt
@@ -691,6 +866,364 @@ PYBIND11_MODULE(catkit_bindings, m)
 	m.def("trace_counter", [](std::string name, std::string series, uint64_t timestamp, double counter) {
 		tracing_proxy.TraceCounter(name, series, timestamp, counter);
 	});
+
+	py::enum_<MetadataType>(m, "MetadataType")
+		.value("Integer", MetadataType::Integer)
+		.value("Float", MetadataType::Float)
+		.value("String", MetadataType::String);
+
+	py::class_<Shareable, std::shared_ptr<Shareable>>(m, "Shareable");
+
+	py::class_<Memory, std::shared_ptr<Memory>>(m, "Memory");
+
+	py::class_<SharedMemory, Memory, std::shared_ptr<SharedMemory>>(m, "SharedMemory")
+		.def_static("create", [](std::string name, size_t size)
+		{
+			auto mem = SharedMemory::Create(name, size);
+
+			return std::shared_ptr<SharedMemory>(std::move(mem));
+		})
+		.def_static("open", [](std::string name)
+		{
+			auto mem = SharedMemory::Open(name);
+			return std::shared_ptr<SharedMemory>(std::move(mem));
+		})
+		.def("get_memory", [](std::shared_ptr<SharedMemory> memory)
+		{
+			auto address = memory->GetAddress();
+			size_t capacity = memory->GetCapacity();
+
+			return py::memoryview::from_memory(address, capacity);
+		});
+
+	py::class_<LocalMemory, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
+		.def_static("create", [](size_t num_bytes)
+		{
+			auto mem = LocalMemory::Create(num_bytes);
+			return std::shared_ptr<LocalMemory>(std::move(mem));
+		})
+		.def("get_memory", [](std::shared_ptr<LocalMemory> memory)
+		{
+			auto address = memory->GetAddress();
+			size_t capacity = memory->GetCapacity();
+
+			return py::memoryview::from_memory(address, capacity);
+		});
+
+	py::class_<Uuid>(m, "Uuid")
+		.def_static("generate", []()
+		{
+			Uuid uuid;
+			uuid.Generate(&uuid);
+			return uuid;
+		})
+		.def("__str__", &Uuid::to_string)
+		.def("__repr__", &Uuid::to_string);
+
+	py::class_<MetadataWrapper>(m, "Metadata")
+		.def("__getitem__", &MetadataWrapper::GetItem)
+		.def("__setitem__", &MetadataWrapper::SetItem);
+
+	py::class_<ArrayInfo>(m, "ArrayInfo")
+		.def(py::init<>())
+		.def_property("dtype", [](ArrayInfo &info)
+		{
+			return DtypeToPython(&info);
+		}, [](ArrayInfo &info, py::dtype dtype)
+		{
+			info.data_type = dtype.kind();
+			info.item_size = dtype.itemsize();
+			info.byte_order = dtype.byteorder();
+		})
+		.def_property("item_size", [](ArrayInfo &info) { return info.item_size; }, [](ArrayInfo &info, uint8_t value) { info.item_size = value; })
+		.def_property("ndim", [](ArrayInfo &info) { return info.ndim; }, [](ArrayInfo &info, uint8_t value) { info.ndim = value; })
+		.def_property("shape", [](const ArrayInfo& ai) {
+			return std::vector<uint32_t>(ai.shape, ai.shape + ai.ndim);
+		}, [](ArrayInfo &info, const py::list &value)
+		{
+			info.ndim = static_cast<uint8_t>(value.size());
+			for (size_t i = 0; i < value.size(); ++i)
+			{
+				info.shape[i] = static_cast<uint32_t>(py::cast<int64_t>(value[i]));
+			}
+		})
+		.def_property("strides", [](const ArrayInfo& ai)
+		{
+			return std::vector<uint32_t>(ai.strides, ai.strides + ai.ndim);
+		}, [](ArrayInfo &info, const py::list &value)
+		{
+			info.ndim = static_cast<uint8_t>(value.size());
+			for (size_t i = 0; i < value.size(); ++i)
+			{
+				info.strides[i] = static_cast<uint32_t>(py::cast<int64_t>(value[i]));
+			}
+		})
+		.def_property_readonly("num_items", &ArrayInfo::GetNumItems)
+		.def_property_readonly("num_bytes", &ArrayInfo::GetNumBytes);
+
+	py::class_<Message>(m, "Message")
+		.def_property_readonly("topic", &Message::GetTopic)
+		.def_property_readonly("trace_id", &Message::GetTraceId)
+		.def_property_readonly("payload_id", &Message::GetPayloadId)
+		.def_property_readonly("producer_hostname", &Message::GetProducerHostname)
+		.def_property_readonly("producer_pid", &Message::GetProducerPid)
+		.def_property_readonly("producer_timestamp", &Message::GetProducerTimestamp)
+		.def_property("array_info", &Message::GetArrayInfo, &Message::SetArrayInfo)
+		.def_property("payload", [](const Message& m) {
+			return ToPython(m.GetPayload(), &m.GetArrayInfo());
+		},
+		[](Message &m, py::buffer data)
+		{
+			py::buffer_info buffer_info = data.request();
+			ArrayInfo array_info = FormatStringToDtype(buffer_info.format);
+
+			array_info.item_size = buffer_info.itemsize;
+
+			// Deduce the number of dimensions.
+			array_info.ndim = buffer_info.ndim;
+			if (array_info.ndim > MAX_NUM_DIMENSIONS)
+				throw std::runtime_error("The array is too high-dimensional.");
+
+			// Copy over the shape and strides.
+			std::transform(buffer_info.shape.begin(), buffer_info.shape.end(), array_info.shape, [](const auto& val) { return static_cast<uint32_t>(val); });
+			std::transform(buffer_info.strides.begin(), buffer_info.strides.end(), array_info.strides, [](const auto& val) { return static_cast<uint32_t>(val); });
+
+			// Make sure our buffer is large enough.
+			if (array_info.GetNumBytes() > m.GetPayloadSize())
+				throw std::runtime_error("The buffer is too small.");
+
+			// All checks are complete. Let's copy the raw data.
+			std::memcpy(m.GetPayload(), buffer_info.ptr, array_info.GetNumBytes());
+			m.SetArrayInfo(array_info);
+		})
+		.def_property_readonly("payload_size", &Message::GetPayloadSize)
+		.def_property_readonly("metadata", [](Message *message)
+		{
+			return MetadataWrapper(message);
+		})
+		.def_property("start_byte", &Message::GetStartByte, &Message::SetStartByte)
+		.def_property("end_byte", &Message::GetEndByte, &Message::SetEndByte);
+
+	py::enum_<EventWaitMethod>(m, "EventWaitMethod")
+		.value("Default", EventWaitMethod::Default)
+		.value("ConditionVariable", EventWaitMethod::ConditionVariable)
+		.value("Futex", EventWaitMethod::Futex)
+		.value("Semaphore", EventWaitMethod::Semaphore)
+		.value("SpinLock", EventWaitMethod::SpinLock);
+
+	py::class_<Event, std::shared_ptr<Event>>(m, "Event")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::string id)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			return Event::Create(stream, id);
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			return Event::Open(stream);
+		})
+		.def("wait", [](std::shared_ptr<Event> event, py::object condition, double timeout_in_seconds, EventWaitMethod wait_method)
+		{
+			event->Wait(timeout_in_seconds, [condition]()
+			{
+				py::gil_scoped_acquire acquire;
+
+				return py::cast<bool>(condition());
+			}, wait_method, error_check_python);
+		}, py::arg("condition"), py::arg("timeout_in_sec") = -1, py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
+		.def("signal", &Event::Signal, py::call_guard<py::gil_scoped_release>())
+		.def("__enter__", [](std::shared_ptr<Event> event)
+		{
+			event->Lock();
+			return event;
+		}, py::call_guard<py::gil_scoped_release>())
+		.def("__exit__", [] (std::shared_ptr<Event> event, const std::optional<pybind11::type> &exc_type, const std::optional<pybind11::object> &exc_value, const std::optional<pybind11::object> &traceback)
+		{
+			event->Unlock();
+		}, py::call_guard<py::gil_scoped_release>());
+
+	py::enum_<MessageSubscriptionMode>(m, "MessageSubscriptionMode")
+		.value("NewestOnly", MessageSubscriptionMode::NewestOnly)
+		.value("Sequential", MessageSubscriptionMode::Sequential);
+
+	py::class_<MessageSubscription>(m, "MessageSubscription")
+		.def("get_next_message", [](MessageSubscription &subscription, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default)
+		{
+			return subscription.GetNextMessage(timeout_in_seconds, wait_method, error_check_python);
+		}, py::arg("timeout_in_sec") = -1, py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
+		.def("try_get_next_message", [](MessageSubscription &subscription) -> py::object
+		{
+			auto res = subscription.TryGetNextMessage();
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		})
+		.def_property_readonly("next_message_id", &MessageSubscription::GetNextMessageId);
+
+	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker")
+		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
+		{
+			auto stream = StructStream(header->GetAddress());
+			auto broker = MessageBroker::Create(stream, memory_blocks);
+
+			return std::shared_ptr<MessageBroker>(std::move(broker));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto broker = MessageBroker::Open(stream);
+
+			return std::shared_ptr<MessageBroker>(std::move(broker));
+		})
+		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string& topic, std::size_t payload_size, std::uint8_t memory_block_id)
+		{
+			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
+
+			return message;
+		}, py::arg("topic"), py::arg("payload_size"), py::arg("memory_block_id") = 0)
+		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string& topic, std::size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
+		{
+			if (trace_id.is_none())
+			{
+				return broker->PrepareMessage(topic, payload_size, memory_block_id);
+			}
+			else
+			{
+				return broker->PrepareMessage(topic, payload_size, py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("payload_size"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("publish_message", [](std::shared_ptr<MessageBroker> broker, Message& message, bool is_final)
+		{
+			broker->PublishMessage(message, is_final);
+		}, py::arg("message"), py::arg("is_final") = true)
+		.def("publish_data", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
+		{
+			if (trace_id.is_none())
+			{
+				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), memory_block_id);
+			}
+			else
+			{
+				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("data"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("try_get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
+		{
+			auto res = broker->TryGetMessage(topic, frame_id);
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		}, py::arg("topic"), py::arg("frame_id"))
+		.def("get_newest_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic) -> py::object
+		{
+			auto res = broker->GetNewestMessage(topic);
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		}, py::arg("topic"))
+		.def("is_message_available", &MessageBroker::IsMessageAvailable)
+		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)
+		.def("get_newest_message_id", &MessageBroker::GetNewestMessageId)
+		.def("get_oldest_message_id", &MessageBroker::GetOldestMessageId)
+		.def("get_message_rate", &MessageBroker::GetMessageRate)
+		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
+		.def("subscribe", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::object starting_frame_id, MessageSubscriptionMode mode)
+		{
+			// Check if the starting frame ID is a number or None.
+			if (starting_frame_id.is_none())
+			{
+				return broker->Subscribe(topic, mode);
+			}
+			else
+			{
+				return broker->Subscribe(topic, py::cast<std::uint64_t>(starting_frame_id), mode);
+			}
+		}, py::arg("topic"), py::arg("starting_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
+
+	py::class_<PoolAllocator, std::shared_ptr<PoolAllocator>>(m, "PoolAllocator")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t capacity)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = PoolAllocator::Create(stream, capacity);
+
+			return std::shared_ptr<PoolAllocator>(std::move(allocator));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = PoolAllocator::Open(stream);
+
+			return std::shared_ptr<PoolAllocator>(std::move(allocator));
+		})
+		.def("allocate", [](std::shared_ptr<PoolAllocator> allocator)
+		{
+			auto handle = allocator->Allocate();
+
+			if (handle == PoolAllocator::INVALID_HANDLE)
+				throw std::runtime_error("Failed to allocate memory from pool allocator.");
+
+			return handle;
+		})
+		.def("release", &PoolAllocator::Release)
+		.def("acquire", &PoolAllocator::Acquire);
+
+	py::class_<BuddyAllocator, std::shared_ptr<BuddyAllocator>>(m, "BuddyAllocator")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = BuddyAllocator::Create(stream, max_size, min_size);
+
+			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = BuddyAllocator::Open(stream);
+
+			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
+		})
+		.def("allocate", [](std::shared_ptr<BuddyAllocator> allocator, std::size_t size)
+		{
+			auto handle = allocator->Allocate(size);
+
+			if (handle == BuddyAllocator::INVALID_HANDLE)
+				throw std::runtime_error("Failed to allocate memory from buddy allocator.");
+
+			return handle;
+		})
+		.def("acquire", &BuddyAllocator::Acquire)
+		.def("release", &BuddyAllocator::Release)
+		.def("print_state", &BuddyAllocator::PrintState);
+
+	py::class_<HybridPoolAllocator, std::shared_ptr<HybridPoolAllocator>>(m, "HybridPoolAllocator")
+		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size, std::size_t min_size_pool)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = HybridPoolAllocator::Create(stream, max_size, min_size, min_size_pool);
+
+			return std::shared_ptr<HybridPoolAllocator>(std::move(allocator));
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory->GetAddress());
+			auto allocator = HybridPoolAllocator::Open(stream);
+
+			return std::shared_ptr<HybridPoolAllocator>(std::move(allocator));
+		})
+		.def("allocate", [](std::shared_ptr<HybridPoolAllocator> allocator, std::size_t size)
+		{
+			auto handle = allocator->Allocate(size);
+
+			if (handle == HybridPoolAllocator::INVALID_HANDLE)
+				throw std::runtime_error("Failed to allocate memory from buddy allocator.");
+
+			return handle;
+		})
+		.def("acquire", &HybridPoolAllocator::Acquire)
+		.def("release", &HybridPoolAllocator::Release);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

@@ -295,7 +295,7 @@ std::string TestbedProxy::GetBaseDataPath()
 
 	if (conf.contains("by_hostname"))
 	{
-		std::string host_name = GetHostName();
+		std::string host_name = std::string(GetHostName());
 
 		if (conf["by_hostname"].contains(host_name))
 		{
@@ -324,7 +324,7 @@ std::string TestbedProxy::GetSupportDataPath()
 
 	if (conf.contains("by_hostname"))
 	{
-		std::string host_name = GetHostName();
+		std::string host_name = std::string(GetHostName());
 
 		if (conf["by_hostname"].contains(host_name))
 		{

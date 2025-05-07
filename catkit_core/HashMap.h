@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <atomic>
 #include <string_view>
+#include <vector>
+#include <string>
 
 // A hash map with the following limitations:
 // * entries cannot be removed.
@@ -29,6 +31,7 @@ private:
 	std::size_t m_ValueSize;
 	std::size_t m_EntrySize;
 
+	std::uint32_t GetHash(std::string_view key) const;
 	std::size_t GetIndex(std::string_view key) const;
 
 	std::string_view GetKey(std::size_t entry) const;
@@ -43,11 +46,13 @@ public:
 
 	static std::size_t GetSharedStateSize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
 
-	static std::unique_ptr<HashMap> Create(StructStream &stream, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
-	static std::unique_ptr<HashMap> Open(StructStream &stream);
+	static std::shared_ptr<HashMap> Create(StructStream &stream, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
+	static std::shared_ptr<HashMap> Open(StructStream &stream);
 
 	void *Insert(std::string_view key, const void *value = nullptr);
 	void *Find(std::string_view key) const;
+
+	std::vector<std::string> GetAllKeys() const;
 
 	ShareableType GetType() const override;
 };

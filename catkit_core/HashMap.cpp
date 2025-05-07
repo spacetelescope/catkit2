@@ -2,6 +2,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iostream>
+
+//#define DEBUG_PRINT(a) std::cout << a << std::endl
+#define DEBUG_PRINT(a)
 
 // MurmurHash3 32-bit version
 uint32_t murmurhash3(std::string_view key, uint32_t seed = 0)
@@ -58,14 +62,37 @@ uint32_t murmurhash3(std::string_view key, uint32_t seed = 0)
 	return h;
 }
 
+std::string to_hex(unsigned char c)
+{
+	const static char hex[] = "0123456789abcdef";
+
+	return {hex[c >> 4], hex[c & 0x0f]};
+}
+
+std::string string_view_to_hex(std::string_view sv)
+{
+	std::string result;
+
+	for (unsigned char c : sv) {
+		result += to_hex(c);
+	}
+
+	return result;
+}
+
 std::size_t round_up_to_nearest_multiple_power_of_two(std::size_t value, std::size_t power_of_two)
 {
 	return (value + power_of_two - 1) & ~(power_of_two - 1);
 }
 
+std::uint32_t HashMap::GetHash(std::string_view key) const
+{
+	return murmurhash3(key);
+}
+
 std::size_t HashMap::GetIndex(std::string_view key) const
 {
-	return murmurhash3(key) % m_NumEntries;
+	return GetHash(key) % m_NumEntries;
 }
 
 std::string_view HashMap::GetKey(std::size_t entry) const
@@ -121,7 +148,7 @@ std::size_t HashMap::GetSharedStateSize(std::size_t num_entries, std::size_t max
 	return sizeof(size_t) * 3 + entry_size * num_entries;
 }
 
-std::unique_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
+std::shared_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size)
 {
 	*stream.Extract<std::size_t>() = num_entries;
 	*stream.Extract<std::size_t>() = max_key_size;
@@ -129,7 +156,7 @@ std::unique_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_e
 
 	auto data = stream.Extract<char>(CalculateEntrySize(max_key_size, value_size) * num_entries);
 
-	auto map = std::unique_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size));
+	auto map = std::shared_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size));
 
 	// Initialize the map.
 	for (std::size_t i = 0; i < map->m_NumEntries; ++i)
@@ -141,14 +168,14 @@ std::unique_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_e
 	return map;
 }
 
-std::unique_ptr<HashMap> HashMap::Open(StructStream &stream)
+std::shared_ptr<HashMap> HashMap::Open(StructStream &stream)
 {
 	auto num_entries = *stream.Extract<std::size_t>();
 	auto max_key_size = *stream.Extract<std::size_t>();
 	auto value_size = *stream.Extract<std::size_t>();
 	auto data = stream.Extract<char>(CalculateEntrySize(max_key_size, value_size) * num_entries);
 
-	return std::unique_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size));
+	return std::shared_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size));
 }
 
 void *HashMap::Insert(std::string_view key, const void *value)
@@ -219,6 +246,8 @@ void *HashMap::Find(std::string_view key) const
 {
 	if (key.size() >= m_MaxKeySize)
 	{
+		DEBUG_PRINT("HashMap::Find: Key is too long");
+
 		// Key is too long to fit in the fixed-size buffer.
 		return nullptr;
 	}
@@ -244,8 +273,26 @@ void *HashMap::Find(std::string_view key) const
 		}
 	}
 
+	DEBUG_PRINT("HashMap::Find: Key not found: (key = \"" << key << "\", size = " << key.size() << ")");
+	DEBUG_PRINT("Key in hex: " << string_view_to_hex(key));
+
 	// Key not found.
 	return nullptr;
+}
+
+std::vector<std::string> HashMap::GetAllKeys() const
+{
+	std::vector<std::string> res;
+
+	for (size_t i = 0; i < m_NumEntries; ++i)
+	{
+		EntryFlags flags = GetFlagsRef(i)->load(std::memory_order_relaxed);
+
+		if (flags == EntryFlags::OCCUPIED)
+			res.push_back(std::string(GetKey(i)));
+	}
+
+	return res;
 }
 
 ShareableType HashMap::GetType() const
