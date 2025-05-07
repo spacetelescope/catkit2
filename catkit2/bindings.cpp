@@ -1033,6 +1033,23 @@ PYBIND11_MODULE(catkit_bindings, m)
 		}, py::arg("condition"), py::arg("timeout_in_sec") = -1, py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
 		.def("signal", &Event::Signal, py::call_guard<py::gil_scoped_release>());
 
+	m.def("is_wait_method_implemented", [](EventWaitMethod wait_method)
+	{
+		switch (wait_method)
+		{
+		case EventWaitMethod::Semaphore:
+			return is_event_implemented<EventImplementationType::Semaphore>::value;
+		case EventWaitMethod::ConditionVariable:
+			return is_event_implemented<EventImplementationType::ConditionVariable>::value;
+		case EventWaitMethod::Futex:
+			return is_event_implemented<EventImplementationType::Futex>::value;
+		case EventWaitMethod::SpinLock:
+			return is_event_implemented<EventImplementationType::SpinLock>::value;
+		default:
+			throw std::runtime_error("Unknown event wait method.");
+		}
+	});
+
 	py::enum_<MessageSubscriptionMode>(m, "MessageSubscriptionMode")
 		.value("NewestOnly", MessageSubscriptionMode::NewestOnly)
 		.value("Sequential", MessageSubscriptionMode::Sequential);

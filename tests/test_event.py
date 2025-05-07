@@ -1,5 +1,4 @@
-from catkit2.catkit_bindings import Event, LocalMemory
-import time
+from catkit2.catkit_bindings import Event, EventWaitMethod, LocalMemory, is_wait_method_implemented
 import threading
 import pytest
 
@@ -12,7 +11,16 @@ def event_wait(event, signal, waiting, condition):
 
     signal.set()
 
-def test_event():
+@pytest.mark.parametrize("wait_method", [
+    EventWaitMethod.Default,
+    EventWaitMethod.Semaphore,
+    EventWaitMethod.ConditionVariable,
+    EventWaitMethod.Futex,
+    EventWaitMethod.SpinLock])
+def test_event(wait_method):
+    if not is_wait_method_implemented(wait_method):
+        pytest.skip(f"Wait method {wait_method} is not implemented.")
+
     memory = LocalMemory.create(1024)
     event = Event.create(memory, 'test_event')
 

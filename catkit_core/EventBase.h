@@ -55,6 +55,11 @@ protected:
 	LocalState m_LocalState;
 };
 
+template<enum EventImplementationType Type>
+struct is_event_implemented : std::false_type
+{
+};
+
 #include "EventBase.inl"
 #include "EventConditionVariable.inl"
 #include "EventFutex.inl"

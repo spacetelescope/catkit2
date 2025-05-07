@@ -15,6 +15,11 @@ using EventSemaphore = EventImpl<EventImplementationType::Semaphore>;
 #ifdef _WIN32
 
 template<>
+struct is_event_implemented<EventImplementationType::Semaphore> : std::true_type
+{
+};
+
+template<>
 struct EventSharedState<EventImplementationType::Semaphore>
 {
 	std::atomic_long m_NumReadersWaiting;

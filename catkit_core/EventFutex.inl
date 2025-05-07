@@ -18,6 +18,11 @@ using EventFutex = EventImpl<EventImplementationType::Futex>;
 #ifdef __linux__
 
 template<>
+struct is_event_implemented<EventImplementationType::Futex> : std::true_type
+{
+};
+
+template<>
 struct EventSharedState<EventImplementationType::Futex>
 {
 	std::atomic<int> m_Futex;
