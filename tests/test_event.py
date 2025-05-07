@@ -19,13 +19,15 @@ def test_event():
     signaled = threading.Event()
     waiting = threading.Event()
 
+    # The condition that the threads will wait on. This needs to be a mutable object.
     condition = [0]
 
     thread = threading.Thread(target=event_wait, args=(event, signaled, waiting, condition))
     thread.start()
 
+    # Ensure that the waiting thread has started waiting.
     waiting.wait(1)
-    assert waiting.is_set()
+    assert waiting.is_set(), 'Something went wrong starting the waiting thread.'
 
     # Ensure the event is not triggered unless signaled.
     with pytest.raises(RuntimeError):
@@ -41,6 +43,6 @@ def test_event():
     signaled.wait(1)
 
     # Ensure that the wait actually ended and was triggered.
-    assert signaled.is_set()
+    assert signaled.is_set(), 'The waiting thread was not signaled.'
 
     thread.join()
