@@ -1,15 +1,14 @@
 from catkit2.catkit_bindings import Event, EventWaitMethod, LocalMemory, is_wait_method_implemented
 import threading
 import pytest
+import time
 
-def event_wait(event, signal, waiting, condition):
-    print(condition[0] != 0)
-
+def event_wait(event, signaled, waiting, condition):
     waiting.set()
 
     event.wait(lambda: condition[0] != 0, 2)
 
-    signal.set()
+    signaled.set()
 
 @pytest.mark.parametrize("wait_method", [
     EventWaitMethod.Default,
@@ -36,6 +35,9 @@ def test_event(wait_method):
     # Ensure that the waiting thread has started waiting.
     waiting.wait(1)
     assert waiting.is_set(), 'Something went wrong starting the waiting thread.'
+
+    # Wait a bit before signaling.
+    time.sleep(0.01)
 
     # Ensure the event is not triggered unless signaled.
     with pytest.raises(RuntimeError):
