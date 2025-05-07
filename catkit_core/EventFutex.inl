@@ -50,6 +50,12 @@ inline void EventFutex::Wait(double timeout_in_sec, std::function<bool()> condit
 		timeout.tv_sec += static_cast<time_t>(timeout_wait);
 		timeout.tv_nsec += 1'000'000'000 * (timeout_wait - static_cast<time_t>(timeout_wait));
 
+		if (timeout.tv_nsec >= 1'000'000'000)
+		{
+			timeout.tv_sec += static_cast<time_t>(timeout.tv_nsec / 1'000'000'000);
+			timeout.tv_nsec %= 1'000'000'000;
+		}
+
 		if (futex_wait(&m_SharedState->m_Futex, expected, &timeout) < 0)
 		{
 			if (errno == EAGAIN)
@@ -60,7 +66,7 @@ inline void EventFutex::Wait(double timeout_in_sec, std::function<bool()> condit
 			}
 
 			// Otherwise, an error occurred.
-			throw std::runtime_error("Futex wait failed.");
+			throw std::runtime_error("Futex wait failed: " + std::to_string(errno));
 		}
 
 		if (error_check != nullptr)
