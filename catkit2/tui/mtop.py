@@ -12,40 +12,22 @@ def human_readable_time(seconds):
 
     time_units = [
         ('day', 86400),
-        ('hour', 3600),
-        ('minute', 60),
-        ('second', 1),
+        ('hr', 3600),
+        ('min', 60),
+        ('sec', 1),
     ]
 
-    parts = []
-
-    for name, unit_seconds in time_units:
+    for unit, unit_seconds in time_units:
         if seconds >= unit_seconds:
-            count = seconds // unit_seconds
-            seconds %= unit_seconds
+            quantity = seconds // unit_seconds
 
-            parts.append((count, name))
+            return f"{quantity} {unit}{'s' if quantity != 1 else ''} ago"
 
-            # Only add one unit unless the first is singular.
-            if count != 1:
-                break
-
-            # Don't add second unit if there's no remainder
-            if seconds == 0:
-                break
-
-        # Ensure we only use up to 2 units if first was singular.
-        if parts:
             break
+    else:
+        return "<1 sec ago"
 
-    if not parts:
-        return "just now"
-
-    formatted = f"{parts[0][0]} {parts[0][1]}{'s' if parts[0][0] != 1 else ''}"
-    if parts[0][0] == 1 and len(parts) > 1:
-        formatted += f", {parts[1][0]} {parts[1][1]}{'s' if parts[1][0] != 1 else ''}"
-
-    return formatted + " ago"
+    return f"{quantity} {unit}{'s' if quantity != 1 else ''} ago"
 
 def generate_data(broker):
     topics = broker.get_all_message_topics()
