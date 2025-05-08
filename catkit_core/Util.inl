@@ -1,3 +1,5 @@
+#include <limits>
+
 template<typename ProtoClass>
 std::string Serialize(const ProtoClass &obj)
 {

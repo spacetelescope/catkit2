@@ -6,6 +6,8 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <cstdint>
+#include <cstddef>
 
 #include "Shareable.h"
 
