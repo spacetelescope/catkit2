@@ -2,7 +2,8 @@ import curses
 import time
 import sys
 import numpy as np
-from catkit2.catkit_bindings import SharedMemory, MessageBroker, EventWaitMethod, get_timestamp
+
+from catkit2.catkit_bindings import SharedMemory, MessageBroker, get_timestamp
 
 def human_readable_time(seconds):
     seconds = round(seconds)
@@ -103,7 +104,7 @@ def main():
         header = SharedMemory.open(shared_memory_id)
 
     try:
-        buffer = SharedMemory.create(buffer_id,1024 * 1024 * 512)
+        buffer = SharedMemory.create(buffer_id, 1024 * 1024 * 512)
     except Exception:
         buffer = SharedMemory.open(buffer_id)
     broker = MessageBroker.create(header, [buffer])
