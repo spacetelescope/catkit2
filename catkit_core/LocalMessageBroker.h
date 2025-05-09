@@ -1,0 +1,139 @@
+#ifndef LOCAL_MESSAGE_BROKER_H
+#define LOCAL_MESSAGE_BROKER_H
+
+#include "MessageBroker.h"
+#include "HashMap.h"
+#include "Event.h"
+#include "HybridPoolAllocator.h"
+#include "PoolAllocator.h"
+#include "SharedMemory.h"
+#include "LocalMemory.h"
+#include "CudaSharedMemory.h"
+#include "Uuid.h"
+#include "Tensor.h"
+
+#include <memory>
+#include <array>
+#include <optional>
+
+const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
+
+const size_t TOPIC_HASH_MAP_SIZE = 16384;
+const size_t TOPIC_MAX_NUM_MESSAGES = 32;
+const size_t MAX_NUM_MESSAGES = 65536;
+
+struct TopicHeader
+{
+	std::atomic_uint64_t next_frame_id;
+	std::atomic_uint64_t first_frame_id;
+	std::atomic_uint64_t last_frame_id;
+
+	double frame_rate;
+
+	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
+
+	bool IsMessageAvailable(std::size_t frame_id);
+	bool WillMessageBeAvailable(std::size_t frame_id);
+	std::size_t GetOldestMessageId();
+	std::size_t GetNewestMessageId();
+
+	double GetMessageRate();
+};
+
+struct MessageBrokerHeader
+{
+	char creator_hostname[HOST_NAME_SIZE];
+	std::uint64_t time_of_creation;
+	int creator_pid;
+
+	std::size_t num_memory_blocks;
+
+	std::uint64_t time_of_last_activity;
+
+	MessageHeader message_headers[MAX_NUM_MESSAGES];
+};
+
+class LocalMessageBroker : public Shareable, public MessageBroker
+{
+	friend class MessageSubscription;
+
+private:
+	LocalMessageBroker(
+		MessageBrokerHeader *header,
+		std::shared_ptr<HashMap> topic_headers,
+		std::shared_ptr<PoolAllocator> message_header_allocator,
+		std::shared_ptr<Event> event,
+		std::vector<std::shared_ptr<HybridPoolAllocator>> allocators,
+		std::vector<std::shared_ptr<Memory>> memory_blocks
+	);
+
+public:
+	static std::shared_ptr<LocalMessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks);
+	static std::shared_ptr<LocalMessageBroker> Open(StructStream &stream);
+
+	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
+
+	// Prepare a message for publishing with a trace ID.
+	virtual Message PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0) override;
+
+	// Publish a message.
+	virtual void PublishMessage(Message &message, bool is_final = true) override;
+
+	// Get the newest message for a topic.
+	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) override;
+
+	// Try to get a message by topic and frame ID.
+	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
+
+	virtual Message GetNextMessage(std::string_view topic, std::uint64_t frame_id, MessageSubscriptionMode mode, double timeout_in_sec, EventWaitMethod wait_method, void (*error_check)() = nullptr) override;
+
+	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, std::uint64_t frame_id, MesageSubscriptionMode mode) override;
+
+	// Check for message availability.
+	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
+
+	// Check if a message will be available in the future.
+	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);
+
+	// Get the newest message ID for a topic.
+	size_t GetNewestMessageId(std::string_view topic);
+
+	// Get the oldest message ID for a topic.
+	size_t GetOldestMessageId(std::string_view topic);
+
+	// Get the message rate for a topic.
+	virtual double GetMessageRate(std::string_view topic) override;
+
+	// Get the message topics for all messages in this broker.
+	virtual std::vector<std::string> GetAllMessageTopics() override;
+
+	// Subscribe to a topic for receiving messages.
+	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+
+	// Subscribe to a topic for receiving messages with a starting frame ID.
+	MessageSubscription Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+
+	ShareableType GetType() const override;
+
+private:
+	Message FetchMessage(TopicHeader *topic_header, size_t frame_id);
+
+	std::shared_ptr<HybridPoolAllocator> GetAllocator(uint8_t memory_block_id);
+	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
+
+	TopicHeader *GetTopicHeader(std::string_view topic);
+
+	MessageBrokerHeader *m_Header;
+
+	std::shared_ptr<HashMap> m_TopicHeaders;
+
+	std::shared_ptr<Event> m_Event;
+
+	std::shared_ptr<PoolAllocator> m_MessageHeaderAllocator;
+	MessageHeader *m_MessageHeaders;
+
+	std::vector<std::shared_ptr<HybridPoolAllocator>> m_Allocators;
+	std::vector<std::shared_ptr<Memory>> m_MemoryBlocks;
+};
+
+#endif // LOCAL_MESSAGE_BROKER_H
