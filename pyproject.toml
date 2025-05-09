@@ -90,3 +90,6 @@ oceanoptics_spectrometer = "catkit2.testbed.proxies.oceanoptics_spectrometer:Oce
 thorlabs_cube_motor_kinesis = "catkit2.testbed.proxies.thorlabs_cube_motor_kinesis:ThorlabsCubeMotorKinesisProxy"
 thorlabs_mcls1 = "catkit2.testbed.proxies.thorlabs_mcls1:ThorlabsMcls1"
 web_power_switch = "catkit2.testbed.proxies.web_power_switch:WebPowerSwitchProxy"
+
+[project.scripts]
+mtop = "catkit2.tui.mtop:main"
