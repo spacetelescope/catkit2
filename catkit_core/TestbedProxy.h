@@ -8,6 +8,8 @@
 #include "testbed.pb.h"
 #include "ServiceState.h"
 #include "Util.h"
+#include "MessageBroker.h"
+#include "SharedMemory.h"
 
 #include <zmq.hpp>
 #include <nlohmann/json.hpp>
@@ -49,6 +51,7 @@ public:
 	void ShutDown();
 
 	std::shared_ptr<DataStream> GetHeartbeat();
+	std::shared_ptr<MessageBroker> GetMessageBroker();
 
 	nlohmann::json GetConfig();
 
@@ -91,6 +94,8 @@ private:
 	bool m_HasGottenInfo;
 
 	std::shared_ptr<DataStream> m_HeartbeatStream;
+	std::shared_ptr<SharedMemory> m_MessageBrokerHeader;
+	std::shared_ptr<MessageBroker> m_MessageBroker;
 
 	bool m_IsSimulated;
 	nlohmann::json m_Config;

@@ -39,6 +39,7 @@ message GetInfoReply
     uint32 data_logging_egress_port = 8;
     uint32 tracing_ingress_port = 9;
     uint32 tracing_egress_port = 10;
+    string message_broker_id = 11;
 }
 
 message GetServicesRequest
