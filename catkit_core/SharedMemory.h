@@ -59,6 +59,8 @@ public:
 	virtual std::size_t GetCapacity() const override;
 	virtual void WriteReference(StructStream &stream) override;
 
+	std::string GetFileName();
+
 	ShareableType GetType() const override;
 
 private:

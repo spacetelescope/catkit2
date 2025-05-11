@@ -897,7 +897,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 			size_t capacity = memory->GetCapacity();
 
 			return py::memoryview::from_memory(address, capacity);
-		});
+		})
+		.def_property_readonly("filename", &SharedMemory::GetFileName);
 
 	py::class_<LocalMemory, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
 		.def_static("create", [](size_t num_bytes)

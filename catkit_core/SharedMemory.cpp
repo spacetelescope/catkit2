@@ -159,3 +159,8 @@ void SharedMemory::WriteReference(StructStream &stream)
 	std::fill(filename, filename + SHARED_MEMORY_FNAME_SIZE, '\0');
 	m_FileName.copy(filename, SHARED_MEMORY_FNAME_SIZE - 1);
 }
+
+std::string SharedMemory::GetFileName()
+{
+	return m_FileName;
+}
