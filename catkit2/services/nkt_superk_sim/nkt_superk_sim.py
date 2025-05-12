@@ -114,7 +114,7 @@ class NktSuperkSim(Service):
     def set_power_setpoint(self, power_setpoint):
         self.testbed.simulator.set_source_power(
             source_name=self.id,
-            power=self.emission.get()[0] * power_setpoint
+            power=self.emission.get()[0] * power_setpoint * 1e-2
         )
 
     def set_current_setpoint(self, current_setpoint):
