@@ -83,7 +83,7 @@ class ThorlabsMcls1Sim(Service):
     def set_emission(self, emission):
         self.testbed.simulator.set_source_power(
             source_name=self.id,
-            power=emission * self.power_setpoint.get()[0] * 1e-2
+            power=emission * self.power_setpoint.get()[0]
         )
 
     def set_power_setpoint(self, power_setpoint):
