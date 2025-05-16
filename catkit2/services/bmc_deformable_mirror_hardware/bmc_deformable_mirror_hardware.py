@@ -1,7 +1,6 @@
 from catkit2.base_services.bmc_deformable_mirror import BmcDeformableMirror
 from catkit2.testbed.tracing import trace_interval
 
-import threading
 import sys
 import os
 import numpy as np
@@ -26,8 +25,6 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
 
         if not isinstance(self.device_command_index, list):
             self.device_command_index = [self.device_command_index]
-
-        self.lock = threading.Lock()
 
     def open(self):
         self.device = bmc.BmcDm()
@@ -57,12 +54,11 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
         device_command = self.dm_command_to_device_command(self.voltages)
 
         with trace_interval('send data'):
-            with self.lock:
-                # Send the voltages to the DM.
-                status = self.device.send_data(device_command)
+            # Send the voltages to the DM.
+            status = self.device.send_data(device_command)
 
-                if status != bmc.NO_ERR:
-                    raise RuntimeError(f'Failed to send data: {self.device.error_string(status)}.')
+            if status != bmc.NO_ERR:
+                raise RuntimeError(f'Failed to send data: {self.device.error_string(status)}.')
 
     def dm_command_to_device_command(self, dm_command):
         device_command = np.zeros(self.device_command_length)

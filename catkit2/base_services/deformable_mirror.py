@@ -37,6 +37,8 @@ class DeformableMirrorService(Service):
         self.total_voltage = self.make_data_stream('total_voltage', 'float64', [self.dm_command_length], 20)
         self.total_surface = self.make_data_stream('total_surface', 'float64', [self.dm_command_length], 20)
 
+        self.lock = threading.Lock()
+
     @property
     def dm_command_length(self):
         '''The command length of the DM(s).
@@ -117,15 +119,16 @@ class DeformableMirrorService(Service):
 
         This co-adds all the DM commands from each channel and applies it to the DM.
         '''
-        with trace_interval('update dm surface'):
-            with trace_interval('compute total surface'):
-                # Add up all channels to get the total surface.
-                total_surface = 0
-                for stream in self.channels.values():
-                    total_surface += stream.get_latest_frame().data
+        with self.lock:
+            with trace_interval('update dm surface'):
+                with trace_interval('compute total surface'):
+                    # Add up all channels to get the total surface.
+                    total_surface = 0
+                    for stream in self.channels.values():
+                        total_surface += stream.get_latest_frame().data
 
-            # Apply the command on the DM.
-            self.send_surface(total_surface)
+                # Apply the command on the DM.
+                self.send_surface(total_surface)
 
     def send_surface(self, surface):
         '''Send a surface map to the DM(s).
