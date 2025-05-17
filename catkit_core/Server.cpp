@@ -36,7 +36,9 @@ void Server::Start()
     if (IsRunning())
         throw runtime_error("This server is already running.");
 
-	m_ShouldShutDown = false;
+	if (m_ShouldShutDown)
+		throw runtime_error("This server can only run once.");
+
 	m_IsRunning = true;
 
     m_RunThread = thread(&Server::RunInternal, this);
@@ -48,6 +50,13 @@ void Server::Stop()
 
 	if (m_RunThread.joinable())
 		m_RunThread.join();
+
+	CleanupRequestHandlers();
+}
+
+void Server::CleanupRequestHandlers()
+{
+	m_RequestHandlers.clear();
 }
 
 void Server::RunInternal()
