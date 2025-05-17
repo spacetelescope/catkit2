@@ -530,7 +530,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("sleep", [](Server &server, double sleep_time_in_sec)
 		{
 			server.Sleep(sleep_time_in_sec, error_check_python);
-		}, py::call_guard<py::gil_scoped_release>());
+		}, py::call_guard<py::gil_scoped_release>())
+		.def("cleanup_request_handlers", &Server::CleanupRequestHandlers);
 
 	py::class_<Client>(m, "Client")
 		.def(py::init<std::string, int>())
@@ -606,7 +607,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 			DataType dtype = GetDataTypeFromString(type);
 			return service.MakeDataStream(stream_name, dtype, dimensions, num_frames_in_buffer);
 		})
-		.def("reuse_data_stream", &Service::ReuseDataStream);
+		.def("reuse_data_stream", &Service::ReuseDataStream)
+		.def("cleanup_attributes", &Service::CleanupAttributes);
 
 	py::enum_<ServiceState>(m, "ServiceState")
 		.value("CLOSED", ServiceState::CLOSED)
