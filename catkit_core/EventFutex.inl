@@ -50,22 +50,37 @@ inline void EventFutex::Wait(double timeout_in_sec, std::function<bool()> condit
 		double time_remaining = timeout_in_sec - timer.GetTime();
 		double timeout_wait = std::min(0.020, time_remaining);
 
+		if (timeout_wait <= 0)
+		{
+			// The timeout expired.
+			throw std::runtime_error("Waiting time has expired.");
+		}
+
 		struct timespec timeout;
 		timeout.tv_sec = static_cast<time_t>(timeout_wait);
 		timeout.tv_nsec = 1'000'000'000 * (timeout_wait - static_cast<time_t>(timeout_wait));
 
 		if (timeout.tv_nsec >= 1'000'000'000)
 		{
-			timeout.tv_sec += static_cast<time_t>(timeout.tv_nsec / 1'000'000'000);
-			timeout.tv_nsec %= 1'000'000'000;
+			timeout.tv_sec += 1;
+			timeout.tv_nsec -= 1'000'000'000;
 		}
 
 		if (futex_wait(&m_SharedState->m_Futex, expected, &timeout) < 0)
 		{
 			if (errno == EAGAIN)
 			{
-				// The value was not equal to the expected value, so we need to check the condition again.
+				// The value was not equal to the expected value. This usually means that
+				// the futex was triggered in between us getting the expected value and
+				// the futex_wait() call. So we need to reset the expected value and check
+				// the condition before calling futex_wait() again.
 				expected = m_SharedState->m_Futex.load(std::memory_order_acquire);
+				continue;
+			}
+
+			if (errno == ETIMEDOUT)
+			{
+				// The futex timed out. We should check the condition and futex_wait() again.
 				continue;
 			}
 
