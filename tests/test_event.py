@@ -36,9 +36,6 @@ def test_event(wait_method):
     waiting.wait(1)
     assert waiting.is_set(), 'Something went wrong starting the waiting thread.'
 
-    # Wait a bit before signaling.
-    time.sleep(0.01)
-
     # Ensure the event is not triggered unless signaled.
     with pytest.raises(RuntimeError):
         event.wait(lambda: condition[0] != 0, 0.1)
