@@ -48,12 +48,11 @@ inline void EventFutex::Wait(double timeout_in_sec, std::function<bool()> condit
 	{
 		// Wait for a maximum of 20ms to perform periodic error checking.
 		double time_remaining = timeout_in_sec - timer.GetTime();
-		double timeout_wait = std::min(0.020, timeout_in_sec);
+		double timeout_wait = std::min(0.020, time_remaining);
 
 		struct timespec timeout;
-		clock_gettime(CLOCK_MONOTONIC, &timeout);
-		timeout.tv_sec += static_cast<time_t>(timeout_wait);
-		timeout.tv_nsec += 1'000'000'000 * (timeout_wait - static_cast<time_t>(timeout_wait));
+		timeout.tv_sec = static_cast<time_t>(timeout_wait);
+		timeout.tv_nsec = 1'000'000'000 * (timeout_wait - static_cast<time_t>(timeout_wait));
 
 		if (timeout.tv_nsec >= 1'000'000'000)
 		{
