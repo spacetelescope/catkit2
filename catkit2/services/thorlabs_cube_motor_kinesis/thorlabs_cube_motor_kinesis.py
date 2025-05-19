@@ -108,6 +108,10 @@ class ThorlabsCubeMotorKinesis(Service):
             steps_per_rev = c_double(512)
             gear_box_ratio = c_double(67.49)
             pitch_mm = c_double(1.0)
+        elif self.stage_model == 'MTS25':
+            steps_per_rev = c_double(48)
+            gear_box_ratio = c_double(256)
+            pitch_mm = c_double(0.5)
         else:
             raise ValueError(f"Stage model {self.stage_model} not supported.")
 
