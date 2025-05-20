@@ -131,7 +131,7 @@ class ThorlabsMcls1(Service):
             # Last time this happened we identified the COM port in the device manager by unplugging / replugging
             # and then figuring the corresponding VCP port from the above debugging message.
 
-            if 'VCP11' in thing:
+            if 'VCP0' in thing:
                 self.port = split[i - 1]
                 print(f'port number from thing ={self.port}')
                 break
