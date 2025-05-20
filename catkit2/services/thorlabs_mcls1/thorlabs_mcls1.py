@@ -131,12 +131,12 @@ class ThorlabsMcls1(Service):
             # Last time this happened we identified the COM port in the device manager by unplugging / replugging
             # and then figuring the corresponding VCP port from the above debugging message.
 
-            if 'VCP11' in thing:
+            if 'VCP0' in thing:
                 self.port = split[i - 1]
                 print(f'port number from thing ={self.port}')
                 break
         else:
-            raise Exception('Device VCP11 not found')
+            raise Exception('Device VCP0 not found - The MCLS1 probably switched port after a reboot')
 
         self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
