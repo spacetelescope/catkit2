@@ -29,9 +29,10 @@ class BmcDeformableMirrorHardware(BmcDeformableMirror):
     def open(self):
         self.device = bmc.BmcDm()
 
-        pcie_status = self.device.set_device_id(self.device_id)
-        if pcie_status != bmc.NO_ERR:
-            raise RuntimeError(f'Failed to connect: {self.device.error_string(pcie_status)}.')
+        if self.device_id:
+            pcie_status = self.device.set_device_id(self.device_id)
+            if pcie_status != bmc.NO_ERR:
+                raise RuntimeError(f'Failed to connect: {self.device.error_string(pcie_status)}.')
 
         dm_status = self.device.open_dm(self.serial_number)
         if dm_status != bmc.NO_ERR:
