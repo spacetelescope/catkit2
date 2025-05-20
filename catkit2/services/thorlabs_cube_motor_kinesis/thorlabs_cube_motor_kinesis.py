@@ -106,7 +106,7 @@ class ThorlabsCubeMotorKinesis(Service):
         if 'Z8' in self.stage_model:
             # Set up the device to convert real units to device units
             steps_per_rev = c_double(512)
-            gear_box_ratio = c_double(67.49)
+            gear_box_ratio = c_double(67.0)
             pitch_mm = c_double(1.0)
         elif self.stage_model == 'MTS25':
             steps_per_rev = c_double(48)
