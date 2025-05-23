@@ -303,10 +303,10 @@ class Testbed:
         self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
 
         # Create a message broker.
-        self.message_broker_header = SharedMemory.create(f'catkit_broker_{port}', 1024 * 1024 * 128)
+        self.message_broker_header = SharedMemory.create(f'catkit_broker_{port}', 1024 * 1024 * 256)
         self.message_broker_buffer = SharedMemory.create(f'catkit_broker_{port}_buffer', 1024 * 1024 * 1024 * 2)
 
-        self.message_broker = MessageBroker.create(self.message_broker_header, [self.messmessage_broker_bufferage_broker_buffer])
+        self.message_broker = MessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
 
     def run(self):
         '''Run the main loop of the server.
