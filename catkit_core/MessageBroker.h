@@ -28,8 +28,8 @@ const size_t MAX_NUM_MESSAGES = 65536;
 const size_t MAX_NUM_METADATA_ENTRIES = 12;
 const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
 const size_t MAX_NUM_BLOCKS = 8192;
-const size_t MEMORY_ALIGNMENT = 32;
-const size_t MIN_SIZE_POOL = 1024;
+const size_t MEMORY_ALIGNMENT = 64;
+const size_t MIN_SIZE_POOL = 256 * 256 * 2;
 const size_t NUM_EVENTS_IN_BUFFER = 64;
 
 const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
