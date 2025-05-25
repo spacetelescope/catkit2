@@ -71,6 +71,7 @@ template<typename T>
 std::vector<T> FitsFile::GetData()
 {
 	int status;
+	int anynulls;
 	std::vector<T> data;
 	data.resize(GetSize());
 
@@ -78,7 +79,7 @@ std::vector<T> FitsFile::GetData()
 	if (GetDataType() != type_to_bitpix<T>::value)
 		throw std::runtime_error("Data type mismatch.");
 
-	if (fits_read_img(m_File, , 1, data.size(), NULL, data.data(), &status))
+	if (fits_read_img(m_File, GetDataType(), 1, data.size(), NULL, data.data(), &anynulls, &status))
 	{
 		fits_report_error(stderr, status);
 		throw std::runtime_error("Failed to read image.");
@@ -94,57 +95,69 @@ std::vector<T> FitsFile::GetDataCasted()
 	std::vector<T> data;
 	data.resize(GetSize());
 
+	// Define all possible data types.
+	std::vector<uint8_t> byte_data;
+	std::vector<int8_t> sbyte_data;
+	std::vector<int16_t> short_data;
+	std::vector<uint16_t> ushort_data;
+	std::vector<int32_t> int_data;
+	std::vector<uint32_t> uint_data;
+	std::vector<int64_t> long_data;
+	std::vector<uint64_t> ulong_data;
+	std::vector<float> float_data;
+	std::vector<double> double_data;
+
 	switch (GetDataType())
 	{
 	case TBYTE:
-		auto original_data = GetData<uint8_t>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		byte_data = GetData<uint8_t>();
+		for (size_t i = 0; i < byte_data.size(); ++i)
+			data[i] = static_cast<T>(byte_data[i]);
 		break;
 	case TSBYTE:
-		auto original_data = GetData<int8_t>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		sbyte_data = GetData<int8_t>();
+		for (size_t i = 0; i < sbyte_data.size(); ++i)
+			data[i] = static_cast<T>(sbyte_data[i]);
 		break;
 	case TSHORT:
-		auto original_data = GetData<int16_t>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		short_data = GetData<int16_t>();
+		for (size_t i = 0; i < short_data.size(); ++i)
+			data[i] = static_cast<T>(short_data[i]);
 		break;
 	case TUSHORT:
-		auto original_data = GetData<uint16_t>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		ushort_data = GetData<uint16_t>();
+		for (size_t i = 0; i < ushort_data.size(); ++i)
+			data[i] = static_cast<T>(ushort_data[i]);
 		break;
 	case TLONG:
-		auto original_data = GetData<int64_t>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		long_data = GetData<int64_t>();
+		for (size_t i = 0; i < long_data.size(); ++i)
+			data[i] = static_cast<T>(long_data[i]);
 		break;
 	case TULONG:
-		auto original_data = GetData<uint64_t>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		ulong_data = GetData<uint64_t>();
+		for (size_t i = 0; i < ulong_data.size(); ++i)
+			data[i] = static_cast<T>(ulong_data[i]);
 		break;
 	case TINT:
-		auto original_data = GetData<int32_t>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		int_data = GetData<int32_t>();
+		for (size_t i = 0; i < int_data.size(); ++i)
+			data[i] = static_cast<T>(int_data[i]);
 		break;
 	case TUINT:
-		auto original_data = GetData<uint32_t>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		uint_data = GetData<uint32_t>();
+		for (size_t i = 0; i < uint_data.size(); ++i)
+			data[i] = static_cast<T>(uint_data[i]);
 		break;
 	case TFLOAT:
-		auto original_data = GetData<float>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		float_data = GetData<float>();
+		for (size_t i = 0; i < float_data.size(); ++i)
+			data[i] = static_cast<T>(float_data[i]);
 		break;
 	case TDOUBLE:
-		auto original_data = GetData<double>();
-		for (size_t i = 0; i < original_data.size(); ++i)
-			data[i] = static_cast<T>(original_data[i]);
+		double_data = GetData<double>();
+		for (size_t i = 0; i < double_data.size(); ++i)
+			data[i] = static_cast<T>(double_data[i]);
 		break;
 	default:
 		throw std::runtime_error("Unsupported data type");
