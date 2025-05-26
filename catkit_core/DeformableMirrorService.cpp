@@ -50,6 +50,15 @@ DeformableMirrorService::DeformableMirrorService(std::string service_type, std::
 	for (auto channel_id : m_ChannelIds)
 	{
 		m_ChannelStreams[channel_id] = DataStream::Create(channel_id, GetId(), DataType::DT_FLOAT64, {m_NumActuators}, 20);
+
+		// Read in the initial map.
+		if (config["startup_maps"].contains(channel_id))
+		{
+			FitsFile startup_map_file = FitsFile(config["startup_maps"][channel_id]);
+			std::vector<double> startup_map = startup_map_file.GetDataCasted<double>();
+
+			m_ChannelStreams[channel_id]->SubmitData(startup_map.data());
+		}
 	}
 }
 
