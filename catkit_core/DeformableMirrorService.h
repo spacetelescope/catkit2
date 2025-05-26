@@ -35,6 +35,8 @@ private:
 	std::vector<std::string> m_ChannelIds;
 	std::map<std::string, std::thread> m_ChannelThreads;
 	std::map<std::string, std::shared_ptr<DataStream>> m_ChannelStreams;
+
+	std::shared_ptr<DataStream> m_TotalSurface;
 };
 
 #endif // DEFORMABLE_MIRROR_SERVICE_H

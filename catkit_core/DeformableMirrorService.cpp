@@ -60,6 +60,16 @@ DeformableMirrorService::DeformableMirrorService(std::string service_type, std::
 			m_ChannelStreams[channel_id]->SubmitData(startup_map.data());
 		}
 	}
+
+	// Create total surface data stream.
+	m_TotalSurface = DataStream::Create("total_surface", GetId(), DataType::DT_FLOAT64, {m_NumActuators}, 20);
+
+	// Create channels property.
+	List channels;
+	for (auto channel_id : m_ChannelIds)
+		channels.push_back(Value(channel_id));
+
+	MakeProperty("channels", [channels]() { return channels; });
 }
 
 DeformableMirrorService::~DeformableMirrorService()
@@ -140,4 +150,6 @@ void DeformableMirrorService::ApplySurfaceDelta(double *surface_delta)
 
 	// Apply the current surface to the deformable mirror.
 	ApplySurface(m_CurrentSurface);
+
+	m_TotalSurface->SubmitData(m_CurrentSurface);
 }
