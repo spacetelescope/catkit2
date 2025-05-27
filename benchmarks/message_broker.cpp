@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "MessageBroker.h"
 #include "LocalMemory.h"
+#include "LocalMessageBroker.h"
 
 const size_t NUM_MESSAGES = 10000000;
 

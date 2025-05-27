@@ -24,7 +24,7 @@
 #include "Client.h"
 #include "HostName.h"
 #include "Tracing.h"
-#include "MessageBroker.h"
+#include "LocalMessageBroker.h"
 #include "LocalMemory.h"
 #include "SharedMemory.h"
 #include "Shareable.h"

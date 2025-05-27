@@ -1,5 +1,5 @@
-#ifndef MESSAGE_BROKER_H
-#define MESSAGE_BROKER_H
+#ifndef LOCAL_MESSAGE_BROKER_H
+#define LOCAL_MESSAGE_BROKER_H
 
 #include "HashMap.h"
 #include "Event.h"
@@ -287,4 +287,4 @@ private:
 	std::vector<std::shared_ptr<Memory>> m_MemoryBlocks;
 };
 
-#endif // MESSAGE_BROKER_H
+#endif // LOCAL_MESSAGE_BROKER_H
