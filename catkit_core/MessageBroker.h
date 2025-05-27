@@ -117,11 +117,11 @@ struct MessageBrokerHeader
 	MessageHeader message_headers[MAX_NUM_MESSAGES];
 };
 
-class MessageBroker;
+class LocalMessageBroker;
 
 class Message
 {
-	friend class MessageBroker;
+	friend class LocalMessageBroker;
 
 private:
 	Message(MessageHeader *header, void *payload, bool has_been_published = false);
@@ -174,7 +174,7 @@ enum class MessageSubscriptionMode
 
 class MessageSubscription
 {
-	friend class MessageBroker;
+	friend class LocalMessageBroker;
 
 public:
 	Message GetNextMessage(double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr);
@@ -183,21 +183,21 @@ public:
 	std::uint64_t GetNextMessageId();
 
 private:
-	MessageSubscription(std::shared_ptr<MessageBroker>, TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode);
+	MessageSubscription(std::shared_ptr<LocalMessageBroker>, TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode);
 
-	std::shared_ptr<MessageBroker> m_MessageBroker;
+	std::shared_ptr<LocalMessageBroker> m_MessageBroker;
 	TopicHeader *m_TopicHeader;
 
 	std::uint64_t m_NextFrameIdToRead;
 	MessageSubscriptionMode m_SubscriptionMode;
 };
 
-class MessageBroker : public Shareable, public std::enable_shared_from_this<MessageBroker>
+class LocalMessageBroker : public Shareable, public std::enable_shared_from_this<LocalMessageBroker>
 {
 	friend class MessageSubscription;
 
 private:
-	MessageBroker(
+	LocalMessageBroker(
 		MessageBrokerHeader *header,
 		std::shared_ptr<HashMap> topic_headers,
 		std::shared_ptr<PoolAllocator> message_header_allocator,
@@ -208,8 +208,8 @@ private:
 	);
 
 public:
-	static std::shared_ptr<MessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks);
-	static std::shared_ptr<MessageBroker> Open(StructStream &stream);
+	static std::shared_ptr<LocalMessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks);
+	static std::shared_ptr<LocalMessageBroker> Open(StructStream &stream);
 
 	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
 

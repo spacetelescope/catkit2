@@ -1088,28 +1088,28 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def_property_readonly("next_message_id", &MessageSubscription::GetNextMessageId);
 
-	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker")
+	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
 		{
-			auto stream = StructStream(header);
+			auto stream = StructStream(header->GetAddress());
 			auto broker = MessageBroker::Create(stream, memory_blocks);
 
-			return std::shared_ptr<MessageBroker>(std::move(broker));
+			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory);
+			auto stream = StructStream(memory->GetAddress());
 			auto broker = MessageBroker::Open(stream);
 
-			return std::shared_ptr<MessageBroker>(std::move(broker));
+			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
-		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string& topic, std::size_t payload_size, std::uint8_t memory_block_id)
+		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, std::size_t payload_size, std::uint8_t memory_block_id)
 		{
 			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
 
 			return message;
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("memory_block_id") = 0)
-		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string& topic, std::size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
+		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, std::size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
 			{
@@ -1120,11 +1120,11 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return broker->PrepareMessage(topic, payload_size, py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("publish_message", [](std::shared_ptr<MessageBroker> broker, Message& message, bool is_final)
+		.def("publish_message", [](std::shared_ptr<LocalMessageBroker> broker, Message& message, bool is_final)
 		{
 			broker->PublishMessage(message, is_final);
 		}, py::arg("message"), py::arg("is_final") = true)
-		.def("publish_data", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
+		.def("publish_data", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
 			{
@@ -1169,7 +1169,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("try_get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
+		.def("try_get_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
 		{
 			auto res = broker->TryGetMessage(topic, frame_id);
 			if (res)
@@ -1177,7 +1177,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return py::none();
 		}, py::arg("topic"), py::arg("frame_id"))
-		.def("get_newest_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic) -> py::object
+		.def("get_newest_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
 		{
 			auto res = broker->GetNewestMessage(topic);
 			if (res)
@@ -1185,13 +1185,13 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return py::none();
 		}, py::arg("topic"))
-		.def("is_message_available", &MessageBroker::IsMessageAvailable)
-		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)
-		.def("get_newest_message_id", &MessageBroker::GetNewestMessageId)
-		.def("get_oldest_message_id", &MessageBroker::GetOldestMessageId)
-		.def("get_message_rate", &MessageBroker::GetMessageRate)
-		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
-		.def("subscribe", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::object starting_frame_id, MessageSubscriptionMode mode)
+		.def("is_message_available", &LocalMessageBroker::IsMessageAvailable)
+		.def("will_message_be_available", &LocalMessageBroker::WillMessageBeAvailable)
+		.def("get_newest_message_id", &LocalMessageBroker::GetNewestMessageId)
+		.def("get_oldest_message_id", &LocalMessageBroker::GetOldestMessageId)
+		.def("get_message_rate", &LocalMessageBroker::GetMessageRate)
+		.def("get_all_message_topics", &LocalMessageBroker::GetAllMessageTopics)
+		.def("subscribe", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::object starting_frame_id, MessageSubscriptionMode mode)
 		{
 			// Check if the starting frame ID is a number or None.
 			if (starting_frame_id.is_none())
