@@ -141,7 +141,7 @@ std::size_t TopicHeader::GetNewestMessageId()
 	return last - 1;
 }
 
-MessageBroker::MessageBroker(
+LocalMessageBroker::LocalMessageBroker(
 	MessageBrokerHeader *header,
 	std::shared_ptr<HashMap> topic_headers,
 	std::shared_ptr<PoolAllocator> message_header_allocator,
@@ -159,7 +159,7 @@ MessageBroker::MessageBroker(
 {
 }
 
-std::shared_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
+std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
 {
 	DEBUG_PRINT("Creating message broker");
 
@@ -204,7 +204,7 @@ std::shared_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 	DEBUG_PRINT("Creating object.");
 
-	return std::shared_ptr<MessageBroker>(new MessageBroker(
+	return std::shared_ptr<LocalMessageBroker>(new LocalMessageBroker(
 		header,
 		std::move(topic_headers),
 		std::move(message_header_allocator),
@@ -214,7 +214,7 @@ std::shared_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 	));
 }
 
-std::shared_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
+std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Open(StructStream &stream)
 {
 	CheckVersion(stream, MESSAGE_BROKER_VERSION);
 
@@ -246,7 +246,7 @@ std::shared_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 		}
 	}
 
-	return std::shared_ptr<MessageBroker>(new MessageBroker(
+	return std::shared_ptr<LocalMessageBroker>(new LocalMessageBroker(
 		header,
 		std::move(topic_headers),
 		std::move(message_header_allocator),
@@ -256,12 +256,12 @@ std::shared_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 	));
 }
 
-std::size_t MessageBroker::CalculateBufferSize()
+std::size_t LocalMessageBroker::CalculateBufferSize()
 {
 	return 0;
 }
 
-Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id)
+Message LocalMessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id)
 {
 	DEBUG_PRINT("Preparing message.");
 
@@ -273,7 +273,7 @@ Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_siz
 	return PrepareMessage(topic, payload_size, trace_id, memory_block_id);
 }
 
-Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
+Message LocalMessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
 {
 	// Allocate a payload.
 	auto allocator = GetAllocator(memory_block_id);
@@ -355,7 +355,7 @@ Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_siz
 	return Message(header, payload, false);
 }
 
-void MessageBroker::PublishMessage(Message &message, bool is_final)
+void LocalMessageBroker::PublishMessage(Message &message, bool is_final)
 {
 	DEBUG_PRINT("Publishing message.");
 
@@ -490,7 +490,7 @@ void MessageBroker::PublishMessage(Message &message, bool is_final)
 	message.m_HasBeenPublished = is_final;
 }
 
-void MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id)
+void LocalMessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id)
 {
 	Uuid trace_id;
 	Uuid::Generate(&trace_id);
@@ -498,7 +498,7 @@ void MessageBroker::PublishData(std::string_view topic, const void *data, size_t
 	PublishData(topic, data, data_size, trace_id, memory_block_id);
 }
 
-void MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id)
+void LocalMessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id)
 {
 	auto message = PrepareMessage(topic, data_size, trace_id, memory_block_id);
 
@@ -518,7 +518,7 @@ void MessageBroker::PublishData(std::string_view topic, const void *data, size_t
 	PublishMessage(message);
 }
 
-void MessageBroker::PublishArray(std::string_view topic, const ArrayView &array, uint8_t memory_block_id)
+void LocalMessageBroker::PublishArray(std::string_view topic, const ArrayView &array, uint8_t memory_block_id)
 {
 	Uuid trace_id;
 	Uuid::Generate(&trace_id);
@@ -526,7 +526,7 @@ void MessageBroker::PublishArray(std::string_view topic, const ArrayView &array,
 	PublishArray(topic, array, trace_id, memory_block_id);
 }
 
-void MessageBroker::PublishArray(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id)
+void LocalMessageBroker::PublishArray(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id)
 {
 	auto message = PrepareMessage(topic, array.info.GetSizeInBytes(), trace_id, memory_block_id);
 
@@ -537,7 +537,7 @@ void MessageBroker::PublishArray(std::string_view topic, const ArrayView &array,
 	PublishMessage(message);
 }
 
-std::optional<Message> MessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
+std::optional<Message> LocalMessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
 {
 	auto topic_header = GetTopicHeader(topic);
 
@@ -547,7 +547,7 @@ std::optional<Message> MessageBroker::TryGetMessage(std::string_view topic, size
 	return FetchMessage(topic_header, frame_id);
 }
 
-Message MessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame_id)
+Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame_id)
 {
 	// Assume that the frame is available.
 	auto header = &m_MessageHeaders[topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES]];
@@ -558,7 +558,7 @@ Message MessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame_id)
 	return Message(header, payload, true);
 }
 
-std::optional<Message> MessageBroker::GetNewestMessage(std::string_view topic)
+std::optional<Message> LocalMessageBroker::GetNewestMessage(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
 
@@ -570,12 +570,12 @@ std::optional<Message> MessageBroker::GetNewestMessage(std::string_view topic)
 	return FetchMessage(topic_header, frame_id);
 }
 
-ShareableType MessageBroker::GetType() const
+ShareableType LocalMessageBroker::GetType() const
 {
-	return ShareableType::MessageBroker;
+	return ShareableType::LocalMessageBroker;
 }
 
-std::shared_ptr<HybridPoolAllocator> MessageBroker::GetAllocator(uint8_t memory_block_id)
+std::shared_ptr<HybridPoolAllocator> LocalMessageBroker::GetAllocator(uint8_t memory_block_id)
 {
 	if (memory_block_id >= m_Allocators.size())
 	{
@@ -585,35 +585,35 @@ std::shared_ptr<HybridPoolAllocator> MessageBroker::GetAllocator(uint8_t memory_
 	return m_Allocators[memory_block_id];
 }
 
-bool MessageBroker::IsMessageAvailable(std::string_view topic, size_t frame_id)
+bool LocalMessageBroker::IsMessageAvailable(std::string_view topic, size_t frame_id)
 {
 	auto topic_header = GetTopicHeader(topic);
 
 	return topic_header->IsMessageAvailable(frame_id);
 }
 
-bool MessageBroker::WillMessageBeAvailable(std::string_view topic, size_t frame_id)
+bool LocalMessageBroker::WillMessageBeAvailable(std::string_view topic, size_t frame_id)
 {
 	auto topic_header = GetTopicHeader(topic);
 
 	return topic_header->WillMessageBeAvailable(frame_id);
 }
 
-size_t MessageBroker::GetNewestMessageId(std::string_view topic)
+size_t LocalMessageBroker::GetNewestMessageId(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
 
 	return topic_header->GetNewestMessageId();
 }
 
-size_t MessageBroker::GetOldestMessageId(std::string_view topic)
+size_t LocalMessageBroker::GetOldestMessageId(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
 
 	return topic_header->GetOldestMessageId();
 }
 
-double MessageBroker::GetMessageRate(std::string_view topic)
+double LocalMessageBroker::GetMessageRate(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
 	auto last_message_header_id = topic_header->message_headers[(topic_header->last_frame_id - 1) % TOPIC_MAX_NUM_MESSAGES];
@@ -629,12 +629,12 @@ double MessageBroker::GetMessageRate(std::string_view topic)
 	return topic_header->frame_rate * std::exp(-FRAMERATE_DECAY * time_delta);
 }
 
-std::vector<std::string> MessageBroker::GetAllMessageTopics()
+std::vector<std::string> LocalMessageBroker::GetAllMessageTopics()
 {
 	return m_TopicHeaders->GetAllKeys();
 }
 
-MessageSubscription MessageBroker::Subscribe(std::string_view topic, MessageSubscriptionMode mode)
+MessageSubscription LocalMessageBroker::Subscribe(std::string_view topic, MessageSubscriptionMode mode)
 {
 	auto topic_header = GetTopicHeader(topic);
 	auto starting_frame_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
@@ -642,14 +642,14 @@ MessageSubscription MessageBroker::Subscribe(std::string_view topic, MessageSubs
 	return MessageSubscription(shared_from_this(), topic_header, starting_frame_id, mode);
 }
 
-MessageSubscription MessageBroker::Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode)
+MessageSubscription LocalMessageBroker::Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode)
 {
 	auto topic_header = GetTopicHeader(topic);
 
 	return MessageSubscription(shared_from_this(), topic_header, starting_frame_id, mode);
 }
 
-std::shared_ptr<Memory> MessageBroker::GetMemory(uint8_t memory_block_id)
+std::shared_ptr<Memory> LocalMessageBroker::GetMemory(uint8_t memory_block_id)
 {
 	if (memory_block_id >= m_MemoryBlocks.size())
 	{
@@ -659,7 +659,7 @@ std::shared_ptr<Memory> MessageBroker::GetMemory(uint8_t memory_block_id)
 	return m_MemoryBlocks[memory_block_id];
 }
 
-TopicHeader *MessageBroker::GetTopicHeader(std::string_view topic)
+TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 {
 	DEBUG_PRINT("Getting a topic header for " << topic);
 
@@ -830,7 +830,7 @@ void Message::SetEndByte(std::uint64_t end_byte)
 	m_Header->end_byte = end_byte;
 }
 
-MessageSubscription::MessageSubscription(std::shared_ptr<MessageBroker> message_broker, TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode)
+MessageSubscription::MessageSubscription(std::shared_ptr<LocalMessageBroker> message_broker, TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode)
 	: m_MessageBroker(message_broker), m_TopicHeader(topic_header), m_NextFrameIdToRead(starting_frame_id), m_SubscriptionMode(mode)
 {
 }
