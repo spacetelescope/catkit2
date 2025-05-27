@@ -8,7 +8,7 @@
 #include "SharedMemory.h"
 #include "LocalMemory.h"
 #include "HashMap.h"
-#include "MessageBroker.h"
+#include "LocalMessageBroker.h"
 #include "BuddyAllocator.h"
 #include "HybridPoolAllocator.h"
 
