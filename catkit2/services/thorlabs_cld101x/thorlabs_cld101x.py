@@ -31,6 +31,7 @@ class ThorlabsCLD101X(Service):
         # Turn laser on and set current setpoint to 0.0
         self.connection.write("output1:state on")
         self.connection.write(f"{self._SET_CURRENT}0.0")
+        self.current_percent.submit_data(np.array([0.0], dtype='float32'))
 
         # Read max current setpoint.
         self.max_current = float(self.connection.query('source1:current:limit:amplitude?'))  # in Ampere
