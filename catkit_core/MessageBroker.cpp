@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
+#include <cstring>
 
 // Decay rate for the frame rate estimate in 1/sec.
 const double FRAMERATE_DECAY = 2.5;
