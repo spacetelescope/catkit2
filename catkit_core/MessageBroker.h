@@ -56,19 +56,6 @@ struct MetadataEntry
 	MetadataValue value;
 };
 
-struct ArrayInfo
-{
-	char data_type;
-	char byte_order;
-	std::uint8_t item_size;
-	std::uint8_t ndim;
-	std::uint32_t shape[MAX_NUM_DIMENSIONS];
-	std::uint32_t strides[MAX_NUM_DIMENSIONS];
-
-	std::size_t GetNumItems() const;
-	std::size_t GetNumBytes() const;
-};
-
 struct PayloadInfo
 {
 	std::uint8_t memory_block_id;

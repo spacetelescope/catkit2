@@ -26,24 +26,6 @@ T fetch_max(std::atomic<T> &atom, T value)
 	return current;
 }
 
-std::size_t ArrayInfo::GetNumItems() const
-{
-	std::size_t num_items = 1;
-
-	for (std::size_t i = 0; i < ndim; ++i)
-	{
-		num_items *= shape[i];
-	}
-
-	return num_items;
-}
-
-std::size_t ArrayInfo::GetNumBytes() const
-{
-	std::size_t num_items = GetNumItems();
-	return num_items * item_size;
-}
-
 class SubtopicIterator
 {
 public:

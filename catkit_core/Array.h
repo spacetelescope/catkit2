@@ -17,8 +17,7 @@ struct ArrayInfo
 	std::array<std::uint32_t, MAX_NUM_DIMENSIONS> strides; // in bytes
 
 	bool IsCContiguous() const;
-	bool IsFortranContiguous() const;
-    std::size_t GetItemSize() const;
+	bool IsFContiguous() const;
     std::size_t GetSize() const;
 	std::size_t GetSizeInBytes() const;
 };
@@ -41,7 +40,7 @@ public:
 
 	bool IsAligned() const;
 	bool IsCContiguous() const;
-	bool IsFortranContiguous() const;
+	bool IsFContiguous() const;
 
 	ArrayInfo info;
 	bool owns_data;
