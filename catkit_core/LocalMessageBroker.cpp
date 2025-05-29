@@ -265,18 +265,6 @@ std::size_t LocalMessageBroker::CalculateBufferSize()
 	return 0;
 }
 
-Message LocalMessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id)
-{
-	DEBUG_PRINT("Preparing message.");
-
-	Uuid trace_id;
-	Uuid::Generate(&trace_id);
-
-	DEBUG_PRINT("Trace id generated.");
-
-	return PrepareMessage(topic, payload_size, trace_id, memory_block_id);
-}
-
 Message LocalMessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
 {
 	// Allocate a payload.
@@ -494,53 +482,6 @@ void LocalMessageBroker::PublishMessage(Message &message, bool is_final)
 	message.m_HasBeenPublished = is_final;
 }
 
-void LocalMessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id)
-{
-	Uuid trace_id;
-	Uuid::Generate(&trace_id);
-
-	PublishData(topic, data, data_size, trace_id, memory_block_id);
-}
-
-void LocalMessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id)
-{
-	auto message = PrepareMessage(topic, data_size, trace_id, memory_block_id);
-
-	// Copy the data to the payload.
-	std::memcpy(message.m_Payload, data, data_size);
-
-	// Set the array information.
-	ArrayInfo &array_info = message.m_Header->payload_info.array_info;
-
-	array_info.data_type = 'u';
-	array_info.byte_order = '=';
-	array_info.item_size = 1;
-	array_info.ndim = 1;
-	array_info.shape[0] = data_size;
-	array_info.strides[0] = 1;
-
-	PublishMessage(message);
-}
-
-void LocalMessageBroker::PublishArray(std::string_view topic, const ArrayView &array, uint8_t memory_block_id)
-{
-	Uuid trace_id;
-	Uuid::Generate(&trace_id);
-
-	PublishArray(topic, array, trace_id, memory_block_id);
-}
-
-void LocalMessageBroker::PublishArray(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id)
-{
-	auto message = PrepareMessage(topic, array.info.GetSizeInBytes(), trace_id, memory_block_id);
-
-	// Copy over array and array info.
-	std::memcpy(message.m_Payload, array.data, array.info.GetSizeInBytes());
-	message.SetArrayInfo(array.info);
-
-	PublishMessage(message);
-}
-
 std::optional<Message> LocalMessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
 {
 	auto topic_header = GetTopicHeader(topic);
@@ -562,7 +503,40 @@ Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame
 	return Message(header, payload, true);
 }
 
-std::optional<Message> LocalMessageBroker::GetNewestMessage(std::string_view topic)
+std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, size_t last_read_frame_id, MessageSubscriptionMode mode)
+{
+	size_t frame_id = last_read_frame_id + 1;
+	size_t newest_frame_id = topic_header->last_frame_id.load(std::memory_order_relaxed);
+	size_t oldest_frame_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
+
+	if (newest_frame_id != 0)
+		newest_frame_id--;
+
+	switch (m_SubscriptionMode)
+	{
+		case MessageSubscriptionMode::NewestOnly:
+
+		// If the frame we are aiming to read is not the newest,
+		// return the newest frame instead.
+		if (newest_frame_id > frame_id)
+			frame_id = newest_frame_id;
+
+		break;
+
+		case MessageSubscriptionMode::Sequential:
+
+		// If the frame was discarded already,
+		// return the oldest available frame instead.
+		if (frame_id < oldest_frame_id)
+			frame_id = oldest_frame_id;
+
+		break;
+	}
+
+	return frame_id;
+}
+
+std::optional<Message> LocalMessageBroker::GetCurrentMessage(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
 
@@ -570,6 +544,36 @@ std::optional<Message> LocalMessageBroker::GetNewestMessage(std::string_view top
 		return std::nullopt;
 
 	auto frame_id = topic_header->last_frame_id - 1;
+
+	return FetchMessage(topic_header, frame_id);
+}
+
+std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode, double timeout_in_sec, EventWaitMethod wait_type, void (*error_check)())
+{
+	auto topic_header = GetTopicHeader(topic);
+
+	std::uint64_t new_frame_id = GetNextMessageId(topic_header, last_read_frame_id, mode);
+
+	// Check if the frame is available.
+	if (topic_header->IsMessageAvailable(new_frame_id))
+		return FetchMessage(m_TopicHeader, new_frame_id);
+
+	// Otherwise, wait for it.
+	auto lock = EventLockGuard(m_MessageBroker->m_Event);
+	m_MessageBroker->m_Event->Wait(timeout_in_seconds, [this, new_frame_id]() { return m_TopicHeader->last_frame_id > new_frame_id; }, wait_type, error_check);
+
+	return FetchMessage(m_TopicHeader, new_frame_id);
+}
+
+std::optional<Message> LocalMessageBroker::TryGetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode)
+{
+	auto topic_header = GetTopicHeader(topic);
+
+	std::uint64_t frame_id = GetNextMessageId(topic_header, last_read_frame_id, mode);
+
+	// Check if the frame is available.
+	if (!topic_header->IsMessageAvailable(frame_id))
+		return std::nullopt;
 
 	return FetchMessage(topic_header, frame_id);
 }
@@ -638,21 +642,6 @@ std::vector<std::string> LocalMessageBroker::GetAllMessageTopics()
 	return m_TopicHeaders->GetAllKeys();
 }
 
-MessageSubscription LocalMessageBroker::Subscribe(std::string_view topic, MessageSubscriptionMode mode)
-{
-	auto topic_header = GetTopicHeader(topic);
-	auto starting_frame_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
-
-	return MessageSubscription(shared_from_this(), topic_header, starting_frame_id, mode);
-}
-
-MessageSubscription LocalMessageBroker::Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return MessageSubscription(shared_from_this(), topic_header, starting_frame_id, mode);
-}
-
 std::shared_ptr<Memory> LocalMessageBroker::GetMemory(uint8_t memory_block_id)
 {
 	if (memory_block_id >= m_MemoryBlocks.size())
@@ -698,209 +687,4 @@ TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 	DEBUG_PRINT("Created a topic header!");
 
 	return topic_header;
-}
-
-Message::Message(MessageHeader *header, void *payload, bool has_been_published)
-	: m_Header(header), m_Payload(payload), m_HasBeenPublished(has_been_published)
-{
-}
-
-std::string_view Message::GetTopic() const
-{
-	return m_Header->topic;
-}
-
-const Uuid &Message::GetPayloadId() const
-{
-	return m_Header->payload_id;
-}
-
-std::uint16_t Message::GetPartialFrameId() const
-{
-	return m_Header->partial_frame_id;
-}
-
-const Uuid &Message::GetTraceId() const
-{
-	return m_Header->trace_id;
-}
-
-std::string_view Message::GetProducerHostname() const
-{
-	return m_Header->producer_hostname;
-}
-
-std::uint32_t Message::GetProducerPid() const
-{
-	return m_Header->producer_pid;
-}
-
-std::uint64_t Message::GetProducerTimestamp() const
-{
-	return m_Header->producer_timestamp;
-}
-
-const PayloadInfo &Message::GetPayloadInfo() const
-{
-	return m_Header->payload_info;
-}
-
-const ArrayInfo &Message::GetArrayInfo() const
-{
-	return m_Header->payload_info.array_info;
-}
-
-void Message::SetArrayInfo(const ArrayInfo &array_info)
-{
-	m_Header->payload_info.array_info = array_info;
-}
-
-ArrayView Message::GetPayload() const
-{
-	return {m_Header->payload_info.array_info, m_Payload};
-}
-
-std::size_t Message::GetPayloadSize() const
-{
-	return m_Header->payload_info.total_size;
-}
-
-MetadataEntry *Message::GetMetadataEntry(std::string_view key, bool create_if_not_exists)
-{
-	for (size_t i = 0; i < m_Header->num_metadata_entries; i++)
-		if (key == std::string_view(m_Header->metadata_entries[i].key.data()))
-			return &m_Header->metadata_entries[i];
-
-	if (!create_if_not_exists)
-		return nullptr;
-
-	// Create a new entry.
-	if (m_Header->num_metadata_entries >= MAX_NUM_METADATA_ENTRIES)
-	{
-		throw std::range_error("Metadata entries are full.");
-	}
-
-	auto entry_id = m_Header->num_metadata_entries++;
-	auto entry = &m_Header->metadata_entries[entry_id];
-
-	entry->key.fill('\0');
-	key.copy(entry->key.data(), entry->key.size() - 1);
-
-	return entry;
-}
-
-void Message::SetMetadataEntry(std::string_view key, std::int64_t value)
-{
-	auto entry = GetMetadataEntry(key, true);
-
-	entry->type = MetadataType::Integer;
-	entry->value.integer = value;
-}
-
-void Message::SetMetadataEntry(std::string_view key, double value)
-{
-	auto entry = GetMetadataEntry(key, true);
-
-	entry->type = MetadataType::Integer;
-	entry->value.floating_point = value;
-}
-
-void Message::SetMetadataEntry(std::string_view key, std::string_view value)
-{
-	auto entry = GetMetadataEntry(key, true);
-
-	entry->type = MetadataType::String;
-	entry->value.string.fill('\0');
-	value.copy(entry->value.string.data(), entry->value.string.size() - 1);
-}
-
-const std::uint64_t Message::GetStartByte() const
-{
-	return m_Header->start_byte;
-}
-
-void Message::SetStartByte(std::uint64_t start_byte)
-{
-	m_Header->start_byte = start_byte;
-}
-
-const std::uint64_t Message::GetEndByte() const
-{
-	return m_Header->end_byte;
-}
-
-void Message::SetEndByte(std::uint64_t end_byte)
-{
-	m_Header->end_byte = end_byte;
-}
-
-MessageSubscription::MessageSubscription(std::shared_ptr<LocalMessageBroker> message_broker, TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode)
-	: m_MessageBroker(message_broker), m_TopicHeader(topic_header), m_NextFrameIdToRead(starting_frame_id), m_SubscriptionMode(mode)
-{
-}
-
-Message MessageSubscription::GetNextMessage(double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
-{
-	std::uint64_t frame_id = GetNextMessageId();
-
-	// Check if the frame is available.
-	if (m_TopicHeader->IsMessageAvailable(frame_id))
-	{
-		m_NextFrameIdToRead = frame_id + 1;
-
-		return m_MessageBroker->FetchMessage(m_TopicHeader, frame_id);
-	}
-
-	// Otherwise, wait for it.
-	m_MessageBroker->m_Event->Wait(timeout_in_seconds, [this, frame_id]() { return m_TopicHeader->last_frame_id > frame_id; }, wait_type, error_check);
-
-	m_NextFrameIdToRead = frame_id + 1;
-
-	return m_MessageBroker->FetchMessage(m_TopicHeader, frame_id);
-}
-
-std::optional<Message> MessageSubscription::TryGetNextMessage()
-{
-	std::uint64_t frame_id = GetNextMessageId();
-
-	// Check if the frame is available.
-	if (!m_TopicHeader->IsMessageAvailable(frame_id))
-		return std::nullopt;
-
-	m_NextFrameIdToRead = frame_id + 1;
-
-	return m_MessageBroker->FetchMessage(m_TopicHeader, frame_id);
-}
-
-std::uint64_t MessageSubscription::GetNextMessageId()
-{
-	size_t frame_id = m_NextFrameIdToRead;
-	size_t newest_frame_id = m_TopicHeader->last_frame_id.load(std::memory_order_relaxed);
-	size_t oldest_frame_id = m_TopicHeader->first_frame_id.load(std::memory_order_relaxed);
-
-	if (newest_frame_id != 0)
-		newest_frame_id--;
-
-	switch (m_SubscriptionMode)
-	{
-		case MessageSubscriptionMode::NewestOnly:
-
-		// If the frame we are aiming to read is not the newest,
-		// return the newest frame instead.
-		if (newest_frame_id > frame_id)
-			frame_id = newest_frame_id;
-
-		break;
-
-		case MessageSubscriptionMode::Sequential:
-
-		// If the frame was discarded already,
-		// return the oldest available frame instead.
-		if (frame_id < oldest_frame_id)
-			frame_id = oldest_frame_id;
-
-		break;
-	}
-
-	return frame_id;
 }
