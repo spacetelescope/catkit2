@@ -10,6 +10,7 @@
 #include "CudaSharedMemory.h"
 #include "Uuid.h"
 #include "ArrayView.h"
+#include "MessageBroker.h"
 
 #include <memory>
 #include <array>
@@ -117,82 +118,7 @@ struct MessageBrokerHeader
 	MessageHeader message_headers[MAX_NUM_MESSAGES];
 };
 
-class LocalMessageBroker;
-
-class Message
-{
-	friend class LocalMessageBroker;
-
-private:
-	Message(MessageHeader *header, void *payload, bool has_been_published = false);
-
-public:
-	std::string_view GetTopic() const;
-
-	const Uuid &GetPayloadId() const;
-	std::uint16_t GetPartialFrameId() const;
-
-	const Uuid &GetTraceId() const;
-
-	std::string_view GetProducerHostname() const;
-	std::uint32_t GetProducerPid() const;
-	std::uint64_t GetProducerTimestamp() const;
-
-	const PayloadInfo &GetPayloadInfo() const;
-
-	const ArrayInfo &GetArrayInfo() const;
-	void SetArrayInfo(const ArrayInfo &array_info);
-
-	ArrayView GetPayload() const;
-	std::size_t GetPayloadSize() const;
-
-	MetadataEntry *GetMetadataEntry(std::string_view key, bool create_if_not_exists = false);
-	void SetMetadataEntry(std::string_view key, std::int64_t value);
-	void SetMetadataEntry(std::string_view key, double value);
-	void SetMetadataEntry(std::string_view key, std::string_view value);
-
-	const std::uint64_t GetStartByte() const;
-	void SetStartByte(std::uint64_t start_byte);
-
-	const std::uint64_t GetEndByte() const;
-	void SetEndByte(std::uint64_t end_byte);
-
-private:
-	MessageHeader *m_Header;
-	void *m_Payload;
-
-	bool m_HasBeenPublished;
-};
-
-enum class MessageSubscriptionMode
-{
-	// Only the latest messages are processed, skipping older ones
-	NewestOnly,
-	// Messages are processed in order without skipping
-	Sequential,
-};
-
-class MessageSubscription
-{
-	friend class LocalMessageBroker;
-
-public:
-	Message GetNextMessage(double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr);
-	std::optional<Message> TryGetNextMessage();
-
-	std::uint64_t GetNextMessageId();
-
-private:
-	MessageSubscription(std::shared_ptr<LocalMessageBroker>, TopicHeader *topic_header, std::uint64_t starting_frame_id, MessageSubscriptionMode mode);
-
-	std::shared_ptr<LocalMessageBroker> m_MessageBroker;
-	TopicHeader *m_TopicHeader;
-
-	std::uint64_t m_NextFrameIdToRead;
-	MessageSubscriptionMode m_SubscriptionMode;
-};
-
-class LocalMessageBroker : public Shareable, public std::enable_shared_from_this<LocalMessageBroker>
+class LocalMessageBroker : public Shareable, public MessageBroker
 {
 	friend class MessageSubscription;
 
@@ -212,32 +138,20 @@ public:
 
 	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
 
-	// Prepare a message for publishing.
-	Message PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id = 0);
-
 	// Prepare a message for publishing with a trace ID.
-	Message PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0);
+	virtual Message PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0) override;
 
 	// Publish a message.
-	void PublishMessage(Message &message, bool is_final = true);
-
-	// Convenience function for publishing data.
-	void PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id = 0);
-
-	// Convenience function for publishing data with a trace ID.
-	void PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id = 0);
-
-	// Convenience function for publishing an array.
-	void PublishArray(std::string_view topic, const ArrayView &array, uint8_t memory_block_id = 0);
-
-	// Convenience function for publishing an array with a trace ID.
-	void PublishArray(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id = 0);
+	virtual void PublishMessage(Message &message, bool is_final = true) override;
 
 	// Try to get a message by topic and frame ID.
 	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
 
 	// Get the newest message for a topic.
-	std::optional<Message> GetNewestMessage(std::string_view topic);
+	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) override;
+
+	// Get the next message for a topic.
+	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
 
 	// Check for message availability.
 	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
@@ -252,21 +166,16 @@ public:
 	size_t GetOldestMessageId(std::string_view topic);
 
 	// Get the message rate for a topic.
-	double GetMessageRate(std::string_view topic);
+	virtual double GetMessageRate(std::string_view topic) override;
 
 	// Get the message topics for all messages in this broker.
-	std::vector<std::string> GetAllMessageTopics();
-
-	// Subscribe to a topic for receiving messages.
-	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
-
-	// Subscribe to a topic for receiving messages with a starting frame ID.
-	MessageSubscription Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+	virtual std::vector<std::string> GetAllMessageTopics() override;
 
 	ShareableType GetType() const override;
 
 private:
 	Message FetchMessage(TopicHeader *topic_header, size_t frame_id);
+	std::uint64_t GetNextMessageId(TopicHeader *topic_header, size_t last_read_frame_id, MessageSubscriptionMode mode);
 
 	std::shared_ptr<HybridPoolAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
