@@ -26,22 +26,12 @@ struct ArrayInfo
 // This follows the NumPy convention.
 struct ArrayView
 {
-public:
-	ArrayView();
-    ArrayView(const ArrayInfo &info, void *data);
-	ArrayView(const ArrayView &other);
-	ArrayView(ArrayView &&other) noexcept;
-	~ArrayView();
-
-	ArrayView &operator=(const ArrayView &other);
-	ArrayView &operator=(ArrayView &&other) noexcept;
+	ArrayInfo info;
+	void *data = nullptr;
 
 	bool IsAligned() const;
 	bool IsCContiguous() const;
 	bool IsFContiguous() const;
-
-	ArrayInfo info;
-	void *data;
 };
 
 #endif // ARRAY_VIEW_H

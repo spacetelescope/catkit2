@@ -757,7 +757,7 @@ void Message::SetArrayInfo(const ArrayInfo &array_info)
 
 ArrayView Message::GetPayload() const
 {
-	return ArrayView(m_Header->payload_info.array_info, m_Payload);
+	return {m_Header->payload_info.array_info, m_Payload};
 }
 
 std::size_t Message::GetPayloadSize() const
