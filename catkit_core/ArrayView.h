@@ -1,5 +1,5 @@
-#ifndef ARRAY_H
-#define ARRAY_H
+#ifndef ARRAY_VIEW_H
+#define ARRAY_VIEW_H
 
 #include <cstddef>
 #include <cstdint>
@@ -24,27 +24,24 @@ struct ArrayInfo
 
 // A mathematical array class.
 // This follows the NumPy convention.
-struct Array
+struct ArrayView
 {
 public:
-	Array();
-    Array(const ArrayInfo &info, void *data, bool owns_data = true);
-	Array(const Array &other);
-	Array(Array &&other) noexcept;
-	~Array();
+	ArrayView();
+    ArrayView(const ArrayInfo &info, void *data);
+	ArrayView(const ArrayView &other);
+	ArrayView(ArrayView &&other) noexcept;
+	~ArrayView();
 
-	Array &operator=(const Array &other);
-	Array &operator=(Array &&other) noexcept;
-
-    Array Copy();
+	ArrayView &operator=(const ArrayView &other);
+	ArrayView &operator=(ArrayView &&other) noexcept;
 
 	bool IsAligned() const;
 	bool IsCContiguous() const;
 	bool IsFContiguous() const;
 
 	ArrayInfo info;
-	bool owns_data;
 	void *data;
 };
 
-#endif // ARRAY_H
+#endif // ARRAY_VIEW_H
