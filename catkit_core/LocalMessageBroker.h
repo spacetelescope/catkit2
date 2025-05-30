@@ -18,74 +18,12 @@
 
 const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
 
-const size_t VERSION_SIZE = 8;
 const size_t TOPIC_HASH_MAP_SIZE = 16384;
-const size_t TOPIC_MAX_KEY_SIZE = 127;
 const size_t TOPIC_MAX_NUM_MESSAGES = 32;
-const size_t HOST_NAME_SIZE = 64;
-const size_t METADATA_MAX_STRLEN = 8;
-const size_t METADATA_MAX_KEYLEN = 7;
 const size_t MAX_NUM_MESSAGES = 65536;
-const size_t MAX_NUM_METADATA_ENTRIES = 12;
-const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
 const size_t MAX_NUM_BLOCKS = 8192;
-const size_t MEMORY_ALIGNMENT = 64;
-const size_t MIN_SIZE_POOL = 256 * 256 * 2;
-const size_t NUM_EVENTS_IN_BUFFER = 64;
-
-const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
-
-enum class MetadataType : std::uint8_t
-{
-	Integer,
-	Float,
-	String
-};
-
-union MetadataValue
-{
-	std::int64_t integer;
-	double floating_point;
-	std::array<char, METADATA_MAX_STRLEN> string;
-};
-
-struct MetadataEntry
-{
-	std::array<char, METADATA_MAX_KEYLEN> key;
-	MetadataType type;
-	MetadataValue value;
-};
-
-struct PayloadInfo
-{
-	std::uint8_t memory_block_id;
-	HybridPoolAllocator::Handle block_handle;
-	std::uint64_t offset_in_buffer;
-	std::uint64_t total_size;
-
-	ArrayInfo array_info;
-};
-
-struct MessageHeader
-{
-	char topic[TOPIC_MAX_KEY_SIZE];
-
-	Uuid payload_id;
-	Uuid trace_id;
-
-	char producer_hostname[HOST_NAME_SIZE];
-	std::uint32_t producer_pid;
-	std::uint64_t producer_timestamp;
-
-	PayloadInfo payload_info;
-	std::uint64_t start_byte;
-	std::uint64_t end_byte;
-
-	std::uint16_t partial_frame_id;
-
-	std::uint8_t num_metadata_entries;
-	MetadataEntry metadata_entries[MAX_NUM_METADATA_ENTRIES];
-};
+const size_t MEMORY_ALIGNMENT = 32;
+const size_t MIN_SIZE_POOL = 1024;
 
 struct TopicHeader
 {
@@ -145,14 +83,23 @@ public:
 	// Publish a message.
 	virtual void PublishMessage(Message &message, bool is_final = true) override;
 
-	// Try to get a message by topic and frame ID.
-	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
-
 	// Get the newest message for a topic.
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) override;
 
 	// Get the next message for a topic.
 	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
+
+	// Try to get the next message for a topic.
+	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
+
+	// Get the message rate for a topic.
+	virtual double GetMessageRate(std::string_view topic) override;
+
+	// Get the message topics for all messages in this broker.
+	virtual std::vector<std::string> GetAllMessageTopics() override;
+
+	// Try to get a message by topic and frame ID.
+	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
 
 	// Check for message availability.
 	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
@@ -165,12 +112,6 @@ public:
 
 	// Get the oldest message ID for a topic.
 	size_t GetOldestMessageId(std::string_view topic);
-
-	// Get the message rate for a topic.
-	virtual double GetMessageRate(std::string_view topic) override;
-
-	// Get the message topics for all messages in this broker.
-	virtual std::vector<std::string> GetAllMessageTopics() override;
 
 	ShareableType GetType() const override;
 

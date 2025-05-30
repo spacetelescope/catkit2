@@ -2,8 +2,8 @@
 
 #include "LocalMessageBroker.h"
 
-Message::Message(MessageHeader *header, void *payload, bool has_been_published)
-	: m_Header(header), m_Payload(payload), m_HasBeenPublished(has_been_published)
+Message::Message(MessageHeader *header, void *payload, std::uint64_t frame_id, bool has_been_published)
+	: m_Header(header), m_Payload(payload), m_FrameId(frame_id), m_HasBeenPublished(has_been_published)
 {
 }
 
@@ -15,6 +15,11 @@ std::string_view Message::GetTopic() const
 const Uuid &Message::GetPayloadId() const
 {
 	return m_Header->payload_id;
+}
+
+std::uint64_t Message::GetFrameId() const
+{
+	return m_FrameId;
 }
 
 std::uint16_t Message::GetPartialFrameId() const
@@ -57,9 +62,9 @@ void Message::SetArrayInfo(const ArrayInfo &array_info)
 	m_Header->payload_info.array_info = array_info;
 }
 
-void *Message::GetPayload() const
+ArrayView Message::GetPayload() const
 {
-	return m_Payload;
+	return {m_Header->payload_info.array_info, m_Payload};
 }
 
 std::size_t Message::GetPayloadSize() const
@@ -148,8 +153,10 @@ std::optional<Message> MessageSubscription::GetNextMessage(double timeout_in_sec
 	if (!message.has_value())
 		return message;
 
-	// We are going to return a message. Update our message Id for the next call.
-	m_LastReadFrameId = ...
+	// We are going to return a message. Update our frame id for the next call.
+	m_LastReadFrameId = message->GetFrameId() + 1;
+
+	return message;
 }
 
 std::optional<Message> MessageSubscription::TryGetNextMessage()
@@ -159,27 +166,10 @@ std::optional<Message> MessageSubscription::TryGetNextMessage()
 	if (!message.has_value())
 		return message;
 
-	// We are going to return a message. Update our message Id for the next call.
-	m_LastReadFrameId = ...
+	// We are going to return a message. Update our frame id for the next call.
+	m_LastReadFrameId = message->GetFrameId() + 1;
 
-}
-
-std::size_t ArrayInfo::GetNumItems() const
-{
-	std::size_t num_items = 1;
-
-	for (std::size_t i = 0; i < ndim; ++i)
-	{
-		num_items *= shape[i];
-	}
-
-	return num_items;
-}
-
-std::size_t ArrayInfo::GetNumBytes() const
-{
-	std::size_t num_items = GetNumItems();
-	return num_items * item_size;
+	return message;
 }
 
 Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id)
@@ -221,12 +211,12 @@ void MessageBroker::PublishData(std::string_view topic, const void *data, size_t
 MessageSubscription MessageBroker::Subscribe(std::string_view topic, MessageSubscriptionMode mode)
 {
 	auto current_message = GetCurrentMessage(topic);
-	auto starting_frame_id = current_message.has_value() ? current_message->m_Header->frame_id : 0;
+	auto starting_frame_id = current_message.has_value() ? current_message->GetFrameId() : 0;
 
 	return Subscribe(topic, starting_frame_id, mode);
 }
 
 MessageSubscription MessageBroker::Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode)
 {
-	return MessageSubscription(shared_from_this(), starting_frame_id, mode);
+	return MessageSubscription(shared_from_this(), topic, starting_frame_id, mode);
 }
