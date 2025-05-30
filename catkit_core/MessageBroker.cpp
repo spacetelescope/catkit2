@@ -177,7 +177,12 @@ Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_siz
 	Uuid trace_id;
 	Uuid::Generate(&trace_id);
 
-	return PrepareMessage(topic, payload_size, trace_id, memory_block_id);
+	return PrepareMessageImpl(topic, payload_size, trace_id, memory_block_id);
+}
+
+Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
+{
+	return PrepareMessageImpl(topic, payload_size, trace_id, memory_block_id);
 }
 
 void MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id)
@@ -206,6 +211,14 @@ void MessageBroker::PublishData(std::string_view topic, const void *data, size_t
 	array_info.strides[0] = 1;
 
 	PublishMessage(message);
+}
+
+void MessageBroker::PublishArray(std::string_view topic, ArrayView array, uint8_t memory_block_id)
+{
+}
+
+void MessageBroker::PublishArray(std::string_view topic, ArrayView array, Uuid trace_id, uint8_t memory_block_id)
+{
 }
 
 MessageSubscription MessageBroker::Subscribe(std::string_view topic, MessageSubscriptionMode mode)

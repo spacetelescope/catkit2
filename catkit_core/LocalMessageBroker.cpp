@@ -265,7 +265,7 @@ std::size_t LocalMessageBroker::CalculateBufferSize()
 	return 0;
 }
 
-Message LocalMessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
+Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
 {
 	// Allocate a payload.
 	auto allocator = GetAllocator(memory_block_id);
