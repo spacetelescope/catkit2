@@ -13,6 +13,11 @@ using EventConditionVariable = EventImpl<EventImplementationType::ConditionVaria
 #if defined(__linux__) || defined(__APPLE__)
 
 template<>
+struct is_event_implemented<EventImplementationType::ConditionVariable> : std::true_type
+{
+};
+
+template<>
 struct EventSharedState<EventImplementationType::ConditionVariable>
 {
 	pthread_mutex_t m_Mutex;

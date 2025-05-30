@@ -47,5 +47,5 @@ jobs:
     - name: Run tests
       run: |
         conda activate ci-env
-        pytest
+        pytest -v
       shell: bash -l {0}

@@ -9,6 +9,11 @@ using EventSpinLock = EventImpl<EventImplementationType::SpinLock>;
 const std::size_t NUM_ITERATIONS_BETWEEN_CHECKS = 16;
 
 template<>
+struct is_event_implemented<EventImplementationType::SpinLock> : std::true_type
+{
+};
+
+template<>
 struct EventSharedState<EventImplementationType::SpinLock>
 {
 	std::atomic_size_t m_Counter;

@@ -10,11 +10,17 @@
 
 enum class EventWaitMethod
 {
-	Default,
 	ConditionVariable,
 	Futex,
 	Semaphore,
-	SpinLock
+	SpinLock,
+#ifdef _WIN32
+	Default = Semaphore
+#elif defined(__linux__)
+	Default = Futex
+#elif defined(__APPLE__)
+	Default = ConditionVariable
+#endif
 };
 
 class Event : public Shareable

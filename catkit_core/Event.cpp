@@ -2,16 +2,6 @@
 
 void Event::Wait(double timeout_in_sec, std::function<bool()> condition, EventWaitMethod wait_method, void (*error_check)())
 {
-	// Set default wait method.
-	if (wait_method == EventWaitMethod::Default)
-	{
-		#ifdef _WIN32
-		wait_method = EventWaitMethod::Semaphore;
-		#elif defined(__linux__) || defined(__APPLE__)
-		wait_method = EventWaitMethod::ConditionVariable;
-		#endif
-	}
-
 	// Wait for a specific event type.
 	switch (wait_method)
 	{
