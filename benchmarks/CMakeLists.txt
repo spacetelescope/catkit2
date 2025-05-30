@@ -54,6 +54,11 @@ add_executable(hybrid_pool_allocator hybrid_pool_allocator.cpp)
 target_include_directories(hybrid_pool_allocator PUBLIC ../catkit_core)
 target_link_libraries(hybrid_pool_allocator PUBLIC catkit_core)
 
+# Event latency benchmark
+add_executable(event_latency event_latency.cpp)
+target_include_directories(event_latency PUBLIC ../catkit_core)
+target_link_libraries(event_latency PUBLIC catkit_core)
+
 # Add install files
 install(TARGETS datastream_latency DESTINATION bin)
 install(TARGETS datastream_submit DESTINATION bin)
@@ -64,3 +69,4 @@ install(TARGETS uuid_generator DESTINATION bin)
 install(TARGETS message_broker DESTINATION bin)
 install(TARGETS buddy_allocator DESTINATION bin)
 install(TARGETS hybrid_pool_allocator DESTINATION bin)
+install(TARGETS event_latency DESTINATION bin)

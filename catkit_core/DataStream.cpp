@@ -205,24 +205,18 @@ void DataStream::SubmitFrame(size_t id)
 	DataFrameMetadata *meta = m_Header->m_FrameMetadata + (id % m_Header->m_NumFramesInBuffer);
 	meta->m_TimeStamp = GetTimeStamp();
 
+	// Make frame available:
+	// Use a do-while loop to ensure we are never decrementing the last id.
+	size_t last_id;
+	do
 	{
-		// Obtain a lock as we are about to modify the condition of the
-		// synchronization.
-		auto lock = EventLockGuard(m_Event);
+		last_id = m_Header->m_LastId;
 
-		// Make frame available:
-		// Use a do-while loop to ensure we are never decrementing the last id.
-		size_t last_id;
-		do
-		{
-			last_id = m_Header->m_LastId;
+		if (last_id >= id + 1)
+			break;
+	} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
 
-			if (last_id >= id + 1)
-				break;
-		} while (!m_Header->m_LastId.compare_exchange_strong(last_id, id + 1));
-
-		m_Event->Signal();
-	}
+	m_Event->Signal();
 
 	auto ts = GetTimeStamp();
 	tracing_proxy.TraceInterval("DataStream::SubmitFrame", GetStreamName(), ts, 0);
@@ -365,8 +359,6 @@ DataFrame DataStream::GetFrame(size_t id, long wait_time_in_ms, void (*error_che
 			throw std::runtime_error("Frame is not available yet.");
 
 		// Wait until frame becomes available.
-		// Obtain a lock first.
-		auto lock = EventLockGuard(m_Event);
 		m_Event->Wait(wait_time_in_ms / 1000.0, [this, id]() { return this->m_Header->m_LastId > id; }, EventWaitMethod::Default, error_check);
 	}
 
