@@ -7,7 +7,7 @@ def test_shared_memory_lifetime():
     memory = SharedMemory.create(stream_id, 1024)
 
     # Creating shared memory with the same ID should raise an error.
-    with pytest.raises(RuntimeError, match="Something went wrong while creating shared memory"):
+    with pytest.raises(RuntimeError, match="File exists"):
         SharedMemory.create(stream_id, 1024)
 
     # We should be able to access the shared memory when opening.
@@ -23,7 +23,7 @@ def test_shared_memory_lifetime():
     del memory2
 
     # Now we should not be able to open the shared memory anymore.
-    with pytest.raises(RuntimeError, match="Something went wrong while opening shared memory"):
+    with pytest.raises(RuntimeError, match="No such file or directory"):
         SharedMemory.open(stream_id)
 
     # However, we should be able to create a new shared memory with the same ID.
