@@ -1,0 +1,381 @@
+#include "ServiceProxyV2.h"
+
+#include "TestbedProxy.h"
+#include "Timing.h"
+#include "Service.h"
+#include "Util.h"
+#include "service.pb.h"
+
+#include <iostream>
+#include <string>
+#include <stdexcept>
+
+using namespace std::string_literals;
+
+const double TIMEOUT_TO_START = 120;  // seconds
+
+ServiceProxyV2::ServiceProxyV2(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
+	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr), m_State(nullptr),
+	m_TimeLastConnect(0)
+{
+	// Do a check to see if the service id is correct.
+	auto testbed_config = testbed->GetConfig();
+
+	if (!testbed_config["services"].contains(service_id))
+	{
+		throw std::runtime_error("Service "s + service_id + " is a nonexistent service id.");
+	}
+
+	auto service_info = testbed->GetServiceInfo(m_ServiceId);
+
+	m_State = DataStream::Open(service_info.state_stream_id);
+
+	Connect();
+}
+
+ServiceProxyV2::~ServiceProxyV2()
+{
+}
+
+Value ServiceProxyV2::GetProperty(const std::string &name, void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	// Check if the name is a valid property.
+	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
+		throw std::runtime_error("This is not a valid property name.");
+
+	if (m_PropertyDataStreamLinks.find(name) != m_PropertyDataStreamLinks.end())
+	{
+		// This property is backed by a datastream. Lets try to get the value from there first.
+		std::string stream_name = m_PropertyDataStreamLinks[name];
+		std::shared_ptr<DataStream> stream = GetDataStream(stream_name, error_check);
+
+		try
+		{
+			DataFrame frame = stream->GetLatestFrame();
+
+			switch (frame.GetDataType())
+			{
+				case DataType::DT_INT64:
+					return ((std::int64_t *) frame.GetData())[0];
+				case DataType::DT_FLOAT64:
+					return ((double *) frame.GetData())[0];
+				default:
+					throw std::logic_error("This should be unreachable.");
+			}
+		}
+		catch (std::runtime_error)
+		{
+			// There is no frame in the datastream. Ignore and fall back to a manual
+			// request to the service.
+		}
+	}
+
+	// Set the service a request for the value of this property and return that.
+	catkit_proto::service::GetPropertyRequest request;
+	request.set_property_name(name);
+
+	std::string reply_string = m_Client->MakeRequest("get_property", Serialize(request));
+
+	catkit_proto::service::GetPropertyReply reply;
+	reply.ParseFromString(reply_string);
+
+	Value res;
+	FromProto(&reply.property_value(), res);
+
+	return res;
+}
+
+Value ServiceProxyV2::SetProperty(const std::string &name, const Value &value, void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	// Check if the name is a valid property.
+	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
+		throw std::runtime_error("This is not a valid property name.");
+
+	catkit_proto::service::SetPropertyRequest request;
+	request.set_property_name(name);
+	ToProto(value, request.mutable_property_value());
+
+	std::string reply_string = m_Client->MakeRequest("set_property", Serialize(request));
+
+	catkit_proto::service::SetPropertyReply reply;
+	reply.ParseFromString(reply_string);
+
+	Value res;
+	FromProto(&reply.property_value(), res);
+
+	return res;
+}
+
+Value ServiceProxyV2::ExecuteCommand(const std::string &name, const Dict &arguments, void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	// Check if the name is a valid command.
+	if (std::find(m_CommandNames.begin(), m_CommandNames.end(), name) == m_CommandNames.end())
+		throw std::runtime_error("This is not a valid command name.");
+
+	catkit_proto::service::ExecuteCommandRequest request;
+	request.set_command_name(name);
+	ToProto(arguments, request.mutable_arguments());
+
+	std::string reply_string = m_Client->MakeRequest("execute_command", Serialize(request));
+
+	catkit_proto::service::ExecuteCommandReply reply;
+	reply.ParseFromString(reply_string);
+
+	Value res;
+	FromProto(&reply.result(), res);
+
+	return res;
+}
+
+std::shared_ptr<DataStream> ServiceProxyV2::GetDataStream(const std::string &name, void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	// Check if the name is a valid data stream name.
+	if (m_DataStreamIds.find(name) == m_DataStreamIds.end())
+		throw std::runtime_error("This is not a valid data stream name.");
+
+	auto stream = m_DataStreams.find(name);
+
+	// Check if we already opened this data stream.
+	if (stream == m_DataStreams.end())
+	{
+		// Open it now.
+		m_DataStreams[name] = DataStream::Open(m_DataStreamIds[name]);
+	}
+
+	return m_DataStreams[name];
+}
+
+std::shared_ptr<DataStream> ServiceProxyV2::GetHeartbeat()
+{
+	return m_Heartbeat;
+}
+
+ServiceState ServiceProxyV2::GetState()
+{
+	ServiceState state = ServiceState(m_State->GetLatestFrame().AsArray<std::int8_t>()(0));
+
+	return state;
+}
+
+bool ServiceProxyV2::IsRunning()
+{
+	return GetState() == ServiceState::RUNNING;
+}
+
+bool ServiceProxyV2::IsAlive()
+{
+	return IsAliveState(GetState());
+}
+
+void ServiceProxyV2::Start(double timeout_in_sec, void (*error_check)())
+{
+	auto current_state = GetState();
+
+	switch (current_state)
+	{
+		case ServiceState::CLOSED:
+		m_Testbed->StartService(m_ServiceId);
+		break;
+
+		case ServiceState::INITIALIZING:
+		case ServiceState::OPENING:
+		case ServiceState::RUNNING:
+		break;
+
+		case ServiceState::CLOSING:
+		throw std::runtime_error("The service is closing. Try restarting it later.");
+
+		case ServiceState::UNRESPONSIVE:
+		throw std::runtime_error("The service is unresponsive. Try reconnecting later.");
+
+		case ServiceState::CRASHED:
+		throw std::runtime_error("Refusing to start a crashed service. Ask the TestbedProxy to start it.");
+
+		case ServiceState::FAIL_SAFE:
+		throw std::runtime_error("Refusing to start a fail safed service. Ask the TestbedProxy to start it.");
+
+		default:
+		throw std::runtime_error("Unknown service state.");
+	}
+
+	// Wait for the service to actually start running.
+	if (timeout_in_sec > 0)
+	{
+		Timer timer;
+
+		while (!IsRunning())
+		{
+			double timeout_remaining = timeout_in_sec - timer.GetTime();
+
+			if (timeout_remaining <= 0)
+				throw std::runtime_error("The service has not started within the timeout time.");
+
+			std::this_thread::sleep_for(std::chrono::duration<double>(std::min(double(0.001), timeout_remaining)));
+
+			if (error_check)
+				error_check();
+
+			if (GetState() == ServiceState::CRASHED)
+				throw std::runtime_error("The service crashed during startup.");
+
+			if (GetState() == ServiceState::FAIL_SAFE)
+				throw std::runtime_error("The service went into fail safe during startup.");
+		}
+	}
+
+	// Connect to the service.
+	Connect();
+}
+
+void ServiceProxyV2::Stop()
+{
+	if (!IsRunning())
+		return;
+
+	Connect();
+
+	catkit_proto::service::ShutDownRequest request;
+
+	try
+	{
+		m_Client->MakeRequest("shut_down", Serialize(request));
+	}
+	catch (...)
+	{
+		throw std::runtime_error("Unable to stop service.");
+	}
+}
+
+void ServiceProxyV2::Interrupt()
+{
+	if (!IsAlive())
+		return;
+
+	m_Testbed->InterruptService(m_ServiceId);
+}
+
+void ServiceProxyV2::Terminate()
+{
+	if (!IsAlive())
+		return;
+
+	m_Testbed->TerminateService(m_ServiceId);
+}
+
+void ServiceProxyV2::Connect()
+{
+	// Check if the service is running.
+	// Do an explicit check on the state stream to avoid infinite loop.
+	auto frame = m_State->GetLatestFrame();
+	ServiceState state = ServiceState(frame.AsArray<std::int8_t>()(0));
+
+	if (state != ServiceState::RUNNING)
+	{
+		// Disconnect.
+		Disconnect();
+		return;
+	}
+
+	// Check if we are already connected to the Service.
+	if (m_TimeLastConnect == frame.m_TimeStamp)
+		return;
+
+	// We need to reconnect, so let's disconnect first.
+	Disconnect();
+
+	// Get the host and port of the service.
+	auto service_info = m_Testbed->GetServiceInfo(m_ServiceId);
+
+	// Connect to the service.
+	m_Client = std::make_unique<Client>(service_info.host, service_info.port);
+
+	// Get property, command and datastream names.
+	std::string reply_string = m_Client->MakeRequest("get_info", "");
+
+	catkit_proto::service::GetInfoReply reply;
+	reply.ParseFromString(reply_string);
+
+	for (auto &i : reply.property_names())
+		m_PropertyNames.push_back(i);
+
+	for (auto &i : reply.command_names())
+		m_CommandNames.push_back(i);
+
+	for (auto& [key, value] : reply.datastream_ids())
+		m_DataStreamIds[key] = value;
+
+	for (auto& [key, value] : reply.property_datastream_links())
+		m_PropertyDataStreamLinks[key] = value;
+
+	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
+
+	m_TimeLastConnect = frame.m_TimeStamp;
+	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");
+}
+
+void ServiceProxyV2::Disconnect()
+{
+	m_Client = nullptr;
+	m_PropertyNames.clear();
+	m_CommandNames.clear();
+	m_DataStreamIds.clear();
+	m_DataStreams.clear();
+
+	m_Heartbeat = nullptr;
+}
+
+std::vector<std::string> ServiceProxyV2::GetPropertyNames(void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	return m_PropertyNames;
+}
+
+std::vector<std::string> ServiceProxyV2::GetCommandNames(void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	return m_CommandNames;
+}
+
+std::vector<std::string> ServiceProxyV2::GetDataStreamNames(void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	std::vector<std::string> names;
+
+	for (auto const &item : m_DataStreamIds)
+		names.push_back(item.first);
+
+	return names;
+}
+
+nlohmann::json ServiceProxyV2::GetConfig()
+{
+	return m_Testbed->GetConfig()["services"][m_ServiceId];
+}
+
+std::string ServiceProxyV2::GetId()
+{
+	return m_ServiceId;
+}
+
+std::shared_ptr<TestbedProxy> ServiceProxyV2::GetTestbed()
+{
+	return m_Testbed;
+}
