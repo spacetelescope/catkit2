@@ -53,6 +53,8 @@ public:
 
 	std::shared_ptr<TestbedProxy> GetTestbed();
 
+	void CleanupAttributes();
+
 private:
 	std::string HandleGetInfo(const std::string &data);
 
@@ -87,9 +89,6 @@ private:
 	std::shared_ptr<DataStream> m_Heartbeat;
 	std::shared_ptr<DataStream> m_Safety;
 	std::shared_ptr<DataStream> m_State;
-
-	typedef std::function<std::string(const std::string &)> MessageHandler;
-	std::map<std::string, MessageHandler> m_RequestHandlers;
 
 	std::map<std::string, std::shared_ptr<Property>> m_Properties;
 	std::map<std::string, std::shared_ptr<Command>> m_Commands;

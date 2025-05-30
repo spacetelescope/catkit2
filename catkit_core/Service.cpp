@@ -68,6 +68,12 @@ Service::~Service()
 
 void Service::Run(void (*error_check)())
 {
+	if (m_ShouldShutDown)
+		throw std::runtime_error("A service can only run once.");
+
+	if (m_IsRunning)
+		throw std::runtime_error("The service is already running.");
+
 	// Perform check on requires safety property in config.
 	if (!m_Config.contains("requires_safety"))
 	{
@@ -204,6 +210,15 @@ void Service::Run(void (*error_check)())
 	// Set heartbeat timestamp to zero to signal a dead service.
 	std::uint64_t timestamp = 0;
 	m_Heartbeat->SubmitData(&timestamp);
+
+	CleanupAttributes();
+}
+
+void Service::CleanupAttributes()
+{
+	m_Properties.clear();
+	m_Commands.clear();
+	m_DataStreams.clear();
 }
 
 void Service::MonitorSafety()

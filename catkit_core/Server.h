@@ -26,6 +26,8 @@ public:
 
 	void Sleep(double sleep_time_in_sec, void (*error_check)()=nullptr);
 
+	void CleanupRequestHandlers();
+
 protected:
 	int m_Port;
 
