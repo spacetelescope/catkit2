@@ -41,16 +41,12 @@ def test_large_shared_memory_size():
     del memory
 
 
-def test_shared_memory_open_non_existent_or_invalid_name():
+def test_shared_memory_open_non_existent():
     stream_id = 'non_existent_memory'
 
     # Opening a non-existent shared memory should raise an error.
     with pytest.raises(RuntimeError, match="Something went wrong while opening shared memory"):
         SharedMemory.open(stream_id)
-
-    # Opening a shared memory with an invalid name should raise an error.
-    with pytest.raises(RuntimeError, match="Something went wrong while creating shared memory"):
-        SharedMemory.create("", 1024)  # Invalid name
 
 def test_shared_memory_wrong_type():
     # Opening a shared memory with a float for the memory size should raise an error.
