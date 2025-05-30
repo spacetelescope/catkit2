@@ -41,7 +41,7 @@ inline void EventSpinLock::Wait(double timeout_in_sec, std::function<bool()> con
 					error_check();
 
 				if (timer.GetTime() > timeout_in_sec)
-					throw std::runtime_error("Waiting time has expired2.");
+					throw std::runtime_error("Waiting time has expired.");
 
 				i = 0;
 
