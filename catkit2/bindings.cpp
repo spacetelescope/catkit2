@@ -1085,8 +1085,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return py::cast(res.value());
 
 			return py::none();
-		})
-		.def_property_readonly("next_message_id", &MessageSubscription::GetNextMessageId);
+		});
 
 	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
@@ -1103,13 +1102,13 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
-		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, std::size_t payload_size, std::uint8_t memory_block_id)
+		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, std::uint8_t memory_block_id)
 		{
 			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
 
 			return message;
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("memory_block_id") = 0)
-		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, std::size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
+		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
 			{
@@ -1177,9 +1176,9 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return py::none();
 		}, py::arg("topic"), py::arg("frame_id"))
-		.def("get_newest_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
+		.def("get_current_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
 		{
-			auto res = broker->GetNewestMessage(topic);
+			auto res = broker->GetCurrentMessage(topic);
 			if (res)
 				return py::cast(res.value());
 
