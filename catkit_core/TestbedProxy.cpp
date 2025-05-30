@@ -203,6 +203,13 @@ std::shared_ptr<DataStream> TestbedProxy::GetHeartbeat()
 	return m_HeartbeatStream;
 }
 
+std::shared_ptr<MessageBroker> TestbedProxy::GetMessageBroker()
+{
+	GetTestbedInfo();
+
+	return m_MessageBroker;
+}
+
 json TestbedProxy::GetConfig()
 {
 	GetTestbedInfo();
