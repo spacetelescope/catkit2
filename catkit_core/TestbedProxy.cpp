@@ -203,6 +203,13 @@ std::shared_ptr<DataStream> TestbedProxy::GetHeartbeat()
 	return m_HeartbeatStream;
 }
 
+std::shared_ptr<MessageBroker> TestbedProxy::GetMessageBroker()
+{
+	GetTestbedInfo();
+
+	return m_MessageBroker;
+}
+
 json TestbedProxy::GetConfig()
 {
 	GetTestbedInfo();
@@ -372,6 +379,10 @@ void TestbedProxy::GetTestbedInfo()
 	m_IsSimulated = reply.is_simulated();
 
 	m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
+
+	m_MessageBrokerHeader = SharedMemory::Open(reply.message_broker_id());
+	StructStream stream = StructStream(m_MessageBrokerHeader->GetAddress());
+	m_MessageBroker = MessageBroker::Open(stream);
 
 	m_LoggingIngressPort = reply.logging_ingress_port();
 	m_LoggingEgressPort = reply.logging_egress_port();

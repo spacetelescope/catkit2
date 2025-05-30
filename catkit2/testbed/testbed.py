@@ -12,7 +12,7 @@ import psutil
 import zmq
 import numpy as np
 
-from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, get_timestamp, is_alive_state, Client, get_host_name
+from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, SharedMemory, MessageBroker, get_timestamp, is_alive_state, Client, get_host_name
 from .logging import *
 from .distributor import ZmqDistributor
 
@@ -302,6 +302,12 @@ class Testbed:
 
         self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
 
+        # Create a message broker.
+        self.message_broker_header = SharedMemory.create(f'catkit_broker_{port}', 1024 * 1024 * 256)
+        self.message_broker_buffer = SharedMemory.create(f'catkit_broker_{port}_buffer', 1024 * 1024 * 1024 * 2)
+
+        self.message_broker = MessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
+
     def run(self):
         '''Run the main loop of the server.
         '''
@@ -535,6 +541,7 @@ class Testbed:
         reply.data_logging_egress_port = self.data_logging_egress_port
         reply.tracing_ingress_port = self.tracing_ingress_port
         reply.tracing_egress_port = self.tracing_egress_port
+        reply.message_broker_id = self.message_broker_header.filename
 
         return reply.SerializeToString()
 

@@ -678,6 +678,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("interrupt_service", &TestbedProxy::InterruptService)
 		.def("terminate_service", &TestbedProxy::TerminateService)
 		.def("shut_down", &TestbedProxy::ShutDown)
+		.def_property_readonly("message_broker", &TestbedProxy::GetMessageBroker)
 		.def_property_readonly("is_simulated", &TestbedProxy::IsSimulated)
 		.def_property_readonly("is_alive", &TestbedProxy::IsAlive)
 		.def_property_readonly("heartbeat", &TestbedProxy::GetHeartbeat)
@@ -896,7 +897,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 			size_t capacity = memory->GetCapacity();
 
 			return py::memoryview::from_memory(address, capacity);
-		});
+		})
+		.def_property_readonly("filename", &SharedMemory::GetFileName);
 
 	py::class_<LocalMemory, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
 		.def_static("create", [](size_t num_bytes)
