@@ -340,7 +340,7 @@ Message LocalMessageBroker::PrepareMessage(std::string_view topic, size_t payloa
 
 	DEBUG_PRINT("Header set");
 
-	return Message(header, payload, false);
+	return Message(header, payload, INVALID_FRAME_ID, false);
 }
 
 void LocalMessageBroker::PublishMessage(Message &message, bool is_final)
@@ -496,7 +496,7 @@ Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame
 	auto memory = GetMemory(header->payload_info.memory_block_id);
 	auto payload = memory->GetAddress(offset);
 
-	return Message(header, payload, true);
+	return Message(header, payload, frame_id, true);
 }
 
 std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, size_t last_read_frame_id, MessageSubscriptionMode mode)
@@ -508,7 +508,7 @@ std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, si
 	if (newest_frame_id != 0)
 		newest_frame_id--;
 
-	switch (m_SubscriptionMode)
+	switch (mode)
 	{
 		case MessageSubscriptionMode::NewestOnly:
 
@@ -544,7 +544,7 @@ std::optional<Message> LocalMessageBroker::GetCurrentMessage(std::string_view to
 	return FetchMessage(topic_header, frame_id);
 }
 
-std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode, double timeout_in_sec, EventWaitMethod wait_type, void (*error_check)())
+std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode, double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
 {
 	auto topic_header = GetTopicHeader(topic);
 
@@ -552,13 +552,13 @@ std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic
 
 	// Check if the frame is available.
 	if (topic_header->IsMessageAvailable(new_frame_id))
-		return FetchMessage(m_TopicHeader, new_frame_id);
+		return FetchMessage(topic_header, new_frame_id);
 
 	// Otherwise, wait for it.
-	auto lock = EventLockGuard(m_MessageBroker->m_Event);
-	m_MessageBroker->m_Event->Wait(timeout_in_seconds, [this, new_frame_id]() { return m_TopicHeader->last_frame_id > new_frame_id; }, wait_type, error_check);
+	auto lock = EventLockGuard(m_Event);
+	m_Event->Wait(timeout_in_seconds, [topic_header, new_frame_id]() { return topic_header->last_frame_id > new_frame_id; }, wait_type, error_check);
 
-	return FetchMessage(m_TopicHeader, new_frame_id);
+	return FetchMessage(topic_header, new_frame_id);
 }
 
 std::optional<Message> LocalMessageBroker::TryGetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode)

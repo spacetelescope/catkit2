@@ -4,6 +4,7 @@
 #include "HybridPoolAllocator.h"
 #include "Uuid.h"
 #include "Event.h"
+#include "ArrayView.h"
 
 #include <cstdint>
 #include <cstddef>
@@ -13,20 +14,11 @@
 #include <string>
 #include <optional>
 
-const size_t TOPIC_HASH_MAP_SIZE = 16384;
 const size_t TOPIC_MAX_KEY_SIZE = 127;
-const size_t TOPIC_MAX_NUM_MESSAGES = 32;
 const size_t HOST_NAME_SIZE = 64;
 const size_t METADATA_MAX_STRLEN = 8;
 const size_t METADATA_MAX_KEYLEN = 7;
-const size_t MAX_NUM_MESSAGES = 65536;
-const size_t MAX_NUM_DIMENSIONS = 4;
 const size_t MAX_NUM_METADATA_ENTRIES = 12;
-const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
-const size_t MAX_NUM_BLOCKS = 8192;
-const size_t MEMORY_ALIGNMENT = 32;
-const size_t MIN_SIZE_POOL = 1024;
-const size_t NUM_EVENTS_IN_BUFFER = 64;
 
 const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
 
@@ -49,19 +41,6 @@ struct MetadataEntry
 	std::array<char, METADATA_MAX_KEYLEN> key;
 	MetadataType type;
 	MetadataValue value;
-};
-
-struct ArrayInfo
-{
-	char data_type;
-	char byte_order;
-	std::uint8_t item_size;
-	std::uint8_t ndim;
-	std::uint32_t shape[MAX_NUM_DIMENSIONS];
-	std::uint32_t strides[MAX_NUM_DIMENSIONS];
-
-	std::size_t GetNumItems() const;
-	std::size_t GetNumBytes() const;
 };
 
 struct PayloadInfo
@@ -100,14 +79,16 @@ class LocalMessageBroker;
 class Message
 {
 	friend class LocalMessageBroker;
+	friend class MessageBroker;
 
 private:
-	Message(MessageHeader *header, void *payload, bool has_been_published = false);
+	Message(MessageHeader *header, void *payload, std::uint64_t frame_id, bool has_been_published = false);
 
 public:
 	std::string_view GetTopic() const;
 
 	const Uuid &GetPayloadId() const;
+	std::uint64_t GetFrameId() const;
 	std::uint16_t GetPartialFrameId() const;
 
 	const Uuid &GetTraceId() const;
@@ -121,7 +102,7 @@ public:
 	const ArrayInfo &GetArrayInfo() const;
 	void SetArrayInfo(const ArrayInfo &array_info);
 
-	void *GetPayload() const;
+	ArrayView GetPayload() const;
 	std::size_t GetPayloadSize() const;
 
 	MetadataEntry *GetMetadataEntry(std::string_view key, bool create_if_not_exists = false);
@@ -139,6 +120,7 @@ private:
 	MessageHeader *m_Header;
 	void *m_Payload;
 
+	std::uint64_t m_FrameId;
 	bool m_HasBeenPublished;
 };
 
@@ -171,23 +153,22 @@ private:
 class MessageBroker : public std::enable_shared_from_this<MessageBroker>
 {
 public:
-	Message PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id = 0);
 	virtual Message PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0) = 0;
-
 	virtual void PublishMessage(Message &message, bool is_final = true) = 0;
-
-	void PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id = 0);
-	void PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id = 0);
 
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) = 0;
 	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) = 0;
 	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
 
-	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
-	MessageSubscription Subscribe(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
-
 	virtual std::vector<std::string> GetAllMessageTopics() = 0;
 	virtual double GetMessageRate(std::string_view topic) = 0;
+
+	Message PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id = 0);
+	void PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id = 0);
+	void PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id = 0);
+
+	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+	MessageSubscription Subscribe(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
 };
 
 #endif // MESSAGE_BROKER_H
