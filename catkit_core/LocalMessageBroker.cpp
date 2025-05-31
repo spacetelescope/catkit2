@@ -503,9 +503,9 @@ Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame
 	return Message(header, payload, frame_id, true);
 }
 
-std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, size_t last_read_frame_id, MessageSubscriptionMode mode)
+std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, size_t preferred_next_frame_id, MessageSubscriptionMode mode)
 {
-	size_t frame_id = last_read_frame_id + 1;
+	size_t frame_id = preferred_next_frame_id;
 	size_t newest_frame_id = topic_header->last_frame_id.load(std::memory_order_relaxed);
 	size_t oldest_frame_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
 
@@ -548,11 +548,11 @@ std::optional<Message> LocalMessageBroker::GetCurrentMessage(std::string_view to
 	return FetchMessage(topic_header, frame_id);
 }
 
-std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode, double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
+std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode, double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	std::uint64_t new_frame_id = GetNextMessageId(topic_header, last_read_frame_id, mode);
+	std::uint64_t new_frame_id = GetNextMessageId(topic_header, preferred_next_frame_id, mode);
 
 	// Check if the frame is available.
 	if (topic_header->IsMessageAvailable(new_frame_id))
@@ -565,11 +565,11 @@ std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic
 	return FetchMessage(topic_header, new_frame_id);
 }
 
-std::optional<Message> LocalMessageBroker::TryGetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode)
+std::optional<Message> LocalMessageBroker::TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode)
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	std::uint64_t frame_id = GetNextMessageId(topic_header, last_read_frame_id, mode);
+	std::uint64_t frame_id = GetNextMessageId(topic_header, preferred_next_frame_id, mode);
 
 	// Check if the frame is available.
 	if (!topic_header->IsMessageAvailable(frame_id))

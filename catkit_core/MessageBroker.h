@@ -141,12 +141,12 @@ public:
 	std::optional<Message> TryGetNextMessage();
 
 private:
-	MessageSubscription(std::shared_ptr<MessageBroker> broker, std::string_view topic, std::uint64_t last_read_frame_id, MessageSubscriptionMode mode);
+	MessageSubscription(std::shared_ptr<MessageBroker> broker, std::string_view topic, std::uint64_t preferred_next_frame_id, MessageSubscriptionMode mode);
 
 	std::shared_ptr<MessageBroker> m_MessageBroker;
 
 	std::string m_Topic;
-	std::uint64_t m_LastReadFrameId;
+	std::uint64_t m_PreferredNextFrameId;
 	MessageSubscriptionMode m_SubscriptionMode;
 };
 
@@ -157,8 +157,8 @@ public:
 	virtual void PublishMessage(Message &message, bool is_final = true) = 0;
 
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) = 0;
-	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) = 0;
-	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) = 0;
+	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) = 0;
+	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) = 0;
 
 	virtual std::vector<std::string> GetAllMessageTopics() = 0;
 	virtual double GetMessageRate(std::string_view topic) = 0;
@@ -173,7 +173,7 @@ public:
 	void PublishArray(std::string_view topic, ArrayView array, Uuid trace_id, uint8_t memory_block_id = 0);
 
 	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
-	MessageSubscription Subscribe(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+	MessageSubscription Subscribe(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
 };
 
 #endif // MESSAGE_BROKER_H

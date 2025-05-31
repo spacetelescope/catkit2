@@ -87,10 +87,10 @@ public:
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) override;
 
 	// Get the next message for a topic.
-	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
+	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
 
 	// Try to get the next message for a topic.
-	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t last_read_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
+	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
 
 	// Get the message rate for a topic.
 	virtual double GetMessageRate(std::string_view topic) override;
@@ -117,7 +117,7 @@ public:
 
 private:
 	Message FetchMessage(TopicHeader *topic_header, size_t frame_id);
-	std::uint64_t GetNextMessageId(TopicHeader *topic_header, size_t last_read_frame_id, MessageSubscriptionMode mode);
+	std::uint64_t GetNextMessageId(TopicHeader *topic_header, size_t preferred_next_frame_id, MessageSubscriptionMode mode);
 
 	std::shared_ptr<HybridPoolAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
