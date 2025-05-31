@@ -983,6 +983,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<Message>(m, "Message")
 		.def_property_readonly("topic", &Message::GetTopic)
 		.def_property_readonly("trace_id", &Message::GetTraceId)
+		.def_property_readonly("frame_id", &Message::GetFrameId)
+		.def_property_readonly("partial_frame_id", &Message::GetPartialFrameId)
 		.def_property_readonly("payload_id", &Message::GetPayloadId)
 		.def_property_readonly("producer_hostname", &Message::GetProducerHostname)
 		.def_property_readonly("producer_pid", &Message::GetProducerPid)
@@ -1190,18 +1192,18 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get_oldest_message_id", &LocalMessageBroker::GetOldestMessageId)
 		.def("get_message_rate", &LocalMessageBroker::GetMessageRate)
 		.def("get_all_message_topics", &LocalMessageBroker::GetAllMessageTopics)
-		.def("subscribe", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::object starting_frame_id, MessageSubscriptionMode mode)
+		.def("subscribe", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::object preferred_next_frame_id, MessageSubscriptionMode mode)
 		{
 			// Check if the starting frame ID is a number or None.
-			if (starting_frame_id.is_none())
+			if (preferred_next_frame_id.is_none())
 			{
 				return broker->Subscribe(topic, mode);
 			}
 			else
 			{
-				return broker->Subscribe(topic, py::cast<std::uint64_t>(starting_frame_id), mode);
+				return broker->Subscribe(topic, py::cast<std::uint64_t>(preferred_next_frame_id), mode);
 			}
-		}, py::arg("topic"), py::arg("starting_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
+		}, py::arg("topic"), py::arg("preferred_next_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
 
 	py::class_<PoolAllocator, std::shared_ptr<PoolAllocator>>(m, "PoolAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t capacity)

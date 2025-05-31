@@ -141,33 +141,33 @@ void Message::SetEndByte(std::uint64_t end_byte)
 	m_Header->end_byte = end_byte;
 }
 
-MessageSubscription::MessageSubscription(std::shared_ptr<MessageBroker> message_broker, std::string_view topic, std::uint64_t last_read_frame_id, MessageSubscriptionMode mode)
-	: m_MessageBroker(message_broker), m_Topic(topic), m_LastReadFrameId(last_read_frame_id), m_SubscriptionMode(mode)
+MessageSubscription::MessageSubscription(std::shared_ptr<MessageBroker> message_broker, std::string_view topic, std::uint64_t preferred_next_frame_id, MessageSubscriptionMode mode)
+	: m_MessageBroker(message_broker), m_Topic(topic), m_PreferredNextFrameId(preferred_next_frame_id), m_SubscriptionMode(mode)
 {
 }
 
 std::optional<Message> MessageSubscription::GetNextMessage(double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
 {
-	auto message = m_MessageBroker->GetNextMessage(m_Topic, m_LastReadFrameId, m_SubscriptionMode, timeout_in_seconds, wait_type, error_check);
+	auto message = m_MessageBroker->GetNextMessage(m_Topic, m_PreferredNextFrameId, m_SubscriptionMode, timeout_in_seconds, wait_type, error_check);
 
 	if (!message.has_value())
 		return message;
 
 	// We are going to return a message. Update our frame id for the next call.
-	m_LastReadFrameId = message->GetFrameId() + 1;
+	m_PreferredNextFrameId = message->GetFrameId() + 1;
 
 	return message;
 }
 
 std::optional<Message> MessageSubscription::TryGetNextMessage()
 {
-	auto message = m_MessageBroker->TryGetNextMessage(m_Topic, m_LastReadFrameId, m_SubscriptionMode);
+	auto message = m_MessageBroker->TryGetNextMessage(m_Topic, m_PreferredNextFrameId, m_SubscriptionMode);
 
 	if (!message.has_value())
 		return message;
 
 	// We are going to return a message. Update our frame id for the next call.
-	m_LastReadFrameId = message->GetFrameId() + 1;
+	m_PreferredNextFrameId = message->GetFrameId() + 1;
 
 	return message;
 }
@@ -229,7 +229,7 @@ MessageSubscription MessageBroker::Subscribe(std::string_view topic, MessageSubs
 	return Subscribe(topic, starting_frame_id, mode);
 }
 
-MessageSubscription MessageBroker::Subscribe(std::string_view topic, size_t starting_frame_id, MessageSubscriptionMode mode)
+MessageSubscription MessageBroker::Subscribe(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode)
 {
-	return MessageSubscription(shared_from_this(), topic, starting_frame_id, mode);
+	return MessageSubscription(shared_from_this(), topic, preferred_next_frame_id, mode);
 }
