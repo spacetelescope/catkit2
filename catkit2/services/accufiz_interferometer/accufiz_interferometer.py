@@ -216,7 +216,7 @@ class AccufizInterferometer(Service):
         if (not self.save_h5) and os.path.exists(local_file_path):
             os.remove(local_file_path)
 
-        return image
+        return np.ascontiguousarray(image, dtype=np.float32)
 
     @staticmethod
     def convert_h5_to_fits(filepath, rotate, fliplr, img, mask, wavelength=632.8, create_fits=False):

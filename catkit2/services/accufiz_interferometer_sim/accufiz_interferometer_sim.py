@@ -272,7 +272,8 @@ class AccufizInterferometerSim(Service):
                 os.remove(fitsfile)
             self.log.info('cleaning up temporary simulated files')
 
-        return image
+
+        return np.ascontiguousarray(image, dtype=np.float32)
 
     @staticmethod
     def convert_h5_to_fits(filepath, rotate, fliplr, img, mask, wavelength=632.8, create_fits=False):
