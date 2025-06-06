@@ -1,9 +1,10 @@
 #ifndef SERVICE_PROXY_V2_H
 #define SERVICE_PROXY_V2_H
 
-#include "Types.h"
+#include "ArrayView.h"
 #include "ServiceState.h"
 #include "MessageBroker.h"
+#include "Event.h"
 
 #include <zmq.hpp>
 #include <nlohmann/json.hpp>
@@ -21,9 +22,9 @@ public:
 	virtual ~ServiceProxyV2();
 
 	ArrayView GetProperty(const std::string &name);
-	ArrayView SetProperty(const std::string &name, ArrayView array, void (*error_check)() = nullptr);
+	ArrayView SetProperty(const std::string &name, ArrayView array, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default, void (*error_check)() = nullptr);
 
-	ArrayView ExecuteMethod(const std::string &name, const Dict &arguments, void (*error_check)() = nullptr);
+	ArrayView ExecuteMethod(const std::string &name, std::map<std::string, ArrayView> arguments, double timeout_in_seconds = -1, EventWaitMethod wait_method = EventWaitMethod::Default, (*error_check)() = nullptr);
 
 	ServiceState GetState();
 	bool IsRunning();

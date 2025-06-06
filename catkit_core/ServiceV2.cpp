@@ -289,27 +289,6 @@ bool ServiceV2::RequiresSafety()
 	return m_Config["requires_safety"];
 }
 
-void ServiceV2::MonitorHeartbeats()
-{
-	while (!ShouldShutDown())
-	{
-		// Update my own heartbeat.
-		std::uint64_t timestamp = GetTimeStamp();
-		m_Heartbeat->SubmitData(&timestamp);
-
-		// Check the testbed heartbeat.
-		if (!m_Testbed->IsAlive())
-		{
-			LOG_CRITICAL("Testbed has likely crashed. Shutting down.");
-			ShutDown();
-			return;
-		}
-
-		// Sleep until next check.
-		Sleep(SERVICE_LIVELINESS / 5);
-	}
-}
-
 void ServiceV2::Open()
 {
 }
