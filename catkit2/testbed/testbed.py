@@ -77,6 +77,26 @@ def get_unused_port(num_ports=1):
     return ports
 
 
+def create_shared_memory(name, size):
+    '''Create an empty shared memory object, even if it already existed.
+
+    Parameters
+    ----------
+    name : str
+        The name of the shared memory object.
+    size : int
+        The size in bytes of the shared memory object.
+    '''
+    try:
+        return SharedMemory.create(name, size)
+    except RuntimeError:
+        # Try to open and destroy and try again.
+        shm = SharedMemory.open(name)
+        shm.destroy()
+
+        return SharedMemory.create(name, size)
+
+
 class ServiceReference:
     '''A reference to a service running on another process.
 
@@ -312,8 +332,8 @@ class Testbed:
         self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
 
         # Create a message broker.
-        self.message_broker_header = SharedMemory.create(f'catkit_broker_{port}.hdr', 1024 * 1024 * 256)
-        self.message_broker_buffer = SharedMemory.create(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
+        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 256)
+        self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
 
         self.message_broker = MessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
 
