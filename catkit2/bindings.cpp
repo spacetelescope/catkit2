@@ -891,6 +891,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			auto mem = SharedMemory::Open(name);
 			return std::shared_ptr<SharedMemory>(std::move(mem));
 		})
+		.def("destroy", &SharedMemory::Destroy)
 		.def("get_memory", [](std::shared_ptr<SharedMemory> memory)
 		{
 			auto address = memory->GetAddress();
