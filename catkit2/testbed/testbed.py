@@ -7,7 +7,7 @@ import socket
 import threading
 import contextlib
 import importlib
-import filelock
+import fasteners
 
 import psutil
 import zmq
@@ -223,7 +223,9 @@ class Testbed:
         else:
             lock_path = f'/tmp/catkit2_{port}.lock'
 
-        self.lock = filelock.FileLock(lock_path)
+        self.lock = fasteners.InterProcessLock(lock_path)
+        if not self.lock.acquire(blocking=False):
+            raise RuntimeError(f'Another testbed object is already running on port {port}.')
 
         self.host_name = get_host_name()
 
