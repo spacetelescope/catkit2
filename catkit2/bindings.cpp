@@ -1122,6 +1122,40 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("data"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("publish_array", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::array array, py::object trace_id, std::uint8_t memory_block_id)
+		{
+			ArrayInfo info;
+
+			auto dtype = array.dtype();
+			info.data_type = dtype.kind();
+			info.item_size = dtype.itemsize();
+			info.byte_order = dtype.byteorder();
+
+			if (array.ndim() > MAX_NUM_DIMENSIONS)
+				throw std::runtime_error("Array dimension is too large.");
+
+			info.ndim = array.ndim();
+
+			for (size_t i = 0; i < info.ndim; ++i)
+			{
+				info.shape[i] = array.shape()[i];
+				info.strides[i] = array.strides()[i];
+			}
+
+			if (!info.IsCContiguous() && !info.IsFContiguous())
+				throw std::runtime_error("Array has to be either C or F contiguous.");
+
+			// All checks are complete. Let's copy/submit the raw data.
+			const ArrayView array_view{info, array.mutable_data()};
+			if (trace_id.is_none())
+			{
+				broker->PublishArray(topic, array_view, memory_block_id);
+			}
+			else
+			{
+				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
 		.def("try_get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
 		{
 			auto res = broker->TryGetMessage(topic, frame_id);

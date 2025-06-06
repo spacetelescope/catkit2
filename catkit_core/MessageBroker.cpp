@@ -518,15 +518,15 @@ void MessageBroker::PublishData(std::string_view topic, const void *data, size_t
 	PublishMessage(message);
 }
 
-void MessageBroker::PublishData(std::string_view topic, const ArrayView &array, uint8_t memory_block_id)
+void MessageBroker::PublishArray(std::string_view topic, const ArrayView &array, uint8_t memory_block_id)
 {
 	Uuid trace_id;
 	Uuid::Generate(&trace_id);
 
-	PublishData(topic, array, trace_id, memory_block_id);
+	PublishArray(topic, array, trace_id, memory_block_id);
 }
 
-void MessageBroker::PublishData(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id)
+void MessageBroker::PublishArray(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id)
 {
 	auto message = PrepareMessage(topic, array.info.GetSizeInBytes(), trace_id, memory_block_id);
 

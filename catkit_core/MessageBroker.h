@@ -228,10 +228,10 @@ public:
 	void PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id = 0);
 
 	// Convenience function for publishing an array.
-	void PublishData(std::string_view topic, const ArrayView &array, uint8_t memory_block_id = 0);
+	void PublishArray(std::string_view topic, const ArrayView &array, uint8_t memory_block_id = 0);
 
 	// Convenience function for publishing an array with a trace ID.
-	void PublishData(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id = 0);
+	void PublishArray(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id = 0);
 
 	// Try to get a message by topic and frame ID.
 	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
