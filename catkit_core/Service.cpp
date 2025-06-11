@@ -131,6 +131,9 @@ void Service::Run(void (*error_check)())
 		std::uint64_t timestamp = GetTimeStamp();
 		m_Heartbeat->SubmitData(&timestamp);
 
+		ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
+		m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
+
 		// Start the safety and heartbeat threads.
 		std::thread safety(&Service::MonitorSafety, this);
 		std::thread heartbeat(&Service::MonitorHeartbeats, this);
@@ -210,6 +213,10 @@ void Service::Run(void (*error_check)())
 	// Set heartbeat timestamp to zero to signal a dead service.
 	std::uint64_t timestamp = 0;
 	m_Heartbeat->SubmitData(&timestamp);
+
+	ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
+	m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
+
 
 	CleanupAttributes();
 }
@@ -296,6 +303,9 @@ void Service::MonitorHeartbeats()
 		// Update my own heartbeat.
 		std::uint64_t timestamp = GetTimeStamp();
 		m_Heartbeat->SubmitData(&timestamp);
+
+		ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
+		m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
 
 		// Check the testbed heartbeat.
 		if (!m_Testbed->IsAlive())
