@@ -4,7 +4,7 @@
 
 FitsFile::FitsFile(std::string fname, std::string hdu_name)
 {
-	int status;
+	int status = 0;
 
 	if (fits_open_file(&m_File, fname.c_str(), READONLY, &status))
 	{
@@ -22,13 +22,13 @@ FitsFile::FitsFile(std::string fname, std::string hdu_name)
 
 FitsFile::~FitsFile()
 {
-	int status;
+	int status = 0;
 	fits_close_file(m_File, &status);
 }
 
 int FitsFile::GetNDim()
 {
-	int status;
+	int status = 0;
 	int naxis;
 	if (fits_get_img_dim(m_File, &naxis, &status))
 	{
@@ -41,7 +41,7 @@ int FitsFile::GetNDim()
 
 std::vector<long> FitsFile::GetShape()
 {
-	int status;
+	int status = 0;
 
 	std::vector<long> shape;
 	shape.resize(GetNDim());
@@ -66,8 +66,9 @@ long FitsFile::GetSize()
 
 int FitsFile::GetDataType()
 {
-	int status;
+	int status = 0;
 	int bitpix;
+
 	if (fits_get_img_type(m_File, &bitpix, &status))
 	{
 		fits_report_error(stderr, status);

@@ -70,8 +70,9 @@ struct type_to_bitpix<double>
 template<typename T>
 std::vector<T> FitsFile::GetData()
 {
-	int status;
+	int status = 0;
 	int anynulls;
+
 	std::vector<T> data;
 	data.resize(GetSize());
 
@@ -91,7 +92,8 @@ std::vector<T> FitsFile::GetData()
 template<typename T>
 std::vector<T> FitsFile::GetDataCasted()
 {
-	int status;
+	int status = 0;
+
 	std::vector<T> data;
 	data.resize(GetSize());
 
