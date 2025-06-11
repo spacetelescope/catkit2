@@ -7,6 +7,7 @@ import socket
 import threading
 import contextlib
 import importlib
+import fasteners
 
 import psutil
 import zmq
@@ -74,6 +75,26 @@ def get_unused_port(num_ports=1):
         return ports[0]
 
     return ports
+
+
+def create_shared_memory(name, size):
+    '''Create an empty shared memory object, even if it already existed.
+
+    Parameters
+    ----------
+    name : str
+        The name of the shared memory object.
+    size : int
+        The size in bytes of the shared memory object.
+    '''
+    try:
+        return SharedMemory.create(name, size)
+    except RuntimeError:
+        # Try to open and destroy and try again.
+        shm = SharedMemory.open(name)
+        shm.destroy()
+
+        return SharedMemory.create(name, size)
 
 
 class ServiceReference:
@@ -196,6 +217,16 @@ class Testbed:
         self.host = '127.0.0.1'
         self.port = port
 
+        # Set a lock file so that no more than one testbed object exists for a specific port.
+        if os.name == 'nt':
+            lock_path = os.path.join(os.getenv('TEMP'), f'catkit2_{port}.lock')
+        else:
+            lock_path = f'/tmp/catkit2_{port}.lock'
+
+        self.lock = fasteners.InterProcessLock(lock_path)
+        if not self.lock.acquire(blocking=False):
+            raise RuntimeError(f'Another testbed object is already running on port {port}.')
+
         self.host_name = get_host_name()
 
         self.logging_ingress_port = 0
@@ -303,8 +334,8 @@ class Testbed:
         self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
 
         # Create a message broker.
-        self.message_broker_header = SharedMemory.create(f'catkit_broker_{port}', 1024 * 1024 * 256)
-        self.message_broker_buffer = SharedMemory.create(f'catkit_broker_{port}_buffer', 1024 * 1024 * 1024 * 2)
+        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 256)
+        self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
 
         self.message_broker = MessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
 

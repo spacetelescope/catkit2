@@ -55,6 +55,9 @@ public:
 	static std::shared_ptr<SharedMemory> Open(StructStream &stream);
 	static std::shared_ptr<SharedMemory> Open(std::string_view fname);
 
+	// Destroy the shared memory object, even if we are not the owner.
+	void Destroy();
+
 	virtual void *GetAddress(std::size_t offset = 0) override;
 	virtual std::size_t GetCapacity() const override;
 	virtual void WriteReference(StructStream &stream) override;

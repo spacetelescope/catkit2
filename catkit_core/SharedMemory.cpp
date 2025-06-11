@@ -224,6 +224,15 @@ SharedMemory::SharedMemory(std::string_view fname, FileObject file, bool is_owne
 #endif // _WIN32
 }
 
+void SharedMemory::Destroy()
+{
+#ifdef _WIN32
+	throw std::runtime_error("Destroying shared memory is not possible on Windows. Close the process using the shared memory instead.");
+#else
+	shm_unlink(m_FileName.c_str());
+#endif
+}
+
 void *SharedMemory::GetAddress(std::size_t offset)
 {
 	return static_cast<char *>(m_Buffer) + sizeof(Header) + offset;
