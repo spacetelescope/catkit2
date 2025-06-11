@@ -3,6 +3,10 @@
 
 #include <array>
 #include <stdexcept>
+#include <iostream>
+
+//#define DEBUG_PRINT(a) std::cout << a << std::endl
+#define DEBUG_PRINT(a)
 
 const std::array<std::uint8_t, 4> HYBRID_POOL_ALLOCATOR_VERSION = {0, 0, 0, 0};
 
@@ -66,6 +70,8 @@ std::size_t HybridPoolAllocator::GetSharedStateSize(std::size_t capacity, std::s
 
 HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 {
+	DEBUG_PRINT("HybridPoolAllocator::Allocate(" << size << ")");
+
 	size = round_up_to_power_of_2(size);
 
 	if (size < m_MinSize)
@@ -73,6 +79,8 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 
 	if (size >= m_MinSizePool)
 	{
+		DEBUG_PRINT("size is too large for pools");
+
 		// The size is too large to use pools. Defer to the buddy allocator.
 		return m_Allocator->Allocate(size);
 	}
@@ -80,16 +88,21 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 	std::size_t level = GetLevelFromSize(size);
 	Bucket &bucket = GetBucket(level);
 
+	DEBUG_PRINT("level: " << level);
+
 	// Loop over the pools in the bucket and find a pool with an available slot.
 	for (auto it = bucket.rbegin(); it < bucket.rend(); ++it)
 	{
 		Handle handle = *it;
 		Pool &pool = m_Pools[handle];
 
+		DEBUG_PRINT("pool: " << handle << " " << pool.map);
+
 		auto val_inv = ~(pool.map);
 
 		if (val_inv == 0)
 		{
+			DEBUG_PRINT("pool is full");
 			// No slots available in this pool. Move to the next.
 			continue;
 		}
@@ -101,15 +114,24 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 
 		if (~(pool.map) == 0)
 		{
+			DEBUG_PRINT("pool became full");
+
+			// No slots available in this pool. Move to the
 			// The pool is full. Remove it from the bucket.
 			bucket.erase(std::next(it).base());
 		}
 
+		DEBUG_PRINT("returning " << (handle << 6) + sub_handle);
+
 		// Set the reference count.
 		pool.ref_counts[sub_handle].Reset();
 
+		DEBUG_PRINT("Reset reference count to 1");
+
 		return (handle << 6) + sub_handle;
 	}
+
+	DEBUG_PRINT("no slot available, allocating new pool.");
 
 	// No slot in any pool was available. Allocate a new pool.
 	auto new_handle = m_Allocator->Allocate(size * 64);
@@ -126,6 +148,8 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 	// Set the map and reset the reference count of this slot.
 	pool.map = 1;
 	pool.ref_counts[0].Reset();
+
+	DEBUG_PRINT("set pool parameters and returning " << new_handle);
 
 	return new_handle << 6;
 }
@@ -158,28 +182,41 @@ bool HybridPoolAllocator::Acquire(Handle handle)
 
 bool HybridPoolAllocator::Release(Handle handle)
 {
+	DEBUG_PRINT("Releasing " << handle);
+
 	// Get the level of this block.
 	std::size_t level = GetLevelFromHandle(handle);
 
 	// Get the size of blocks at this level.
 	std::size_t size = m_Capacity >> level;
 
+	DEBUG_PRINT("Level " << level << ", size " << size);
+
 	if (size >= m_MinSizePool)
 	{
+		DEBUG_PRINT("Block is in the parent allocator. Releasing it from there.");
+
 		// This is a block in the allocator.
 		return m_Allocator->Release(handle);
 	}
 	else
 	{
+		DEBUG_PRINT("Block is in one of our pools.");
+
 		// This is a block in one of our pools. Find cache handle and sub handle.
 		BuddyAllocator::Handle pool_handle = handle >> 6;
 		Handle sub_handle = (handle & ((1 << 6) - 1));
 		std::uint64_t mask = 1ull << sub_handle;
 
+		DEBUG_PRINT("Pool handle " << pool_handle << ", sub handle " << sub_handle);
+		DEBUG_PRINT("Mask " << mask);
+
 		Pool &pool = m_Pools[pool_handle];
 
 		if (!pool.ref_counts[sub_handle].Decrement())
 		{
+			DEBUG_PRINT("Block still has references.");
+
 			// Someone else is still owning this slot. Return.
 			return false;
 		}
@@ -190,6 +227,8 @@ bool HybridPoolAllocator::Release(Handle handle)
 		// we free the slot.
 		if (~(pool.map) == 0)
 		{
+			DEBUG_PRINT("Pool will have a new empty slot. Adding back to the bucket.");
+
 			bucket.emplace_back(pool_handle);
 		}
 
@@ -205,6 +244,8 @@ bool HybridPoolAllocator::Release(Handle handle)
 			auto it = std::find(bucket.begin(), bucket.end(), pool_handle);
 			bucket.erase(it);
 		}
+
+		DEBUG_PRINT("Successful deallocation.");
 
 		return true;
 	}
