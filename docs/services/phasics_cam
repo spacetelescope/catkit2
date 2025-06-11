@@ -4,13 +4,8 @@ Phasics Camera
 This service operates a Phasics SID4 camera using the Phasics SDK for communication and PySID4x python library. It handles image acquisition, and by default returns Phase Maps as images. For raw intensity values see the 'intensity' data stream.
 
 .. note::
-    The Phasics Camera requires the Phasics SDK and PySID4x Python package to be installed and configured correctly.
-
-    The service communicates with the camera using the Phasics SDK API.
-
-    Ensure that the camera is properly connected and recognized by the system. 
-
-    To get a copy of the Phasics SDK and PySID4x python package please contact Phasics directly for customer support.
+    The Phasics Camera requires the Phasics SDK and PySID4x Python package to be installed and configured correctly. To get a copy of the Phasics SDK and PySID4x python package please contact Phasics directly for customer support.
+    
 
 Configuration
 -------------
