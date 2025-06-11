@@ -266,6 +266,12 @@ class Testbed:
         if self.is_simulated:
             self.startup_services.append('simulator')
 
+        # Create a message broker.
+        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 1024)
+        self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
+
+        self.message_broker = LocalMessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
+
         # Fill in services dictionary.
         for service_id, service_info in self.config['services'].items():
             service_type = service_info['service_type']
@@ -345,12 +351,6 @@ class Testbed:
         self.shutdown_flag = threading.Event()
 
         self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
-
-        # Create a message broker.
-        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 1024)
-        self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
-
-        self.message_broker = LocalMessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
 
     def run(self):
         '''Run the main loop of the server.
