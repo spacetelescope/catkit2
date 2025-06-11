@@ -34,6 +34,7 @@ Catkit2
    services/nkt_superk
    services/oceanoptics_spectrometer
    services/omega_ithx_w3
+   services/phasics_cam
    services/safety_manual_check
    services/safety_monitor
    services/snmp_ups

@@ -1,0 +1,68 @@
+Phasics Camera
+=========================
+
+This service operates a Phasics SID4 camera using the Phasics SDK for communication and PySID4x python library. It handles image acquisition, and by default returns Phase Maps as images. For raw intensity values see the 'intensity' data stream.
+
+.. note::
+    The Phasics Camera requires the Phasics SDK and PySID4x Python package to be installed and configured correctly.
+
+    The service communicates with the camera using the Phasics SDK API.
+
+    Ensure that the camera is properly connected and recognized by the system. 
+
+    To get a copy of the Phasics SDK and PySID4x python package please contact Phasics directly for customer support.
+
+Configuration
+-------------
+
+.. code-block:: YAML
+
+phasics_cam:
+  service_type: phasics_cam
+  simulated_service_type: phasics_cam_sim
+  interface: camera
+  mode: normal
+  mask: !path "../../data/phasics/2025-01-28 full aperture.msk"
+  dll_path: C:/path/to/SID4_SDK_x86_64/lib
+  usr_profile_path: C:/path/to/SID4_SDK_x86_64/Examples/UserProfiles/SID4-1481/SID4-1481.txt
+  wavelength: 633.0
+  buffer_frames: 16
+  requires_safety: false
+  exposure_time: 504
+
+Properties
+-----------
+``exposure_time``: Exposure time in milliseconds.
+
+``mode``: 'normal' mode operates the camera. 'dummy' mode generates fake data for testing signal chain.
+
+``wavelength``: The wavelength in (nm) of the camera
+
+``mask``: the location of the camera mask
+
+``dll_path``: the location of the SID4 SDK
+
+``usr_profile_path``: the location of hte SID4 SDK user profile
+
+``buffer frames``: number of buffered frames in the catkit2 datastream
+
+Commands
+-----------
+``take_measurement``: Acquires a single measurement from the Phasics camera.
+
+``start_acquisition``: Begins continuous image acquisition from the camera.
+
+``end_acquisition``: Stops the continuous image acquisition.
+
+``phase_filtering``: Applies phase filtering to the acquired images using supplied zernike projection coefficients
+
+``phase_projection``: Performs zernike phase projection on the acquired images.
+
+
+Datastreams
+-----------
+``images``: The acquired (Phase map) images from the Phasics camera.
+
+``is_acquiring``: Indicates whether the service is currently acquiring data (True for acquiring, False for not acquiring).
+
+``intensity``: The acquired intensity images from Phasics camera.
