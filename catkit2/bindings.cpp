@@ -941,10 +941,23 @@ PYBIND11_MODULE(catkit_bindings, m)
 			info.item_size = dtype.itemsize();
 			info.byte_order = dtype.byteorder();
 		})
-		.def_property("item_size", [](ArrayInfo &info) { return info.item_size; }, [](ArrayInfo &info, uint8_t value) { info.item_size = value; })
-		.def_property("ndim", [](ArrayInfo &info) { return info.ndim; }, [](ArrayInfo &info, uint8_t value) { info.ndim = value; })
-		.def_property("shape", [](const ArrayInfo& ai) {
-			return std::vector<uint32_t>(ai.shape.begin(), ai.shape.end());
+		.def_property("item_size", [](ArrayInfo &info)
+		{
+			return info.item_size;
+		}, [](ArrayInfo &info, uint8_t value)
+		{
+			info.item_size = value;
+		})
+		.def_property("ndim", [](ArrayInfo &info)
+		{
+			return info.ndim;
+		}, [](ArrayInfo &info, uint8_t value)
+		{
+			info.ndim = value;
+		})
+		.def_property("shape", [](const ArrayInfo& ai)
+		{
+			return std::vector<uint32_t>(ai.shape.begin(), ai.shape.begin() + ai.ndim);
 		}, [](ArrayInfo &info, const py::list &value)
 		{
 			info.ndim = static_cast<uint8_t>(value.size());
@@ -955,7 +968,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def_property("strides", [](const ArrayInfo& ai)
 		{
-			return std::vector<uint32_t>(ai.strides.begin(), ai.strides.end());
+			return std::vector<uint32_t>(ai.strides.begin(), ai.strides.begin() + ai.ndim);
 		}, [](ArrayInfo &info, const py::list &value)
 		{
 			info.ndim = static_cast<uint8_t>(value.size());
