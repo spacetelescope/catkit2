@@ -237,12 +237,30 @@ bool HybridPoolAllocator::Release(Handle handle)
 
 		if (pool.map == 0)
 		{
-			// The pool is now empty.
-			m_Allocator->Release(pool_handle);
+			DEBUG_PRINT("Pool is now fully empty. Releasing the pool itself.");
 
-			// Find the pool in the bucket.
+			DEBUG_PRINT("Also removing the pool from our bucket.");
+			DEBUG_PRINT("Searching for " << pool_handle);
+			DEBUG_PRINT("Bucket: ");
+			for (auto &pool_handle : bucket)
+			{
+				DEBUG_PRINT("  " << pool_handle);
+			}
+
 			auto it = std::find(bucket.begin(), bucket.end(), pool_handle);
-			bucket.erase(it);
+
+			// Only release the pool if we own the bucket. Otherwise, the original owner will
+			// reuse it.
+			if (it != bucket.end())
+			{
+				// Release the pool.
+				m_Allocator->Release(pool_handle);
+
+				// Remove the pool rom the bucket.
+				bucket.erase(it);
+			}
+
+			DEBUG_PRINT("Done.");
 		}
 
 		DEBUG_PRINT("Successful deallocation.");
