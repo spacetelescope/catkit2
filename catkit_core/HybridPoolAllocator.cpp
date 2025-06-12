@@ -15,6 +15,22 @@ HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_s
 {
 }
 
+HybridPoolAllocator::~HybridPoolAllocator()
+{
+	// Release all pools.
+	// The pools will be deallocated when all slots are released.
+	for (size_t i = 0; i < m_Buckets.Size(); ++i)
+	{
+		auto &buckets = m_Buckets[i];
+
+		for (auto &bucket : buckets)
+		{
+			for (auto &pool : bucket)
+				m_Allocator->Release(pool);
+		}
+	}
+}
+
 std::shared_ptr<HybridPoolAllocator> HybridPoolAllocator::Create(StructStream &stream, std::size_t capacity, std::size_t min_size, std::size_t min_size_pool)
 {
 	*stream.Extract<std::array<std::uint8_t, 4>>() = HYBRID_POOL_ALLOCATOR_VERSION;
