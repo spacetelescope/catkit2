@@ -559,7 +559,6 @@ std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic
 		return FetchMessage(topic_header, new_frame_id);
 
 	// Otherwise, wait for it.
-	auto lock = EventLockGuard(m_Event);
 	m_Event->Wait(timeout_in_seconds, [topic_header, new_frame_id]() { return topic_header->last_frame_id > new_frame_id; }, wait_type, error_check);
 
 	return FetchMessage(topic_header, new_frame_id);

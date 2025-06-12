@@ -2,6 +2,7 @@
 
 #include "Timing.h"
 #include "HostName.h"
+#include "LocalMessageBroker.h"
 #include "testbed.pb.h"
 
 #include <memory>
@@ -382,7 +383,7 @@ void TestbedProxy::GetTestbedInfo()
 
 	m_MessageBrokerHeader = SharedMemory::Open(reply.message_broker_id());
 	StructStream stream = StructStream(m_MessageBrokerHeader);
-	m_MessageBroker = MessageBroker::Open(stream);
+	m_MessageBroker = LocalMessageBroker::Open(stream);
 
 	m_LoggingIngressPort = reply.logging_ingress_port();
 	m_LoggingEgressPort = reply.logging_egress_port();
