@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
+#include <cstring>
 
 // Decay rate for the frame rate estimate in 1/sec.
 const double FRAMERATE_DECAY = 2.5;
@@ -24,24 +25,6 @@ T fetch_max(std::atomic<T> &atom, T value)
 	}
 
 	return current;
-}
-
-std::size_t ArrayInfo::GetNumItems() const
-{
-	std::size_t num_items = 1;
-
-	for (std::size_t i = 0; i < ndim; ++i)
-	{
-		num_items *= shape[i];
-	}
-
-	return num_items;
-}
-
-std::size_t ArrayInfo::GetNumBytes() const
-{
-	std::size_t num_items = GetNumItems();
-	return num_items * item_size;
 }
 
 class SubtopicIterator
@@ -535,17 +518,23 @@ void MessageBroker::PublishData(std::string_view topic, const void *data, size_t
 	PublishMessage(message);
 }
 
-void MessageBroker::PublishData(std::string_view topic, const Tensor &tensor, uint8_t memory_block_id)
+void MessageBroker::PublishArray(std::string_view topic, const ArrayView &array, uint8_t memory_block_id)
 {
 	Uuid trace_id;
 	Uuid::Generate(&trace_id);
 
-	PublishData(topic, tensor, trace_id, memory_block_id);
+	PublishArray(topic, array, trace_id, memory_block_id);
 }
 
-void MessageBroker::PublishData(std::string_view topic, const Tensor &tensor, Uuid trace_id, uint8_t memory_block_id)
+void MessageBroker::PublishArray(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id)
 {
-	// TODO.
+	auto message = PrepareMessage(topic, array.info.GetSizeInBytes(), trace_id, memory_block_id);
+
+	// Copy over array and array info.
+	std::memcpy(message.m_Payload, array.data, array.info.GetSizeInBytes());
+	message.SetArrayInfo(array.info);
+
+	PublishMessage(message);
 }
 
 std::optional<Message> MessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
@@ -762,9 +751,9 @@ void Message::SetArrayInfo(const ArrayInfo &array_info)
 	m_Header->payload_info.array_info = array_info;
 }
 
-void *Message::GetPayload() const
+ArrayView Message::GetPayload() const
 {
-	return m_Payload;
+	return {m_Header->payload_info.array_info, m_Payload};
 }
 
 std::size_t Message::GetPayloadSize() const

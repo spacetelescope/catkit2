@@ -9,7 +9,7 @@
 #include "LocalMemory.h"
 #include "CudaSharedMemory.h"
 #include "Uuid.h"
-#include "Tensor.h"
+#include "ArrayView.h"
 
 #include <memory>
 #include <array>
@@ -25,7 +25,6 @@ const size_t HOST_NAME_SIZE = 64;
 const size_t METADATA_MAX_STRLEN = 8;
 const size_t METADATA_MAX_KEYLEN = 7;
 const size_t MAX_NUM_MESSAGES = 65536;
-const size_t MAX_NUM_DIMENSIONS = 4;
 const size_t MAX_NUM_METADATA_ENTRIES = 12;
 const size_t MAX_SHARED_MEMORY_ID_SIZE = 64;
 const size_t MAX_NUM_BLOCKS = 8192;
@@ -54,19 +53,6 @@ struct MetadataEntry
 	std::array<char, METADATA_MAX_KEYLEN> key;
 	MetadataType type;
 	MetadataValue value;
-};
-
-struct ArrayInfo
-{
-	char data_type;
-	char byte_order;
-	std::uint8_t item_size;
-	std::uint8_t ndim;
-	std::uint32_t shape[MAX_NUM_DIMENSIONS];
-	std::uint32_t strides[MAX_NUM_DIMENSIONS];
-
-	std::size_t GetNumItems() const;
-	std::size_t GetNumBytes() const;
 };
 
 struct PayloadInfo
@@ -157,7 +143,7 @@ public:
 	const ArrayInfo &GetArrayInfo() const;
 	void SetArrayInfo(const ArrayInfo &array_info);
 
-	void *GetPayload() const;
+	ArrayView GetPayload() const;
 	std::size_t GetPayloadSize() const;
 
 	MetadataEntry *GetMetadataEntry(std::string_view key, bool create_if_not_exists = false);
@@ -241,11 +227,11 @@ public:
 	// Convenience function for publishing data with a trace ID.
 	void PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id = 0);
 
-	// Convenience function for publishing a tensor.
-	void PublishData(std::string_view topic, const Tensor &tensor, uint8_t memory_block_id = 0);
+	// Convenience function for publishing an array.
+	void PublishArray(std::string_view topic, const ArrayView &array, uint8_t memory_block_id = 0);
 
-	// Convenience function for publishing a tensor with a trace ID.
-	void PublishData(std::string_view topic, const Tensor &tensor, Uuid trace_id, uint8_t memory_block_id = 0);
+	// Convenience function for publishing an array with a trace ID.
+	void PublishArray(std::string_view topic, const ArrayView &array, Uuid trace_id, uint8_t memory_block_id = 0);
 
 	// Try to get a message by topic and frame ID.
 	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);

@@ -35,6 +35,7 @@
 #include "HybridPoolAllocator.h"
 #include "Event.h"
 #include "Uuid.h"
+#include "ArrayView.h"
 
 #include "testbed.pb.h"
 
@@ -289,24 +290,24 @@ py::dtype DtypeToPython(const ArrayInfo *array_info)
 	return py::dtype(dtype_buf);
 }
 
-py::array ToPython(void *payload, const ArrayInfo *array_info)
+py::array ToPython(const ArrayView &array)
 {
-	auto dtype = DtypeToPython(array_info);
+	auto dtype = DtypeToPython(&array.info);
 
-	std::vector<py::ssize_t> shape(array_info->ndim);
-	std::vector<py::ssize_t> strides(array_info->ndim);
+	std::vector<py::ssize_t> shape(array.info.ndim);
+	std::vector<py::ssize_t> strides(array.info.ndim);
 
-	for (size_t i = 0; i < array_info->ndim; ++i)
+	for (size_t i = 0; i < array.info.ndim; ++i)
 	{
-		shape[i] = array_info->shape[i];
-		strides[i] = array_info->strides[i];
+		shape[i] = array.info.shape[i];
+		strides[i] = array.info.strides[i];
 	}
 
 	return py::array(
 		dtype,
 		shape,
 		strides,
-		payload
+		array.data
 	);
 }
 
@@ -940,10 +941,23 @@ PYBIND11_MODULE(catkit_bindings, m)
 			info.item_size = dtype.itemsize();
 			info.byte_order = dtype.byteorder();
 		})
-		.def_property("item_size", [](ArrayInfo &info) { return info.item_size; }, [](ArrayInfo &info, uint8_t value) { info.item_size = value; })
-		.def_property("ndim", [](ArrayInfo &info) { return info.ndim; }, [](ArrayInfo &info, uint8_t value) { info.ndim = value; })
-		.def_property("shape", [](const ArrayInfo& ai) {
-			return std::vector<uint32_t>(ai.shape, ai.shape + ai.ndim);
+		.def_property("item_size", [](ArrayInfo &info)
+		{
+			return info.item_size;
+		}, [](ArrayInfo &info, uint8_t value)
+		{
+			info.item_size = value;
+		})
+		.def_property("ndim", [](ArrayInfo &info)
+		{
+			return info.ndim;
+		}, [](ArrayInfo &info, uint8_t value)
+		{
+			info.ndim = value;
+		})
+		.def_property("shape", [](const ArrayInfo& ai)
+		{
+			return std::vector<uint32_t>(ai.shape.begin(), ai.shape.begin() + ai.ndim);
 		}, [](ArrayInfo &info, const py::list &value)
 		{
 			info.ndim = static_cast<uint8_t>(value.size());
@@ -954,7 +968,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def_property("strides", [](const ArrayInfo& ai)
 		{
-			return std::vector<uint32_t>(ai.strides, ai.strides + ai.ndim);
+			return std::vector<uint32_t>(ai.strides.begin(), ai.strides.begin() + ai.ndim);
 		}, [](ArrayInfo &info, const py::list &value)
 		{
 			info.ndim = static_cast<uint8_t>(value.size());
@@ -963,8 +977,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 				info.strides[i] = static_cast<uint32_t>(py::cast<int64_t>(value[i]));
 			}
 		})
-		.def_property_readonly("num_items", &ArrayInfo::GetNumItems)
-		.def_property_readonly("num_bytes", &ArrayInfo::GetNumBytes);
+		.def_property_readonly("size", &ArrayInfo::GetSize)
+		.def_property_readonly("num_bytes", &ArrayInfo::GetSizeInBytes);
 
 	py::class_<Message>(m, "Message")
 		.def_property_readonly("topic", &Message::GetTopic)
@@ -975,7 +989,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("producer_timestamp", &Message::GetProducerTimestamp)
 		.def_property("array_info", &Message::GetArrayInfo, &Message::SetArrayInfo)
 		.def_property("payload", [](const Message& m) {
-			return ToPython(m.GetPayload(), &m.GetArrayInfo());
+			return ToPython(m.GetPayload());
 		},
 		[](Message &m, py::buffer data)
 		{
@@ -990,15 +1004,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 				throw std::runtime_error("The array is too high-dimensional.");
 
 			// Copy over the shape and strides.
-			std::transform(buffer_info.shape.begin(), buffer_info.shape.end(), array_info.shape, [](const auto& val) { return static_cast<uint32_t>(val); });
-			std::transform(buffer_info.strides.begin(), buffer_info.strides.end(), array_info.strides, [](const auto& val) { return static_cast<uint32_t>(val); });
+			std::transform(buffer_info.shape.begin(), buffer_info.shape.end(), array_info.shape.begin(), [](const auto& val) { return static_cast<uint32_t>(val); });
+			std::transform(buffer_info.strides.begin(), buffer_info.strides.end(), array_info.strides.begin(), [](const auto& val) { return static_cast<uint32_t>(val); });
 
 			// Make sure our buffer is large enough.
-			if (array_info.GetNumBytes() > m.GetPayloadSize())
+			if (array_info.GetSizeInBytes() > m.GetPayloadSize())
 				throw std::runtime_error("The buffer is too small.");
 
 			// All checks are complete. Let's copy the raw data.
-			std::memcpy(m.GetPayload(), buffer_info.ptr, array_info.GetNumBytes());
+			std::memcpy(m.GetPayload().data, buffer_info.ptr, array_info.GetSizeInBytes());
 			m.SetArrayInfo(array_info);
 		})
 		.def_property_readonly("payload_size", &Message::GetPayloadSize)
@@ -1121,6 +1135,40 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("data"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("publish_array", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::array array, py::object trace_id, std::uint8_t memory_block_id)
+		{
+			ArrayInfo info;
+
+			auto dtype = array.dtype();
+			info.data_type = dtype.kind();
+			info.item_size = dtype.itemsize();
+			info.byte_order = dtype.byteorder();
+
+			if (array.ndim() > MAX_NUM_DIMENSIONS)
+				throw std::runtime_error("Array dimension is too large.");
+
+			info.ndim = array.ndim();
+
+			for (size_t i = 0; i < info.ndim; ++i)
+			{
+				info.shape[i] = array.shape()[i];
+				info.strides[i] = array.strides()[i];
+			}
+
+			if (!info.IsCContiguous() && !info.IsFContiguous())
+				throw std::runtime_error("Array has to be either C or F contiguous.");
+
+			// All checks are complete. Let's copy/submit the raw data.
+			const ArrayView array_view{info, array.mutable_data()};
+			if (trace_id.is_none())
+			{
+				broker->PublishArray(topic, array_view, memory_block_id);
+			}
+			else
+			{
+				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
 		.def("try_get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
 		{
 			auto res = broker->TryGetMessage(topic, frame_id);
