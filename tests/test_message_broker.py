@@ -69,7 +69,7 @@ def test_message_dtype_and_shape(broker, shape, dtype):
 
     assert np.all(arr == retrieved_message.payload)
     assert retrieved_message.payload.dtype == dtype
-    assert np.allclose(retrieved_message.payload.shape, shape)
+    assert np.array_equal(retrieved_message.payload.shape, shape)
     assert retrieved_message.payload.nbytes == arr.nbytes
     assert retrieved_message.payload.size == arr.size
     assert retrieved_message.payload.itemsize == arr.itemsize
@@ -81,7 +81,7 @@ def test_message_broker_publish_array(broker):
     broker.publish_array('test_array', arr)
 
     msg = broker.get_newest_message('test_array')
-    assert np.allclose(msg.payload, arr)
+    assert np.array_equal(msg.payload, arr)
 
 def test_message_broker_publish_data(broker):
     data = b'abcd'
