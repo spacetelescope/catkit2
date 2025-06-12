@@ -27,3 +27,5 @@ None.
 Datastreams
 -----------
 ``power``: The measured power in W.
+
+``dark``: The measured dark level in W.
