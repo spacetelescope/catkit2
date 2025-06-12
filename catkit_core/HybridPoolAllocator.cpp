@@ -98,11 +98,18 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 
 		DEBUG_PRINT("pool: " << handle << " " << pool.map);
 
+		// Attempt to increment the ref counter of the pool before we start messing with it.
+		if (!m_Allocator->Acquire(handle))
+			continue;
+
 		auto val_inv = ~(pool.map);
 
 		if (val_inv == 0)
 		{
 			DEBUG_PRINT("pool is full");
+
+			m_Allocator->Release(handle);
+
 			// No slots available in this pool. Move to the next.
 			continue;
 		}
@@ -140,6 +147,9 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 	{
 		throw std::runtime_error("Failed to allocate a new pool.");
 	}
+
+	// Increment ref count for the slot in the pool.
+	m_Allocator->Acquire(new_handle);
 
 	Pool &pool = m_Pools[new_handle];
 
@@ -235,9 +245,15 @@ bool HybridPoolAllocator::Release(Handle handle)
 		// Update the pool bitmap.
 		pool.map &= ~mask;
 
+		// Decrement the ref count of the pool to account for the slot being released.
+		m_Allocator->Release(pool_handle);
+
 		if (pool.map == 0)
 		{
 			DEBUG_PRINT("Pool is now fully empty. Releasing the pool itself.");
+
+			// Release the pool. We're the owner so we are guaranteed to be successful.
+			m_Allocator->Release(pool_handle);
 
 			DEBUG_PRINT("Also removing the pool from our bucket.");
 			DEBUG_PRINT("Searching for " << pool_handle);
@@ -249,14 +265,10 @@ bool HybridPoolAllocator::Release(Handle handle)
 
 			auto it = std::find(bucket.begin(), bucket.end(), pool_handle);
 
-			// Only release the pool if we own the bucket. Otherwise, the original owner will
-			// reuse it.
+			// Check if we own the pool (ie. if it was in our bucket).
 			if (it != bucket.end())
 			{
-				// Release the pool.
-				m_Allocator->Release(pool_handle);
-
-				// Remove the pool rom the bucket.
+				// Remove the pool from our bucket so that we don't reuse it anymore.
 				bucket.erase(it);
 			}
 
