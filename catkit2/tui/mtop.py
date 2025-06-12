@@ -78,18 +78,9 @@ def main():
         sys.exit(1)
 
     shared_memory_id = args[1]
-    buffer_id = 'buffer'
 
-    try:
-        header = SharedMemory.create(shared_memory_id, 1024 * 1024 * 512)
-    except Exception:
-        header = SharedMemory.open(shared_memory_id)
-
-    try:
-        buffer = SharedMemory.create(buffer_id, 1024 * 1024 * 512)
-    except Exception:
-        buffer = SharedMemory.open(buffer_id)
-    broker = MessageBroker.create(header, [buffer])
+    header = SharedMemory.open(shared_memory_id)
+    broker = MessageBroker.open(header)
 
     DATA_KEYS = ["topic", "pid", "last_updated", "frame_rate", "shape", "dtype", "value"]
     SORT_OPTIONS = DATA_KEYS.copy()
@@ -97,7 +88,6 @@ def main():
     DEFAULT_SORT_ORDER = {"topic": False, "pid": False, "last_updated": True, "frame_rate": True, "shape": True, "dtype": False, "value": False}  # Default sort order
 
     update_interval = 0.1
-
 
     def draw_ui(stdscr):
         curses.curs_set(0)  # Hide cursor
