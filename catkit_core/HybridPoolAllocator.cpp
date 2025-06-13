@@ -26,9 +26,16 @@ HybridPoolAllocator::~HybridPoolAllocator()
 		for (auto &bucket : buckets)
 		{
 			for (auto &pool : bucket)
+			{
+				DEBUG_PRINT("Releasing pool " << pool);
+
 				m_Allocator->Release(pool);
+			}
+			DEBUG_PRINT("Done with bucket.");
 		}
+		DEBUG_PRINT("Done with buckets for this thread.");
 	}
+	DEBUG_PRINT("Done with all buckets.");
 }
 
 std::shared_ptr<HybridPoolAllocator> HybridPoolAllocator::Create(StructStream &stream, std::size_t capacity, std::size_t min_size, std::size_t min_size_pool)
@@ -114,9 +121,8 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 
 		DEBUG_PRINT("pool: " << handle << " " << pool.map);
 
-		// Attempt to increment the ref counter of the pool before we start messing with it.
-		if (!m_Allocator->Acquire(handle))
-			continue;
+		// Increment the ref counter of the pool before we start messing with it.
+		m_Allocator->Acquire(handle);
 
 		auto val_inv = ~(pool.map);
 
@@ -175,13 +181,15 @@ HybridPoolAllocator::Handle HybridPoolAllocator::Allocate(std::size_t size)
 	pool.map = 1;
 	pool.ref_counts[0].Reset();
 
-	DEBUG_PRINT("set pool parameters and returning " << new_handle);
+	DEBUG_PRINT("set pool parameters and returning " << (new_handle << 6));
 
 	return new_handle << 6;
 }
 
 bool HybridPoolAllocator::Acquire(Handle handle)
 {
+	DEBUG_PRINT("Acquiring " << handle);
+
 	// Get the level of this block.
 	std::size_t level = GetLevelFromHandle(handle);
 
@@ -201,7 +209,6 @@ bool HybridPoolAllocator::Acquire(Handle handle)
 		std::uint64_t mask = 1ull << sub_handle;
 
 		Pool &pool = m_Pools[pool_handle];
-
 		return pool.ref_counts[sub_handle].Increment();
 	}
 }

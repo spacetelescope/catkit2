@@ -171,7 +171,8 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 
 			if (failed_at == INVALID_HANDLE)
 			{
-				DEBUG_PRINT("Sucessful at node " << i);
+				DEBUG_PRINT("Successful at node " << i);
+				DEBUG_PRINT("Ref count = " << (m_Tree[i].load(std::memory_order_relaxed) & REF_MASK));
 
 				m_LastSuccessfulAllocation[level].store(i, std::memory_order_relaxed);
 				return i;
@@ -193,16 +194,23 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 
 bool BuddyAllocator::Acquire(Handle handle)
 {
+	DEBUG_PRINT("Acquiring handle " << handle);
+
+	DEBUG_PRINT("Ref count = " << ((m_Tree[handle].load(std::memory_order_relaxed) & REF_MASK) + 1));
+
 	// Increment the reference counter, but check for zero reference bit.
 	return (m_Tree[handle].fetch_add(1, std::memory_order_relaxed) & REF_ZERO) == 0;
 }
 
 bool BuddyAllocator::Release(Handle handle)
 {
-	DEBUG_PRINT("Deallocating handle " << handle);
+	DEBUG_PRINT("Releasing handle " << handle);
 
 	// Decrement the ref counter.
 	auto old_val = m_Tree[handle].fetch_sub(1, std::memory_order_relaxed);
+
+	DEBUG_PRINT("Decremented ref counter");
+	DEBUG_PRINT("Ref count = " << (m_Tree[handle].load(std::memory_order_relaxed) & REF_MASK));
 
 	if ((old_val & REF_MASK) == 1)
 	{
