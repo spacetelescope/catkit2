@@ -6,6 +6,7 @@ import numpy as np
 
 from catkit2.testbed.service import Service
 
+
 class ThorlabsPM(Service):
     _BUFFER_SIZE = 256
 
@@ -16,6 +17,7 @@ class ThorlabsPM(Service):
         self.interval = self.config.get('interval', 10)
 
         self.power = self.make_data_stream('power', 'float64', [1], 20)
+        self.dark = self.make_data_stream('dark', 'float64', [1], 20)
 
     def main(self):
         while not self.should_shut_down:
@@ -123,6 +125,7 @@ class ThorlabsPM(Service):
                 pass  # Don't do anything with this.
 
             self.instrument = ctypes.c_void_p(None)
+
 
 if __name__ == '__main__':
     service = ThorlabsPM()
