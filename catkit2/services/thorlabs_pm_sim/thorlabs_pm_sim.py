@@ -16,6 +16,9 @@ class ThorlabsPMSim(Service):
             power = self.get_power()
             self.power.submit_data(np.array([power], dtype='float64'))
 
+            # Keep dark data stream updating with zero in simulation.
+            self.dark.submit_data(np.array([0], dtype='float64'))
+
             self.sleep(self.interval)
 
     def get_power(self):
