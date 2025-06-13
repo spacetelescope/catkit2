@@ -74,6 +74,7 @@ struct MessageHeader
 	MetadataEntry metadata_entries[MAX_NUM_METADATA_ENTRIES];
 };
 
+class MessageBroker;
 class LocalMessageBroker;
 
 class Message
