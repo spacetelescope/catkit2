@@ -1,5 +1,7 @@
 #include "MessageBroker.h"
 
+#include <cstring>
+
 #include "LocalMessageBroker.h"
 
 Message::Message(MessageHeader *header, void *payload, std::uint64_t frame_id, bool has_been_published)
