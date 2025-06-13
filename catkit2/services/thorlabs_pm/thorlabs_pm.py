@@ -6,6 +6,7 @@ import numpy as np
 
 from catkit2.testbed.service import Service
 
+
 class ThorlabsPM(Service):
     _BUFFER_SIZE = 256
 
@@ -124,6 +125,7 @@ class ThorlabsPM(Service):
                 pass  # Don't do anything with this.
 
             self.instrument = ctypes.c_void_p(None)
+
 
 if __name__ == '__main__':
     service = ThorlabsPM()
