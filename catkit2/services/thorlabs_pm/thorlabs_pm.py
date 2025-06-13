@@ -16,9 +16,7 @@ class ThorlabsPM(Service):
         self.interval = self.config.get('interval', 10)
 
         self.power = self.make_data_stream('power', 'float64', [1], 20)
-
         self.dark = self.make_data_stream('power', 'float64', [1], 20)
-        self.dark.submit_data(np.array([0.], dtype='float64'))
 
     def main(self):
         while not self.should_shut_down:
