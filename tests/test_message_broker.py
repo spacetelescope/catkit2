@@ -82,14 +82,14 @@ def test_message_broker_publish_array(broker):
     arr = np.random.randn(10)
     broker.publish_array('test_array', arr)
 
-    msg = broker.get_newest_message('test_array')
+    msg = broker.get_current_message('test_array')
     assert np.array_equal(msg.payload, arr)
 
 def test_message_broker_publish_data(broker):
     data = b'abcd'
     broker.publish_data('test_data', data)
 
-    msg = broker.get_newest_message('test_data')
+    msg = broker.get_current_message('test_data')
     assert msg.payload.data == data
     assert msg.payload.dtype == 'uint8'
 

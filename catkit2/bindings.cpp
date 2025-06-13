@@ -1136,7 +1136,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("data"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("publish_array", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::array array, py::object trace_id, std::uint8_t memory_block_id)
+		.def("publish_array", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::array array, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			ArrayInfo info;
 
