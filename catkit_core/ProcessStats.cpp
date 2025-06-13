@@ -174,7 +174,7 @@ void ProcessStats::Update()
 	uint64_t current_task = getTaskTime();
 
 	if (current_total > m_LastTotalTime)
-		m_CpuPercent = 100.0 * (current_task - m_LastTaskTime) / (current_total - m_LastTotalTime);
+		m_CpuUsage = 100.0 * (current_task - m_LastTaskTime) / (current_total - m_LastTotalTime);
 
 	m_LastTotalTime = current_total;
 	m_LastTaskTime = current_task;
@@ -192,7 +192,7 @@ void ProcessStats::Update()
 	if (current_sys > m_LastSysJiffies)
 	{
 		int numCpus = sysconf(_SC_NPROCESSORS_ONLN);
-		m_CpuPercent = 100.0 * (current_proc - m_LastProcJiffies) / (current_sys - m_LastSysJiffies) * numCpus;
+		m_CpuUsage = 100.0 * (current_proc - m_LastProcJiffies) / (current_sys - m_LastSysJiffies) * numCpus;
 	}
 
 	m_LastProcJiffies = current_proc;
