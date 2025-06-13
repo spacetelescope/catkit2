@@ -334,7 +334,7 @@ class Testbed:
         self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
 
         # Create a message broker.
-        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 256)
+        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 1024)
         self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
 
         self.message_broker = LocalMessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
