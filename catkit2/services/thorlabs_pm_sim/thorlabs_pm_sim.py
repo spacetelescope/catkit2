@@ -10,7 +10,7 @@ class ThorlabsPMSim(Service):
         self.interval = self.config.get('interval', 10)
 
         self.power = self.make_data_stream('power', 'float64', [1], 20)
-        self.dark = self.make_data_stream('power', 'float64', [1], 20)
+        self.dark = self.make_data_stream('dark', 'float64', [1], 20)
 
     def main(self):
         while not self.should_shut_down:
