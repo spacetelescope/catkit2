@@ -13,7 +13,7 @@ import psutil
 import zmq
 import numpy as np
 
-from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, SharedMemory, MessageBroker, get_timestamp, is_alive_state, Client, get_host_name
+from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, SharedMemory, LocalMessageBroker, get_timestamp, is_alive_state, Client, get_host_name
 from .logging import *
 from .distributor import ZmqDistributor
 
@@ -337,7 +337,7 @@ class Testbed:
         self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 256)
         self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
 
-        self.message_broker = MessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
+        self.message_broker = LocalMessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
 
     def run(self):
         '''Run the main loop of the server.
