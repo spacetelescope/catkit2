@@ -311,11 +311,12 @@ class Testbed:
         self.service_type_paths = {}
         for entry_point in importlib_metadata.entry_points().get("catkit2.services", []):
             try:
-                # For Python 3.8+
-                module = entry_point.value.split(':')[0]
-            except AttributeError:
-                # Fallback for older versions
+                # grab the module
                 module = entry_point.module
+
+            except AttributeError:
+                # In some configurations of EntryPoint there is no 'module'
+                module = entry_point.value.split(':')[0]
 
             spec = importlib.util.find_spec(module)
             if spec is not None:

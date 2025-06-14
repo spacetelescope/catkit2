@@ -18,28 +18,17 @@ phasics_cam:
   interface: camera
   mode: normal
   mask: !path "../../data/phasics/2025-01-28 full aperture.msk"
-  dll_path: C:/path/to/SID4_SDK_x86_64/lib
   usr_profile_path: C:/path/to/SID4_SDK_x86_64/Examples/UserProfiles/SID4-1481/SID4-1481.txt
   wavelength: 633.0
   buffer_frames: 16
   requires_safety: false
   exposure_time: 504
 
+
 Properties
------------
-``exposure_time``: Exposure time in milliseconds.
+----------
+None.
 
-``mode``: 'normal' mode operates the camera. 'dummy' mode generates fake data for testing signal chain.
-
-``wavelength``: The wavelength in (nm) of the camera
-
-``mask``: the location of the camera mask
-
-``dll_path``: the location of the SID4 SDK
-
-``usr_profile_path``: the location of hte SID4 SDK user profile
-
-``buffer frames``: number of buffered frames in the catkit2 datastream
 
 Commands
 -----------

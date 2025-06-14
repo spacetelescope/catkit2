@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 10 16:56:37 2024
-
-@author: lameier - using original code by Hari
-"""
 import numpy as np
 from catkit2.testbed.service import Service
 import threading
@@ -19,10 +13,6 @@ class PhasicsCamSim(Service):
     This class simulates a camera service with functionality for taking measurements,
     starting and stopping live acquisitions, and managing an image buffer.
 
-    Parameters
-    ----------
-    Service : catkit2.testbed.service.Service
-        The base service class from which this simulation class inherits.
     """
     def __init__(self):
         """
@@ -49,6 +39,8 @@ class PhasicsCamSim(Service):
         super().__init__('phasics_cam_sim')
 
         self.exposure_time = self.config.get('exposure_time', 504)
+        self.num_frames_in_buffer = self.config.get('buffer_frames', 32)
+        self.zernike_polyorder = self.config.get('zernike_poly_order', 9)
         # since the real service will determine width/height based on an image we can hardcode for the simulated version
         self.image_height = 200
         self.image_width = 200
