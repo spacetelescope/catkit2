@@ -1,9 +1,9 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "StructStream.h"
-
 #include <cstddef>
+
+class StructStream;
 
 enum class MemoryType
 {
@@ -21,7 +21,7 @@ public:
 
 	virtual MemoryType GetMemoryType() const = 0;
 
-	virtual void WriteReference(StructStream &stream) = 0;
+	virtual void WriteReference(StructStream *stream) = 0;
 };
 
 #endif // MEMORY_H

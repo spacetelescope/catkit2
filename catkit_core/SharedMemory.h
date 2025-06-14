@@ -60,7 +60,7 @@ public:
 
 	virtual void *GetAddress(std::size_t offset = 0) override;
 	virtual std::size_t GetCapacity() const override;
-	virtual void WriteReference(StructStream &stream) override;
+	virtual void WriteReference(StructStream *stream) override;
 
 	std::string GetFileName();
 

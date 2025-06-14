@@ -201,7 +201,7 @@ std::shared_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 		allocators.push_back(std::move(allocator));
 
 		*stream.Extract<MemoryType>() = memory_block->GetMemoryType();
-		memory_block->WriteReference(stream);
+		memory_block->WriteReference(&stream);
 	}
 
 	DEBUG_PRINT("Creating object.");

@@ -253,9 +253,9 @@ std::size_t SharedMemory::GetCapacity() const
 	return m_Capacity;
 }
 
-void SharedMemory::WriteReference(StructStream &stream)
+void SharedMemory::WriteReference(StructStream *stream)
 {
-	auto filename = stream.Extract<char>(SHARED_MEMORY_FNAME_SIZE);
+	auto filename = stream->Extract<char>(SHARED_MEMORY_FNAME_SIZE);
 
 	std::fill(filename, filename + SHARED_MEMORY_FNAME_SIZE, '\0');
 	m_FileName.copy(filename, SHARED_MEMORY_FNAME_SIZE - 1);
