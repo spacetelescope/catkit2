@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Create the buffer.
-	buffer = LocalMemory::Create(1024 * 1024;
+	buffer = LocalMemory::Create(1024 * 1024);
 
 	std::size_t num_cores = std::thread::hardware_concurrency();
 

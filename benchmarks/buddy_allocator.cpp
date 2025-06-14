@@ -38,7 +38,6 @@ void benchmark_linux_scalability()
     std::cout << "Time per operation: " << (end - start) / (2 * N) << " ns" << std::endl;
 
 	delete[] handles;
-	delete[] buffer;
 }
 
 void benchmark_threadtest()
