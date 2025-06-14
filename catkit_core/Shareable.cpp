@@ -12,6 +12,11 @@
 #include "BuddyAllocator.h"
 #include "HybridPoolAllocator.h"
 
+Shareable::Shareable(std::shared_ptr<Memory> memory_block)
+	: m_MemoryBlock(memory_block)
+{
+}
+
 std::shared_ptr<Shareable> Shareable::Open(StructStream &stream)
 {
 	ShareableType type = *stream.Extract<ShareableType>();

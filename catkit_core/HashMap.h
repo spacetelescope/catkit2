@@ -42,7 +42,7 @@ private:
 	static std::size_t CalculateEntrySize(std::size_t max_key_size, std::size_t value_size);
 
 public:
-	HashMap(char *data, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
+	HashMap(char *data, std::size_t num_entries, std::size_t max_key_size, std::size_t value_size, std::shared_ptr<Memory> memory_block);
 
 	static std::size_t GetSharedStateSize(std::size_t num_entries, std::size_t max_key_size, std::size_t value_size);
 

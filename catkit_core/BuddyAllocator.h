@@ -33,7 +33,7 @@ public:
 	void PrintState() const;
 
 private:
-	BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success);
+	BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success, std::shared_ptr<Memory> memory_block);
 
 	Handle TryAllocate(Handle index);
 

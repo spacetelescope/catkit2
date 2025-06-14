@@ -203,7 +203,8 @@ private:
 		std::shared_ptr<PoolAllocator> message_header_allocator,
 		std::shared_ptr<Event> event,
 		std::vector<std::shared_ptr<HybridPoolAllocator>> allocators,
-		std::vector<std::shared_ptr<Memory>> memory_blocks
+		std::vector<std::shared_ptr<Memory>> memory_blocks,
+		std::shared_ptr<Memory> header_memory
 	);
 
 public:

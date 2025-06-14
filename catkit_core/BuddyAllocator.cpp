@@ -58,8 +58,8 @@ constexpr inline bool IsFree(std::uint16_t val)
 	return ~(val & BUSY);
 }
 
-BuddyAllocator::BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success)
-	: m_Capacity(capacity), m_MinSize(min_size), m_Depth(bit_width(capacity / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
+BuddyAllocator::BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success, std::shared_ptr<Memory> memory_block)
+	: Shareable(memory_block), m_Capacity(capacity), m_MinSize(min_size), m_Depth(bit_width(capacity / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
 {
 	// Check that min_size and capacity are powers of two.
 	if ((min_size & (min_size - 1)) != 0)
@@ -95,7 +95,7 @@ std::shared_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std
 		last_success[i].store((1 << (depth - 1)) - 1);
 	}
 
-	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
+	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success, stream.GetBuffer()));
 }
 
 std::shared_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
@@ -110,7 +110,7 @@ std::shared_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
 	auto tree = stream.Extract<std::atomic_uint16_t>(1 << (depth + 1));
 	auto last_success = stream.Extract<std::atomic_size_t>(depth + 1);
 
-	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
+	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success, stream.GetBuffer()));
 }
 
 std::size_t BuddyAllocator::GetSharedStateSize(std::size_t capacity, std::size_t min_size)

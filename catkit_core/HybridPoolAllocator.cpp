@@ -10,8 +10,8 @@
 
 const std::array<std::uint8_t, 4> HYBRID_POOL_ALLOCATOR_VERSION = {0, 0, 0, 0};
 
-HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::shared_ptr<BuddyAllocator> allocator, Pool *pools)
-	: m_Capacity(capacity), m_MinSize(min_size), m_MinSizePool(min_size_pool), m_Allocator(std::move(allocator)), m_Pools(pools)
+HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::shared_ptr<BuddyAllocator> allocator, Pool *pools, std::shared_ptr<Memory> memory_block)
+	: Shareable(memory_block), m_Capacity(capacity), m_MinSize(min_size), m_MinSizePool(min_size_pool), m_Allocator(std::move(allocator)), m_Pools(pools)
 {
 }
 
@@ -58,7 +58,7 @@ std::shared_ptr<HybridPoolAllocator> HybridPoolAllocator::Create(StructStream &s
 	for (std::size_t i = 0; i < buddy_allocator_num_blocks; ++i)
 		pools[i].map = 0;
 
-	return std::shared_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools));
+	return std::shared_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools, stream.GetBuffer()));
 }
 
 std::shared_ptr<HybridPoolAllocator> HybridPoolAllocator::Open(StructStream &stream)
@@ -78,7 +78,7 @@ std::shared_ptr<HybridPoolAllocator> HybridPoolAllocator::Open(StructStream &str
 
 	auto pools = stream.Extract<Pool>(buddy_allocator_num_blocks);
 
-	return std::shared_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools));
+	return std::shared_ptr<HybridPoolAllocator>(new HybridPoolAllocator(capacity, min_size, min_size_pool, std::move(allocator), pools, stream.GetBuffer()));
 }
 
 ShareableType HybridPoolAllocator::GetType() const

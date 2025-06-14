@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 LocalMemory::LocalMemory(char *memory, std::size_t num_bytes, bool is_owner)
-	: m_Memory(memory), m_Capacity(num_bytes), m_IsOwner(is_owner)
+	: Shareable(nullptr), m_Memory(memory), m_Capacity(num_bytes), m_IsOwner(is_owner)
 {
 }
 

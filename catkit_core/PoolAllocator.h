@@ -29,7 +29,7 @@ public:
 	ShareableType GetType() const override;
 
 private:
-	PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next, std::atomic_size_t *ref_count);
+	PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next, std::atomic_size_t *ref_count, std::shared_ptr<Memory> memory_block);
 
 	std::uint32_t m_Capacity;
 	std::atomic<BlockHandle> *m_Head;
