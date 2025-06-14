@@ -198,7 +198,7 @@ std::shared_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 		allocators.push_back(std::move(allocator));
 
-		*stream.Extract<ShareableType>() = memory_block->GetType();
+		*stream.Extract<MemoryType>() = memory_block->GetMemoryType();
 		memory_block->WriteReference(stream);
 	}
 
@@ -232,13 +232,13 @@ std::shared_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 		auto allocator = HybridPoolAllocator::Open(stream);
 		allocators.push_back(std::move(allocator));
 
-		ShareableType type = *stream.Extract<ShareableType>();
+		MemoryType type = *stream.Extract<MemoryType>();
 		switch (type)
 		{
-			case ShareableType::SharedMemory:
+			case MemoryType::SharedMemory:
 				memory_blocks.push_back(SharedMemory::Open(stream));
 				break;
-			case ShareableType::LocalMemory:
+			case MemoryType::LocalMemory:
 				memory_blocks.push_back(LocalMemory::Open(stream));
 				break;
 			default:

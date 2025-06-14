@@ -24,7 +24,7 @@
 
 const int SHARED_MEMORY_FNAME_SIZE = 256;
 
-class SharedMemory : public Memory
+class SharedMemory : public Memory, public Shareable
 {
 public:
 	#ifdef _WIN32
@@ -64,7 +64,8 @@ public:
 
 	std::string GetFileName();
 
-	ShareableType GetType() const override;
+	virtual ShareableType GetType() const override;
+	virtual MemoryType GetMemoryType() const override;
 
 private:
 	std::string m_FileName;

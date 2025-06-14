@@ -68,3 +68,8 @@ ShareableType LocalMemory::GetType() const
 {
 	return ShareableType::LocalMemory;
 }
+
+MemoryType LocalMemory::GetMemoryType() const
+{
+	return MemoryType::LocalMemory;
+}

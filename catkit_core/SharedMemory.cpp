@@ -243,6 +243,11 @@ ShareableType SharedMemory::GetType() const
 	return ShareableType::SharedMemory;
 }
 
+MemoryType SharedMemory::GetMemoryType() const
+{
+	return MemoryType::SharedMemory;
+}
+
 std::size_t SharedMemory::GetCapacity() const
 {
 	return m_Capacity;
