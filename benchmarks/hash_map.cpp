@@ -1,5 +1,6 @@
 #include "HashMap.h"
 #include "Timing.h"
+#include "LocalMemory.h"
 
 #include <iostream>
 #include <cstdint>
@@ -10,7 +11,7 @@ int main(int argc, char **argv)
     std::size_t buffer_size = HashMap::GetSharedStateSize(65536, 13, sizeof(std::int16_t));
     std::cout << "Buffer size: " << buffer_size << " bytes" << std::endl;
 
-    char *buffer = new char[buffer_size];
+    auto buffer = LocalMemory::Create(buffer_size);
     auto stream = StructStream(buffer);
 
     auto map = HashMap::Create(stream, 65536, 13, sizeof(std::int16_t));
@@ -55,8 +56,6 @@ int main(int argc, char **argv)
     }
 
     std::cout << "Lookup time: " << total_time / N << " ns" << std::endl;
-
-    delete[] buffer;
 
     return 0;
 }

@@ -1033,12 +1033,12 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<Event, std::shared_ptr<Event>>(m, "Event")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::string id)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			return Event::Create(stream, id);
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			return Event::Open(stream);
 		})
 		.def("wait", [](std::shared_ptr<Event> event, py::object condition, double timeout_in_seconds, EventWaitMethod wait_method)
@@ -1091,14 +1091,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
 		{
-			auto stream = StructStream(header->GetAddress());
+			auto stream = StructStream(header);
 			auto broker = MessageBroker::Create(stream, memory_blocks);
 
 			return std::shared_ptr<MessageBroker>(std::move(broker));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto broker = MessageBroker::Open(stream);
 
 			return std::shared_ptr<MessageBroker>(std::move(broker));
@@ -1207,14 +1207,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<PoolAllocator, std::shared_ptr<PoolAllocator>>(m, "PoolAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t capacity)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = PoolAllocator::Create(stream, capacity);
 
 			return std::shared_ptr<PoolAllocator>(std::move(allocator));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = PoolAllocator::Open(stream);
 
 			return std::shared_ptr<PoolAllocator>(std::move(allocator));
@@ -1234,14 +1234,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<BuddyAllocator, std::shared_ptr<BuddyAllocator>>(m, "BuddyAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = BuddyAllocator::Create(stream, max_size, min_size);
 
 			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = BuddyAllocator::Open(stream);
 
 			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
@@ -1262,14 +1262,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<HybridPoolAllocator, std::shared_ptr<HybridPoolAllocator>>(m, "HybridPoolAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size, std::size_t min_size_pool)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = HybridPoolAllocator::Create(stream, max_size, min_size, min_size_pool);
 
 			return std::shared_ptr<HybridPoolAllocator>(std::move(allocator));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = HybridPoolAllocator::Open(stream);
 
 			return std::shared_ptr<HybridPoolAllocator>(std::move(allocator));

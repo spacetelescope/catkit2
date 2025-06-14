@@ -1,5 +1,7 @@
 #include "BuddyAllocator.h"
 #include "Timing.h"
+#include "LocalMemory.h"
+
 #include <iostream>
 
 void benchmark_linux_scalability()
@@ -11,7 +13,7 @@ void benchmark_linux_scalability()
 	auto *handles = new BuddyAllocator::Handle[N];
 
 	size_t buffer_size = BuddyAllocator::GetSharedStateSize(MAX_SIZE, BLOCK_SIZE);
-	char *buffer = new char[buffer_size];
+	auto buffer = LocalMemory::Create(buffer_size);
 
 	auto stream = StructStream(buffer);
 	auto allocator = BuddyAllocator::Create(stream, MAX_SIZE, BLOCK_SIZE);
@@ -50,7 +52,7 @@ void benchmark_threadtest()
 	auto *handles = new BuddyAllocator::Handle[M];
 
 	size_t buffer_size = BuddyAllocator::GetSharedStateSize(MAX_SIZE, BLOCK_SIZE);
-	char *buffer = new char[buffer_size];
+	auto buffer = LocalMemory::Create(buffer_size);
 
 	auto stream = StructStream(buffer);
 	auto allocator = BuddyAllocator::Create(stream, MAX_SIZE, BLOCK_SIZE);
@@ -97,7 +99,7 @@ void benchmark_larson()
 		handles[i] = BuddyAllocator::INVALID_HANDLE;
 
 	size_t buffer_size = BuddyAllocator::GetSharedStateSize(SIZE, BLOCK_SIZE);
-	char *buffer = new char[buffer_size];
+	auto buffer = LocalMemory::Create(buffer_size);
 
 	auto stream = StructStream(buffer);
 	auto allocator = BuddyAllocator::Create(stream, SIZE, BLOCK_SIZE);

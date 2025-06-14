@@ -1,5 +1,6 @@
 #include "Event.h"
 #include "Timing.h"
+#include "LocalMemory.h"
 
 #include <thread>
 #include <atomic>
@@ -46,7 +47,7 @@ void fast_sleep(std::uint64_t ns)
 }
 
 std::atomic_bool ready = false;
-char *buffer = nullptr;
+std::shared_ptr<Memory> buffer = nullptr;
 std::atomic_uint64_t timestamp_start(0);
 
 void submit(size_t core_id)
@@ -151,7 +152,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Create the buffer.
-	buffer = new char[1024 * 1024];
+	buffer = LocalMemory::Create(1024 * 1024;
 
 	std::size_t num_cores = std::thread::hardware_concurrency();
 
@@ -184,8 +185,6 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
-
-	delete[] buffer;
 
 	return 0;
 }
