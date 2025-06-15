@@ -16,6 +16,7 @@
 #include "LogForwarder.h"
 #include "Server.h"
 #include "ServiceState.h"
+#include "ProcessStats.h"
 
 const double SERVICE_LIVELINESS = 5;
 
@@ -96,6 +97,8 @@ private:
 
 	LogConsole m_LoggerConsole;
 	LogForwarder m_LoggerPublish;
+
+	ProcessStats m_ProcessStats;
 };
 
 std::tuple<std::string, int, int> ParseServiceArgs(std::vector<std::string> arguments);

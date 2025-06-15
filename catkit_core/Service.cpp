@@ -305,6 +305,17 @@ void Service::MonitorHeartbeats()
 			return;
 		}
 
+		// Update CPU and memory usage.
+		m_ProcessStats.Update();
+
+		double cpu_usage = m_ProcessStats.GetCpuUsage();
+		ArrayInfo cpu_usage_info = {'f', '=', 8, 1, {1}, {1}};
+		m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/cpu_usage/get", {cpu_usage_info, &cpu_usage});
+
+		uint64_t memory_usage = m_ProcessStats.GetMemoryUsage();
+		ArrayInfo memory_usage_info = {'u', '=', 8, 1, {1}, {1}};
+		m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/memory_usage/get", {memory_usage_info, &memory_usage});
+
 		// Sleep until next check.
 		Sleep(SERVICE_LIVELINESS / 5);
 	}
