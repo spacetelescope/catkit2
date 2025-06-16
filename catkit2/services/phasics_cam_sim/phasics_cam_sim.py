@@ -42,8 +42,8 @@ class PhasicsCamSim(Service):
         self.num_frames_in_buffer = self.config.get('buffer_frames', 32)
         self.zernike_polyorder = self.config.get('zernike_poly_order', 9)
         # since the real service will determine width/height based on an image we can hardcode for the simulated version
-        self.image_height = 200
-        self.image_width = 200
+        self.image_height = self.config.get('max_height', 200)
+        self.image_width = self.config.get('max_width', 200)
         self.num_frames_in_bufffer = self.config.get('buffer_frames', 32)
         self.framecounter = 0
 

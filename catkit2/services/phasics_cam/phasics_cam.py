@@ -8,7 +8,7 @@ import PySID4x as sid
 
 
 try:
-    __SID4_SDK_LIB = 'SID4_SDK_x86_X64_LIB'
+    __SID4_SDK_LIB = 'SID4_SDK_x86_64_LIB'
     __env_filename = os.getenv(__SID4_SDK_LIB)
 
     if not __env_filename:
@@ -74,13 +74,9 @@ class PhasicsCam(Service):
         self.sid4_session.Zernike.open()
         self.sid4_session.Zernike.update_projection(self.zernike_polyorder, source='user profile')
 
-        # take an image to determine the size of the frames based on the mask provided
-        self.log.info('getting test image')
         self.set_exposure_time(self.exposure_time)
-        test_image = self.take_measurement()
-        self.log.info(f'test image shape = {test_image.shape}')
-        self.image_height = test_image.shape[0]
-        self.image_width = test_image.shape[1]
+        self.image_height = self.config.get('max_height', 200)
+        self.image_width = self.config.get('max_width', 200)
 
         # Create data streams.
         # in order to re-use the camera interface I must have something called 'images' which will be an alias for the phase map
@@ -127,7 +123,7 @@ class PhasicsCam(Service):
         PySID4x.Session
             The sid4 Session
         """
-        return sid.Session(__env_filename, mode=mode)
+        return sid.Session(os.getenv('SID4_SDK_x86_64_LIB'), self.config.get('usr_profile_path'), mode=mode)
 
     def take_measurement(self, num_images=1):
         """
