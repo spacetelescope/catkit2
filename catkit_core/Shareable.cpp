@@ -8,7 +8,7 @@
 #include "SharedMemory.h"
 #include "LocalMemory.h"
 #include "HashMap.h"
-#include "MessageBroker.h"
+#include "LocalMessageBroker.h"
 #include "BuddyAllocator.h"
 #include "HybridPoolAllocator.h"
 
@@ -30,8 +30,8 @@ std::shared_ptr<Shareable> Shareable::Open(StructStream &stream)
 		return LocalMemory::Open(stream);
 	case ShareableType::HashMap:
 		return HashMap::Open(stream);
-	case ShareableType::MessageBroker:
-		return MessageBroker::Open(stream);
+	case ShareableType::LocalMessageBroker:
+		return LocalMessageBroker::Open(stream);
 	case ShareableType::BuddyAllocator:
 		return BuddyAllocator::Open(stream);
 	case ShareableType::HybridPoolAllocator:

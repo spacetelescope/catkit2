@@ -3,7 +3,7 @@ import time
 import sys
 import numpy as np
 
-from catkit2.catkit_bindings import SharedMemory, MessageBroker, get_timestamp
+from catkit2.catkit_bindings import SharedMemory, LocalMessageBroker, get_timestamp
 
 def human_readable_time(seconds):
     seconds = round(seconds)
@@ -80,7 +80,7 @@ def main():
     shared_memory_id = args[1]
 
     header = SharedMemory.open(shared_memory_id)
-    broker = MessageBroker.open(header)
+    broker = LocalMessageBroker.open(header)
 
     DATA_KEYS = ["topic", "pid", "last_updated", "frame_rate", "shape", "dtype", "value"]
     SORT_OPTIONS = DATA_KEYS.copy()
