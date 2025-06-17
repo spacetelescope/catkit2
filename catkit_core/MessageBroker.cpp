@@ -147,9 +147,11 @@ MessageBroker::MessageBroker(
 	std::shared_ptr<PoolAllocator> message_header_allocator,
 	std::shared_ptr<Event> event,
 	std::vector<std::shared_ptr<HybridPoolAllocator>> allocators,
-	std::vector<std::shared_ptr<Memory>> memory_blocks
+	std::vector<std::shared_ptr<Memory>> memory_blocks,
+	std::shared_ptr<Memory> header_memory
 )
-	: m_Header(header),
+	: Shareable(header_memory),
+	m_Header(header),
 	m_TopicHeaders(std::move(topic_headers)),
 	m_MessageHeaderAllocator(std::move(message_header_allocator)),
 	m_Event(std::move(event)),
@@ -198,8 +200,8 @@ std::shared_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 
 		allocators.push_back(std::move(allocator));
 
-		*stream.Extract<ShareableType>() = memory_block->GetType();
-		memory_block->WriteReference(stream);
+		*stream.Extract<MemoryType>() = memory_block->GetMemoryType();
+		memory_block->WriteReference(&stream);
 	}
 
 	DEBUG_PRINT("Creating object.");
@@ -210,7 +212,8 @@ std::shared_ptr<MessageBroker> MessageBroker::Create(StructStream &stream, std::
 		std::move(message_header_allocator),
 		std::move(event),
 		allocators,
-		memory_blocks
+		memory_blocks,
+		stream.GetBuffer()
 	));
 }
 
@@ -232,13 +235,13 @@ std::shared_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 		auto allocator = HybridPoolAllocator::Open(stream);
 		allocators.push_back(std::move(allocator));
 
-		ShareableType type = *stream.Extract<ShareableType>();
+		MemoryType type = *stream.Extract<MemoryType>();
 		switch (type)
 		{
-			case ShareableType::SharedMemory:
+			case MemoryType::SharedMemory:
 				memory_blocks.push_back(SharedMemory::Open(stream));
 				break;
-			case ShareableType::LocalMemory:
+			case MemoryType::LocalMemory:
 				memory_blocks.push_back(LocalMemory::Open(stream));
 				break;
 			default:
@@ -252,7 +255,8 @@ std::shared_ptr<MessageBroker> MessageBroker::Open(StructStream &stream)
 		std::move(message_header_allocator),
 		std::move(event),
 		allocators,
-		memory_blocks
+		memory_blocks,
+		stream.GetBuffer()
 	));
 }
 

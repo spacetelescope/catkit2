@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 LocalMemory::LocalMemory(char *memory, std::size_t num_bytes, bool is_owner)
-	: m_Memory(memory), m_Capacity(num_bytes), m_IsOwner(is_owner)
+	: Shareable(nullptr), m_Memory(memory), m_Capacity(num_bytes), m_IsOwner(is_owner)
 {
 }
 
@@ -23,11 +23,11 @@ std::size_t LocalMemory::GetCapacity() const
 	return m_Capacity;
 }
 
-void LocalMemory::WriteReference(StructStream &stream)
+void LocalMemory::WriteReference(StructStream *stream)
 {
-	*stream.Extract<char *>() = m_Memory;
-	*stream.Extract<std::size_t>() = m_Capacity;
-	*stream.Extract<int>() = GetProcessId();
+	*stream->Extract<char *>() = m_Memory;
+	*stream->Extract<std::size_t>() = m_Capacity;
+	*stream->Extract<int>() = GetProcessId();
 }
 
 std::shared_ptr<LocalMemory> LocalMemory::Create(StructStream &stream, std::size_t num_bytes)
@@ -67,4 +67,9 @@ std::shared_ptr<LocalMemory> LocalMemory::Open(StructStream &stream)
 ShareableType LocalMemory::GetType() const
 {
 	return ShareableType::LocalMemory;
+}
+
+MemoryType LocalMemory::GetMemoryType() const
+{
+	return MemoryType::LocalMemory;
 }

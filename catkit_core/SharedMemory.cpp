@@ -195,7 +195,7 @@ std::shared_ptr<SharedMemory> SharedMemory::Open(StructStream &stream)
 }
 
 SharedMemory::SharedMemory(std::string_view fname, FileObject file, bool is_owner)
-	: m_File(file), m_FileName(fname), m_IsOwner(is_owner), m_Buffer(nullptr)
+	: Shareable(nullptr), m_File(file), m_FileName(fname), m_IsOwner(is_owner), m_Buffer(nullptr)
 {
 #ifdef _WIN32
 	m_Buffer = MapViewOfFile(m_File, FILE_MAP_ALL_ACCESS, 0, 0, 0);
@@ -243,14 +243,19 @@ ShareableType SharedMemory::GetType() const
 	return ShareableType::SharedMemory;
 }
 
+MemoryType SharedMemory::GetMemoryType() const
+{
+	return MemoryType::SharedMemory;
+}
+
 std::size_t SharedMemory::GetCapacity() const
 {
 	return m_Capacity;
 }
 
-void SharedMemory::WriteReference(StructStream &stream)
+void SharedMemory::WriteReference(StructStream *stream)
 {
-	auto filename = stream.Extract<char>(SHARED_MEMORY_FNAME_SIZE);
+	auto filename = stream->Extract<char>(SHARED_MEMORY_FNAME_SIZE);
 
 	std::fill(filename, filename + SHARED_MEMORY_FNAME_SIZE, '\0');
 	m_FileName.copy(filename, SHARED_MEMORY_FNAME_SIZE - 1);

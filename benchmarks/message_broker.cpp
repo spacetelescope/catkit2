@@ -1,12 +1,13 @@
 #include <iostream>
 
 #include "MessageBroker.h"
+#include "LocalMemory.h"
 
 const size_t NUM_MESSAGES = 10000000;
 
 int main(int argc, char *argv[])
 {
-	char *buffer = new char[1024 * 1024 * 512];
+	auto buffer = LocalMemory::Create(1024 * 1024 * 512);
 	auto stream = StructStream(buffer);
 
 	std::vector<std::shared_ptr<Memory>> memory_blocks;

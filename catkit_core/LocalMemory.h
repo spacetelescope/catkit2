@@ -5,7 +5,7 @@
 #include "Shareable.h"
 #include "Util.h"
 
-class LocalMemory : public Memory
+class LocalMemory : public Memory, public Shareable
 {
 public:
     virtual ~LocalMemory();
@@ -16,9 +16,10 @@ public:
 
     virtual void *GetAddress(std::size_t offset = 0) override;
     virtual std::size_t GetCapacity() const override;
-    virtual void WriteReference(StructStream &stream) override;
+    virtual void WriteReference(StructStream *stream) override;
 
     virtual ShareableType GetType() const override;
+    virtual MemoryType GetMemoryType() const override;
 
 private:
     LocalMemory(char *memory, std::size_t num_bytes, bool is_owner);

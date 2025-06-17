@@ -1,5 +1,6 @@
 #include "HybridPoolAllocator.h"
 #include "Timing.h"
+#include "LocalMemory.h"
 #include <iostream>
 
 void benchmark_linux_scalability()
@@ -12,7 +13,7 @@ void benchmark_linux_scalability()
 	auto *handles = new HybridPoolAllocator::Handle[N];
 
 	size_t buffer_size = HybridPoolAllocator::GetSharedStateSize(MAX_SIZE, BLOCK_SIZE);
-	char *buffer = new char[buffer_size];
+	auto buffer = LocalMemory::Create(buffer_size);
 
 	auto stream = StructStream(buffer);
 	auto allocator = HybridPoolAllocator::Create(stream, MAX_SIZE, BLOCK_SIZE, MIN_POOL_SIZE);
@@ -37,7 +38,6 @@ void benchmark_linux_scalability()
     std::cout << "Time per operation: " << (end - start) / (2 * N) << " ns" << std::endl;
 
 	delete[] handles;
-	delete[] buffer;
 }
 
 void benchmark_threadtest()
@@ -52,7 +52,7 @@ void benchmark_threadtest()
 	auto *handles = new HybridPoolAllocator::Handle[M];
 
 	size_t buffer_size = HybridPoolAllocator::GetSharedStateSize(MAX_SIZE, BLOCK_SIZE);
-	char *buffer = new char[buffer_size];
+	auto buffer = LocalMemory::Create(buffer_size);
 
 	auto stream = StructStream(buffer);
 	auto allocator = HybridPoolAllocator::Create(stream, MAX_SIZE, BLOCK_SIZE, MIN_POOL_SIZE);
@@ -100,7 +100,7 @@ void benchmark_larson()
 		handles[i] = HybridPoolAllocator::INVALID_HANDLE;
 
 	size_t buffer_size = HybridPoolAllocator::GetSharedStateSize(SIZE, BLOCK_SIZE);
-	char *buffer = new char[buffer_size];
+	auto buffer = LocalMemory::Create(buffer_size);
 
 	auto stream = StructStream(buffer);
 	auto allocator = HybridPoolAllocator::Create(stream, SIZE, BLOCK_SIZE, MIN_POOL_SIZE);

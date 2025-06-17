@@ -1,5 +1,10 @@
 #include "Event.h"
 
+Event::Event(std::shared_ptr<Memory> memory_block)
+	: Shareable(memory_block)
+{
+}
+
 void Event::Wait(double timeout_in_sec, std::function<bool()> condition, EventWaitMethod wait_method, void (*error_check)())
 {
 	// Wait for a specific event type.
@@ -38,7 +43,7 @@ std::shared_ptr<Event> Event::Create(StructStream &stream, std::string_view id)
 	header->m_Id.fill('\0');
 	id.copy(header->m_Id.data(), EVENT_ID_MAX_SIZE - 1);
 
-	auto event = std::shared_ptr<Event>(new Event());
+	auto event = std::shared_ptr<Event>(new Event(stream.GetBuffer()));
 
 	// Create all event types.
 	event->m_ConditionVariable = EventConditionVariable::Create(id, &header->m_ConditionVariable);
@@ -51,7 +56,7 @@ std::shared_ptr<Event> Event::Create(StructStream &stream, std::string_view id)
 
 std::shared_ptr<Event> Event::Open(StructStream &stream)
 {
-	std::shared_ptr<Event> event(new Event());
+	std::shared_ptr<Event> event(new Event(stream.GetBuffer()));
 
 	auto header = stream.Extract<Header>();
 

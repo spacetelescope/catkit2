@@ -26,6 +26,8 @@ enum class EventWaitMethod
 class Event : public Shareable
 {
 private:
+	Event(std::shared_ptr<Memory> memory_block);
+
 	static const int EVENT_ID_MAX_SIZE = 256;
 
 	struct Header
