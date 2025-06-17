@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <cstdint>
 #include <fitsio.h>
 
 class FitsFile
