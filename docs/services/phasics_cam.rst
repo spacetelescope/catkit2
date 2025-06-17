@@ -24,6 +24,17 @@ phasics_cam:
   requires_safety: false
   exposure_time: 504
 
+``exposure_time``: Exposure time in milliseconds.
+
+``mode``: 'normal' mode operates the camera. 'dummy' mode generates fake data for testing signal chain.
+
+``wavelength``: The wavelength in (nm) of the camera
+
+``mask``: the location of the camera mask
+
+``usr_profile_path``: the location of hte SID4 SDK user profile
+
+``buffer frames``: number of buffered frames in the catkit2 datastream
 
 Properties
 ----------
