@@ -100,6 +100,9 @@ class HamamatsuCamera(Service):
         # Set temperature cooling to "ON" (tarder =-20)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLER, 2.0)
 
+        # Set Sensor cooler fan to "OFF"
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, 0) #To check
+
         # Set subarray mode to on so that it checks subarray compatibility when picking ROI
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
 
