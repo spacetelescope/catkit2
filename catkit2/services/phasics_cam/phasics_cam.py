@@ -32,6 +32,25 @@ class PhasicsCam(Service):
     A camera service with functionality for taking measurements,
     starting and stopping live acquisitions, and managing an image buffer.
 
+    Parameters
+    ----------
+    None
+
+    Attributes
+    ----------
+    exposure_time : int
+        The default exposure time in milliseconds.
+    image_height : int
+        The height of the images in pixels.
+    image_width : int
+        The width of the images in pixels.
+    num_frames_in_buffer : int
+        The number of frames to maintain in the data buffer.
+    images : catkit2.testbed.service.DataStream
+        A data stream to manage phase map image frames.
+    intensity : catkit2.testbed.service.DataStream
+        A data stream to manage intensity image frames.
+
     """
     def __init__(self):
         """
@@ -39,21 +58,6 @@ class PhasicsCam(Service):
 
         Sets up the instrument parameters, including exposure time, image dimensions,
         and frame buffer size. Also initializes data streams and registers commands.
-
-        Attributes
-        ----------
-        exposure_time : int
-            The default exposure time in milliseconds.
-        image_height : int
-            The height of the images in pixels.
-        image_width : int
-            The width of the images in pixels.
-        num_frames_in_buffer : int
-            The number of frames to maintain in the data buffer.
-        images : catkit2.testbed.service.DataStream
-            A data stream to manage phase map image frames.
-        intensity : catkit2.testbed.service.DataStream
-            A data stream to manage intensity image frames.
         """
         super().__init__('phasics_cam')
 
@@ -118,6 +122,11 @@ class PhasicsCam(Service):
         """
         Import DLL and create SID4 Session.
 
+        Parameters
+        ----------
+        mode : str, optional
+            normal or dummy, dummy is only for testing signal chain by generating fake data
+
         Returns
         -------
         PySID4x.Session
@@ -162,6 +171,7 @@ class PhasicsCam(Service):
         ----------
         phase : numpy.ndarray, optional
             The phase map (single or averaged) of dimensions (image_height, image_width).
+
         Returns
         -------
         1D numpy array
