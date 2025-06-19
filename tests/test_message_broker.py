@@ -29,33 +29,44 @@ def test_message_subscription(broker):
         message.payload = arr
         broker.publish_message(message)
 
-    message_1 = subscription_newest.get_next_message(0.01)
-    message_2 = subscription_sequential.get_next_message(0.01)
-    message_3 = subscription_sequential.get_next_message(0.01)
-
-    assert message_1 is not None
-    assert message_2 is not None
-    assert message_3 is not None
-
-    assert message_1.frame_id == 2
-    assert message_2.frame_id == 0
-
-    assert message_1.payload[0] == 12
-    assert message_2.payload[0] == 10
-    assert message_3.payload[0] == 11
-
-    assert subscription_newest.try_get_next_message() is None
-
-    m = subscription_sequential.try_get_next_message()
+    # The first message from a NewestOnly subscription should skip all non-current messages.
+    m = subscription_newest.get_next_message(0.01)
     assert m is not None
+    assert m.frame_id == 2
     assert m.payload[0] == 12
 
-    assert subscription_sequential.try_get_next_message() is None
+    # Getting a next message from this subscription should return None, since there are no more messages.
+    with pytest.raises(RuntimeError, match="Waiting time has expired."):
+        subscription_newest.get_next_message(0.01)
 
+    # The first message from a Sequential subscription should not skip any messages.
+    m = subscription_sequential.get_next_message(0.01)
+    assert m is not None
+    assert m.frame_id == 0
+    assert m.payload[0] == 10
+
+    # Same for the second message.
+    m = subscription_sequential.get_next_message(0.01)
+    assert m is not None
+    assert m.frame_id == 1
+    assert m.payload[0] == 11
+
+    # Same for the third message.
+    m = subscription_sequential.get_next_message(0.01)
+    assert m is not None
+    assert m.frame_id == 2
+    assert m.payload[0] == 12
+
+    # Getting a next message from this subscription should return None, since there are only three messages.
+    with pytest.raises(RuntimeError, match="Waiting time has expired."):
+        subscription_sequential.get_next_message(0.01)
+
+    # Creating a NewestOnly subscription starting at ID 1 should return the newest message (ID 2).
     subscription_newest2 = broker.subscribe(topic, preferred_next_frame_id=1, mode=MessageSubscriptionMode.NewestOnly)
     m = subscription_newest2.get_next_message(0.01)
     assert m.frame_id == 2
 
+    # A Sequential subscription starting at ID 1 should return the second message (ID 1).
     subscription_sequential2 = broker.subscribe(topic, preferred_next_frame_id=1, mode=MessageSubscriptionMode.Sequential)
     m = subscription_sequential2.get_next_message(0.01)
     assert m.frame_id == 1
