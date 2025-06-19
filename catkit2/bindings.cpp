@@ -1092,15 +1092,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
 		{
-			auto stream = StructStream(header->GetAddress());
-			auto broker = MessageBroker::Create(stream, memory_blocks);
+			auto stream = StructStream(header);
+			auto broker = LocalMessageBroker::Create(stream, memory_blocks);
 
 			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
-			auto broker = MessageBroker::Open(stream);
+			auto stream = StructStream(memory);
+			auto broker = LocalMessageBroker::Open(stream);
 
 			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
