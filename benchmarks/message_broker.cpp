@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "MessageBroker.h"
 #include "LocalMemory.h"
+#include "LocalMessageBroker.h"
 
 const size_t NUM_MESSAGES = 10000000;
 
@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	std::vector<std::shared_ptr<Memory>> memory_blocks;
 	memory_blocks.push_back(LocalMemory::Create(stream, 1024 * 1024 * 128));
 
-	auto message_broker = MessageBroker::Create(stream, memory_blocks);
+	auto message_broker = LocalMessageBroker::Create(stream, memory_blocks);
 
 	std::cout << "Message broker size: " << stream.GetOffset() << std::endl;
 
