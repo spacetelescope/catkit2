@@ -46,44 +46,19 @@ Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
 		throw std::runtime_error("This is not a valid property name.");
 
-	if (m_PropertyDataStreamLinks.find(name) != m_PropertyDataStreamLinks.end())
-	{
-		// This property is backed by a datastream. Lets try to get the value from there first.
-		std::string stream_name = m_PropertyDataStreamLinks[name];
-		std::shared_ptr<DataStream> stream = GetDataStream(stream_name, error_check);
+	// Get the value data.
+	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/"s + name + "/get"s);
 
-		try
-		{
-			DataFrame frame = stream->GetLatestFrame();
+	if (!message.has_value())
+		throw std::runtime_error("Could not get the property.");
 
-			switch (frame.GetDataType())
-			{
-				case DataType::DT_INT64:
-					return ((std::int64_t *) frame.GetData())[0];
-				case DataType::DT_FLOAT64:
-					return ((double *) frame.GetData())[0];
-				default:
-					throw std::logic_error("This should be unreachable.");
-			}
-		}
-		catch (std::runtime_error)
-		{
-			// There is no frame in the datastream. Ignore and fall back to a manual
-			// request to the service.
-		}
-	}
-
-	// Set the service a request for the value of this property and return that.
-	catkit_proto::service::GetPropertyRequest request;
-	request.set_property_name(name);
-
-	std::string reply_string = m_Client->MakeRequest("get_property", Serialize(request));
-
-	catkit_proto::service::GetPropertyReply reply;
-	reply.ParseFromString(reply_string);
+	// Decode the data.
+	catkit_proto::Value proto_value;
+	std::string proto_string(message.value().GetPayload().data, message.value().GetPayloadSize());
+	proto_value.ParseFromString(proto_string);
 
 	Value res;
-	FromProto(&reply.property_value(), res);
+	FromProto(&reply.result(), res);
 
 	return res;
 }
@@ -97,13 +72,25 @@ Value ServiceProxy::SetProperty(const std::string &name, const Value &value, voi
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
 		throw std::runtime_error("This is not a valid property name.");
 
-	catkit_proto::service::SetPropertyRequest request;
-	request.set_property_name(name);
-	ToProto(value, request.mutable_property_value());
+	// Encode value to protobuf.
+	catkit_proto::Value proto_value;
+	ToProto(value, proto_value);
+
+	std::string encoded_value;
+	proto_value.SerializeToString(&encoded_value);
+
+	// Subscribe to get messages.
+	auto subscription = m_Testbed->GetMessageBroker()->Subscribe(m_ServiceId + "/"s + name + "/get"s, MessageSubscriptionMode::Sequential);
+
+	// Send a set message.
+	m_Testbed->GetMessageBroker()->PublishData(m_ServiceId + "/"s + name + "/set"s, encoded_value.c_str(), encoded_value.size());
+
+	// Wait for the response.
+
 
 	std::string reply_string = m_Client->MakeRequest("set_property", Serialize(request));
 
-	catkit_proto::service::SetPropertyReply reply;
+	catkit_proto::Value reply;
 	reply.ParseFromString(reply_string);
 
 	Value res;
@@ -315,9 +302,6 @@ void ServiceProxy::Connect()
 
 	for (auto& [key, value] : reply.datastream_ids())
 		m_DataStreamIds[key] = value;
-
-	for (auto& [key, value] : reply.property_datastream_links())
-		m_PropertyDataStreamLinks[key] = value;
 
 	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
 
