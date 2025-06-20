@@ -35,11 +35,10 @@ def generate_data(broker):
     res = []
 
     for topic in topics:
-        last_message_id = broker.get_newest_message_id(topic)
-        if last_message_id == 0:
+        try:
+            message = broker.get_current_message(topic)
+        except Exception:
             continue
-
-        message = broker.get_newest_message(topic)
 
         if message.topic != topic:
             continue
