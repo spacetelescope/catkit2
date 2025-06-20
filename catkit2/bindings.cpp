@@ -36,6 +36,7 @@
 #include "Event.h"
 #include "Uuid.h"
 #include "ArrayView.h"
+#include "ProcessStats.h"
 
 #include "testbed.pb.h"
 
@@ -1286,6 +1287,12 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def("acquire", &HybridPoolAllocator::Acquire)
 		.def("release", &HybridPoolAllocator::Release);
+
+	py::class_<ProcessStats>(m, "ProcessStats")
+		.def(py::init<>())
+		.def("update", &ProcessStats::Update)
+		.def_property_readonly("memory_usage", &ProcessStats::GetMemoryUsage)
+		.def_property_readonly("cpu_usage", &ProcessStats::GetCpuUsage);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
