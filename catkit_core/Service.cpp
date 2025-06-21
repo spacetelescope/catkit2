@@ -120,6 +120,19 @@ void Service::Run(void (*error_check)())
 
 	LOG_INFO("Service was succesfully opened.");
 
+	// Publish all properties on startup.
+	for (const auto &pair : m_Properties)
+	{
+		auto property_name = pair.first;
+		LOG_INFO("Publishing property \""s + property_name + "\".");
+
+		auto value = GetProperty(property_name);
+		std::string topic = m_ServiceId + "/"s + property_name + "/get"s;
+		m_Testbed->GetMessageBroker()->PublishData(topic, value.data(), value.size());
+	}
+
+	LOG_INFO("Service published all properties.");
+
 	bool crashed = false;
 	m_FailSafe = false;
 
