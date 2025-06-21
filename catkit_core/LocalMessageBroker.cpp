@@ -347,16 +347,12 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 	return Message(header, payload, INVALID_FRAME_ID, false);
 }
 
-void LocalMessageBroker::PublishMessage(Message &message, bool is_final)
+Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 {
 	DEBUG_PRINT("Publishing message.");
 
 	if (message.m_HasBeenPublished)
-	{
-		DEBUG_PRINT("Message has already been published.");
-
-		return;
-	}
+		throw std::runtime_error("Message has already been published.");
 
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
@@ -480,6 +476,8 @@ void LocalMessageBroker::PublishMessage(Message &message, bool is_final)
 	}
 
 	message.m_HasBeenPublished = is_final;
+
+	return message;
 }
 
 std::optional<Message> LocalMessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)

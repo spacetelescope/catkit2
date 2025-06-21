@@ -81,7 +81,7 @@ public:
 	virtual Message PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0) override;
 
 	// Publish a message.
-	virtual void PublishMessage(Message &message, bool is_final = true) override;
+	virtual Message PublishMessage(Message message, bool is_final = true) override;
 
 	// Get the newest message for a topic.
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) override;

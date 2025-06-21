@@ -187,15 +187,15 @@ Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_siz
 	return PrepareMessageImpl(topic, payload_size, trace_id, memory_block_id);
 }
 
-void MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id)
+Message MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id)
 {
 	Uuid trace_id;
 	Uuid::Generate(&trace_id);
 
-	PublishData(topic, data, data_size, trace_id, memory_block_id);
+	return PublishData(topic, data, data_size, trace_id, memory_block_id);
 }
 
-void MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id)
+Message MessageBroker::PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id)
 {
 	auto message = PrepareMessage(topic, data_size, trace_id, memory_block_id);
 
@@ -213,17 +213,19 @@ void MessageBroker::PublishData(std::string_view topic, const void *data, size_t
 	array_info.strides[0] = 1;
 
 	PublishMessage(message);
+
+	return message;
 }
 
-void MessageBroker::PublishArray(std::string_view topic, ArrayView array, uint8_t memory_block_id)
+Message MessageBroker::PublishArray(std::string_view topic, ArrayView array, uint8_t memory_block_id)
 {
 	Uuid trace_id;
 	Uuid::Generate(&trace_id);
 
-	PublishArray(topic, array, trace_id, memory_block_id);
+	return PublishArray(topic, array, trace_id, memory_block_id);
 }
 
-void MessageBroker::PublishArray(std::string_view topic, ArrayView array, Uuid trace_id, uint8_t memory_block_id)
+Message MessageBroker::PublishArray(std::string_view topic, ArrayView array, Uuid trace_id, uint8_t memory_block_id)
 {
 	auto message = PrepareMessage(topic, array.info.GetSizeInBytes(), trace_id, memory_block_id);
 
@@ -232,6 +234,8 @@ void MessageBroker::PublishArray(std::string_view topic, ArrayView array, Uuid t
 	message.SetArrayInfo(array.info);
 
 	PublishMessage(message);
+
+	return message;
 }
 
 MessageSubscription MessageBroker::Subscribe(std::string_view topic, MessageSubscriptionMode mode)

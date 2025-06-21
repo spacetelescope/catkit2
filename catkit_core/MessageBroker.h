@@ -155,7 +155,7 @@ class MessageBroker : public std::enable_shared_from_this<MessageBroker>
 {
 public:
 	virtual Message PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0) = 0;
-	virtual void PublishMessage(Message &message, bool is_final = true) = 0;
+	virtual Message PublishMessage(Message message, bool is_final = true) = 0;
 
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) = 0;
 	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) = 0;
@@ -167,11 +167,11 @@ public:
 	Message PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id = 0);
 	Message PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0);
 
-	void PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id = 0);
-	void PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id = 0);
+	Message PublishData(std::string_view topic, const void *data, size_t data_size, uint8_t memory_block_id = 0);
+	Message PublishData(std::string_view topic, const void *data, size_t data_size, Uuid trace_id, uint8_t memory_block_id = 0);
 
-	void PublishArray(std::string_view topic, ArrayView array, uint8_t memory_block_id = 0);
-	void PublishArray(std::string_view topic, ArrayView array, Uuid trace_id, uint8_t memory_block_id = 0);
+	Message PublishArray(std::string_view topic, ArrayView array, uint8_t memory_block_id = 0);
+	Message PublishArray(std::string_view topic, ArrayView array, Uuid trace_id, uint8_t memory_block_id = 0);
 
 	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
 	MessageSubscription Subscribe(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
