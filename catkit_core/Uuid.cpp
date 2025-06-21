@@ -23,7 +23,7 @@ public:
 		for (size_t i = 0; i < 2; ++i)
 		{
 			std::uint64_t value = m_Engines[i]();
-			*reinterpret_cast<std::uint64_t *>(uuid->data + i * 8) = value;
+			std::memcpy(uuid->data.data() + i * 8, &value, sizeof(value));
 		}
 
 		// Ensure we are compliant with RFC 4122.
@@ -41,6 +41,16 @@ void Uuid::Generate(Uuid *uuid)
 	static thread_local UuidGenerator generator;
 
 	generator.Generate(uuid);
+}
+
+bool Uuid::operator==(const Uuid &other) const
+{
+	return std::equal(data.begin(), data.end(), other.data.begin());
+}
+
+bool Uuid::operator!=(const Uuid &other) const
+{
+	return !(*this == other);
 }
 
 std::string Uuid::to_string() const
