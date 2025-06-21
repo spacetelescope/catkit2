@@ -54,8 +54,6 @@ Service::Service(string service_type, string service_id, int service_port, int t
 	LOG_DEBUG("Registering request handlers.");
 
 	m_Server.RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data); });
-	m_Server.RegisterRequestHandler("get_property", [this](const string &data) { return this->HandleGetProperty(data); });
-	m_Server.RegisterRequestHandler("set_property", [this](const string &data) { return this->HandleSetProperty(data); });
 	m_Server.RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
 	m_Server.RegisterRequestHandler("shut_down", [this](const string &data) { return this->HandleShutDown(data); });
 
@@ -137,12 +135,13 @@ void Service::Run(void (*error_check)())
 		// Start the safety and heartbeat threads.
 		std::thread safety(&Service::MonitorSafety, this);
 		std::thread heartbeat(&Service::MonitorHeartbeats, this);
+		std::thread properties(&Service::MonitorProperties, this);
 
 		// Start the server.
 		m_Server.Start();
 
 		// Ensure the server and started threads are stopped when out of this scope.
-		Finally stop_server_and_monitors([this, &safety, &heartbeat]()
+		Finally stop_server_and_monitors([this, &safety, &heartbeat, &properties]()
 		{
 			this->m_ShouldShutDown = true;
 
@@ -153,6 +152,9 @@ void Service::Run(void (*error_check)())
 
 			if (heartbeat.joinable())
 				heartbeat.join();
+
+			if (properties.joinable())
+				properties.join();
 		});
 
 		// Update service state.
@@ -331,6 +333,75 @@ void Service::MonitorHeartbeats()
 	}
 }
 
+void Service::MonitorProperties()
+{
+	auto broker = m_Testbed->GetMessageBroker();
+	auto subscription = broker->Subscribe(m_ServiceId);
+
+	while (!ShouldShutDown())
+	{
+		try
+		{
+			auto message_optional = subscription.GetNextMessage(SERVICE_LIVELINESS / 5, EventWaitMethod::Default);
+
+			if (!message_optional.has_value())
+				continue;
+
+			auto message = message_optional.value();
+			auto topic = message.GetTopic();
+
+			// Only trigger on set messages.
+			if (topic.substr(topic.size() - 4) != "/set")
+				continue;
+
+			std::string get_topic = std::string(topic.substr(0, topic.size() - 4)) + "/get"s;
+			std::string error_topic = std::string(topic.substr(0, topic.size() - 4)) + "/error"s;
+
+			// Find the property name. The topic is "<service_id>/<property_name>/set".
+			std::string property_name = std::string(topic.substr(m_ServiceId.size() + 1, topic.size()- m_ServiceId.size() - 5));
+
+			// Find the property. If a property by that name doesn't exist, ignore the message.
+			auto property = m_Properties.find(property_name);
+			if (property == m_Properties.end())
+				continue;
+
+			try
+			{
+				// Set the property value.
+				SetProperty(property_name, std::string_view((char *)message.GetPayload().data, message.GetPayloadSize()));
+			}
+			catch (const std::exception& e)
+			{
+				std::string error_message = "Failed to set property: "s + e.what();
+				LOG_ERROR(error_message);
+
+				broker->PublishData(error_topic, error_message.data(), error_message.size());
+				continue;
+			}
+
+			try
+			{
+				// Publish the new property value;
+				auto new_property_value = GetProperty(property_name);
+
+				broker->PublishData(get_topic, new_property_value.data(), new_property_value.size(), message.GetTraceId());
+			}
+			catch (const std::exception& e)
+			{
+				std::string error_message = "Failed to get property: "s + e.what();
+				LOG_ERROR(error_message);
+
+				broker->PublishData(error_topic, error_message.data(), error_message.size());
+				continue;
+			}
+		}
+		catch (const std::exception& e)
+		{
+			continue;
+		}
+	}
+}
+
 void Service::Open()
 {
 }
@@ -370,16 +441,6 @@ void Service::Sleep(double sleep_time_in_sec, void (*error_check)())
 	});
 }
 
-std::shared_ptr<Property> Service::GetProperty(const std::string &property_name) const
-{
-	auto i = m_Properties.find(property_name);
-
-	if (i != m_Properties.end())
-		return i->second;
-	else
-		return nullptr;
-}
-
 std::shared_ptr<Command> Service::GetCommand(const std::string &command_name) const
 {
 	auto i = m_Commands.find(command_name);
@@ -410,25 +471,11 @@ const std::string &Service::GetId() const
 	return m_ServiceId;
 }
 
-void Service::MakeProperty(std::string property_name, Property::Getter getter, Property::Setter setter, DataType dtype)
+void Service::MakeProperty(std::string property_name, PropertyGetter getter, PropertySetter setter)
 {
 	LOG_DEBUG("Making property \"" + property_name + "\".");
 
-	std::shared_ptr<DataStream> stream;
-
-	if (dtype != DataType::DT_UNKNOWN)
-	{
-		LOG_DEBUG("This property is backed by a data stream.");
-
-		std::string stream_name = property_name + "_stream";
-		std::vector<size_t> dimensions = {1};
-		size_t num_frames_in_buffer = 20;
-
-		stream = MakeDataStream(stream_name, dtype, dimensions, num_frames_in_buffer);
-	}
-
-	auto prop = std::make_shared<Property>(property_name, stream, getter, setter);
-	m_Properties[property_name] = prop;
+	m_Properties[property_name] = {getter, setter};
 }
 
 void Service::MakeCommand(std::string command_name, Command::CommandFunction func)
@@ -464,6 +511,51 @@ std::shared_ptr<TestbedProxy> Service::GetTestbed()
 	return m_Testbed;
 }
 
+std::string Service::GetProperty(std::string property_name)
+{
+	auto i = m_Properties.find(property_name);
+
+	if (i == m_Properties.end())
+		throw std::runtime_error("Property \"" + property_name + "\" does not exist.");
+
+	PropertyGetter getter = i->second.first;
+	if (getter == nullptr)
+		throw std::runtime_error("Property \"" + property_name + "\" cannot be read from.");
+
+	Value value = getter();
+
+	// Convert the value to a buffer.
+	catkit_proto::Value proto_value;
+	ToProto(value, &proto_value);
+
+	std::string serialized;
+	proto_value.SerializeToString(&serialized);
+
+	return serialized;
+}
+
+void Service::SetProperty(std::string property_name, std::string_view value)
+{
+	auto i = m_Properties.find(property_name);
+
+	if (i == m_Properties.end())
+		throw std::runtime_error("Property \"" + property_name + "\" does not exist.");
+
+	PropertySetter setter = i->second.second;
+	if (setter == nullptr)
+		throw std::runtime_error("Property \"" + property_name + "\" cannot be written to.");
+
+	// Convert the value from a buffer.
+	catkit_proto::Value proto_value;
+	proto_value.ParseFromArray(value.data(), value.size());
+
+	Value val;
+	FromProto(&proto_value, val);
+
+	// Call the setter.
+	setter(val);
+}
+
 string Service::HandleGetInfo(const string &data)
 {
 	// There's no data in the request, so don't even parse it.
@@ -475,11 +567,7 @@ string Service::HandleGetInfo(const string &data)
 	reply.set_config(m_Config.dump());
 
 	for (auto& [key, value] : m_Properties)
-	{
 		reply.add_property_names(key);
-		if (value->GetStream())
-			(*reply.mutable_property_datastream_links())[key] = value->GetStream()->GetStreamName();
-	}
 
 	for (auto& [key, value] : m_Commands)
 		reply.add_command_names(key);
@@ -490,54 +578,6 @@ string Service::HandleGetInfo(const string &data)
 	reply.set_heartbeat_stream_id(m_Heartbeat->GetStreamId());
 
 	std::string reply_string;
-	reply.SerializeToString(&reply_string);
-
-	return reply_string;
-}
-
-string Service::HandleGetProperty(const string &data)
-{
-	catkit_proto::service::GetPropertyRequest request;
-	request.ParseFromString(data);
-
-	std::string property_name = request.property_name();
-	auto property = GetProperty(property_name);
-
-	if (!property)
-		throw std::runtime_error("Property \""s + property_name + "\" does not exist.");
-
-	auto value = property->Get();
-
-	catkit_proto::service::GetPropertyReply reply;
-	ToProto(value, reply.mutable_property_value());
-
-	string reply_string;
-	reply.SerializeToString(&reply_string);
-
-	return reply_string;
-}
-
-string Service::HandleSetProperty(const string &data)
-{
-	catkit_proto::service::SetPropertyRequest request;
-	request.ParseFromString(data);
-
-	std::string property_name = request.property_name();
-	auto property = GetProperty(property_name);
-
-	if (!property)
-		throw std::runtime_error("Property \""s + property_name + "\" does not exist.");
-
-	Value set_value;
-	FromProto(&request.property_value(), set_value);
-	property->Set(set_value);
-
-	auto value = property->Get();
-
-	catkit_proto::service::SetPropertyReply reply;
-	ToProto(value, reply.mutable_property_value());
-
-	string reply_string;
 	reply.SerializeToString(&reply_string);
 
 	return reply_string;
