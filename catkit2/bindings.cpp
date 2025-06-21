@@ -13,7 +13,6 @@
 #include "Timing.h"
 #include "Service.h"
 #include "Command.h"
-#include "Property.h"
 #include "Log.h"
 #include "LogConsole.h"
 #include "LogForwarder.h"
@@ -577,7 +576,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 		}, py::call_guard<py::gil_scoped_release>())
 		.def("make_property", [](Service &service, std::string name, py::object getter, py::object setter, std::string type)
 		{
-			DataType dtype = GetDataTypeFromString(type);
 			service.MakeProperty(name,
 			[getter]()
 			{
@@ -590,8 +588,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 				py::gil_scoped_acquire acquire;
 
 				setter(ToPython(value));
-			},
-			dtype);
+			});
 		}, py::arg("name"), py::arg("getter") = nullptr, py::arg("setter") = nullptr, py::arg("type") = "")
 		.def("make_command", [](Service &service, std::string name, py::object command)
 		{
