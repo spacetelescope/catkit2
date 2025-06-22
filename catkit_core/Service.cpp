@@ -388,7 +388,7 @@ void Service::MonitorProperties()
 				std::string error_message = "Failed to set property: "s + e.what();
 				LOG_ERROR(error_message);
 
-				broker->PublishData(error_topic, error_message.data(), error_message.size());
+				broker->PublishData(error_topic, error_message.data(), error_message.size(), message.GetTraceId());
 				continue;
 			}
 
@@ -404,7 +404,7 @@ void Service::MonitorProperties()
 				std::string error_message = "Failed to get property: "s + e.what();
 				LOG_ERROR(error_message);
 
-				broker->PublishData(error_topic, error_message.data(), error_message.size());
+				broker->PublishData(error_topic, error_message.data(), error_message.size(), message.GetTraceId());
 				continue;
 			}
 		}
