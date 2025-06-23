@@ -309,11 +309,21 @@ class Testbed:
 
         # Read in service types.
         self.service_type_paths = {}
-        for entry_point in importlib_metadata.entry_points()["catkit2.services"]:
-            module = entry_point.module
+        for entry_point in importlib_metadata.entry_points().get("catkit2.services", []):
+            try:
+                # grab the module
+                module = entry_point.module
+
+            except AttributeError:
+                # In some configurations of EntryPoint there is no 'module'
+                module = entry_point.value.split(':')[0]
+
             spec = importlib.util.find_spec(module)
-            path = os.path.abspath(spec.origin)
-            self.register_service_type(entry_point.name, path)
+            if spec is not None:
+                path = os.path.abspath(spec.origin)
+                self.register_service_type(entry_point.name, path)
+            else:
+                self.log.warning(f"Could not find spec for module: {module}")
 
         # Create server instance and register request handlers.
         self.server = Server(port)
