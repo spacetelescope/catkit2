@@ -144,7 +144,7 @@ class LogTerminal(LogObserver):
         self.level = Severity.WARNING
         self.colors = {
             Severity.DEBUG: Fore.GREEN,
-            Severity.INFO: Fore.BLUE,
+            Severity.INFO: Fore.CYAN,
             Severity.WARNING: Fore.YELLOW,
             Severity.ERROR: Fore.RED,
             Severity.CRITICAL: Fore.WHITE + Back.RED
