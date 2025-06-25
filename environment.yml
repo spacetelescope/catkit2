@@ -46,6 +46,7 @@ dependencies:
   - h5py
   - importlib_metadata
   - fasteners
+  - textual
   - pip:
     - dcps
     - zwoasi>=0.0.21
