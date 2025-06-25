@@ -95,14 +95,21 @@ class ZwoCamera(Service):
 
         # Restore all controls to default values, in case any other application modified them.
         for c in controls:
-            self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
+            # Some control values such as Temperature and CoolerPowerPerc are not writable for zwo cool models
+            if ('IsWritable' in controls[c]) and controls[c]['IsWritable']:
+                self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
 
         print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
 
         print('Bandwidth before:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
-        # Set bandwidth overload control to minvalue.
-        self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        self._max_bandwidth = self.config.get('max_bandwidth', True)
+
+        # Max USB bandwidth gives highest FPS performance at small ROI - however it sometimes causes the service to crash with large frame sizes
+        if self._max_bandwidth:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        else:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
 
         print('Bandwidth after:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
@@ -168,6 +175,8 @@ class ZwoCamera(Service):
         make_property_helper('sensor_height', read_only=True)
 
         make_property_helper('device_name', read_only=True)
+
+        make_property_helper('max_bandwidth')
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
@@ -321,6 +330,19 @@ class ZwoCamera(Service):
     @offset_y.setter
     def offset_y(self, offset_y):
         self.camera.set_roi_start_position(self.offset_x, offset_y)
+
+    @property
+    def max_bandwidth(self):
+        return self._max_bandwidth
+
+    @max_bandwidth.setter
+    def max_bandwidth(self, use_max):
+        # max USB bandwidth allows for maximum frame rates from ZWO camera
+        # however, some models have issues reading out large frame sizes when max value is set
+        if use_max:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        else:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
 
 if __name__ == '__main__':
     service = ZwoCamera()
