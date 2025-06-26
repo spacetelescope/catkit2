@@ -139,8 +139,8 @@ class CameraService(Service):
             img = np.flipud(img)
         if self.flip_y:
             img = np.fliplr(img)
-        return np.ascontiguousarray(img)  
-        
+        return np.ascontiguousarray(img)
+
     def _start_acquisition(self):
         self.should_be_acquiring.set()
 

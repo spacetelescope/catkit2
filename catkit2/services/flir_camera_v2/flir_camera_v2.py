@@ -1,6 +1,5 @@
 import threading
 from PySpin import PySpin
-import numpy as np
 from contextlib import nullcontext
 
 from catkit2.base_services import CameraService, StoppedAcquisition
