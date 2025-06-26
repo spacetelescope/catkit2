@@ -32,7 +32,7 @@ class ZwoCamera(CameraService):
 
         expected_device_name = self.config['device_name']
         expected_device_id = self.config.get('device_id', None)
-
+        
         for i in range(num_cameras):
             device_name = zwoasi._get_camera_property(i)['Name']
 
