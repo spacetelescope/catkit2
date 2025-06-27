@@ -48,6 +48,7 @@ For stopping and starting a service:
 A service is also started automatically if you try to access an attribute (property or method or datastream) on a service. If the service has crashed, or is in failsafe mode, then the service will refuse to start by itself or via the service proxy alone. This is to avoid an infinite loop of the service crashing and restarting, which is not what we want. Instead, you can ask the testbed server to start a `CRASHED`/`FAIL_SAFE`/`CLOSED` service:
 
 .. code-block:: python
+
     testbed.start_service('science_camera')
 
 Creating your own service
