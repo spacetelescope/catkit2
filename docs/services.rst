@@ -27,6 +27,29 @@ The allowed transitions for a service state are displayed in the below diagram.
 .. image:: services_flowchart.png
   :alt: A flow chart for the state of a service.
 
+Handling a service
+------------------
+
+You can check the state of a service in the following way:
+
+.. code-block:: python
+
+    print(testbed.science_camera.state)
+    print(testbed.science_camera.is_running)  # whether the service state is RUNNING
+    print(testbed.science_camera.is_alive)  # whether the service state is any of the alive states (ie. not CRASHED, FAIL_SAFE or CLOSED)
+
+For stopping and starting a service:
+
+.. code-block:: python
+
+    testbed.science_camera.stop()
+    testbed.science_camera.start()
+
+A service is also started automatically if you try to access an attribute (property or method or datastream) on a service. If the service has crashed, or is in failsafe mode, then the service will refuse to start by itself or via the service proxy alone. This is to avoid an infinite loop of the service crashing and restarting, which is not what we want. Instead, you can ask the testbed server to start a CRASHED/FAIL_SAFE/CLOSED service:
+
+.. code-block:: python
+    testbed.start_service('science_camera')
+
 Creating your own service
 -------------------------
 
