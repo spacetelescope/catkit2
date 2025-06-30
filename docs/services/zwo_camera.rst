@@ -51,6 +51,8 @@ Properties
 
 ``device_name``: The name of the camera.
 
+``max_bandwidth``: The camera USB bandwidth setting. True uses (default) max USB bandwidth setting. False sets minimum USB bandwidth which can be more reliable in some situations.
+
 Commands
 --------
 ``start_acquisition()``: This starts the acquisition of images from the camera.
