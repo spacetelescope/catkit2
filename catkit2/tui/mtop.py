@@ -5,10 +5,58 @@ from textual.widgets.data_table import CellDoesNotExist
 from rich.text import Text
 from rich.console import ConsoleRenderable
 
+# For Python 3.7 workaround.
+from textual._two_way_dict import TwoWayDict
+from operator import itemgetter
+
 import sys
 import numpy as np
 
 from catkit2.catkit_bindings import SharedMemory, LocalMessageBroker, get_timestamp
+def sort_data_table(
+    data_table,
+    *columns,
+    key,
+    reverse):
+    """Sort the rows in the `DataTable` by one or more column keys or a
+    key function (or other callable). If both columns and a key function
+    are specified, only data from those columns will sent to the key function.
+
+    NOTE: This is copy-pasted and then adapted from Textual. This function is
+    natively implemented in newer versions, but for versions compatible with
+    Python 3.7, the key keyword is not availble.
+
+    Args:
+        columns: One or more columns to sort by the values in.
+        key: A function (or other callable) that returns a key to
+            use for sorting purposes.
+        reverse: If True, the sort order will be reversed.
+
+    Returns:
+        The `DataTable` instance.
+    """
+
+    def key_wrapper(row):
+        _, row_data = row
+        if columns:
+            result = itemgetter(*columns)(row_data)
+        else:
+            result = tuple(row_data.values())
+        if key is not None:
+            return key(result)
+        return result
+
+    ordered_rows = sorted(
+        data_table._data.items(),
+        key=key_wrapper,
+        reverse=reverse,
+    )
+    data_table._row_locations = TwoWayDict(
+        {row_key: new_index for new_index, (row_key, _) in enumerate(ordered_rows)}
+    )
+    data_table._update_count += 1
+    data_table.refresh()
+    return data_table
 
 def human_readable_time(seconds):
     seconds = round(seconds)
@@ -126,7 +174,11 @@ class MTopApp(App):
         elif self.current_sort_column == 'frame_rate':
             reverse = True
 
-        self.table.sort(self.current_sort_column, key=key, reverse=reverse)
+        try:
+            self.table.sort(self.current_sort_column, key=key, reverse=reverse)
+        except TypeError:
+            # Workaround for Python 3.7.
+            sort_data_table(self.table, self.current_sort_column, key=key, reverse=reverse)
 
     def action_sort_by_topic(self):
         self.current_sort_column = 'topic'
