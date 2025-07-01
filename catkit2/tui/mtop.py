@@ -84,7 +84,7 @@ class MTopApp(App):
         self.current_sort_column = 'topic'
 
     def compose(self) -> ComposeResult:
-        yield Header(icon='')
+        yield Header()
 
         self.table = DataTable(id="datatable")
         yield Container(self.table)
