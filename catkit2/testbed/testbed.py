@@ -111,9 +111,10 @@ class ServiceReference:
     state : ServiceState
         The current state of the service.
     '''
-    def __init__(self, service_id, service_type, state, dependencies):
+    def __init__(self, service_id, service_type, state, dependencies, broker):
         self.service_id = service_id
         self.service_type = service_type
+        self.broker = broker
 
         if dependencies is None:
             dependencies = []
@@ -140,6 +141,8 @@ class ServiceReference:
     def state(self, state):
         new_state = np.array([state.value], dtype='int8')
         self.state_stream.submit_data(new_state)
+
+        self.broker.publish_array(f'{self.service_id}/service_state/get', new_state)
 
     @property
     def is_alive(self):
@@ -263,6 +266,12 @@ class Testbed:
         if self.is_simulated:
             self.startup_services.append('simulator')
 
+        # Create a message broker.
+        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 1024)
+        self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
+
+        self.message_broker = LocalMessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
+
         # Fill in services dictionary.
         for service_id, service_info in self.config['services'].items():
             service_type = service_info['service_type']
@@ -272,7 +281,7 @@ class Testbed:
 
             dependencies = service_info.get('depends_on', [])
 
-            self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED, dependencies)
+            self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED, dependencies, self.message_broker)
 
         # Set up dependency management.
         for service_id, service in self.services.items():
@@ -342,12 +351,6 @@ class Testbed:
         self.shutdown_flag = threading.Event()
 
         self.heartbeat_stream = DataStream.create('heartbeat', 'testbed', 'uint64', [1], 20)
-
-        # Create a message broker.
-        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 1024)
-        self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
-
-        self.message_broker = LocalMessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
 
     def run(self):
         '''Run the main loop of the server.
@@ -429,6 +432,8 @@ class Testbed:
 
             heartbeat = np.array([get_timestamp()], dtype='uint64')
             self.heartbeat_stream.submit_data(heartbeat)
+
+            self.message_broker.publish_array('testbed/heartbeat/get', heartbeat)
 
     def monitor_services(self):
         while not self.shutdown_flag.is_set():
