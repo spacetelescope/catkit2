@@ -13,6 +13,7 @@
 using namespace std::string_literals;
 
 const double TIMEOUT_TO_START = 120;  // seconds
+const double TIMEOUT_SET_PROPERTY = 120;  // seconds
 
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
 	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr), m_State(nullptr),
@@ -46,44 +47,19 @@ Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
 		throw std::runtime_error("This is not a valid property name.");
 
-	if (m_PropertyDataStreamLinks.find(name) != m_PropertyDataStreamLinks.end())
-	{
-		// This property is backed by a datastream. Lets try to get the value from there first.
-		std::string stream_name = m_PropertyDataStreamLinks[name];
-		std::shared_ptr<DataStream> stream = GetDataStream(stream_name, error_check);
+	// Get the value data.
+	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/"s + name + "/get"s);
 
-		try
-		{
-			DataFrame frame = stream->GetLatestFrame();
+	if (!message.has_value())
+		throw std::runtime_error("Could not get the property.");
 
-			switch (frame.GetDataType())
-			{
-				case DataType::DT_INT64:
-					return ((std::int64_t *) frame.GetData())[0];
-				case DataType::DT_FLOAT64:
-					return ((double *) frame.GetData())[0];
-				default:
-					throw std::logic_error("This should be unreachable.");
-			}
-		}
-		catch (std::runtime_error)
-		{
-			// There is no frame in the datastream. Ignore and fall back to a manual
-			// request to the service.
-		}
-	}
-
-	// Set the service a request for the value of this property and return that.
-	catkit_proto::service::GetPropertyRequest request;
-	request.set_property_name(name);
-
-	std::string reply_string = m_Client->MakeRequest("get_property", Serialize(request));
-
-	catkit_proto::service::GetPropertyReply reply;
-	reply.ParseFromString(reply_string);
+	// Decode the data.
+	catkit_proto::Value proto_value;
+	std::string proto_string((char *) message.value().GetPayload().data, message.value().GetPayloadSize());
+	proto_value.ParseFromString(proto_string);
 
 	Value res;
-	FromProto(&reply.property_value(), res);
+	FromProto(&proto_value, res);
 
 	return res;
 }
@@ -97,19 +73,62 @@ Value ServiceProxy::SetProperty(const std::string &name, const Value &value, voi
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
 		throw std::runtime_error("This is not a valid property name.");
 
-	catkit_proto::service::SetPropertyRequest request;
-	request.set_property_name(name);
-	ToProto(value, request.mutable_property_value());
+	std::string set_topic = m_ServiceId + "/"s + name + "/set"s;
+	std::string error_topic = m_ServiceId + "/"s + name + "/error";
 
-	std::string reply_string = m_Client->MakeRequest("set_property", Serialize(request));
+	// Encode value to protobuf.
+	catkit_proto::Value proto_value;
+	ToProto(value, &proto_value);
 
-	catkit_proto::service::SetPropertyReply reply;
-	reply.ParseFromString(reply_string);
+	std::string encoded_value;
+	proto_value.SerializeToString(&encoded_value);
 
-	Value res;
-	FromProto(&reply.property_value(), res);
+	// Subscribe to get messages.
+	auto subscription = m_Testbed->GetMessageBroker()->Subscribe(m_ServiceId + "/"s + name, MessageSubscriptionMode::Sequential);
 
-	return res;
+	// Send a set message.
+	auto message = m_Testbed->GetMessageBroker()->PublishData(set_topic, encoded_value.c_str(), encoded_value.size());\
+	Uuid trace_id = message.GetTraceId();
+
+	// Wait for the response.
+	Timer timer;
+
+	while (true)
+	{
+		double time_remaining = TIMEOUT_SET_PROPERTY - timer.GetTime();
+
+		if (time_remaining < 0)
+			throw std::runtime_error("Timeout waiting for response");
+
+		// Get the response message.
+		auto reply_message_optional = subscription.GetNextMessage(time_remaining, EventWaitMethod::Default, error_check);
+
+		if (!reply_message_optional.has_value())
+			continue;
+
+		auto reply_message = reply_message_optional.value();
+
+		// Check if the message is a response to our set.
+		if (reply_message.GetTraceId() != trace_id)
+			continue;
+
+		// Ignore the message we just sent.
+		if (reply_message.GetTopic() == set_topic)
+			continue;
+
+		// If it's an error topic, relay the error to the caller as an exception.
+		if (reply_message.GetTopic() == error_topic)
+			throw std::runtime_error("Error while setting property: "s + std::string((char *) reply_message.GetPayload().data, reply_message.GetPayloadSize()));
+
+		// Parse the response message and return the retrieved value.
+		catkit_proto::Value reply;
+		reply.ParseFromString(std::string((char *) reply_message.GetPayload().data, reply_message.GetPayloadSize()));
+
+		Value res;
+		FromProto(&reply, res);
+
+		return res;
+	}
 }
 
 Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &arguments, void (*error_check)())
@@ -315,9 +334,6 @@ void ServiceProxy::Connect()
 
 	for (auto& [key, value] : reply.datastream_ids())
 		m_DataStreamIds[key] = value;
-
-	for (auto& [key, value] : reply.property_datastream_links())
-		m_PropertyDataStreamLinks[key] = value;
 
 	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
 
