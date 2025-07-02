@@ -126,9 +126,17 @@ void Service::Run(void (*error_check)())
 		auto property_name = pair.first;
 		LOG_INFO("Publishing property \""s + property_name + "\".");
 
-		auto value = GetProperty(property_name);
-		std::string topic = m_ServiceId + "/"s + property_name + "/get"s;
-		m_Testbed->GetMessageBroker()->PublishData(topic, value.data(), value.size());
+		try
+		{
+			auto value = GetProperty(property_name);
+			std::string topic = m_ServiceId + "/"s + property_name + "/get"s;
+			m_Testbed->GetMessageBroker()->PublishData(topic, value.data(), value.size());
+		}
+		catch (std::exception &e)
+		{
+			std::string error_message = "Failed to get property: "s + e.what();
+			LOG_ERROR(error_message);
+		}
 	}
 
 	LOG_INFO("Service published all properties.");
