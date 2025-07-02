@@ -138,10 +138,11 @@ class CameraService(Service):
             self.testbed.simulator.end_camera_acquisition(camera_name=self.id)
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
             
-    def get_camera_offset(self, x, y):        
-        """Convert relative camera offsets given by the user to absolute offsets in camera array coordinates.
+    def get_camera_offset(self, x, y, inverse=False):  # TODO: Find better name for this function.
+        #TODO: Check docstrings in general now that this can do invserse transformations.
+        """Convert relative camera offsets given by the user to absolute offsets in camera coordinates.
 
-        This is done by performing the following procedure:
+        The forward transformation is done by performing the following procedure:
         1.) Translate the origin to the center of the ROI.
         2.) if rot90 is True, rotate 90 degrees counter-clockwise about the center of the ROI
         3.) Translate the origin back to the upper left fo the ROI.
@@ -151,9 +152,13 @@ class CameraService(Service):
         Parameters
         ----------
         x: float
-            The x-offset coordinate
+            The x-offset coordinate in the user coordinate system
         y: float
-            The y-offset coordinate
+            The y-offset coordinate in the user coordinate system
+        inverse: bool, optional
+            If True, the transformation is performed in reverse, i.e. from camera coordinates to user coordinates.
+            Defaults to False.
+
         Returns
         -------
         new_x, new_y: float, float
@@ -204,9 +209,12 @@ class CameraService(Service):
             T_back[1][-1] = self.height / 2
 
         # Perform the dot product. First flip in x to establish top left origin, then translate to ROI center, rotate,
-        # translate back to origin, flip in x, and finally flip in y.
+        # translate back to origin, flip in x, and finally flip in y.  #TODO: Is this comment correct?
         coords = [x, y, 1]
         new_coords = np.linalg.multi_dot([T_back, Y, X, R, T, coords])
+
+        if inverse:
+            new_coords = np.linalg.multi_dot([T, Y, X, R(-1), T_back, coords])  # TODO: Make this real Python
 
         return new_coords[0], new_coords[1]
 
@@ -259,7 +267,7 @@ class CameraService(Service):
         camera_offset_x = self.get_roi_offset_x()
         camera_offset_y = self.get_roi_offset_y()
 
-        offset_x, _ = self.get_user_offset(camera_offset_x, camera_offset_y)  # TODO: ROI transformation here.
+        offset_x, _ = self.get_camera_offset(camera_offset_x, camera_offset_y, inverse=True)
 
         return offset_x
 
@@ -273,7 +281,7 @@ class CameraService(Service):
         camera_offset_x = self.get_roi_offset_x()
         camera_offset_y = self.get_roi_offset_y()
 
-        _, offset_y = self.get_user_offset(camera_offset_x, camera_offset_y)  # TODO: ROI transformation here.
+        _, offset_y = self.get_camera_offset(camera_offset_x, camera_offset_y, inverse=True)
 
         return offset_y
 
