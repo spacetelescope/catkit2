@@ -36,15 +36,8 @@ class CameraService(Service):
         self.should_be_acquiring.set()
 
     def open(self):
-        # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.log.info('Creating data streams using base camera service')
-        
-        # Reading properties from the configuration file.
-        # This is handled by the base class
-
-        offset_x = self.config.get('offset_x', 0)
-        offset_y = self.config.get('offset_y', 0)
 
         # frame orientation
         self.rot90 = self.config.get('rot90', False)
@@ -52,24 +45,26 @@ class CameraService(Service):
         self.flip_y = self.config.get('flip_y', False)
 
         self.log.info('Camera orientation: rot90={}, flip_x={}, flip_y={}'.format(self.rot90, self.flip_x, self.flip_y))
-
         self.log.info('Configured sensor width: {}, height: {}'.format(self.sensor_width, self.sensor_height))
 
-        # width and height of the ROI
-        self.width = self.config.get('width', self.sensor_width - offset_x) # check if this is what we want 
+        # All configured values are in user coordinate system, i.e. the values that the user sees instead of camera coordinates.
 
-        self.height = self.config.get('height', self.sensor_height - offset_y)
-
+        # width and height of the ROI, defaults to full sensor size
+        self.width = self.config.get('width', self.sensor_width)
+        self.height = self.config.get('height', self.sensor_height)
         self.log.info('Configured ROI width: {}, height: {}'.format(self.width, self.height))
 
-        # self.offset_x and self.offset_y should correspond to what you are actually seeing in the image
-        # Note that get_camera_offset must be called before updating the values of self.width and self.height.
+        self.offset_x = self.config.get('offset_x', 0)
+        self.offset_y = self.config.get('offset_y', 0)
+        self.log.info('Configured offsets x: {}, y: {}'.format(self.offset_x, self.offset_y))
 
+        # Note that get_camera_offset must be called before updating the values of self.width and self.height.
 
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
 
-
+        # Create datastreams
+        # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES_IN_BUFFER)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], self.NUM_FRAMES_IN_BUFFER)
 
@@ -103,10 +98,6 @@ class CameraService(Service):
         make_property_helper('sensor_width', read_only=True, dtype='int64')
         make_property_helper('sensor_height', read_only=True, dtype='int64')
 
-        make_property_helper('rot90', read_only=True)
-        make_property_helper('flip_x', read_only=True)
-        make_property_helper('flip_y', read_only=True)
-
         self.make_command('start_acquisition', self._start_acquisition)
         self.make_command('end_acquisition', self._end_acquisition)
 
@@ -122,15 +113,12 @@ class CameraService(Service):
         self.temperature_thread.join()
 
     def acquisition_loop(self):
-        # CHECK: We need to check if the data stream has the right size and datatype after the rotation and flipping for the correct dimensions. 
-
-        # Make sure the data stream has the right size and datatype.
+        # Make sure the data stream has the right size, and images have right pixel datatype.
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
         has_correct_parameters &= self.images.dtype == self.PIXEL_DTYPE
 
         if not has_correct_parameters:
             self.images.update_parameters(self.PIXEL_DTYPE, [self.height, self.width], self.NUM_FRAMES_IN_BUFFER)
-            # what does it mean for rot90?
 
         # Start acquisition on the camera.
         self.start_acquisition()
@@ -142,8 +130,8 @@ class CameraService(Service):
             # Wait until we are commanded to stop acquisition.
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 img = self.capture_image()
-                flipped_img = self.rot_flip_image(img)
-                self.images.submit_data(flipped_img)
+                transformed_img = self.rot_flip_image(img)
+                self.images.submit_data(transformed_img)
 
         finally:
             # Communicate with the simulator to stop camera acquisition.
@@ -239,29 +227,21 @@ class CameraService(Service):
         self.should_be_acquiring.clear()
 
     @property
-    def width(self): # image 
-        # TODO: ROI transformation here.
+    def width(self):
         if self.rot90:
-            return self.get_roi_height() # get - sensor space ; get from the camera
+            return self.get_roi_height()
         else:
-            return self.get_roi_width() 
-
-    # input of the width is in user space
-    # width is in user space
-    # self.width  --> user space
-    # input you send to the set function --> sensor space
+            return self.get_roi_width()
 
     @width.setter
     def width(self, width):
-        # TODO: ROI transformation here.
         if self.rot90:
-            self.set_roi_height(width) # set - sensor space 
+            self.set_roi_height(width)
         else:
             self.set_roi_width(width)
 
     @property
     def height(self):
-        # TODO: ROI transformation here.
         if self.rot90:
             return self.get_roi_width()
         else:
@@ -269,7 +249,6 @@ class CameraService(Service):
 
     @height.setter
     def height(self, height):
-        # TODO: ROI transformation here.
         if self.rot90:
             self.set_roi_width(height)
         else:
@@ -277,36 +256,34 @@ class CameraService(Service):
 
     @property
     def offset_x(self):
-        # TODO: ROI transformation here.
-        if self.rot90:
-            return self.get_roi_offset_y()
-        else:
-            return self.get_roi_offset_x()
+        camera_offset_x = self.get_roi_offset_x()
+        camera_offset_y = self.get_roi_offset_y()
+
+        offset_x, _ = self.get_user_offset(camera_offset_x, camera_offset_y)  # TODO: ROI transformation here.
+
+        return offset_x
 
     @offset_x.setter
     def offset_x(self, offset_x, offset_y):
-        # inverse transformation to go back to the sensor space when putting this back to the camera --> set_roi_offset_x()
-        # TODO: ROI transformation here.
         camera_offset_x, _ = self.get_camera_offset(offset_x, offset_y)
-        self.set_roi_offset_x(ofcamera_offset_xset_x)
+        self.set_roi_offset_x(camera_offset_x)
 
     @property
     def offset_y(self):
-        # TODO: ROI transformation here.
-        if self.rot90:
-            return self.get_roi_offset_x()
-        else:
-            return self.get_roi_offset_y()
+        camera_offset_x = self.get_roi_offset_x()
+        camera_offset_y = self.get_roi_offset_y()
+
+        _, offset_y = self.get_user_offset(camera_offset_x, camera_offset_y)  # TODO: ROI transformation here.
+
+        return offset_y
 
     @offset_y.setter
     def offset_y(self, offset_x, offset_y):
-        # TODO: ROI transformation here.
         _, camera_offset_y = self.get_camera_offset(offset_x, offset_y)
         self.set_roi_offset_y(camera_offset_y)
 
     @property
     def sensor_width(self):
-        # TODO: ROI transformation here.
         if self.rot90:
             return self.get_sensor_height()
         else:
@@ -314,7 +291,6 @@ class CameraService(Service):
 
     @property
     def sensor_height(self):
-        # TODO: ROI transformation here.
         if self.rot90:
             return self.get_sensor_width()
         else:
