@@ -13,6 +13,7 @@ class ThorlabsCLD101X(Service):
 
         self.visa_id = self.config['visa_id']
         self.wavelength = self.config['wavelength']
+        self.max_current = self.config['max_current']   # in Ampere
 
         self.current_setpoint = self.make_data_stream(f'current_setpoint_{self.wavelength}', 'float32', [1], 20)
         self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float32', [1], 20)
@@ -32,9 +33,6 @@ class ThorlabsCLD101X(Service):
         self.connection.write("output1:state on")
         self.connection.write(f"{self._SET_CURRENT}0.0")
         self.current_percent.submit_data(np.array([0.0], dtype='float32'))
-
-        # Read max current setpoint.
-        self.max_current = float(self.connection.query('source1:current:limit:amplitude?'))  # in Ampere
 
     def main(self):
         while not self.should_shut_down:
