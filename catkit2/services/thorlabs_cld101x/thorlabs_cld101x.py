@@ -10,7 +10,7 @@ class ThorlabsCLD101X(Service):
 
         self.visa_id = self.config['visa_id']
         self.wavelength = self.config['wavelength']
-        self.function_mode= self.config['function_mode']  # 'current' or 'power'
+        self.function_mode = self.config['function_mode']  # 'current' or 'power'
         self.max_current = self.config['max_current']  # in Ampere
 
         if self.function_mode == 'current':
