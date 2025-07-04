@@ -7,14 +7,16 @@ class ThorlabsCLD101XSim(Service):
     def __init__(self):
         super().__init__('thorlabs_cld101x_sim')
 
+        self.visa_id = self.config['visa_id']
         self.wavelength = self.config['wavelength']
+        self.function_mode = self.config['function_mode']  # 'current' or 'power'
+        self.max_current = self.config['max_current']  # in Ampere
 
         self.current_setpoint = self.make_data_stream(f'current_setpoint_{self.wavelength}', 'float32', [1], 20)
         self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float32', [1], 20)
 
     def open(self):
         self.current_percent.submit_data(np.array([0.0], dtype='float32'))
-        self.max_current = 0.25  # in Ampere  # TODO: Get this from config?
 
     def main(self):
         while not self.should_shut_down:
