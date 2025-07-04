@@ -101,11 +101,7 @@ class HamamatsuCamera(Service):
         self.cooling_mode = self.config.get('cooling_mode', 'on')
         self.fan_on = self.config.get('fan_on', True)
 
-        if self.fan_on:
-            fan = 1
-        else:
-            fan = 0
-
+        fan = 1 if self.fan_on else 0
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, fan)
 
         if self.cooling_mode == 'off':
