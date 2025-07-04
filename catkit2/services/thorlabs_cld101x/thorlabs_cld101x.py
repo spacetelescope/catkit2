@@ -5,14 +5,20 @@ import numpy as np
 
 
 class ThorlabsCLD101X(Service):
-    _GET_CURRENT = "source1:current:level:amplitude?"
-    _SET_CURRENT = "source1:current:level:amplitude "
-
     def __init__(self):
         super().__init__('thorlabs_cld101x')
 
         self.visa_id = self.config['visa_id']
         self.wavelength = self.config['wavelength']
+        self.function_mode = self.config['function_mode']  # 'current' or 'power'
+        self.max_current = self.config['max_current']  # in Ampere
+
+        if self.function_mode == 'current':
+            self.get_current = 'source1:current:level:amplitude?'
+            self.set_current = 'source1:current:level:amplitude '
+        elif self.function_mode == 'power':
+            self.get_current = 'source1:power:level:diode:amplitude?'
+            self.set_current = 'source1:power:level:diode:amplitude '
 
         self.current_setpoint = self.make_data_stream(f'current_setpoint_{self.wavelength}', 'float32', [1], 20)
         self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float32', [1], 20)
@@ -25,16 +31,13 @@ class ThorlabsCLD101X(Service):
         self.connection.write('*RST')
         self.connection.write('output2:state on')
 
-        # Set to constant current mode.
-        self.connection.write('source1:function:mode current')
+        # Set function mode.
+        self.connection.write(f'source1:function:mode {self.function_mode}')
 
         # Turn laser on and set current setpoint to 0.0
         self.connection.write("output1:state on")
-        self.connection.write(f"{self._SET_CURRENT}0.0")
+        self.connection.write(f"{self.set_current}0.0")
         self.current_percent.submit_data(np.array([0.0], dtype='float32'))
-
-        # Read max current setpoint.
-        self.max_current = float(self.connection.query('source1:current:limit:amplitude?'))  # in Ampere
 
     def main(self):
         while not self.should_shut_down:
@@ -49,7 +52,7 @@ class ThorlabsCLD101X(Service):
                 continue
 
     def close(self):
-        self.connection.write(f"{self._SET_CURRENT}0.0")
+        self.connection.write(f"{self.set_current}0.0")
         self.connection.write("output1:state off")
         self.connection.write("output2:state off")
         self.connection.close()
@@ -70,7 +73,7 @@ class ThorlabsCLD101X(Service):
             raise ValueError("Current_percent must be between 0 and 100.")
 
         current_setpoint = current_percent / 100 * self.max_current
-        self.connection.write(f"{self._SET_CURRENT}{current_setpoint}")
+        self.connection.write(f"{self.set_current}{current_setpoint}")
 
         self.current_setpoint.submit_data(np.array([current_setpoint], dtype='float32'))
 
