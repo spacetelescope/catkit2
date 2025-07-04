@@ -17,8 +17,8 @@ class ThorlabsCLD101X(Service):
             self.get_current = 'source1:current:level:amplitude?'
             self.set_current = 'source1:current:level:amplitude '
         elif self.function_mode == 'power':
-            self.get_current = 'source1:power:level:diode:amplitude?'  # TODO: check if this is correct
-            self.set_current = 'source1:power:level:diode:amplitude '  # TODO: check if this is correct
+            self.get_current = 'source1:power:level:diode:amplitude?'
+            self.set_current = 'source1:power:level:diode:amplitude '
 
         self.current_setpoint = self.make_data_stream(f'current_setpoint_{self.wavelength}', 'float32', [1], 20)
         self.current_percent = self.make_data_stream(f'current_percent_{self.wavelength}', 'float32', [1], 20)
