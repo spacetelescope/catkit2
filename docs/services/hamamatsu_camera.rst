@@ -24,6 +24,8 @@ Configuration
       requires_safety: false
 
       camera_id: 0
+      cooling_mode: 'on'
+      fan_on: false
       camera_mode: 'ultraquiet'
       pixel_format: Mono16
       binning: 1

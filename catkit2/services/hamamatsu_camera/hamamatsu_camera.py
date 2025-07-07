@@ -97,6 +97,24 @@ class HamamatsuCamera(Service):
         if self.cam.dev_open() is False:
             raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
 
+        # Set water cooling mode and fan mode
+        self.cooling_mode = self.config.get('cooling_mode', 'on')
+        self.fan_on = self.config.get('fan_on', True)
+
+        fan = 2.0 if self.fan_on else 1.0
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, fan)
+
+        if self.cooling_mode == 'off':
+            cool = 1.0
+        elif self.cooling_mode == 'on':
+            cool = 2.0
+        elif self.cooling_mode == 'max':
+            cool = 4.0
+        else:
+            raise ValueError('Water cooling mode not recognized.')
+
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLER, cool)
+
         # Set subarray mode to on so that it checks subarray compatibility when picking ROI
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
 
