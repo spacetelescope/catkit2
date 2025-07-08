@@ -137,25 +137,6 @@ class HamamatsuCamera(Service):
         # Read ROI of full sensor before ROI is adapted.
         self.sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
         self.sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
-
-        # Set water cooling mode and fan mode
-        self.cooling_mode = self.config.get('cooling_mode', 'on')
-        self.fan_on = self.config.get('fan_on', True)
-
-        fan = 2.0 if self.fan_on else 1.0
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, fan)
-
-        if self.cooling_mode == 'off':
-            cool = 1.0
-        elif self.cooling_mode == 'on':
-            cool = 2.0
-        elif self.cooling_mode == 'max':
-            cool = 4.0
-        else:
-            raise ValueError('Water cooling mode not recognized.')
-
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLER, cool)
-
         # Set subarray mode to on so that it checks subarray compatibility when picking ROI
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
 
@@ -227,12 +208,19 @@ class HamamatsuCamera(Service):
         make_property_helper('gain', read_only=True)
         make_property_helper('brightness', read_only=True)
         make_property_helper('fan_status')
-        make_property_helper('sensor_cooler')
+        make_property_helper('cooler_mode')
+
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
+
+        # Set water cooling mode and fan mode
+        self.cooler_mode = self.config.get('cooling_mode', 'on')
+
+        # check fan status and start / stop fan
+        self.fan_status = self.config.get('fan_on', True)
 
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
@@ -312,56 +300,89 @@ class HamamatsuCamera(Service):
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
+            if temperature > 30:
+                self.log.warning('Camera Temperature above 30 degrees, stopping acquisition and start fan')
+                self.fan_status = 'on'
+                self.should_shut_down = True
+
             self.sleep(0.1)
 
-
-
     @property
-    def sensor_cooler(self):
+    def cooler_mode(self):
         """
-        Start the fan
+        Check the cooling mode
+        
+        Returns
+        -------
+        coolstr:
+            sensor cooler status 'on', 'off' or 'max'
 
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLER)
+        coolint = self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLER)
 
-    @sensor_cooler.setter
-    def sensor_cooler(self, number):
-        """
-        Start the fan
+        if coolint == 1.0:
+            return 'off'
+        elif coolint == 2.0:
+            return 'on'
+        else :
+            return 'max'
 
+    @cooler_mode.setter
+    def cooler_mode(self, coolstr):
         """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLER, number)
-    @property
-    def sensor_cooler_status(self):
-        """
-        Start the fan
+        Set the cooling mode
 
+        Parameterss
+        ----------
+        coolstr : str
+            Cooling mode of the camera
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLERSTATUS)
-    @property
-    def sensor_temperature_status(self):
-        """
-        Start the fan
 
-        """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORTEMPERATURE_STATUS)
+        if coolstr == 'off':
+            coolint = 1.0
+        elif coolstr == 'on':
+            coolint = 2.0
+        elif coolstr == 'max':
+            coolint = 4.0
+        else:
+            raise ValueError('Water cooling mode not recognized.')
 
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLER, coolint)
 
     @property
     def fan_status(self):
         """
-        Start the fan
-
+        Check fan status
+        
+        Returns
+        -------
+        onoff: bool
+            Fan status True or False
         """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN)
+        onoffint = self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN)
+
+        if onoffint == 1.0:
+            return False
+        if onoffint == 2.0:
+            return True
+
     @fan_status.setter
-    def fan_status(self, onoff):
+    def fan_status(self, onoff=True):
         """
-        Start the fan
+        Start / stop the the camera fan
 
+        Parameterss
+        ----------
+        onoff : bool
+            True or False to start or stop the fan
         """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, onoff)
 
+        if not onoff:
+            onoffint = 1.0
+        else:
+            onoffint = 2.0
+
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, onoffint)
 
     def start_acquisition(self):
         """
