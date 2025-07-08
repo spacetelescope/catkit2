@@ -301,8 +301,9 @@ class HamamatsuCamera(Service):
             self.temperature.submit_data(np.array([temperature]))
 
             if temperature > 30:
-                self.log.warning('Camera Temperature above 30 degrees, stopping acquisition and start fan')
-                self.fan_status = 'on'
+                self.log.warning('Camera Temperature above 30 degrees, stopping camera service and start fan')
+                self.fan_status = True
+                self.cooler_mode = 'on'
                 self.should_shut_down = True
 
             self.sleep(0.1)
@@ -310,13 +311,12 @@ class HamamatsuCamera(Service):
     @property
     def cooler_mode(self):
         """
-        Check the cooling mode
+        Check the cooling mode.
 
         Returns
         -------
-        coolstr:
-            sensor cooler status 'on', 'off' or 'max'
-
+        str :
+            Sensor cooler status 'on', 'off' or 'max'.
         """
         coolint = self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLER)
 
@@ -330,12 +330,12 @@ class HamamatsuCamera(Service):
     @cooler_mode.setter
     def cooler_mode(self, coolstr):
         """
-        Set the cooling mode
+        Set the cooling mode.
 
-        Parameterss
+        Parameters
         ----------
         coolstr : str
-            Cooling mode of the camera
+            Cooling mode of the camera.
         """
 
         if coolstr == 'off':
@@ -356,8 +356,8 @@ class HamamatsuCamera(Service):
 
         Returns
         -------
-        onoff: bool
-            Fan status True or False
+        bool :
+            Fan status True or False.
         """
         onoffint = self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN)
 
@@ -369,18 +369,18 @@ class HamamatsuCamera(Service):
     @fan_status.setter
     def fan_status(self, onoff=True):
         """
-        Start / stop the the camera fan
+        Start / stop the the camera fan.
 
-        Parameterss
+        Parameters
         ----------
         onoff : bool
-            True or False to start or stop the fan
+            True or False to start or stop the fan.
         """
 
-        if not onoff:
-            onoffint = 1.0
-        else:
+        if  onoff:
             onoffint = 2.0
+        else:
+            onoffint = 1.0
 
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, onoffint)
 
