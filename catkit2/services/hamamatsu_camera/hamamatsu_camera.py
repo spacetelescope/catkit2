@@ -226,6 +226,8 @@ class HamamatsuCamera(Service):
 
         make_property_helper('gain', read_only=True)
         make_property_helper('brightness', read_only=True)
+        make_property_helper('fan_status')
+        make_property_helper('sensor_cooler')
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
@@ -311,6 +313,55 @@ class HamamatsuCamera(Service):
             self.temperature.submit_data(np.array([temperature]))
 
             self.sleep(0.1)
+
+
+
+    @property
+    def sensor_cooler(self):
+        """
+        Start the fan
+
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLER)
+
+    @sensor_cooler.setter
+    def sensor_cooler(self, number):
+        """
+        Start the fan
+
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLER, number)
+    @property
+    def sensor_cooler_status(self):
+        """
+        Start the fan
+
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLERSTATUS)
+    @property
+    def sensor_temperature_status(self):
+        """
+        Start the fan
+
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORTEMPERATURE_STATUS)
+
+
+    @property
+    def fan_status(self):
+        """
+        Start the fan
+
+        """
+        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN)
+    @fan_status.setter
+    def fan_status(self, onoff):
+        """
+        Start the fan
+
+        """
+        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, onoff)
+
 
     def start_acquisition(self):
         """
