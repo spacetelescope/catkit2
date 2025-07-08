@@ -311,7 +311,7 @@ class HamamatsuCamera(Service):
     def cooler_mode(self):
         """
         Check the cooling mode
-        
+
         Returns
         -------
         coolstr:
@@ -324,7 +324,7 @@ class HamamatsuCamera(Service):
             return 'off'
         elif coolint == 2.0:
             return 'on'
-        else :
+        else:
             return 'max'
 
     @cooler_mode.setter
@@ -353,7 +353,7 @@ class HamamatsuCamera(Service):
     def fan_status(self):
         """
         Check fan status
-        
+
         Returns
         -------
         onoff: bool
