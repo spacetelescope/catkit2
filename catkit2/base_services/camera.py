@@ -167,8 +167,12 @@ class CameraService(Service):
         # Define the translation matrix T_center to get to the center of the ROI.
         T_center = np.zeros((3, 3))
         np.fill_diagonal(T_center, 1)
-        T_center[0][-1] = -self.width / 2
-        T_center[1][-1] = -self.height / 2
+        if inverse and self.rot90:
+            T_center[0][-1] = -self.height / 2
+            T_center[1][-1] = -self.width / 2
+        else:
+            T_center[0][-1] = -self.width / 2
+            T_center[1][-1] = -self.height / 2
 
         # Initialize rotation matrix R.
         R = np.zeros((3, 3))
@@ -199,7 +203,8 @@ class CameraService(Service):
         # Define translation matrix back so that the origin is in the upper left as expected.
         T_back = np.eye(3, 3)
 
-        if self.rot90:
+        # If forward with rotation, or if inverse without rotation.
+        if (self.rot90 and not inverse) or (not self.rot90 and inverse):
             # Want to come back to new origin for which the height/width dimensions will be flipped if rotated.
             T_back[0][-1] = self.height / 2
             T_back[1][-1] = self.width / 2
@@ -214,7 +219,7 @@ class CameraService(Service):
         new_coords = np.linalg.multi_dot([T_back, Y, X, R, T_center, coords])
 
         if inverse:
-            new_coords = np.linalg.multi_dot([T_center, Y, X, R.T, T_back, coords])
+            new_coords = np.linalg.multi_dot([T_back, Y, X, R.T, T_center, coords])
 
         return new_coords[0], new_coords[1]
 
