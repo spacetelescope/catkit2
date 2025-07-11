@@ -319,91 +319,73 @@ class CameraService(Service):
             return self.get_sensor_height()
 
     def start_acquisition(self):
-        '''Start acquisition sequence on the camera.
-        '''
+        """Start acquisition sequence on the camera."""
         raise NotImplementedError()
 
     def end_acquisition(self):
-        '''End acquisition sequence on the camera.
-        '''
+        """End acquisition sequence on the camera."""
         raise NotImplementedError()
 
     def capture_image(self):
-        '''Capture an image on the camera and return it.
-        '''
+        """Capture an image on the camera and return it."""
         raise NotImplementedError()
 
     def get_roi_width(self):
-        '''Get the width of the ROI on the camera.
-        '''
+        """Get the width of the ROI on the camera."""
         raise NotImplementedError()
 
     def set_roi_width(self, width):
-        '''Set the width of the ROI on the camera.
-        '''
+        """Set the width of the ROI on the camera."""
         raise NotImplementedError()
 
     def get_roi_height(self):
-        '''Get the height of the ROI on the camera.
-        '''
+        """Get the height of the ROI on the camera."""
         raise NotImplementedError()
 
     def set_roi_height(self, height):
-        '''Set the height of the ROI on the camera.
-        '''
+        """Set the height of the ROI on the camera."""
         raise NotImplementedError()
 
     def get_roi_offset_x(self):
-        '''Get the x-offset of the ROI on the camera.
-        '''
+        """Get the x-offset of the ROI on the camera."""
         raise NotImplementedError()
 
     def set_roi_offset_x(self, offset_x):
-        '''Set the x-offset of the ROI on the camera.
-        '''
+        """Set the x-offset of the ROI on the camera."""
         raise NotImplementedError()
 
     def get_roi_offset_y(self):
-        '''Get the y-offset of the ROI on the camera.
-        '''
+        """Get the y-offset of the ROI on the camera."""
         raise NotImplementedError()
 
     def set_roi_offset_y(self):
-        '''Set the y-offset of the ROI on the camera.
-        '''
+        """Set the y-offset of the ROI on the camera."""
         raise NotImplementedError()
 
     def get_sensor_width(self):
-        '''Get the width of the camera sensor.
-        '''
+        """Get the width of the camera sensor."""
         raise NotImplementedError()
 
     def get_sensor_height(self):
-        '''Get the height of the camera sensor.
-        '''
+        """Get the height of the camera sensor."""
         raise NotImplementedError()
 
     def get_exposure_time(self):
-        '''Get the exposure time on the camera.
-        '''
+        """Get the exposure time on the camera."""
         raise NotImplementedError()
 
     def set_exposure_time(self):
-        '''Set the exposure time on the camera.
-        '''
+        """Set the exposure time on the camera."""
         raise NotImplementedError()
 
     def get_gain(self):
-        '''Get the gain on the camera.
-        '''
+        """Get the gain on the camera."""
         raise NotImplementedError()
 
     def set_gain(self):
-        '''Set the gain on the camera.
-        '''
+        """Set the gain on the camera."""
         raise NotImplementedError()
 
     def get_temperature(self):
-        '''Get the temperature on the camera.
-        '''
+        """Get the temperature on the camera."""
         raise NotImplementedError()
