@@ -146,7 +146,7 @@ class CameraService(Service):
             # Communicate with the simulator to stop camera acquisition.
             self.end_acquisition(camera_name=self.id)
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
-            
+
     def transform_offset(self, x, y, inverse=False):
         """Convert relative camera offsets given by the user to absolute offsets in camera coordinates.
 
@@ -240,7 +240,7 @@ class CameraService(Service):
             img = np.flipud(img)
         if self.flip_y:
             img = np.fliplr(img)
-        return np.ascontiguousarray(img)  
+        return np.ascontiguousarray(img)
 
     def _start_acquisition(self):
         self.should_be_acquiring.set()
