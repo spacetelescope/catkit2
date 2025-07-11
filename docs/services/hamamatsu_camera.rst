@@ -36,6 +36,8 @@ Configuration
       height: 400
       exposure_time: 8294.4
 
+      critical_temperature=28
+
 Properties
 ----------
 ``exposure_time``: Exposure time of the camera in microseconds.
@@ -52,11 +54,17 @@ Properties
 
 ``sensor_height``: The height of the sensor.
 
+``cooler mode``: Cooler mode (only in water cooling).
+
+``fan_status``: Current camera fan status.
+
 Commands
 --------
 ``start_acquisition()``: This starts the acquisition of images from the camera.
 
 ``end_acquisition()``: This ends the acquisition of images from the camera.
+
+``get_temperature()``: Get the camera temperature.
 
 Datastreams
 -----------

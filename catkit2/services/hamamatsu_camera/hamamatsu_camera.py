@@ -216,9 +216,9 @@ class HamamatsuCamera(Service):
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
 
-        self.critical_temp = self.config.get('critical_temp', 27.0)
+        self.critical_temperature = self.config.get('critical_temperature', 28.0)
 
-        # Set water cooling mode and fan mode
+        # Set water cooling mode
         self.cooler_mode = self.config.get('cooling_mode', 'on')
 
         # check fan status and start / stop fan
@@ -327,9 +327,9 @@ class HamamatsuCamera(Service):
         if coolint == 1.0:
             return 'off'
         elif coolint == 2.0:
-            return 'on'
+            return 'on'  # target temperature = -20 deg
         else:
-            return 'max'
+            return 'max'  # target temperature = -31 deg
 
     @cooler_mode.setter
     def cooler_mode(self, coolstr):
@@ -367,7 +367,7 @@ class HamamatsuCamera(Service):
 
         if onoffint == 1.0:
             return False
-        if onoffint == 2.0:
+        elif onoffint == 2.0:
             return True
 
     @fan_status.setter
