@@ -2,7 +2,7 @@ import threading
 from PySpin import PySpin
 from contextlib import nullcontext
 
-from catkit2.base_services import CameraService, StoppedAcquisition
+from catkit2.base_services.camera import CameraService, StoppedAcquisition
 
 
 def make_getter(flir_property_name):

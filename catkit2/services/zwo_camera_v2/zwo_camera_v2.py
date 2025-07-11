@@ -2,7 +2,7 @@ import os
 import numpy as np
 import zwoasi
 
-from catkit2.base_services import CameraService
+from catkit2.base_services.camera import CameraService, StoppedAcquisition
 
 
 try:
@@ -65,14 +65,20 @@ class ZwoCamera(CameraService):
 
         # Restore all controls to default values, in case any other application modified them.
         for c in controls:
-            self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
+            # Some control values such as Temperature and CoolerPowerPerc are not writable for zwo cool models
+            if ('IsWritable' in controls[c]) and controls[c]['IsWritable']:
+                self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
 
         print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
-
         print('Bandwidth before:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
-        # Set bandwidth overload control to minvalue.
-        self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        self._max_bandwidth = self.config.get('max_bandwidth', True)
+
+        # Max USB bandwidth gives highest FPS performance at small ROI - however it sometimes causes the service to crash with large frame sizes
+        if self._max_bandwidth:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        else:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
 
         print('Bandwidth after:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
@@ -84,6 +90,8 @@ class ZwoCamera(CameraService):
             # Catch and hide exceptions that get thrown if the camera was already stopped.
             pass
 
+        self.device_name = device_name
+
         # Set image format to be RAW16, although camera is only 12-bit.
         self.camera.set_image_type(zwoasi.ASI_IMG_RAW16)
 
@@ -91,9 +99,26 @@ class ZwoCamera(CameraService):
         self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
         self.exposure_time_offset_correction = self.config.get('exposure_time_offset_correction', 0)
         self.exposure_time_base_step = self.config.get('exposure_time_base_step', 1)
-        self.exposure_time = self.config.get('exposure_time', 1000)
+
+        def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
+            if read_only:
+                self.make_property(name, lambda: getattr(self, name))
+            else:
+                if requires_stopped_acquisition:
+                    def setter(val):
+                        with StoppedAcquisition(self):
+                            setattr(self, name, val)
+                else:
+                    def setter(val):
+                        setattr(self, name, val)
+
+                self.make_property(name, lambda: getattr(self, name), setter)
 
         # Set up general camera properties.
+        make_property_helper('brightness')  # TODO: where to put getter and setter for this?
+        make_property_helper('device_name', read_only=True)
+        make_property_helper('max_bandwidth')  # TODO: where to put getter and setter for this?
+
         super().open()
 
     def close(self):
@@ -109,7 +134,6 @@ class ZwoCamera(CameraService):
 
     def capture_image(self):
         timeout = 10000  # ms
-
         img = self.camera.capture_video_frame(timeout=timeout)
 
         return img.astype('float32')
