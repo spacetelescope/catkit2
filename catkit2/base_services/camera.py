@@ -1,4 +1,5 @@
 from ..testbed.service import Service
+from catkit2.testbed.tracing import trace_interval
 
 import threading
 import numpy as np
@@ -109,6 +110,13 @@ class CameraService(Service):
             if self.should_be_acquiring.wait(0.05):
                 self.acquisition_loop()
 
+    def monitor_temperature(self):
+        while not self.should_shut_down:
+            temperature = self.get_temperature()
+            self.temperature.submit_data(np.array([temperature]))
+
+            self.sleep(1)
+
     def close(self):
         self.temperature_thread.join()
 
@@ -131,11 +139,12 @@ class CameraService(Service):
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 img = self.capture_image()
                 transformed_img = self.rot_flip_image(img)
-                self.images.submit_data(transformed_img)
+                with trace_interval('processing frame'):
+                    self.images.submit_data(transformed_img)
 
         finally:
             # Communicate with the simulator to stop camera acquisition.
-            self.testbed.simulator.end_camera_acquisition(camera_name=self.id)
+            self.end_acquisition(camera_name=self.id)
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
             
     def transform_offset(self, x, y, inverse=False):
