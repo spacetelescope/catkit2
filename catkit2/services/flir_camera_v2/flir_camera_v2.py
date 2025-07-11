@@ -3,6 +3,7 @@ from PySpin import PySpin
 from contextlib import nullcontext
 
 from catkit2.base_services.camera import CameraService, StoppedAcquisition
+from catkit2.testbed.tracing import trace_interval
 
 
 def make_getter(flir_property_name):
@@ -141,7 +142,7 @@ class FlirCamera(CameraService):
                 if image_result.IsIncomplete():
                     continue
 
-                img = image_result.Convert(pixel_format).GetNDArray().astype(pixel_dtype, copy=False)
+                img = image_result.Convert(self.pixel_format).GetNDArray().astype(self.PIXEL_DTYPE, copy=False)
 
                 # Submit image to datastream.
                 self.images.submit_data(img)
