@@ -37,27 +37,22 @@ Configuration
       sensor_width: 4096
       sensor_height: 2304
       exposure_time: 8294.4
-      gain: 0
 
 Properties
 ----------
 ``exposure_time``: Exposure time of the camera in microseconds.
 
-``gain``: Gain of the camera.
+``width``: The width of the camera frames (int).
 
-``brightness``: Brightness of the camera.
+``height``: The height of the camera frames (int).
 
-``width``: The width of the camera frames.
+``offset_x``: The x offset of the camera frames on the sensor (int).
 
-``height``: The height of the camera frames.
+``offset_y``: The y offset of the camera frames on the sensor (int).
 
-``offset_x``: The x offset of the camera frames on the sensor.
+``sensor_width``: The width of the sensor (int).
 
-``offset_y``: The y offset of the camera frames on the sensor.
-
-``sensor_width``: The width of the sensor.
-
-``sensor_height``: The height of the sensor.
+``sensor_height``: The height of the sensor (int).
 
 Commands
 --------

@@ -26,10 +26,12 @@ except ImportError:
 def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
-            if hamamatsu_property_name != 'EXPOSURETIME':
-                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))
-            else:
+            if hamamatsu_property_name == 'EXPOSURETIME':
                 return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)) * 1e6
+            elif hamamatsu_property_name in ['IMAGE_WIDTH', 'IMAGE_HEIGHT', 'SUBARRAYHSIZE', 'SUBARRAYVSIZE', 'SUBARRAYVPOS', 'SUBARRAYHPOS']:
+                return int(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
+            else:
+                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))
 
     if read_only:
         setter = None
@@ -44,11 +46,12 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
                     time.sleep(0.001)
 
             with self.mutex:
-                if hamamatsu_property_name != 'EXPOSURETIME':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
-                else:
+                if hamamatsu_property_name == 'EXPOSURETIME':
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value / 1e6)
-
+                elif hamamatsu_property_name in ['IMAGE_WIDTH', 'IMAGE_HEIGHT', 'SUBARRAYHSIZE', 'SUBARRAYVSIZE', 'SUBARRAYVPOS', 'SUBARRAYHPOS']:
+                    return int(self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value))
+                else:
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
             if was_running and stopped_acquisition:
                 self.start_acquisition()
 
@@ -188,7 +191,7 @@ class HamamatsuCamera(Service):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = self.make_data_stream('images', 'float32', [int(self.sensor_height), int(self.sensor_width)], self.NUM_FRAMES)
+        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
@@ -258,7 +261,7 @@ class HamamatsuCamera(Service):
         # Make sure the data stream has the right size and datatype.
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
         if not has_correct_parameters:
-            self.images.update_parameters('float32', [int(self.height), int(self.width)], self.NUM_FRAMES)
+            self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
 
         # Start acquisition.
         if self.cam.buf_alloc(self.NUM_FRAMES) is False:
@@ -325,7 +328,6 @@ class HamamatsuCamera(Service):
         self.should_be_acquiring.clear()
 
     exposure_time = _create_property('EXPOSURETIME', stopped_acquisition=False)
-
 
     width = _create_property('SUBARRAYHSIZE')
     height = _create_property('SUBARRAYVSIZE')
