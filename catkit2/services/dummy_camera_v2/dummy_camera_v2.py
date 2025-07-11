@@ -1,26 +1,25 @@
 import time
-import numpy as np
-import threading
-from hcipy import *
-
-import os
+from hcipy import evaluate_supersampled, make_hicat_aperture, make_pupil_grid, Wavefront
 import numpy as np
 
-from catkit2.base_services import CameraService
+from catkit2.base_services.camera import CameraService
+
 
 class DummyCamera(CameraService):
     def __init__(self):
         super().__init__('dummy_camera_v2')
-        
         self.log.debug('Dummy camera service started')
+        self.flux = self.config['flux']
 
         self.pupil_grid = make_pupil_grid(128)
         self.aperture = evaluate_supersampled(make_hicat_aperture(True), self.pupil_grid, 4)
         self.wf = Wavefront(self.aperture)
         self.wf.total_power = 1
-    
+
+        self.make_command('repeater', self.repeater)
+
     def open(self):
-        # Set up gerneal camera properties.
+        # Set up general camera properties.
         super().open()
 
     def close(self):
@@ -48,12 +47,12 @@ class DummyCamera(CameraService):
     def get_temperature(self):
         return np.sin(2 * np.pi * time.time() / 10)
 
-    def get_roi_width(self): # get from the sensor space
+    def get_roi_width(self):
         return self.config['width']
 
     def set_roi_width(self, width):
         return width
-        
+
     def get_roi_height(self):
         return self.config['height']
 
@@ -89,6 +88,7 @@ class DummyCamera(CameraService):
 
     def set_gain(self, gain):
         pass
+
 
 if __name__ == '__main__':
     try:
