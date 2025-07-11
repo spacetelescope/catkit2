@@ -303,7 +303,7 @@ class HamamatsuCamera(Service):
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
-            if temperature > self.critical_temp and self.is_acquiring.get() :
+            if temperature > self.critical_temp and self.is_acquiring.get():
                 self.log.warning(f'Camera temperature = {temperature} > {self.critical_temp} degrees.')
                 self.log.warning('Stopping acquisition and start fan.')
                 self.fan_status = True
@@ -381,7 +381,7 @@ class HamamatsuCamera(Service):
             True or False to start or stop the fan.
         """
 
-        if  onoff:
+        if onoff:
             onoffint = 2.0
         else:
             onoffint = 1.0
