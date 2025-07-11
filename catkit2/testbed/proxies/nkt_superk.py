@@ -74,20 +74,25 @@ class NktSuperkProxy(ServiceProxy):
         return self.config['base_sleep_time']
     
     @property
-    def emission(self):
+    def emission_value(self):
         return self.emission.get()[0]
+
+    @emission_value.setter
+    def emission_value(self, emission_to_set):
+        print('Setting emission value...')
+        self.emission.submit_data(np.array([emission_to_set], dtype='uint8'))
     
     def turn_on(self):
-        emission = self.emission
-        if emission is False:
-            self.emission.submit_data(np.array([1], dtype='uint8'))
+        emission_value = self.emission_value
+        if emission_value == [0]:
+            self.emission.submit_data(np.array([3], dtype='uint8'))
             print('NKT turned ON')
         else:
             print('NKT already ON')
 
     def turn_off(self):
-        emission = self.emission
-        if emission is True:
+        emission_value = self.emission_value
+        if emission_value != [0]:
             self.emission.submit_data(np.array([0], dtype='uint8'))
             print('NKT turned OFF')
         else:
@@ -106,7 +111,7 @@ class NktSuperkProxy(ServiceProxy):
 
 
     @property
-    def pulse_picker_ratio(self):
+    def pulse_picker_value(self):
         print('Getting pulse_picker_ratio value...')
         try:
             return self.pulse_picker_ratio.get()[0]
@@ -114,11 +119,11 @@ class NktSuperkProxy(ServiceProxy):
                 # The frame wasn't available anymore because we were waiting too long.
                 print('Could not getting pulse picker ratio')
         
-    @pulse_picker_ratio.setter
-    def pulse_picker_ratio(self, pulse_picker_ratio):
+    @pulse_picker_value.setter
+    def pulse_picker_value(self, pulse_picker_ratio_to_set):
         print('Setting pulse_picker_ratio value...')
         try:
-            self.pulse_picker_ratio.submit_data(np.array([pulse_picker_ratio], dtype='float32'))
+            self.pulse_picker_ratio.submit_data(np.array([pulse_picker_ratio_to_set], dtype='uint16'))
         except RuntimeError:
                 # The frame wasn't available anymore because we were waiting too long.
                 print('Could not setting pulse picker ratio')

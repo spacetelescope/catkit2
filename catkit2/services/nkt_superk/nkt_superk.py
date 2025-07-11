@@ -156,12 +156,12 @@ class NktSuperk(Service):
             self.get_power_setpoint = read_register(registerReadU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
             self.set_power_setpoint = write_register(registerWriteU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
 
-            self.get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=0.1)
-            self.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=0.1)
+            self.get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
+            self.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
 
         #Functions for both
-        self.get_emission = read_register(registerReadU8, self.device.REG_EMISSION, ratio=0.5)
-        self.set_emission = write_register(registerWriteU8, self.device.REG_EMISSION, ratio=0.5)
+        self.get_emission = read_register(registerReadU8, self.device.REG_EMISSION, ratio=1)
+        self.set_emission = write_register(registerWriteU8, self.device.REG_EMISSION, ratio=1)
 
         self.get_setup_bits = read_register(registerReadU8, self.device.REG_SETUP_BITS)
         self.set_setup_bits = write_register(registerWriteU8, self.device.REG_SETUP_BITS)
@@ -204,10 +204,10 @@ class NktSuperk(Service):
             self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
 
         elif self.device is Fianium:
-            self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'float32', [1], 20)
+            self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
             # Set current setpoints. These will be actually set on the device
             # once the monitor threads have started.        
-            self.pulse_picker_ratio.submit_data(np.array([self.config['pulse_picker_ratio']], dtype='float32'))
+            self.pulse_picker_ratio.submit_data(np.array([self.config['pulse_picker_ratio']], dtype='uint16'))
 
         
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
