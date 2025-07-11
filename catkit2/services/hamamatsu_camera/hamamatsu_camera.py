@@ -216,6 +216,8 @@ class HamamatsuCamera(Service):
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
 
+        self.critical_temp = self.config.get('critical_temp', 27.0)
+
         # Set water cooling mode and fan mode
         self.cooler_mode = self.config.get('cooling_mode', 'on')
 
@@ -301,8 +303,9 @@ class HamamatsuCamera(Service):
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
-            if temperature > 27 and self.is_acquiring.get() :
-                self.log.warning(f'Camera Temperature {temperature} > 27 degrees, stopping acquisition and start fan')
+            if temperature > self.critical_temp and self.is_acquiring.get() :
+                self.log.warning(f'Camera temperature = {temperature} > {self.critical_temp} degrees.')
+                self.log.warning('Stopping acquisition and start fan.')
                 self.fan_status = True
                 self.cooler_mode = 'on'
                 self.end_acquisition()
