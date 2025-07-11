@@ -237,6 +237,7 @@ class HamamatsuCamera(Service):
                 self.acquisition_loop()
 
     def close(self):
+        self.cooler_mode = 'on'
         self.cam.dev_close()
         self.cam = None
 
@@ -300,11 +301,11 @@ class HamamatsuCamera(Service):
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
-            if temperature > 30:
-                self.log.warning('Camera Temperature above 30 degrees, stopping camera service and start fan')
+            if temperature > 27 and self.is_acquiring.get() :
+                self.log.warning(f'Camera Temperature {temperature} > 27 degrees, stopping acquisition and start fan')
                 self.fan_status = True
                 self.cooler_mode = 'on'
-                self.should_shut_down = True
+                self.end_acquisition()
 
             self.sleep(0.1)
 
