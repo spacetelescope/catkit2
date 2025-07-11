@@ -188,7 +188,7 @@ class HamamatsuCamera(Service):
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
-        self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
+        self.images = self.make_data_stream('images', 'float32', [int(self.sensor_height), int(self.sensor_width)], self.NUM_FRAMES)
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
@@ -258,7 +258,7 @@ class HamamatsuCamera(Service):
         # Make sure the data stream has the right size and datatype.
         has_correct_parameters = np.allclose(self.images.shape, [self.height, self.width])
         if not has_correct_parameters:
-            self.images.update_parameters('float32', [self.height, self.width], self.NUM_FRAMES)
+            self.images.update_parameters('float32', [int(self.height), int(self.width)], self.NUM_FRAMES)
 
         # Start acquisition.
         if self.cam.buf_alloc(self.NUM_FRAMES) is False:
