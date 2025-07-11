@@ -214,14 +214,14 @@ class HamamatsuCamera(Service):
         self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
 
         make_property_helper('exposure_time')
-        make_property_helper('gain')
-        make_property_helper('brightness')
 
         make_property_helper('width')
         make_property_helper('height')
         make_property_helper('offset_x')
         make_property_helper('offset_y')
 
+        make_property_helper('gain', read_only=True)
+        make_property_helper('brightness', read_only=True)
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
@@ -325,14 +325,15 @@ class HamamatsuCamera(Service):
         self.should_be_acquiring.clear()
 
     exposure_time = _create_property('EXPOSURETIME', stopped_acquisition=False)
-    gain = _create_property('CONTRASTGAIN', stopped_acquisition=False)
-    brightness = _create_property('SENSITIVITY', stopped_acquisition=False)
+
 
     width = _create_property('SUBARRAYHSIZE')
     height = _create_property('SUBARRAYVSIZE')
     offset_x = _create_property('SUBARRAYVPOS')
     offset_y = _create_property('SUBARRAYHPOS')
 
+    gain = _create_property('CONTRASTGAIN', read_only=True)
+    brightness = _create_property('SENSITIVITY', read_only=True)
     sensor_width = _create_property('IMAGE_WIDTH', read_only=True)
     sensor_height = _create_property('IMAGE_HEIGHT', read_only=True)
 
