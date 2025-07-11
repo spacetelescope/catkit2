@@ -358,7 +358,7 @@ class CameraService(Service):
         """Get the y-offset of the ROI on the camera."""
         raise NotImplementedError()
 
-    def set_roi_offset_y(self):
+    def set_roi_offset_y(self, offset_y):
         """Set the y-offset of the ROI on the camera."""
         raise NotImplementedError()
 
@@ -374,7 +374,7 @@ class CameraService(Service):
         """Get the exposure time on the camera."""
         raise NotImplementedError()
 
-    def set_exposure_time(self):
+    def set_exposure_time(self, exposure_time):
         """Set the exposure time on the camera."""
         raise NotImplementedError()
 
@@ -382,7 +382,7 @@ class CameraService(Service):
         """Get the gain on the camera."""
         raise NotImplementedError()
 
-    def set_gain(self):
+    def set_gain(self, gain):
         """Set the gain on the camera."""
         raise NotImplementedError()
 
