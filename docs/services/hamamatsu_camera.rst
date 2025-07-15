@@ -42,17 +42,17 @@ Properties
 ----------
 ``exposure_time``: Exposure time of the camera in microseconds.
 
-``width``: The width of the camera frames (int).
+``width``: The width of the camera frames.
 
-``height``: The height of the camera frames (int).
+``height``: The height of the camera frames.
 
-``offset_x``: The x offset of the camera frames on the sensor (int).
+``offset_x``: The x offset of the camera frames on the sensor.
 
-``offset_y``: The y offset of the camera frames on the sensor (int).
+``offset_y``: The y offset of the camera frames on the sensor.
 
-``sensor_width``: The width of the sensor (int).
+``sensor_width``: The width of the sensor.
 
-``sensor_height``: The height of the sensor (int).
+``sensor_height``: The height of the sensor.
 
 Commands
 --------
