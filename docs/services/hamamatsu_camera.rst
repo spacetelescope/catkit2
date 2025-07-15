@@ -64,6 +64,8 @@ Commands
 
 ``end_acquisition()``: This ends the acquisition of images from the camera.
 
+``get_temperature()``: Get the camera temperature.
+
 Datastreams
 -----------
 ``temperature``: The temperature (in Celsius) as measured by the camera.
