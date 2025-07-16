@@ -7,6 +7,7 @@ It provides a simple interface to control the camera and acquire images.
 import os
 import sys
 import threading
+import time
 import numpy as np
 from catkit2.testbed.service import Service
 from catkit2.testbed.tracing import trace_interval
@@ -20,6 +21,39 @@ try:
 except ImportError:
     print('To use Hamamatsu cameras, you need to set the CATKIT_DCAM_SDK_PATH environment variable.')
     raise
+
+
+def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisition=True):
+    def getter(self):
+        with self.mutex:
+            if hamamatsu_property_name == 'EXPOSURETIME':
+                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)) * 1e6
+            elif hamamatsu_property_name in ['SUBARRAYHSIZE', 'SUBARRAYVSIZE', 'SUBARRAYVPOS', 'SUBARRAYHPOS']:
+                return int(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
+            else:
+                return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))
+
+    if read_only:
+        setter = None
+    else:
+        def setter(self, value):
+            was_running = self.is_acquiring.get()[0] > 0
+
+            if was_running and stopped_acquisition:
+                self.end_acquisition()
+
+                while self.is_acquiring.get()[0]:
+                    time.sleep(0.001)
+
+            with self.mutex:
+                if hamamatsu_property_name == 'EXPOSURETIME':
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value / 1e6)
+                else:
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
+            if was_running and stopped_acquisition:
+                self.start_acquisition()
+
+    return property(getter, setter)
 
 
 class HamamatsuCamera(Service):
@@ -74,6 +108,9 @@ class HamamatsuCamera(Service):
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
+        # Create lock for camera access
+        self.mutex = threading.Lock()
+
     def open(self):
         """
         Open the service.
@@ -96,6 +133,10 @@ class HamamatsuCamera(Service):
         self.log.info('Using camera with ID %s', camera_id)
         if self.cam.dev_open() is False:
             raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
+
+        # Read ROI of full sensor before ROI is adapted.
+        self.sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
+        self.sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
 
         # Set water cooling mode and fan mode
         self.cooling_mode = self.config.get('cooling_mode', 'on')
@@ -150,19 +191,6 @@ class HamamatsuCamera(Service):
         self.log.info('Using pixel format: %s', self.current_pixel_format)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.IMAGE_PIXELTYPE, self.pixel_formats[self.current_pixel_format])
 
-        # Set device values from config file (set width and height before offsets)
-        offset_x = self.config.get('offset_x', 0)
-        offset_y = self.config.get('offset_y', 0)
-
-        self.width = self.config.get('width', self.sensor_width - offset_x)
-        self.height = self.config.get('height', self.sensor_height - offset_y)
-        self.offset_x = offset_x
-        self.offset_y = offset_y
-
-        self.gain = self.config.get('gain', 0)
-        self.exposure_time = self.config.get('exposure_time', 1000)
-        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
-
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
@@ -177,15 +205,27 @@ class HamamatsuCamera(Service):
             else:
                 self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
 
+        # Set device values from config file (set width and height before offsets)
+        offset_x = self.config.get('offset_x', 0)
+        offset_y = self.config.get('offset_y', 0)
+
+        self.width = self.config.get('width', self.sensor_width - offset_x)
+        self.height = self.config.get('height', self.sensor_height - offset_y)
+        self.offset_x = offset_x
+        self.offset_y = offset_y
+
+        self.exposure_time = self.config.get('exposure_time', 1000)
+        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
+
         make_property_helper('exposure_time')
-        make_property_helper('gain')
-        make_property_helper('brightness')
 
         make_property_helper('width')
         make_property_helper('height')
         make_property_helper('offset_x')
         make_property_helper('offset_y')
 
+        make_property_helper('gain', read_only=True)
+        make_property_helper('brightness', read_only=True)
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
@@ -288,6 +328,16 @@ class HamamatsuCamera(Service):
         """
         self.should_be_acquiring.clear()
 
+    exposure_time = _create_property('EXPOSURETIME', stopped_acquisition=False)
+
+    width = _create_property('SUBARRAYHSIZE')
+    height = _create_property('SUBARRAYVSIZE')
+    offset_x = _create_property('SUBARRAYVPOS')
+    offset_y = _create_property('SUBARRAYHPOS')
+
+    gain = _create_property('CONTRASTGAIN', read_only=True)
+    brightness = _create_property('SENSITIVITY', read_only=True)
+
     def get_temperature(self):
         """
         Get the temperature of the camera.
@@ -300,230 +350,6 @@ class HamamatsuCamera(Service):
             The temperature of the camera in degrees Celsius.
         """
         return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORTEMPERATURE)
-
-    @property
-    def exposure_time(self):
-        """
-        The exposure time in microseconds.
-
-        This property can be used to get the exposure time of the camera.
-
-        Returns:
-        --------
-        float:
-            The exposure time in microseconds.
-        """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.EXPOSURETIME) * 1e6
-
-    @exposure_time.setter
-    def exposure_time(self, exposure_time: float):
-        """
-        Set the exposure time in microseconds.
-
-        This property can be used to set the exposure time of the camera.
-
-        Parameters
-        ----------
-        exposure_time : float
-            The exposure time in microseconds.
-        """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.EXPOSURETIME, exposure_time / 1e6)
-
-    @property
-    def gain(self):
-        """
-        The gain of the camera.
-
-        This property can be used to get the gain of the camera.
-
-        Returns:
-        --------
-        int:
-            The gain of the camera.
-        """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.CONTRASTGAIN)
-
-    @gain.setter
-    def gain(self, gain: int):
-        """
-        Set the gain of the camera.
-
-        This property can be used to set the gain of the camera.
-
-        Parameters
-        ----------
-        gain : int
-            The gain of the camera.
-        """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.CONTRASTGAIN, gain)
-
-    @property
-    def brightness(self):
-        """
-        The brightness of the camera.
-
-        This property can be used to get the brightness of the camera.
-
-        Returns:
-        --------
-        int:
-            The brightness of the camera.
-        """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSITIVITY)
-
-    @brightness.setter
-    def brightness(self, brightness: int):
-        """
-        Set the brightness of the camera.
-
-        This property can be used to set the brightness of the camera.
-
-        Parameters
-        ----------
-        brightness : int
-            The brightness of the camera.
-        """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSITIVITY, brightness)
-
-    @property
-    def sensor_width(self):
-        """
-        The width of the sensor in pixels.
-
-        This property can be used to get the width of the sensor in pixels.
-
-        Returns:
-        --------
-        int:
-            The width of the sensor in pixels.
-        """
-        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
-
-    @property
-    def sensor_height(self):
-        """
-        The height of the sensor in pixels.
-
-        This property can be used to get the height of the sensor in pixels.
-
-        Returns:
-        --------
-        int:
-            The height of the sensor in pixels.
-        """
-        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
-
-    @property
-    def width(self):
-        """
-        The width of the image in pixels.
-
-        This property can be used to get the width of the image in pixels.
-
-        Returns:
-        --------
-        int:
-            The width of the image in pixels.
-        """
-        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYHSIZE))
-
-    @width.setter
-    def width(self, width: int):
-        """
-        Set the width of the image in pixels.
-
-        This property can be used to set the width of the image in pixels.
-
-        Parameters
-        ----------
-        width : int
-            The width of the image in pixels.
-        """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYHSIZE, width)
-
-    @property
-    def height(self):
-        """
-        The height of the image in pixels.
-
-        This property can be used to get the height of the image in pixels.
-
-        Returns:
-        --------
-        int:
-            The height of the image in pixels.
-        """
-        return int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYVSIZE))
-
-    @height.setter
-    def height(self, height: int):
-        """
-        Set the height of the image in pixels.
-
-        This property can be used to set the height of the image in pixels.
-
-        Parameters
-        ----------
-        height : int
-            The height of the image in pixels.
-        """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYVSIZE, height)
-
-    @property
-    def offset_x(self):
-        """
-        The x offset of the image in pixels.
-
-        This property can be used to get the x offset of the image in pixels.
-
-        Returns:
-        --------
-        int:
-            The x offset of the image in pixels.
-        """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYVPOS)
-
-    @offset_x.setter
-    def offset_x(self, offset_x: int):
-        """
-        Set the x offset of the image in pixels.
-
-        This property can be used to set the x offset of the image in pixels.
-
-        Parameters
-        ----------
-        offset_x : int
-            The x offset of the image in pixels.
-        """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYVPOS, offset_x)
-
-    @property
-    def offset_y(self):
-        """
-        The y offset of the image in pixels.
-
-        This property can be used to get the y offset of the image in pixels.
-
-        Returns:
-        --------
-        int:
-            The y offset of the image in pixels.
-        """
-        return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SUBARRAYHPOS)
-
-    @offset_y.setter
-    def offset_y(self, offset_y: int):
-        """
-        Set the y offset of the image in pixels.
-
-        This property can be used to set the y offset of the image in pixels.
-
-        Parameters
-        ----------
-        offset_y : int
-            The y offset of the image in pixels.
-        """
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYHPOS, offset_y)
 
 
 if __name__ == '__main__':

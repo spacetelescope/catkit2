@@ -34,26 +34,19 @@ Configuration
       offset_y: 0
       width: 400
       height: 400
-      sensor_width: 4096
-      sensor_height: 2304
       exposure_time: 8294.4
-      gain: 0
 
 Properties
 ----------
 ``exposure_time``: Exposure time of the camera in microseconds.
 
-``gain``: Gain of the camera.
+``width``: The width of the camera frames (integer factor of 4).
 
-``brightness``: Brightness of the camera.
+``height``: The height of the camera frames (integer factor of 4).
 
-``width``: The width of the camera frames.
+``offset_x``: The x offset of the camera frames on the sensor (integer factor of 4).
 
-``height``: The height of the camera frames.
-
-``offset_x``: The x offset of the camera frames on the sensor.
-
-``offset_y``: The y offset of the camera frames on the sensor.
+``offset_y``: The y offset of the camera frames on the sensor (integer factor of 4).
 
 ``sensor_width``: The width of the sensor.
 
