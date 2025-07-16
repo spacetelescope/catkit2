@@ -40,17 +40,21 @@ class CoolerMode(Enum):
         return self.name.lower()
 
 
-def fan_status_bool2int(onoff):
-        if onoff:
-            return 2.0
-        else:
-            return 1.0
+class FanStatus(Enum):
+    OFF = 1.0
+    ON = 2.0
 
-def fan_status_int2bool(onoffint):
-        if onoffint == 1.0:
-            return False
-        elif onoffint == 2.0:
-            return True
+    @classmethod
+    def from_bool(cls, val):
+        return cls.ON if val else cls.OFF
+
+    @classmethod
+    def from_int(cls, val):
+        return cls(val)
+
+    def to_bool(self):
+        return self is FanStatus.ON
+
 
 def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
@@ -62,7 +66,7 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
             elif hamamatsu_property_name == 'SENSORCOOLER':
                 return str(CoolerMode(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))))
             elif hamamatsu_property_name == 'SENSORCOOLERFAN':
-                return fan_status_int2bool(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
+                return FanStatus.from_int(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)).to_bool())
             else:
                 return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))
 
@@ -84,9 +88,10 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
                 elif hamamatsu_property_name == 'SENSORCOOLER':
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), CoolerMode.from_string(value).value)
                 elif hamamatsu_property_name == 'SENSORCOOLERFAN':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), fan_status_bool2int(value))
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), FanStatus.from_bool(value).value)
                 else:
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
+
             if was_running and stopped_acquisition:
                 self.start_acquisition()
 
