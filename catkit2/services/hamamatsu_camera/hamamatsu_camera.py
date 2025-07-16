@@ -52,7 +52,6 @@ def fan_status_int2bool(onoffint):
         elif onoffint == 2.0:
             return True
 
-
 def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
@@ -85,7 +84,7 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
                 if hamamatsu_property_name == 'SENSORCOOLER':
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), cooler_mode_string2int(value))
                 if hamamatsu_property_name == 'SENSORCOOLERFAN':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), cooler_mode_int2string(value))
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), fan_status_bool2int(value))
                 else:
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
             if was_running and stopped_acquisition:
@@ -175,6 +174,7 @@ class HamamatsuCamera(Service):
         # Read ROI of full sensor before ROI is adapted.
         self.sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
         self.sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
+
         # Set subarray mode to on so that it checks subarray compatibility when picking ROI
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
 
