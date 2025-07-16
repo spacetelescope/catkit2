@@ -34,8 +34,6 @@ Configuration
       offset_y: 0
       width: 400
       height: 400
-      sensor_width: 4096
-      sensor_height: 2304
       exposure_time: 8294.4
 
 Properties

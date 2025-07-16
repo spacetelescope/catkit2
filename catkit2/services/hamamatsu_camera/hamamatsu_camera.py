@@ -134,6 +134,9 @@ class HamamatsuCamera(Service):
         if self.cam.dev_open() is False:
             raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
 
+        self.sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
+        self.sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
+
         # Set water cooling mode and fan mode
         self.cooling_mode = self.config.get('cooling_mode', 'on')
         self.fan_on = self.config.get('fan_on', True)
@@ -186,9 +189,6 @@ class HamamatsuCamera(Service):
             raise ValueError(f'Invalid pixel format: {self.current_pixel_format}, must be one of {str(list(self.pixel_formats.keys()))}')
         self.log.info('Using pixel format: %s', self.current_pixel_format)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.IMAGE_PIXELTYPE, self.pixel_formats[self.current_pixel_format])
-
-        self.sensor_width = self.config.get('sensor_width', 4096)
-        self.sensor_height = self.config.get('sensor_height', 2304)
 
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
