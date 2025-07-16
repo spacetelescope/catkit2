@@ -4,6 +4,7 @@ This module contains a service for Hamamatsu digital cameras.
 This service is a wrapper around the DCAM-SDK4.
 It provides a simple interface to control the camera and acquire images.
 """
+from enum import Enum
 import os
 import sys
 import threading
@@ -22,23 +23,22 @@ except ImportError:
     print('To use Hamamatsu cameras, you need to set the CATKIT_DCAM_SDK_PATH environment variable.')
     raise
 
-def cooler_mode_string2int(coolstr):
-        if coolstr == 'off':
-            return 1.0
-        elif coolstr == 'on':
-            return 2.0  # target temperature = -20 deg
-        elif coolstr == 'max':
-            return 4.0  # target temperature = -31 deg
-        else:
-            raise ValueError('Not recognized in water cooling mode.')
 
-def cooler_mode_int2string(coolint):
-        if coolint == 1.0:
-            return 'off'
-        elif coolint == 2.0:
-            return 'on'  # target temperature = -20 deg
-        else:
-            return 'max'  # target temperature = -31 deg
+class CoolerMode(Enum):
+    OFF = 1.0
+    ON = 2.0    # target temperature = -20 deg
+    MAX = 4.0   # target temperature = -31 deg
+
+    @classmethod
+    def from_string(cls, coolstr):
+        try:
+            return cls[coolstr.upper()]
+        except KeyError:
+            raise ValueError('Water cooling mode not recognized.')
+
+    def __str__(self):
+        return self.name.lower()
+
 
 def fan_status_bool2int(onoff):
         if onoff:
@@ -60,7 +60,7 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
             elif hamamatsu_property_name in ['SUBARRAYHSIZE', 'SUBARRAYVSIZE', 'SUBARRAYVPOS', 'SUBARRAYHPOS']:
                 return int(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
             elif hamamatsu_property_name == 'SENSORCOOLER':
-                return cooler_mode_int2string(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
+                return str(CoolerMode(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))))
             elif hamamatsu_property_name == 'SENSORCOOLERFAN':
                 return fan_status_int2bool(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
             else:
@@ -82,7 +82,7 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
                 if hamamatsu_property_name == 'EXPOSURETIME':
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value / 1e6)
                 elif hamamatsu_property_name == 'SENSORCOOLER':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), cooler_mode_string2int(value))
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), CoolerMode.from_string(value).value)
                 elif hamamatsu_property_name == 'SENSORCOOLERFAN':
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), fan_status_bool2int(value))
                 else:
