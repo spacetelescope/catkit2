@@ -71,7 +71,6 @@ class ThorlabsCubeMotorKinesis(Service):
         self.lib: CDLL = cdll.LoadLibrary(default_dll_path + dll_name)
 
         self.unit = None
-        self.unit_type = 0
         self.min_position_device = None
         self.max_position_device = None
         self.min_position_config = None
@@ -108,10 +107,12 @@ class ThorlabsCubeMotorKinesis(Service):
             steps_per_rev = c_double(512)
             gear_box_ratio = c_double(67.49)
             pitch_mm = c_double(1.0)
+            self.unit = 'mm'
         elif self.stage_model in ['PRM1Z8']:
-            steps_per_rev = c_double(512)  # Same as other motors
-            gear_box_ratio = c_double(67)  # Want to fit the value in the manual of PRM1Z8
+            steps_per_rev = c_double(1919.64186)  # Same as other motors
+            gear_box_ratio = c_double(1.0)  # Want to fit the value in the manual of PRM1Z8
             pitch_mm = c_double(1.0)  # Don't know if it make sens with mm : we're with degree...
+            self.unit = 'degree'
         else:
             raise ValueError(f"Stage model {self.stage_model} not supported.")
 
@@ -134,13 +135,6 @@ class ThorlabsCubeMotorKinesis(Service):
         self.lib.CC_GetMotorTravelLimits(self.serial_number, byref(min_position), byref(max_position))
         self.min_position_device = min_position.value
         self.max_position_device = max_position.value
-
-        # Get the unit of the motor (mm or deg).
-        self.unit_type = self.lib.CC_GetMotorTravelMode(self.serial_number)
-        if self.unit_type == 1:
-            self.unit = 'mm'
-        elif self.unit_type == 2:
-            self.unit = 'deg'
 
         # Compare the device parameters to the service configuration.
         if (self.min_position_device < self.min_position_config or
