@@ -108,7 +108,7 @@ class ThorlabsCubeMotorKinesis(Service):
             steps_per_rev = c_double(512)
             gear_box_ratio = c_double(67.49)
             pitch_mm = c_double(1.0)
-        elif self.stage_model in['PRM1Z8']:
+        elif self.stage_model in ['PRM1Z8']:
             steps_per_rev = c_double(512)  # Same as other motors
             gear_box_ratio = c_double(67)  # Want to fit the value in the manual of PRM1Z8
             pitch_mm = c_double(1.0)  # Don't know if it make sens with mm : we're with degree...
