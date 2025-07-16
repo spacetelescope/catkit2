@@ -42,13 +42,13 @@ Properties
 ----------
 ``exposure_time``: Exposure time of the camera in microseconds.
 
-``width``: The width of the camera frames.
+``width``: The width of the camera frames (integer factor of 4).
 
-``height``: The height of the camera frames.
+``height``: The height of the camera frames (integer factor of 4).
 
-``offset_x``: The x offset of the camera frames on the sensor.
+``offset_x``: The x offset of the camera frames on the sensor (integer factor of 4).
 
-``offset_y``: The y offset of the camera frames on the sensor.
+``offset_y``: The y offset of the camera frames on the sensor (integer factor of 4).
 
 ``sensor_width``: The width of the sensor.
 

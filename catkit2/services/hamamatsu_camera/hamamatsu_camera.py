@@ -28,7 +28,7 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
         with self.mutex:
             if hamamatsu_property_name == 'EXPOSURETIME':
                 return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)) * 1e6
-            elif hamamatsu_property_name in ['IMAGE_WIDTH', 'IMAGE_HEIGHT', 'SUBARRAYHSIZE', 'SUBARRAYVSIZE', 'SUBARRAYVPOS', 'SUBARRAYHPOS']:
+            elif hamamatsu_property_name in ['SUBARRAYHSIZE', 'SUBARRAYVSIZE', 'SUBARRAYVPOS', 'SUBARRAYHPOS']:
                 return int(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
             else:
                 return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))
@@ -187,6 +187,9 @@ class HamamatsuCamera(Service):
         self.log.info('Using pixel format: %s', self.current_pixel_format)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.IMAGE_PIXELTYPE, self.pixel_formats[self.current_pixel_format])
 
+        self.sensor_width = self.config.get('sensor_width', 4096)
+        self.sensor_height = self.config.get('sensor_height', 2304)
+
         # Create datastreams
         # Use the full sensor size here to always allocate enough shared memory.
         self.images = self.make_data_stream('images', 'float32', [self.sensor_height, self.sensor_width], self.NUM_FRAMES)
@@ -210,7 +213,6 @@ class HamamatsuCamera(Service):
         self.offset_x = offset_x
         self.offset_y = offset_y
 
-        self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
 
@@ -334,8 +336,6 @@ class HamamatsuCamera(Service):
 
     gain = _create_property('CONTRASTGAIN', read_only=True)
     brightness = _create_property('SENSITIVITY', read_only=True)
-    sensor_width = _create_property('IMAGE_WIDTH', read_only=True)
-    sensor_height = _create_property('IMAGE_HEIGHT', read_only=True)
 
     def get_temperature(self):
         """
