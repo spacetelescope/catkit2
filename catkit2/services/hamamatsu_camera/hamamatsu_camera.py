@@ -134,6 +134,7 @@ class HamamatsuCamera(Service):
         if self.cam.dev_open() is False:
             raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
 
+        # Read ROI of full sensor before ROI is adapted.
         self.sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
         self.sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
 
