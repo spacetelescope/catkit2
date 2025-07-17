@@ -72,7 +72,7 @@ class NktSuperkProxy(ServiceProxy):
     @property
     def base_sleep_time(self):
         return self.config['base_sleep_time']
-    
+
     @property
     def emission_value(self):
         return self.emission.get()[0]
@@ -81,7 +81,7 @@ class NktSuperkProxy(ServiceProxy):
     def emission_value(self, emission_to_set):
         print('Setting emission value...')
         self.emission.submit_data(np.array([emission_to_set], dtype='uint8'))
-    
+
     def turn_on(self):
         emission_value = self.emission_value
         if emission_value == [0]:
@@ -98,7 +98,7 @@ class NktSuperkProxy(ServiceProxy):
         else:
             print('NKT already OFF')
 
-    
+
     @property
     def power(self):
         print('Getting power value...')
@@ -118,7 +118,7 @@ class NktSuperkProxy(ServiceProxy):
         except RuntimeError:
                 # The frame wasn't available anymore because we were waiting too long.
                 print('Could not getting pulse picker ratio')
-        
+
     @pulse_picker_value.setter
     def pulse_picker_value(self, pulse_picker_ratio_to_set):
         print('Setting pulse_picker_ratio value...')

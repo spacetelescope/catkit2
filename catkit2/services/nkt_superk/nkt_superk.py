@@ -26,7 +26,6 @@ class Evo(Enum):
     REG_BASE_TEMPERATURE = 0x17
     REG_SUPPLY_VOLTAGE = 0x1D
     REG_EXTERNAL_CONTROL_INPUT = 0x94
-
     REG_OUTPUT_POWER_SETPOINT = 0x21
     REG_CURRENT_SETPOINT = 0x27
     REG_EMISSION = 0x30
@@ -35,11 +34,8 @@ class Evo(Enum):
     REG_WATCHDOG_TIMER = 0x36
     REG_NIM_DELAY = 0x3B
     REG_MODEL_SERIAL_NUMBER = 0x65
-
     REG_STATUS_BITS = 0x66
-
     REG_USER_AREA = 0x8D
-
     REG_IP_ADDRESS = 0xB0
     REG_GATEWAY = 0xB1
     REG_SUBNET_MASK = 0xB2
@@ -48,44 +44,25 @@ class Evo(Enum):
 
 class Fianium(Enum):
     DEVICE_ID = 15
-
-    #REG_BASE_TEMPERATURE = 0x17
-    #REG_SUPPLY_VOLTAGE = 0x1D
-    #REG_EXTERNAL_CONTROL_INPUT = 0x94
-
-    #REG_OUTPUT_POWER_SETPOINT = 0x21
-    #REG_CURRENT_SETPOINT = 0x27
     REG_EMISSION = 0x30
     REG_SETUP_BITS = 0x31
     REG_INTERLOCK = 0x32
-    REG_PULSE_PICKER_RATIO = 0x34 #Added
+    REG_PULSE_PICKER_RATIO = 0x34
     REG_WATCHDOG_TIMER = 0x36
-    REG_OUTPUT_LEVEL = 0x37 #Added
+    REG_OUTPUT_LEVEL = 0x37
     REG_NIM_DELAY = 0x39
-    REG_MODULE_TYPE = 0x61  # Added general register
+    REG_MODULE_TYPE = 0x61
     REG_MODEL_SERIAL_NUMBER = 0x65
-
     REG_STATUS_BITS = 0x66
-    REG_ERROR_CODE = 0x67 #Added general register
-
-    #REG_USER_AREA = 0x8D
-    #Ethernet modules needed?
-    #REG_IP_ADDRESS = 0xB0
-    #REG_GATEWAY = 0xB1
-    #REG_SUBNET_MASK = 0xB2
-    #REG_MAC_ADDRESS = 0xB3
+    REG_ERROR_CODE = 0x67
 
 
 class Varia(Enum):
     DEVICE_ID = 16
-
-    # SuperK VARIA registers
     REG_MONITOR_INPUT = 0x13
-
     REG_ND_SETPOINT = 0x32
     REG_SWP_SETPOINT = 0x33
     REG_LWP_SETPOINT = 0x34
-
     REG_STATUS_BITS = 0x66
 
 
@@ -138,7 +115,7 @@ class NktSuperk(Service):
             self.device = Fianium
         else:
             raise NotImplementedError(f'Connected device {connected_device} not implemented.')
-        
+
         # Functions for the SuperK EVO
         if self.device is Evo:
             self.get_base_temperature = read_register(registerReadS16, Evo.REG_BASE_TEMPERATURE, ratio=0.1)
@@ -159,7 +136,7 @@ class NktSuperk(Service):
             self.get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
             self.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
 
-        #Functions for both
+        # Functions for both
         self.get_emission = read_register(registerReadU8, self.device.REG_EMISSION, ratio=1)
         self.set_emission = write_register(registerWriteU8, self.device.REG_EMISSION, ratio=1)
 
@@ -200,16 +177,16 @@ class NktSuperk(Service):
 
             self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
             # Set current setpoints. These will be actually set on the device
-            # once the monitor threads have started.        
+            # once the monitor threads have started.
             self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
 
         elif self.device is Fianium:
             self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
             # Set current setpoints. These will be actually set on the device
-            # once the monitor threads have started.        
+            # once the monitor threads have started.
             self.pulse_picker_ratio.submit_data(np.array([self.config['pulse_picker_ratio']], dtype='uint16'))
 
-        
+
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
         self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
@@ -270,7 +247,7 @@ class NktSuperk(Service):
 
     def close(self):
         # Turn off the source
-        self.set_emission(self,0)
+        self.set_emission(self, 0)
 
         # Join all threads.
         for thread in self.threads.values():
