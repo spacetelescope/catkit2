@@ -137,8 +137,8 @@ class NktSuperk(Service):
             self.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
 
         # Functions for both
-        self.get_emission = read_register(registerReadU8, self.device.REG_EMISSION, ratio=1)
-        self.set_emission = write_register(registerWriteU8, self.device.REG_EMISSION, ratio=1)
+        self.get_emission = read_register(registerReadU8, self.device.REG_EMISSION)
+        self.set_emission = write_register(registerWriteU8, self.device.REG_EMISSION)
 
         self.get_setup_bits = read_register(registerReadU8, self.device.REG_SETUP_BITS)
         self.set_setup_bits = write_register(registerWriteU8, self.device.REG_SETUP_BITS)
@@ -164,9 +164,6 @@ class NktSuperk(Service):
 
         self.get_varia_status_bits = read_register(registerReadU16, Varia.REG_STATUS_BITS)
 
-        elif device is Fianium:
-            self.get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO)
-            self.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO)
     def open(self):
 
         # Make datastreams.
