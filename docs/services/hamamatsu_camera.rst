@@ -25,7 +25,7 @@ Configuration
 
       camera_id: 0
       cooling_mode: 'on'
-      fan_on: false
+      fan_status: 'off'
       camera_mode: 'ultraquiet'
       pixel_format: Mono16
       binning: 1
@@ -54,9 +54,9 @@ Properties
 
 ``sensor_height``: The height of the sensor.
 
-``cooler mode``: Cooler mode (only in water cooling).
+``cooler mode``: Cooler mode (only in water cooling): 'off', 'on' or 'max' .
 
-``fan_status``: Current camera fan status.
+``fan_status``: Current camera fan status: 'off', 'on'.
 
 Commands
 --------
