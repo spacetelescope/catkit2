@@ -102,16 +102,16 @@ class ThorlabsCubeMotorKinesis(Service):
         self.lib.CC_Open(self.serial_number)
         self.lib.CC_StartPolling(self.serial_number, c_int(200))
 
-        if self.stage_model in ['MTS25-Z8', 'MTS50-Z8', 'Z825B', 'Z806', 'Z812', 'Z925B']:
-            # Set up the device to convert real units to device units
+        # Set up the device to convert real units to device units
+        if self.stage_model in ['MTS25-Z8', 'MTS50-Z8', 'Z825B', 'Z806', 'Z812', 'Z925B']:  # Linear motors
             steps_per_rev = c_double(512)
             gear_box_ratio = c_double(67.49)
             pitch_mm = c_double(1.0)
             self.unit = 'mm'
-        elif self.stage_model in ['PRM1-Z8']:
-            steps_per_rev = c_double(1919.64186)  # Same as other motors
-            gear_box_ratio = c_double(1.0)  # Want to fit the value in the manual of PRM1Z8
-            pitch_mm = c_double(1.0)  # Don't know if it make sens with mm : we're with degree...
+        elif self.stage_model in ['PRM1-Z8']:  # Rotary motor
+            steps_per_rev = c_double(1919.64186)
+            gear_box_ratio = c_double(1.0)
+            pitch_mm = c_double(1.0)
             self.unit = 'degree'
         else:
             raise ValueError(f"Stage model {self.stage_model} not supported.")
