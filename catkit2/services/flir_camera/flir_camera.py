@@ -159,6 +159,7 @@ class FlirCamera(Service):
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
+        self.make_command('set_subframe', self.set_subframe)
 
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
@@ -232,7 +233,16 @@ class FlirCamera(Service):
             self.temperature.submit_data(np.array([temperature]))
 
             self.sleep(1)
-
+            
+    def set_subframe(self, x_offset, y_offset, new_width, new_height):
+    	if self.is_acquiring.get()[0] > 0:
+    	    self.should_be_acquiring.clear()
+    		
+    	self.offset_x = x_offset
+    	self.offset_y = y_offset
+    	self.width = new_width
+    	self.height = new_height
+    
     def start_acquisition(self):
         self.should_be_acquiring.set()
 
@@ -251,7 +261,8 @@ class FlirCamera(Service):
     sensor_height = _create_property('SensorHeight', read_only=True)
 
     pixel_format = _create_enum_property('PixelFormat', 'pixel_format_enum')
-    adc_bit_depth = _create_enum_property('AdcBitDepth', 'adc_bit_depth_enum')
+    adc_bit_depth = _create_enum_property('AdcBitDepth', 'adc_bit_depth_enum')	
+
 
     acquisition_frame_rate = _create_property('AcquisitionFrameRate', stopped_acquisition=False)
     acquisition_frame_rate_enable = _create_property('AcquisitionFrameRateEnable')
