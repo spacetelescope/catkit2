@@ -29,14 +29,13 @@ Configuration
       camera_mode: 'ultraquiet'
       pixel_format: Mono16
       binning: 1
+      critical_temperature: 28
 
       offset_x: 0
       offset_y: 0
       width: 400
       height: 400
-      exposure_time: 8294.4
-
-      critical_temperature=28
+      exposure_time: 8317.5
 
 Properties
 ----------
@@ -54,7 +53,7 @@ Properties
 
 ``sensor_height``: The height of the sensor.
 
-``cooler mode``: Cooler mode (only in water cooling): 'off', 'on' or 'max' .
+``cooler_mode``: Cooler mode (only in water cooling): 'off', 'on' or 'max' .
 
 ``fan_status``: Current camera fan status: 'off', 'on'.
 
