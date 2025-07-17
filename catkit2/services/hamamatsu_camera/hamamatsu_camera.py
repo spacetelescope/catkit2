@@ -63,9 +63,9 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
                 if hamamatsu_property_name == 'EXPOSURETIME':
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value / 1e6)
                 elif hamamatsu_property_name == 'SENSORCOOLER':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), CoolerMode(value).value)
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), CoolerMode[value].value)
                 elif hamamatsu_property_name == 'SENSORCOOLERFAN':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), FanStatus(value).value)
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), FanStatus[value].value)
                 else:
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
 
