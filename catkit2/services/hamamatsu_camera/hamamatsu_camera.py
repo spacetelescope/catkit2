@@ -25,36 +25,13 @@ except ImportError:
 
 
 class CoolerMode(Enum):
-    OFF = 1.0
-    ON = 2.0    # target temperature = -20 deg
-    MAX = 4.0   # target temperature = -31 deg
-
-    @classmethod
-    def from_string(cls, coolstr):
-        try:
-            return cls[coolstr.upper()]
-        except KeyError:
-            raise ValueError('Water cooling mode not recognized.')
-
-    def __str__(self):
-        return self.name.lower()
-
+    off = 1.0
+    on = 2.0    # target temperature = -20 deg
+    max = 4.0   # target temperature = -31 deg
 
 class FanStatus(Enum):
-    OFF = 1.0
-    ON = 2.0
-
-    @classmethod
-    def from_bool(cls, val):
-        return cls.ON if val else cls.OFF
-
-    @classmethod
-    def from_int(cls, val):
-        return cls(val)
-
-    def to_bool(self):
-        return self is FanStatus.ON
-
+    off = 1.0
+    on = 2.0
 
 def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
@@ -64,9 +41,9 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
             elif hamamatsu_property_name in ['SUBARRAYHSIZE', 'SUBARRAYVSIZE', 'SUBARRAYVPOS', 'SUBARRAYHPOS']:
                 return int(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
             elif hamamatsu_property_name == 'SENSORCOOLER':
-                return str(CoolerMode(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))))
+                return CoolerMode(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))).name
             elif hamamatsu_property_name == 'SENSORCOOLERFAN':
-                return FanStatus.from_int(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)).to_bool())
+                return FanStatus(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))).name
             else:
                 return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))
 
@@ -86,9 +63,9 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
                 if hamamatsu_property_name == 'EXPOSURETIME':
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value / 1e6)
                 elif hamamatsu_property_name == 'SENSORCOOLER':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), CoolerMode.from_string(value).value)
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), CoolerMode(value).value)
                 elif hamamatsu_property_name == 'SENSORCOOLERFAN':
-                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), FanStatus.from_bool(value).value)
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), FanStatus(value).value)
                 else:
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
 
@@ -264,7 +241,7 @@ class HamamatsuCamera(Service):
         self.cooler_mode = self.config.get('cooling_mode', 'on')
 
         # check fan status and start / stop fan
-        self.fan_status = self.config.get('fan_on', True)
+        self.fan_status = self.config.get('fan_status', 'off')
 
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
@@ -348,7 +325,7 @@ class HamamatsuCamera(Service):
             if temperature > self.critical_temperature and self.is_acquiring.get():
                 self.log.warning(f'Camera temperature = {temperature} > {self.critical_temperature} degrees.')
                 self.log.warning('Stopping acquisition and start fan.')
-                self.fan_status = True
+                self.fan_status = 'on'
                 self.cooler_mode = 'on'
                 self.end_acquisition()
 
