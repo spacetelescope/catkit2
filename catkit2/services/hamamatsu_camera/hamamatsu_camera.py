@@ -4,6 +4,7 @@ This module contains a service for Hamamatsu digital cameras.
 This service is a wrapper around the DCAM-SDK4.
 It provides a simple interface to control the camera and acquire images.
 """
+from enum import Enum
 import os
 import sys
 import threading
@@ -23,6 +24,15 @@ except ImportError:
     raise
 
 
+class CoolerMode(Enum):
+    off = 1.0
+    on = 2.0    # target temperature = -20 deg
+    max = 4.0   # target temperature = -31 deg
+
+class FanStatus(Enum):
+    off = 1.0
+    on = 2.0
+
 def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
@@ -30,6 +40,10 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
                 return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)) * 1e6
             elif hamamatsu_property_name in ['SUBARRAYHSIZE', 'SUBARRAYVSIZE', 'SUBARRAYVPOS', 'SUBARRAYHPOS']:
                 return int(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name)))
+            elif hamamatsu_property_name == 'SENSORCOOLER':
+                return CoolerMode(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))).name
+            elif hamamatsu_property_name == 'SENSORCOOLERFAN':
+                return FanStatus(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))).name
             else:
                 return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name))
 
@@ -48,8 +62,13 @@ def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisiti
             with self.mutex:
                 if hamamatsu_property_name == 'EXPOSURETIME':
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value / 1e6)
+                elif hamamatsu_property_name == 'SENSORCOOLER':
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), CoolerMode[value].value)
+                elif hamamatsu_property_name == 'SENSORCOOLERFAN':
+                    self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), FanStatus[value].value)
                 else:
                     self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, hamamatsu_property_name), value)
+
             if was_running and stopped_acquisition:
                 self.start_acquisition()
 
@@ -138,24 +157,6 @@ class HamamatsuCamera(Service):
         self.sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
         self.sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
 
-        # Set water cooling mode and fan mode
-        self.cooling_mode = self.config.get('cooling_mode', 'on')
-        self.fan_on = self.config.get('fan_on', True)
-
-        fan = 2.0 if self.fan_on else 1.0
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLERFAN, fan)
-
-        if self.cooling_mode == 'off':
-            cool = 1.0
-        elif self.cooling_mode == 'on':
-            cool = 2.0
-        elif self.cooling_mode == 'max':
-            cool = 4.0
-        else:
-            raise ValueError('Water cooling mode not recognized.')
-
-        self.cam.prop_setvalue(dcam.DCAM_IDPROP.SENSORCOOLER, cool)
-
         # Set subarray mode to on so that it checks subarray compatibility when picking ROI
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
 
@@ -218,19 +219,29 @@ class HamamatsuCamera(Service):
         self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
 
         make_property_helper('exposure_time')
+        make_property_helper('gain', read_only=True)
+        make_property_helper('brightness', read_only=True)
 
         make_property_helper('width')
         make_property_helper('height')
         make_property_helper('offset_x')
         make_property_helper('offset_y')
-
-        make_property_helper('gain', read_only=True)
-        make_property_helper('brightness', read_only=True)
         make_property_helper('sensor_width', read_only=True)
         make_property_helper('sensor_height', read_only=True)
 
+        make_property_helper('fan_status')
+        make_property_helper('cooler_mode')
+
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
+
+        self.critical_temperature = self.config.get('critical_temperature', 28.0)
+
+        # Set water cooling mode
+        self.cooler_mode = self.config.get('cooling_mode', 'on')
+
+        # check fan status and start / stop fan
+        self.fan_status = self.config.get('fan_status', 'off')
 
         self.temperature_thread = threading.Thread(target=self.monitor_temperature)
         self.temperature_thread.start()
@@ -247,6 +258,7 @@ class HamamatsuCamera(Service):
                 self.acquisition_loop()
 
     def close(self):
+        self.cooler_mode = 'on'
         self.cam.dev_close()
         self.cam = None
 
@@ -310,6 +322,13 @@ class HamamatsuCamera(Service):
             temperature = self.get_temperature()
             self.temperature.submit_data(np.array([temperature]))
 
+            if temperature > self.critical_temperature and self.is_acquiring.get():
+                self.log.warning(f'Camera temperature = {temperature} > {self.critical_temperature} degrees.')
+                self.log.warning('Stopping acquisition and start fan.')
+                self.fan_status = 'on'
+                self.cooler_mode = 'on'
+                self.end_acquisition()
+
             self.sleep(0.1)
 
     def start_acquisition(self):
@@ -329,6 +348,9 @@ class HamamatsuCamera(Service):
         self.should_be_acquiring.clear()
 
     exposure_time = _create_property('EXPOSURETIME', stopped_acquisition=False)
+
+    cooler_mode = _create_property('SENSORCOOLER', stopped_acquisition=False)
+    fan_status = _create_property('SENSORCOOLERFAN', stopped_acquisition=False)
 
     width = _create_property('SUBARRAYHSIZE')
     height = _create_property('SUBARRAYVSIZE')
