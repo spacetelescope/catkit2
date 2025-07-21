@@ -48,14 +48,15 @@ class OpticalFiberSwitchSim(Service):
 
         # Send the command to the switch
         # TODO: Set testbed simulator to handle this command
-        self.log.info(f"Sent command to set input channel to {channel}: {command.hex()}")
+        # self.testbed.simulator.set_source_power()  # Or something like that
+        self.log.info(f"Switch to input channel {channel}.")
         time.sleep(0.1)
         self.get_input_channel()
 
     def get_input_channel(self):
         # Read the response
         # TODO: Set testbed simulator to handle this command
-        current_channel = None
+        current_channel = 1
         self.current_input.submit_data(np.array([current_channel], dtype='int8'))
 
     def close(self):

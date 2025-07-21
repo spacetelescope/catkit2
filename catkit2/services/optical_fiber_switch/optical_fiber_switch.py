@@ -60,7 +60,7 @@ class OpticalFiberSwitch(Service):
         # Send the command to the switch
         try:
             self.switch.write(command)
-            self.log.info(f"Sent command to set input channel to {channel}: {command.hex()}")
+            self.log.info(f"Switch to input channel {channel}.")
             time.sleep(0.1)
             self.get_input_channel()
 
@@ -76,11 +76,11 @@ class OpticalFiberSwitch(Service):
         # Read the response
         response = self.switch.read(4)
         if len(response) == 4:
-            self.log.info(f"Received response: {response.hex()}")
+            self.log.info(f"Received response: {response}")
             current_channel = str(response)[-2]  # Get the channel number which is before the closing quote
             self.current_input.submit_data(np.array([current_channel], dtype='int8'))
         else:
-            self.log.warning(f"Incomplete response: {response.hex()}")
+            self.log.warning(f"Incomplete response: {response}")
 
     def close(self):
         self.input_channel.join()
