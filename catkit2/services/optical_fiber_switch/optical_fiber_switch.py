@@ -32,14 +32,7 @@ class OpticalFiberSwitch(Service):
         self.current_input = self.make_data_stream('current_input', 'int8', [1], 20)
         self.get_input_channel()
 
-        self.input_thread = threading.Thread(target=self.monitor_input)
-        self.input_thread.start()
-
     def main(self):
-        while not self.should_shut_down:
-            self.sleep(1)
-
-    def monitor_input(self):
         while not self.should_shut_down:
             try:
                 # Get an update for the desired input.
@@ -82,7 +75,6 @@ class OpticalFiberSwitch(Service):
             self.log.warning(f"Incomplete response: {response}")
 
     def close(self):
-        self.input_channel.join()
         self.switch.close()
 
 
