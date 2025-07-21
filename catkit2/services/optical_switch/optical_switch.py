@@ -1,0 +1,84 @@
+from catkit2.testbed.service import Service
+import serial
+import time
+import threading
+
+
+class OpticalSwitch(Service):
+    COMMAND_PREFIX = b'\x01\x12\x00'  # Command prefix for setting the input channel
+    COMMAND_ASK_STATUS = b'\x01\x11\x00\x00'  # Command to ask for the current status
+
+    def __init__(self):
+        super().__init__('optical_switch')
+        self.port = self.config['port']
+        self.baudrate = self.config['baudrate']
+
+        self.min_outlet = self.config['min_outlet']
+        self.max_outlet = self.config['max_outlet']
+
+    def open(self):
+        # Initialize the serial port connection
+        self.switch = serial.Serial(
+                                    port=self.port,         # Change to your port, e.g., '/dev/ttyS0' for Linux
+                                    baudrate=self.baudrate,       # Adjust to your device's baud rate
+                                    bytesize=serial.EIGHTBITS,
+                                    parity=serial.PARITY_NONE,
+                                    stopbits=serial.STOPBITS_ONE,
+                                    timeout=1            # Timeout in seconds
+                                )
+
+        self.input_channel = self.make_data_stream('input_channel', 'int8', [1], 20)
+
+        self.input_thread = threading.Thread(target=self.monitor_outlet)
+        self.input_thread.start()
+
+    def main(self):
+        while not self.should_shut_down:
+            self.sleep(1)
+
+    def monitor_input(self):
+        while not self.should_shut_down:
+            try:
+                # Get an update for the desired input.
+                frame = self.input_channel.get_next_frame(10)
+                # Set input channel if a new command has arrived.
+                self.set_input_channel(frame.data[0])
+            except RuntimeError:
+                # Timed out. This is used to periodically check the shutdown flag.
+                continue
+
+    def set_input_channel(self, channel):
+        # Construct the command to set the input channel
+        if channel < self.min_outlet or channel > self.max_outlet:
+            raise ValueError(f"Channel must be between {self.min_outlet} and {self.max_outlet}.")
+        command = self.COMMAND_PREFIX + bytes([channel])
+
+        # Send the command to the switch
+        try:
+            self.switch.write(command)
+            self.log.info(f"Sent command to set input channel to {channel}: {command.hex()}")
+            time.sleep(0.1)
+
+            # Ask for the status after setting the channel
+            self.switch.write(self.COMMAND_ASK_STATUS)
+            time.sleep(0.1)
+
+            # Read the response
+            response = self.switch.read(4)
+            if len(response) == 4:
+                self.log.info(f"Received response: {response.hex()}")
+            else:
+                self.log.warning(f"Incomplete response: {response.hex()}")
+
+        except serial.SerialException as e:
+            self.log.error(f"Serial error while setting input channel: {e}")
+            raise RuntimeError(f"Failed to set input channel: {e}")
+
+    def close(self):
+        self.input_channel.join()
+        self.switch.close()
+
+
+if __name__ == '__main__':
+    optical_switch = OpticalSwitch()
+    optical_switch.run()
