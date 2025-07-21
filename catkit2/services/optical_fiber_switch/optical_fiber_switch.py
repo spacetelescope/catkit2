@@ -4,12 +4,12 @@ import time
 import threading
 
 
-class OpticalSwitch(Service):
+class OpticalFiberSwitch(Service):
     COMMAND_PREFIX = b'\x01\x12\x00'  # Command prefix for setting the input channel
     COMMAND_ASK_STATUS = b'\x01\x11\x00\x00'  # Command to ask for the current status
 
     def __init__(self):
-        super().__init__('optical_switch')
+        super().__init__('optical_fiber_switch')
         self.port = self.config['port']
         self.baudrate = self.config['baudrate']
 
@@ -80,5 +80,5 @@ class OpticalSwitch(Service):
 
 
 if __name__ == '__main__':
-    optical_switch = OpticalSwitch()
+    optical_switch = OpticalFiberSwitch()
     optical_switch.run()
