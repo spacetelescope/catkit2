@@ -1,7 +1,9 @@
 from catkit2.testbed.service import Service
+
 import serial
 import time
 import threading
+import numpy as np
 
 
 class OpticalFiberSwitch(Service):
@@ -29,6 +31,7 @@ class OpticalFiberSwitch(Service):
 
         self.input_channel = self.make_data_stream('input_channel', 'int8', [1], 20)
         self.current_input = self.make_data_stream('current_input', 'int8', [1], 20)
+        self.get_input_channel()
 
         self.input_thread = threading.Thread(target=self.monitor_input)
         self.input_thread.start()
@@ -59,6 +62,7 @@ class OpticalFiberSwitch(Service):
             self.switch.write(command)
             self.log.info(f"Sent command to set input channel to {channel}: {command.hex()}")
             time.sleep(0.1)
+            self.get_input_channel()
 
         except serial.SerialException as e:
             self.log.error(f"Serial error while setting input channel: {e}")
