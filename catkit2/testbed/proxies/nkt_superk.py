@@ -72,15 +72,3 @@ class NktSuperkProxy(ServiceProxy):
     @property
     def base_sleep_time(self):
         return self.config['base_sleep_time']
-
-    @property
-    def power(self):
-        print('Getting power value...')
-        return self.power_setpoint.get()[0]
-
-    @power.setter
-    def power(self, power_to_set):
-        print('Setting power value...')
-        self.power_setpoint.submit_data(np.array([power_to_set], dtype='float32'))
-
-
