@@ -17,6 +17,8 @@ class OpticalFiberSwitch(Service):
         self.min_channel = self.config['min_channel']
         self.max_channel = self.config['max_channel']
 
+        self.mutex = threading.Lock()
+
     def open(self):
         # Initialize the serial port connection
         self.switch = serial.Serial(
@@ -50,29 +52,31 @@ class OpticalFiberSwitch(Service):
         command = self.COMMAND_PREFIX + bytes([channel])
 
         # Send the command to the switch
-        try:
-            self.switch.write(command)
-            self.log.info(f"Switch to input channel {channel}.")
-            self.sleep(0.1)
-            self.get_input_channel()
+        with self.mutex:
+            try:
+                self.switch.write(command)
+                self.log.info(f"Switch to input channel {channel}.")
+                self.sleep(0.1)
+                self.get_input_channel()
 
-        except serial.SerialException as e:
-            self.log.error(f"Serial error while setting input channel: {e}")
-            raise RuntimeError(f"Failed to set input channel: {e}")
+            except serial.SerialException as e:
+                self.log.error(f"Serial error while setting input channel: {e}")
+                raise RuntimeError(f"Failed to set input channel: {e}")
 
     def get_input_channel(self):
-        # Ask for the status after setting the channel
-        self.switch.write(self.COMMAND_ASK_STATUS)
-        self.sleep(0.1)
+        with self.mutex:
+            # Ask for the status after setting the channel
+            self.switch.write(self.COMMAND_ASK_STATUS)
+            self.sleep(0.1)
 
-        # Read the response
-        response = self.switch.read(4)
-        if len(response) == 4:
-            self.log.info(f"Received response: {response}")
-            current_channel = str(response)[-2]  # Get the channel number which is before the closing quote
-            self.current_input.submit_data(np.array([current_channel], dtype='int8'))
-        else:
-            self.log.warning(f"Incomplete response: {response}")
+            # Read the response
+            response = self.switch.read(4)
+            if len(response) == 4:
+                self.log.info(f"Received response: {response}")
+                current_channel = str(response)[-2]  # Get the channel number which is before the closing quote
+                self.current_input.submit_data(np.array([current_channel], dtype='int8'))
+            else:
+                self.log.warning(f"Incomplete response: {response}")
 
     def close(self):
         self.switch.close()

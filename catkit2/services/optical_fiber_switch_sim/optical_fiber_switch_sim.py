@@ -1,6 +1,4 @@
 from catkit2.testbed.service import Service
-
-import threading
 import numpy as np
 
 
