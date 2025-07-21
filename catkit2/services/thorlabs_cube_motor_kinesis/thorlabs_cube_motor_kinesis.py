@@ -112,7 +112,7 @@ class ThorlabsCubeMotorKinesis(Service):
             steps_per_rev = c_double(1919.64186)
             gear_box_ratio = c_double(1.0)
             pitch_mm = c_double(1.0)
-            self.unit = 'degree'
+            self.unit = 'deg'
         else:
             raise ValueError(f"Stage model {self.stage_model} not supported.")
 
