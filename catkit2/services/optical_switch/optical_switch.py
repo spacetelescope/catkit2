@@ -13,8 +13,8 @@ class OpticalSwitch(Service):
         self.port = self.config['port']
         self.baudrate = self.config['baudrate']
 
-        self.min_outlet = self.config['min_outlet']
-        self.max_outlet = self.config['max_outlet']
+        self.min_channel = self.config['min_channel']
+        self.max_channel = self.config['max_channel']
 
     def open(self):
         # Initialize the serial port connection
@@ -29,7 +29,7 @@ class OpticalSwitch(Service):
 
         self.input_channel = self.make_data_stream('input_channel', 'int8', [1], 20)
 
-        self.input_thread = threading.Thread(target=self.monitor_outlet)
+        self.input_thread = threading.Thread(target=self.monitor_input)
         self.input_thread.start()
 
     def main(self):
@@ -49,8 +49,8 @@ class OpticalSwitch(Service):
 
     def set_input_channel(self, channel):
         # Construct the command to set the input channel
-        if channel < self.min_outlet or channel > self.max_outlet:
-            raise ValueError(f"Channel must be between {self.min_outlet} and {self.max_outlet}.")
+        if channel < self.min_channel or channel > self.max_channel:
+            raise ValueError(f"Channel must be between {self.min_ochannel} and {self.max_channel}.")
         command = self.COMMAND_PREFIX + bytes([channel])
 
         # Send the command to the switch
