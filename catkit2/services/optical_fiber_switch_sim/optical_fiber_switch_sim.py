@@ -1,6 +1,5 @@
 from catkit2.testbed.service import Service
 
-import time
 import threading
 import numpy as np
 
@@ -49,7 +48,7 @@ class OpticalFiberSwitchSim(Service):
         # TODO: Set testbed simulator to handle this command
         # self.testbed.simulator.set_source_power()  # Or something like that
         self.log.info(f"Switch to input channel {channel}.")
-        time.sleep(0.1)
+        self.sleep(0.1)
         self.get_input_channel()
 
     def get_input_channel(self):

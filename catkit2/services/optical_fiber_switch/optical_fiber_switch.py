@@ -1,7 +1,6 @@
 from catkit2.testbed.service import Service
 
 import serial
-import time
 import threading
 import numpy as np
 
@@ -61,7 +60,7 @@ class OpticalFiberSwitch(Service):
         try:
             self.switch.write(command)
             self.log.info(f"Switch to input channel {channel}.")
-            time.sleep(0.1)
+            self.sleep(0.1)
             self.get_input_channel()
 
         except serial.SerialException as e:
@@ -71,7 +70,7 @@ class OpticalFiberSwitch(Service):
     def get_input_channel(self):
         # Ask for the status after setting the channel
         self.switch.write(self.COMMAND_ASK_STATUS)
-        time.sleep(0.1)
+        self.sleep(0.1)
 
         # Read the response
         response = self.switch.read(4)
