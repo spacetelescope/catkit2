@@ -28,6 +28,7 @@ class OpticalFiberSwitch(Service):
                                 )
 
         self.input_channel = self.make_data_stream('input_channel', 'int8', [1], 20)
+        self.current_input = self.make_data_stream('current_input', 'int8', [1], 20)
 
         self.input_thread = threading.Thread(target=self.monitor_input)
         self.input_thread.start()
@@ -59,20 +60,23 @@ class OpticalFiberSwitch(Service):
             self.log.info(f"Sent command to set input channel to {channel}: {command.hex()}")
             time.sleep(0.1)
 
-            # Ask for the status after setting the channel
-            self.switch.write(self.COMMAND_ASK_STATUS)
-            time.sleep(0.1)
-
-            # Read the response
-            response = self.switch.read(4)
-            if len(response) == 4:
-                self.log.info(f"Received response: {response.hex()}")
-            else:
-                self.log.warning(f"Incomplete response: {response.hex()}")
-
         except serial.SerialException as e:
             self.log.error(f"Serial error while setting input channel: {e}")
             raise RuntimeError(f"Failed to set input channel: {e}")
+
+    def get_input_channel(self):
+        # Ask for the status after setting the channel
+        self.switch.write(self.COMMAND_ASK_STATUS)
+        time.sleep(0.1)
+
+        # Read the response
+        response = self.switch.read(4)
+        if len(response) == 4:
+            self.log.info(f"Received response: {response.hex()}")
+            current_channel = str(response)[-2]  # Get the channel number which is before the closing quote
+            self.current_input.submit_data(np.array([current_channel], dtype='int8'))
+        else:
+            self.log.warning(f"Incomplete response: {response.hex()}")
 
     def close(self):
         self.input_channel.join()
