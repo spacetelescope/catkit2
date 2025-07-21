@@ -82,23 +82,6 @@ class NktSuperkProxy(ServiceProxy):
         print('Setting emission value...')
         self.emission.submit_data(np.array([emission_to_set], dtype='uint8'))
 
-    def turn_on(self):
-        emission_value = self.emission_value
-        if emission_value == [0]:
-            self.emission.submit_data(np.array([3], dtype='uint8'))
-            print('NKT turned ON')
-        else:
-            print('NKT already ON')
-
-    def turn_off(self):
-        emission_value = self.emission_value
-        if emission_value != [0]:
-            self.emission.submit_data(np.array([0], dtype='uint8'))
-            print('NKT turned OFF')
-        else:
-            print('NKT already OFF')
-
-
     @property
     def power(self):
         print('Getting power value...')
