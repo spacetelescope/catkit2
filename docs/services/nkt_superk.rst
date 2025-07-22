@@ -1,10 +1,16 @@
 NKT Super K Compact Tunable Laser
 =================================
-The NKT Super K service contains software for controlling both the `NKT SuperK EVO Supercontinuum White Light Laser <https://contentnktphotonics.s3.eu-central-1.amazonaws.com/SuperK-EVO/SuperK%20EVO%20and%20EVO%20HP%20Product%20Guide-%2020231010%20R1.4.pdf>`_
+The NKT Super K service contains software for controlling either combination of:
+1. `NKT SuperK EVO Supercontinuum White Light Laser <https://contentnktphotonics.s3.eu-central-1.amazonaws.com/SuperK-EVO/SuperK%20EVO%20and%20EVO%20HP%20Product%20Guide-%2020231010%20R1.4.pdf>`_
 and the `NKT SuperK VARIA Variable Bandpass Filter <https://contentnktphotonics.s3.eu-central-1.amazonaws.com/SuperK-VARIA/SuperK%20VARIA%20Product%20Guide-%2020231016%20R1.3.pdf>`_.
+2. `NKT SuperK FIANIUM Supercontinuum White Light Laser <https://www.nktphotonics.com/products/supercontinuum-white-light-lasers/superk-fianium/>`_
+with the same `NKT SuperK VARIA Variable Bandpass Filter`.
+
 This is done because a single open port to the device is needed that cannot be shared between multiple services.
 
-Associated drivers for both the EVO and VARIA (found in the linked manuals) also need to be installed.
+Associated drivers for both the EVO/FIANIUM and VARIA (found in the linked manuals) also need to be installed.
+
+Data streams vary between the EVO and FIANIUM, but the VARIA data streams are the same for both. The below lists examples for the EVO only.
 
 Configuration
 -------------
@@ -18,6 +24,7 @@ Configuration
         requires_safety: false
 
         port: COM4
+        connected_device: evo
         emission: 1
         power_setpoint: 100
         current_setpoint: 100
