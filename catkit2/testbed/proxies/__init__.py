@@ -6,6 +6,7 @@ __all__ = [
     'NewportPicomotorProxy',
     'NiDaqProxy',
     'NktSuperkEvoProxy',
+    'NktSuperkFianiumProxy',
     'ThorlabsCubeMotorKinesisProxy',
     'ThorlabsMcls1',
     'WebPowerSwitchProxy',

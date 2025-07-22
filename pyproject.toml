@@ -92,6 +92,7 @@ newport_picomotor = "catkit2.testbed.proxies.newport_picomotor:NewportPicomotorP
 newport_xps_q8 = "catkit2.testbed.proxies.newport_xps:NewportXpsQ8Proxy"
 ni_daq = "catkit2.testbed.proxies.ni_daq:NiDaqProxy"
 nkt_superk_evo = "catkit2.testbed.proxies.nkt_superk_evo:NktSuperkEvoProxy"
+nkt_superk_fianium = "catkit2.testbed.proxies.nkt_superk_fianium:NktSuperkFianiumProxy"
 oceanoptics_spectrometer = "catkit2.testbed.proxies.oceanoptics_spectrometer:OceanopticsSpectroProxy"
 thorlabs_cube_motor_kinesis = "catkit2.testbed.proxies.thorlabs_cube_motor_kinesis:ThorlabsCubeMotorKinesisProxy"
 thorlabs_mcls1 = "catkit2.testbed.proxies.thorlabs_mcls1:ThorlabsMcls1"
