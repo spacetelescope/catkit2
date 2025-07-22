@@ -120,51 +120,51 @@ class NktSuperk(Service):
 
         # Functions for the SuperK EVO
         if self.device is Evo:
-            self.get_base_temperature = read_register(registerReadS16, Evo.REG_BASE_TEMPERATURE, ratio=0.1)
-            self.get_supply_voltage = read_register(registerReadU16, Evo.REG_SUPPLY_VOLTAGE, ratio=0.001)
-            self.get_external_control_input = read_register(registerReadU16, Evo.REG_EXTERNAL_CONTROL_INPUT, ratio=0.001)
+            NktSuperk.get_base_temperature = read_register(registerReadS16, Evo.REG_BASE_TEMPERATURE, ratio=0.1)
+            NktSuperk.get_supply_voltage = read_register(registerReadU16, Evo.REG_SUPPLY_VOLTAGE, ratio=0.001)
+            NktSuperk.get_external_control_input = read_register(registerReadU16, Evo.REG_EXTERNAL_CONTROL_INPUT, ratio=0.001)
 
-            self.get_power_setpoint = read_register(registerReadU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
-            self.set_power_setpoint = write_register(registerWriteU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
+            NktSuperk.get_power_setpoint = read_register(registerReadU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
+            NktSuperk.set_power_setpoint = write_register(registerWriteU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
 
-            self.get_current_setpoint = read_register(registerReadU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
-            self.set_current_setpoint = write_register(registerWriteU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
+            NktSuperk.get_current_setpoint = read_register(registerReadU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
+            NktSuperk.set_current_setpoint = write_register(registerWriteU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
 
         # Functions for the SuperK FIANIUM
         elif self.device is Fianium:
-            self.get_power_setpoint = read_register(registerReadU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
-            self.set_power_setpoint = write_register(registerWriteU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
+            NktSuperk.get_power_setpoint = read_register(registerReadU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
+            NktSuperk.set_power_setpoint = write_register(registerWriteU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
 
-            self.get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
-            self.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
+            NktSuperk.get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
+            NktSuperk.set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
 
         # Functions for both
-        self.get_emission = read_register(registerReadU8, self.device.REG_EMISSION)
-        self.set_emission = write_register(registerWriteU8, self.device.REG_EMISSION)
+        NktSuperk.get_emission = read_register(registerReadU8, self.device.REG_EMISSION)
+        NktSuperk.set_emission = write_register(registerWriteU8, self.device.REG_EMISSION)
 
-        self.get_setup_bits = read_register(registerReadU8, self.device.REG_SETUP_BITS)
-        self.set_setup_bits = write_register(registerWriteU8, self.device.REG_SETUP_BITS)
+        NktSuperk.get_setup_bits = read_register(registerReadU8, self.device.REG_SETUP_BITS)
+        NktSuperk.set_setup_bits = write_register(registerWriteU8, self.device.REG_SETUP_BITS)
 
-        self.get_interlock_msb = read_register(registerReadU8, self.device.REG_INTERLOCK, index=0)
-        self.get_interlock_lsb = read_register(registerReadU8, self.device.REG_INTERLOCK, index=1)
+        NktSuperk.get_interlock_msb = read_register(registerReadU8, self.device.REG_INTERLOCK, index=0)
+        NktSuperk.get_interlock_lsb = read_register(registerReadU8, self.device.REG_INTERLOCK, index=1)
 
-        self.get_fianium_status_bits = read_register(registerReadU16, self.device.REG_STATUS_BITS)
+        NktSuperk.get_fianium_status_bits = read_register(registerReadU16, self.device.REG_STATUS_BITS)
 
-        self.get_watchdog_timer = read_register(registerReadU8, self.device.REG_WATCHDOG_TIMER)
-        self.set_watchdog_timer = write_register(registerWriteU8, self.device.REG_WATCHDOG_TIMER)
+        NktSuperk.get_watchdog_timer = read_register(registerReadU8, self.device.REG_WATCHDOG_TIMER)
+        NktSuperk.set_watchdog_timer = write_register(registerWriteU8, self.device.REG_WATCHDOG_TIMER)
 
         # Functions for the SuperK VARIA
-        self.get_monitor_input = read_register(registerReadU16, Varia.REG_MONITOR_INPUT, ratio=0.1)
+        NktSuperk.get_monitor_input = read_register(registerReadU16, Varia.REG_MONITOR_INPUT, ratio=0.1)
 
-        self.get_nd_setpoint = read_register(registerReadU16, Varia.REG_ND_SETPOINT, ratio=0.1)
-        self.get_swp_setpoint = read_register(registerReadU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
-        self.get_lwp_setpoint = read_register(registerReadU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
+        NktSuperk.get_nd_setpoint = read_register(registerReadU16, Varia.REG_ND_SETPOINT, ratio=0.1)
+        NktSuperk.get_swp_setpoint = read_register(registerReadU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
+        NktSuperk.get_lwp_setpoint = read_register(registerReadU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
 
-        self.set_nd_setpoint = write_register(registerWriteU16, Varia.REG_ND_SETPOINT, ratio=0.1)
-        self.set_swp_setpoint = write_register(registerWriteU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
-        self.set_lwp_setpoint = write_register(registerWriteU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
+        NktSuperk.set_nd_setpoint = write_register(registerWriteU16, Varia.REG_ND_SETPOINT, ratio=0.1)
+        NktSuperk.set_swp_setpoint = write_register(registerWriteU16, Varia.REG_SWP_SETPOINT, ratio=0.1)
+        NktSuperk.set_lwp_setpoint = write_register(registerWriteU16, Varia.REG_LWP_SETPOINT, ratio=0.1)
 
-        self.get_varia_status_bits = read_register(registerReadU16, Varia.REG_STATUS_BITS)
+        NktSuperk.get_varia_status_bits = read_register(registerReadU16, Varia.REG_STATUS_BITS)
 
     def open(self):
 
