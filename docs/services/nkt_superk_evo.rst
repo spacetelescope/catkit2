@@ -15,9 +15,9 @@ Configuration
 .. code-block:: YAML
 
     nkt_superk:
-        service_type: nkt_superk
-        simulated_service_type: nkt_superk_sim
-        interface: nkt_superk
+        service_type: nkt_superk_evo
+        simulated_service_type: nkt_superk_evo_sim
+        interface: nkt_superk_evo
         requires_safety: false
 
         port: COM4
