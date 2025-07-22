@@ -123,6 +123,10 @@ class NktSuperkFianiumSim(Service):
             power=self.emission.get()[0] * power_setpoint * 1e-2
         )
 
+    def set_pulse_picker_ratio(self, pulse_picker_ratio):
+        # TODO: Something with the testbed simulator, likely set_source_power().
+        pass
+
     def set_nd_setpoint(self, nd_setpoint):
         self.testbed.simulator.move_filter(
             filter_wheel_name=self.id + '_nd',
