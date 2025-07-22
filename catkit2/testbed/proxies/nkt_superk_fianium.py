@@ -82,3 +82,9 @@ class NktSuperkFianiumProxy(ServiceProxy):
     @property
     def base_sleep_time(self):
         return self.config['base_sleep_time']
+
+    def turn_on(self):
+        self.testbed.nkt_superk.emission.submit_data(np.array([3], dtype='uint8'))
+
+    def turn_off(self):
+        self.testbed.nkt_superk.emission.submit_data(np.array([0], dtype='uint8'))
