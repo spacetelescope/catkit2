@@ -72,6 +72,7 @@ def read_register(read_func, register, *, ratio=1, index=-1):
 
     return getter
 
+
 def write_register(write_func, register, *, ratio=1, index=-1):
     def setter(self, value):
         device_id = register.__class__.DEVICE_ID
@@ -88,7 +89,8 @@ def write_register(write_func, register, *, ratio=1, index=-1):
 
     return setter
 
-class NktSuperk(Service):
+
+class NktSuperkEvo(Service):
     '''The service for both the NKT SuperK EVO and NKT SuperK VARIA.
 
     Both devices are combined into a single service due to the need for
@@ -96,7 +98,7 @@ class NktSuperk(Service):
     multiple services.
     '''
     def __init__(self):
-        super().__init__('nkt_superk')
+        super().__init__('nkt_superk_evo')
 
         self.threads = {}
         self.port = self.config['port']
@@ -271,5 +273,5 @@ class NktSuperk(Service):
 
 
 if __name__ == '__main__':
-    service = NktSuperk()
+    service = NktSuperkEvo()
     service.run()

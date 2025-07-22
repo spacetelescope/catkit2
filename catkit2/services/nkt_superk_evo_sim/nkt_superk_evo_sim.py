@@ -4,9 +4,9 @@ import numpy as np
 import threading
 
 
-class NktSuperkSim(Service):
+class NktSuperkEvoSim(Service):
     def __init__(self):
-        super().__init__('nkt_superk_sim')
+        super().__init__('nkt_superk_evo_sim')
 
         self.threads = {}
         self.port = self.config['port']
@@ -140,5 +140,5 @@ class NktSuperkSim(Service):
 
 
 if __name__ == '__main__':
-    service = NktSuperkSim()
+    service = NktSuperkEvoSim()
     service.run()
