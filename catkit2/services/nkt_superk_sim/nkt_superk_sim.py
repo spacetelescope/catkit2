@@ -11,16 +11,26 @@ class NktSuperkSim(Service):
         self.threads = {}
         self.port = self.config['port']
 
+        connected_device = self.config['connected_device'].lower()
+
     def open(self):
         # Make datastreams.
-        self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
-        self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
-        self.external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
+        connected_device = self.config['connected_device'].lower()
+        if connected_device == 'evo':
+            self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
+            self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
+            self.external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
+
+            self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
+            self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
+
+        elif connected_device == 'fianium':
+            self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
+            self.pulse_picker_ratio.submit_data(np.array([self.config['pulse_picker_ratio']], dtype='uint16'))
+
 
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
-        self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
-
         self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
 
         self.nd_setpoint = self.make_data_stream('nd_setpoint', 'float32', [1], 20)
@@ -31,16 +41,14 @@ class NktSuperkSim(Service):
         self.swp_filter_moving = self.make_data_stream('swp_filter_moving', 'uint8', [1], 20)
         self.lwp_filter_moving = self.make_data_stream('lwp_filter_moving', 'uint8', [1], 20)
 
-        # Set current setpoints. These will be actually set on the device
-        # once the monitor threads have started.
         self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
         self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
-        self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
 
         self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']], dtype='float32'))
         self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']], dtype='float32'))
         self.lwp_setpoint.submit_data(np.array([self.config['lwp_setpoint']], dtype='float32'))
 
+        # Define thread functions.
         # Define thread functions.
         funcs = {
             'nd_setpoint': self.monitor_func(self.nd_setpoint, self.set_nd_setpoint),
@@ -48,10 +56,16 @@ class NktSuperkSim(Service):
             'lwp_setpoint': self.monitor_func(self.lwp_setpoint, self.set_lwp_setpoint),
             'emission': self.monitor_func(self.emission, self.set_emission),
             'power_setpoint': self.monitor_func(self.power_setpoint, self.set_power_setpoint),
-            'current_setpoint': self.monitor_func(self.current_setpoint, self.set_current_setpoint),
             'varia_status': self.update_func(self.update_varia_status),
-            'evo_status': self.update_func(self.update_evo_status)
         }
+
+        if connected_device == 'evo':
+            funcs['current_setpoint'] = self.monitor_func(self.current_setpoint, self.set_current_setpoint)
+            funcs['evo_status'] = self.update_func(self.update_evo_status)
+
+        elif connected_device == 'fianium':
+            funcs['pulse_picker_ratio'] = self.monitor_func(self.pulse_picker_ratio, self.set_pulse_picker_ratio)
+
 
         # Start all threads.
         for key, func in funcs.items():
@@ -137,6 +151,10 @@ class NktSuperkSim(Service):
             filter_wheel_name=self.id + '_lwp',
             new_filter_position=lwp_setpoint
         )
+
+    def set_pulse_picker_ratio(self, pulse_ticker_ratio):
+        current_power_setpoint = self.power_setpoint.get()[0]
+        self.set_power_setpoint(current_power_setpoint/pulse_ticker_ratio)
 
 
 if __name__ == '__main__':
