@@ -151,6 +151,8 @@ class NktSuperkFianium(Service):
             self.sleep(1)
 
     def close(self):
+        # TODO: Set pulse picker ratio to a safe value before closing?
+
         # Turn off the source
         self.set_emission(0)
 
