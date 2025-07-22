@@ -19,31 +19,20 @@ except ImportError:
     raise
 
 
-class Evo(Enum):
-    """Registers for the NKT SuperK EVO device."""
+class Fianium(Enum):
+    """Registers for the NKT SuperK FIANIUM device."""
     DEVICE_ID = 15
-
-    REG_BASE_TEMPERATURE = 0x17
-    REG_SUPPLY_VOLTAGE = 0x1D
-    REG_EXTERNAL_CONTROL_INPUT = 0x94
-
-    REG_OUTPUT_POWER_SETPOINT = 0x21
-    REG_CURRENT_SETPOINT = 0x27
     REG_EMISSION = 0x30
     REG_SETUP_BITS = 0x31
     REG_INTERLOCK = 0x32
+    REG_PULSE_PICKER_RATIO = 0x34
     REG_WATCHDOG_TIMER = 0x36
-    REG_NIM_DELAY = 0x3B
+    REG_OUTPUT_LEVEL = 0x37
+    REG_NIM_DELAY = 0x39
+    REG_MODULE_TYPE = 0x61
     REG_MODEL_SERIAL_NUMBER = 0x65
-
     REG_STATUS_BITS = 0x66
-
-    REG_USER_AREA = 0x8D
-
-    REG_IP_ADDRESS = 0xB0
-    REG_GATEWAY = 0xB1
-    REG_SUBNET_MASK = 0xB2
-    REG_MAC_ADDRESS = 0xB3
+    REG_ERROR_CODE = 0x67
 
 
 class Varia(Enum):
@@ -90,28 +79,24 @@ def write_register(write_func, register, *, ratio=1, index=-1):
     return setter
 
 
-class NktSuperkEvo(Service):
-    '''The service for both the NKT SuperK EVO and NKT SuperK VARIA.
+class NktSuperkFianium(Service):
+    '''The service for both the NKT SuperK FIANIUM and NKT SuperK VARIA.
 
     Both devices are combined into a single service due to the need for
     a single open port to the device that cannot be shared between
     multiple services.
     '''
     def __init__(self):
-        super().__init__('nkt_superk_evo')
+        super().__init__('nkt_superk_fianium')
 
         self.threads = {}
         self.port = self.config['port']
+        self.pulse_picker_safety = self.config.get('pulse_picker_safety')
 
     def open(self):
         # Make datastreams.
-        self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
-        self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
-        self.external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
-
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
-        self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
 
         self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
 
@@ -127,7 +112,7 @@ class NktSuperkEvo(Service):
         # once the monitor threads have started.
         self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
         self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
-        self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
+        self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
 
         self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']], dtype='float32'))
         self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']], dtype='float32'))
@@ -140,9 +125,8 @@ class NktSuperkEvo(Service):
             'lwp_setpoint': self.monitor_func(self.lwp_setpoint, self.set_lwp_setpoint),
             'emission': self.monitor_func(self.emission, self.set_emission),
             'power_setpoint': self.monitor_func(self.power_setpoint, self.set_power_setpoint),
-            'current_setpoint': self.monitor_func(self.current_setpoint, self.set_current_setpoint),
-            'varia_status': self.update_func(self.update_varia_status),
-            'evo_status': self.update_func(self.update_evo_status)
+            'pulse_picker_ratio': self.monitor_pulse_picker_ratio(self.pulse_picker_ratio, self.set_pulse_picker_ratio),
+            'varia_status': self.update_func(self.update_varia_status)
         }
 
         # Create a pool with a single worker to perform communication with the device.
@@ -185,16 +169,6 @@ class NktSuperkEvo(Service):
             self.log.error('NKT error: ' + RegisterResultTypes(result))
             raise RuntimeError(RegisterResultTypes(result))
 
-    def update_evo_status(self):
-        temperature = self.get_base_temperature()
-        self.base_temperature.submit_data(np.array([temperature], dtype='float32'))
-
-        voltage = self.get_supply_voltage()
-        self.supply_voltage.submit_data(np.array([voltage], dtype='float32'))
-
-        control_input = self.get_external_control_input()
-        self.external_control_input.submit_data(np.array([control_input], dtype='float32'))
-
     def update_varia_status(self):
         status = self.get_varia_status_bits()
 
@@ -224,6 +198,22 @@ class NktSuperkEvo(Service):
 
         return func
 
+    def monitor_pulse_picker_ratio(self, stream, setter):
+        def func():
+            while not self.should_shut_down:
+                try:
+                    frame = stream.get_next_frame(1)
+                except Exception:
+                    continue
+
+                bandwidth = self.swp_setpoint.get()[0] - self.lwp_setpoint.get()[0]
+                if frame.data[0] >= max(int(bandwidth / self.pulse_picker_safety), 1):
+                    setter(frame.data[0])
+                else:
+                    self.log.warning(f'Pulse picker ratio {frame.data[0]} is too low for the current bandwidth {bandwidth}. Not setting it.')
+
+        return func
+
     def update_func(self, updater):
         def func():
             while not self.should_shut_down:
@@ -233,30 +223,26 @@ class NktSuperkEvo(Service):
 
         return func
 
-    # Functions for the SuperK EVO
-    get_base_temperature = read_register(registerReadS16, Evo.REG_BASE_TEMPERATURE, ratio=0.1)
-    get_supply_voltage = read_register(registerReadU16, Evo.REG_SUPPLY_VOLTAGE, ratio=0.001)
-    get_external_control_input = read_register(registerReadU16, Evo.REG_EXTERNAL_CONTROL_INPUT, ratio=0.001)
+    # Functions for the SuperK FIANIUM
+    get_power_setpoint = read_register(registerReadU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
+    set_power_setpoint = write_register(registerWriteU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
 
-    get_power_setpoint = read_register(registerReadU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
-    set_power_setpoint = write_register(registerWriteU16, Evo.REG_OUTPUT_POWER_SETPOINT, ratio=0.1)
+    get_emission = read_register(registerReadU8, Fianium.REG_EMISSION, ratio=0.5)
+    set_emission = write_register(registerWriteU8, Fianium.REG_EMISSION, ratio=0.5)
 
-    get_current_setpoint = read_register(registerReadU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
-    set_current_setpoint = write_register(registerWriteU16, Evo.REG_CURRENT_SETPOINT, ratio=0.1)
+    get_setup_bits = read_register(registerReadU8, Fianium.REG_SETUP_BITS)
+    set_setup_bits = write_register(registerWriteU8, Fianium.REG_SETUP_BITS)
 
-    get_emission = read_register(registerReadU8, Evo.REG_EMISSION, ratio=0.5)
-    set_emission = write_register(registerWriteU8, Evo.REG_EMISSION, ratio=0.5)
+    get_interlock_msb = read_register(registerReadU8, Fianium.REG_INTERLOCK, index=0)
+    get_interlock_lsb = read_register(registerReadU8, Fianium.REG_INTERLOCK, index=1)
 
-    get_setup_bits = read_register(registerReadU8, Evo.REG_SETUP_BITS)
-    set_setup_bits = write_register(registerWriteU8, Evo.REG_SETUP_BITS)
+    get_fianium_status_bits = read_register(registerReadU16, Fianium.REG_STATUS_BITS)
 
-    get_interlock_msb = read_register(registerReadU8, Evo.REG_INTERLOCK, index=0)
-    get_interlock_lsb = read_register(registerReadU8, Evo.REG_INTERLOCK, index=1)
+    get_watchdog_timer = read_register(registerReadU8, Fianium.REG_WATCHDOG_TIMER)
+    set_watchdog_timer = write_register(registerWriteU8, Fianium.REG_WATCHDOG_TIMER)
 
-    get_evo_status_bits = read_register(registerReadU16, Evo.REG_STATUS_BITS)
-
-    get_watchdog_timer = read_register(registerReadU8, Evo.REG_WATCHDOG_TIMER)
-    set_watchdog_timer = write_register(registerWriteU8, Evo.REG_WATCHDOG_TIMER)
+    get_pulse_picker_ratio = read_register(registerReadU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
+    set_pulse_picker_ratio = write_register(registerWriteU16, Fianium.REG_PULSE_PICKER_RATIO, ratio=1)
 
     # Functions for the SuperK VARIA
     get_monitor_input = read_register(registerReadU16, Varia.REG_MONITOR_INPUT, ratio=0.1)
@@ -273,5 +259,5 @@ class NktSuperkEvo(Service):
 
 
 if __name__ == '__main__':
-    service = NktSuperkEvo()
+    service = NktSuperkFianium()
     service.run()
