@@ -97,6 +97,7 @@ class NktSuperkFianium(Service):
         # Make datastreams.
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
+        self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
 
         self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
 
@@ -112,7 +113,7 @@ class NktSuperkFianium(Service):
         # once the monitor threads have started.
         self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
         self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
-        self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
+        self.pulse_picker_ratio.submit_data(np.array([self.config['pulse_picker_ratio']], dtype='uint16'))
 
         self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']], dtype='float32'))
         self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']], dtype='float32'))
