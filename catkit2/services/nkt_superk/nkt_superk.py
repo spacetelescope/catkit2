@@ -79,6 +79,7 @@ def read_register(read_func, register, *, ratio=1, index=-1):
 
     return getter
 
+
 def write_register(write_func, register, *, ratio=1, index=-1):
     def setter(self, value):
         device_id = register.__class__.DEVICE_ID
@@ -94,6 +95,7 @@ def write_register(write_func, register, *, ratio=1, index=-1):
         self.check_result(result)
 
     return setter
+
 
 class NktSuperk(Service):
     '''The service for both the NKT SuperK EVO and NKT SuperK VARIA.
@@ -178,6 +180,8 @@ class NktSuperk(Service):
             self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
 
         elif self.device is Fianium:
+            self.pulse_picker_safety = self.config.get('pulse_picker_safety')
+
             self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
             # Set current setpoints. These will be actually set on the device
             # once the monitor threads have started.
@@ -220,7 +224,8 @@ class NktSuperk(Service):
             funcs['evo_status'] = self.update_func(self.update_evo_status)
 
         elif self.device is Fianium:
-            funcs['pulse_picker_ratio'] = self.monitor_func(self.pulse_picker_ratio, self.set_pulse_picker_ratio)
+            # Pulse picker ratio is monitored separately due to its safety handling.
+            funcs['pulse_picker_ratio'] = self.monitor_pulse_picker_ratio(self.pulse_picker_ratio, self.set_pulse_picker_ratio)
 
         # Create a pool with a single worker to perform communication with the device.
         self.pool = ThreadPoolExecutor(max_workers=1)
@@ -298,6 +303,22 @@ class NktSuperk(Service):
                     continue
 
                 setter(frame.data[0])
+
+        return func
+
+    def monitor_pulse_picker_ratio(self, stream, setter):
+        def func():
+            while not self.should_shut_down:
+                try:
+                    frame = stream.get_next_frame(1)
+                except Exception:
+                    continue
+
+                bandwidth = self.swp_setpoint.get()[0] - self.lwp_setpoint.get()[0]
+                if frame.data[0] >= max(int(bandwidth / self.pulse_picker_safety), 1):
+                    setter(frame.data[0])
+                else:
+                    self.log.warning(f'Pulse picker ratio {frame.data[0]} is too low for the current bandwidth {bandwidth}. Not setting it.')
 
         return func
 
