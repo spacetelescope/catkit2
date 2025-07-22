@@ -11,11 +11,10 @@ class NktSuperkSim(Service):
         self.threads = {}
         self.port = self.config['port']
 
-        connected_device = self.config['connected_device'].lower()
-
     def open(self):
         # Make datastreams.
         connected_device = self.config['connected_device'].lower()
+
         if connected_device == 'evo':
             self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
             self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
@@ -154,7 +153,7 @@ class NktSuperkSim(Service):
 
     def set_pulse_picker_ratio(self, pulse_ticker_ratio):
         current_power_setpoint = self.power_setpoint.get()[0]
-        self.set_power_setpoint(current_power_setpoint/pulse_ticker_ratio)
+        self.set_power_setpoint(current_power_setpoint / pulse_ticker_ratio)
 
 
 if __name__ == '__main__':
