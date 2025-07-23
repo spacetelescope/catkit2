@@ -36,17 +36,17 @@ class NktSuperkFianiumProxy(ServiceProxy):
             The new bandwidth of the tunable filter. If this is not given, the bandwidth
             will not be changed.
         """
-        update_pulse_picker = False
-
         if center_wavelength is None:
             center_wavelength = self.center_wavelength
 
         if bandwidth is None:
             bandwidth = self.bandwidth
         elif bandwidth > self.bandwidth:
-            # If the bandwidth is increased, we need to update the pulse picker to avoid burning fibers.
-            update_pulse_picker = True
-            new_pulse_picker = max(int(bandwidth / self.config['pulse_picker_safety']), 1)
+            # If the bandwidth is increased, we might need to update the pulse picker to avoid burning fibers.
+            current_pulse_picker = self.pulse_picker_ratio.get().data[0]
+            if current_pulse_picker < bandwidth / self.config['pulse_picker_safety']:
+                new_pulse_picker = max(int(bandwidth / self.config['pulse_picker_safety']), 1)
+                self.pulse_picker_ratio.submit_data(np.array([new_pulse_picker], dtype='uint16'))
 
         # Raise an error if the bandwidth is negative for safety reasons.
         if bandwidth < 0:
@@ -69,9 +69,6 @@ class NktSuperkFianiumProxy(ServiceProxy):
 
         if wait:
             time.sleep(self.base_sleep_time + sleep_time)
-
-        if update_pulse_picker:
-            self.pulse_picker_ratio.submit_data(np.array([new_pulse_picker], dtype='uint16'))
 
     @property
     def sleep_time_per_nm(self):
