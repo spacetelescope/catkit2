@@ -24,7 +24,8 @@ class NktSuperkFianiumProxy(ServiceProxy):
     def set_spectrum(self, center_wavelength=None, bandwidth=None, wait=True):
         """Set both center wavelength and bandwidth simultaneously.
 
-        Will update the pulse picker ratio if the bandwidth is increased.
+        Will update the pulse picker ratio if the bandwidth is increased to avoid burning fibers. No change to pulse
+        picker ratio if the bandwidth is decreased or unchanged.
 
         Parameters
         ----------
@@ -42,13 +43,10 @@ class NktSuperkFianiumProxy(ServiceProxy):
 
         if bandwidth is None:
             bandwidth = self.bandwidth
-            # We are not changing the bandwidth, so no need to update pulse picker.
         elif bandwidth > self.bandwidth:
+            # If the bandwidth is increased, we need to update the pulse picker to avoid burning fibers.
             update_pulse_picker = True
             new_pulse_picker = max(int(bandwidth / self.config['pulse_picker_safety']), 1)
-        elif bandwidth < self.bandwidth:
-            update_pulse_picker = False  # TODO: What to do if bandwidth is reduced?
-            new_pulse_picker = max(int(bandwidth / self.config['pulse_picker_safety']), 1)  # TODO: What to do if bandwidth is reduced?
 
         # Raise an error if the bandwidth is negative for safety reasons.
         if bandwidth < 0:
