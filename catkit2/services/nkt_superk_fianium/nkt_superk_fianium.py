@@ -230,8 +230,8 @@ class NktSuperkFianium(Service):
     get_power_setpoint = read_register(registerReadU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
     set_power_setpoint = write_register(registerWriteU16, Fianium.REG_OUTPUT_LEVEL, ratio=0.1)
 
-    get_emission = read_register(registerReadU8, Fianium.REG_EMISSION, ratio=0.5)
-    set_emission = write_register(registerWriteU8, Fianium.REG_EMISSION, ratio=0.5)
+    get_emission = read_register(registerReadU8, Fianium.REG_EMISSION, ratio=1)
+    set_emission = write_register(registerWriteU8, Fianium.REG_EMISSION, ratio=1)
 
     get_setup_bits = read_register(registerReadU8, Fianium.REG_SETUP_BITS)
     set_setup_bits = write_register(registerWriteU8, Fianium.REG_SETUP_BITS)
