@@ -27,3 +27,6 @@ class OpticalFiberSwitchProxy(ServiceProxy):
     def channels(self):
         return self.config['channels']
 
+    def get_named_channel(self, channel):
+        named_channel = [str(i) for i in self.channels if self.channels[i] == channel]
+        return named_channel
