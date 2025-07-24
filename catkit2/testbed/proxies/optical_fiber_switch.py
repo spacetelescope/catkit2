@@ -1,4 +1,4 @@
-from catkit2.testbed import ServiceProxy
+from ..service_proxy import ServiceProxy
 import numpy as np
 import time
 
