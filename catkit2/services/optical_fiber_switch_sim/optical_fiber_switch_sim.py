@@ -41,9 +41,7 @@ class OpticalFiberSwitchSim(Service):
         self.get_input_channel()
 
     def get_input_channel(self):
-        # Read the response
-        # TODO: Set testbed simulator to handle this command
-        current_channel = 1
+        current_channel = self.input_channel.get()[0]  # Yes, total hack
         self.current_input.submit_data(np.array([current_channel], dtype='int8'))
 
     def close(self):
