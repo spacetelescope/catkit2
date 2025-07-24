@@ -112,20 +112,25 @@ class NktSuperkFianiumSim(Service):
         return func
 
     def set_emission(self, emission):
+        onoff = 0 if emission == 0 else 1
         self.testbed.simulator.set_source_power(
             source_name=self.id,
-            power=emission * self.power_setpoint.get()[0] * 1e-2
+            power=onoff * self.power_setpoint.get()[0] * 1e-2 * self.pulse_picker_ratio.get()[0]  # TODO: add model conversion for pulse picker ratio
         )
 
     def set_power_setpoint(self, power_setpoint):
+        onoff = 0 if self.emission.get()[0] == 0 else 1
         self.testbed.simulator.set_source_power(
             source_name=self.id,
-            power=self.emission.get()[0] * power_setpoint * 1e-2
+            power=onoff * power_setpoint * 1e-2 * self.pulse_picker_ratio.get()[0]  # TODO: add model conversion for pulse picker ratio
         )
 
     def set_pulse_picker_ratio(self, pulse_picker_ratio):
-        # TODO: Something with the testbed simulator, likely set_source_power().
-        pass
+        onoff = 0 if self.emission.get()[0] == 0 else 1
+        self.testbed.simulator.set_source_power(
+            source_name=self.id,
+            power=onoff * self.power_setpoint.get()[0] * 1e-2 * pulse_picker_ratio  # TODO: add model conversion for pulse picker ratio
+        )
 
     def set_nd_setpoint(self, nd_setpoint):
         self.testbed.simulator.move_filter(
