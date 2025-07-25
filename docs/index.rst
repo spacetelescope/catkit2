@@ -13,6 +13,7 @@ Catkit2
    configuration
    benchmarks
    protocol
+   acknowledging_catkit2
    team
 
 .. toctree::
