@@ -4,22 +4,18 @@ import numpy as np
 import threading
 
 
-class NktSuperkSim(Service):
+class NktSuperkFianiumSim(Service):
     def __init__(self):
-        super().__init__('nkt_superk_sim')
+        super().__init__('nkt_superk_fianium_sim')
 
         self.threads = {}
         self.port = self.config['port']
 
     def open(self):
         # Make datastreams.
-        self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
-        self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
-        self.external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
-
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
-        self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
+        self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
 
         self.monitor_input = self.make_data_stream('monitor_input', 'float32', [1], 20)
 
@@ -35,7 +31,7 @@ class NktSuperkSim(Service):
         # once the monitor threads have started.
         self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
         self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
-        self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
+        self.pulse_picker_ratio.submit_data(np.array([self.config['pulse_picker_ratio']], dtype='uint16'))
 
         self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']], dtype='float32'))
         self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']], dtype='float32'))
@@ -48,9 +44,8 @@ class NktSuperkSim(Service):
             'lwp_setpoint': self.monitor_func(self.lwp_setpoint, self.set_lwp_setpoint),
             'emission': self.monitor_func(self.emission, self.set_emission),
             'power_setpoint': self.monitor_func(self.power_setpoint, self.set_power_setpoint),
-            'current_setpoint': self.monitor_func(self.current_setpoint, self.set_current_setpoint),
-            'varia_status': self.update_func(self.update_varia_status),
-            'evo_status': self.update_func(self.update_evo_status)
+            'pulse_picker_ratio': self.monitor_pulse_picker_ratio(self.pulse_picker_ratio, self.set_pulse_picker_ratio),
+            'varia_status': self.update_func(self.update_varia_status)
         }
 
         # Start all threads.
@@ -70,11 +65,6 @@ class NktSuperkSim(Service):
         # Join all threads.
         for thread in self.threads.values():
             thread.join()
-
-    def update_evo_status(self):
-        self.base_temperature.submit_data(np.array([28.5], dtype='float32'))
-        self.supply_voltage.submit_data(np.array([24.1], dtype='float32'))
-        self.external_control_input.submit_data(np.array([4.2], dtype='float32'))
 
     def update_varia_status(self):
         # Submit bogus results to their respective datastreams.
@@ -96,6 +86,22 @@ class NktSuperkSim(Service):
 
         return func
 
+    def monitor_pulse_picker_ratio(self, stream, setter):
+        def func():
+            while not self.should_shut_down:
+                try:
+                    frame = stream.get_next_frame(1)
+                except Exception:
+                    continue
+
+                bandwidth = self.swp_setpoint.get()[0] - self.lwp_setpoint.get()[0]
+                if frame.data[0] >= max(int(bandwidth / self.pulse_picker_safety), 1):
+                    setter(frame.data[0])
+                else:
+                    self.log.warning(f'Pulse picker ratio {frame.data[0]} is too low for the current bandwidth {bandwidth}. Not setting it.')
+
+        return func
+
     def update_func(self, updater):
         def func():
             while not self.should_shut_down:
@@ -106,19 +112,25 @@ class NktSuperkSim(Service):
         return func
 
     def set_emission(self, emission):
+        onoff = 0 if emission == 0 else 1
         self.testbed.simulator.set_source_power(
             source_name=self.id,
-            power=emission * self.power_setpoint.get()[0] * 1e-2
+            power=onoff * self.power_setpoint.get()[0] * 1e-2 * self.pulse_picker_ratio.get()[0]  # TODO: add model conversion for pulse picker ratio
         )
 
     def set_power_setpoint(self, power_setpoint):
+        onoff = 0 if self.emission.get()[0] == 0 else 1
         self.testbed.simulator.set_source_power(
             source_name=self.id,
-            power=self.emission.get()[0] * power_setpoint * 1e-2
+            power=onoff * power_setpoint * 1e-2 * self.pulse_picker_ratio.get()[0]  # TODO: add model conversion for pulse picker ratio
         )
 
-    def set_current_setpoint(self, current_setpoint):
-        pass
+    def set_pulse_picker_ratio(self, pulse_picker_ratio):
+        onoff = 0 if self.emission.get()[0] == 0 else 1
+        self.testbed.simulator.set_source_power(
+            source_name=self.id,
+            power=onoff * self.power_setpoint.get()[0] * 1e-2 * pulse_picker_ratio  # TODO: add model conversion for pulse picker ratio
+        )
 
     def set_nd_setpoint(self, nd_setpoint):
         self.testbed.simulator.move_filter(
@@ -140,5 +152,5 @@ class NktSuperkSim(Service):
 
 
 if __name__ == '__main__':
-    service = NktSuperkSim()
+    service = NktSuperkFianiumSim()
     service.run()

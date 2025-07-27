@@ -5,7 +5,8 @@ __all__ = [
     'DeformableMirrorProxy',
     'NewportPicomotorProxy',
     'NiDaqProxy',
-    'NktSuperkProxy',
+    'NktSuperkEvoProxy',
+    'NktSuperkFianiumProxy',
     'ThorlabsCubeMotorKinesisProxy',
     'ThorlabsMcls1',
     'WebPowerSwitchProxy',
@@ -18,7 +19,8 @@ from .newport_xps import *
 from .flip_mount import *
 from .newport_picomotor import *
 from .ni_daq import *
-from .nkt_superk import *
+from .nkt_superk_evo import *
+from .nkt_superk_fianium import *
 from .oceanoptics_spectrometer import *
 from .thorlabs_cube_motor_kinesis import *
 from .thorlabs_mcls1 import *
