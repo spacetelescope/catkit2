@@ -33,19 +33,15 @@ class OpticalFiberSwitchSim(Service):
     def set_input_channel(self, channel):
         # Construct the command to set the input channel
         if channel < self.min_channel or channel > self.max_channel:
-            raise ValueError(f"Channel must be between {self.min_ochannel} and {self.max_channel}.")
+            raise ValueError(f"Channel must be between {self.min_channel} and {self.max_channel}.")
 
-        # Send the command to the switch
-        # TODO: Set testbed simulator to handle this command
-        # self.testbed.simulator.set_source_power()  # Or something like that
+        self.testbed.simulator.set_source_power(source_name=self.id, power=channel)
         self.log.info(f"Switch to input channel {channel}.")
         self.sleep(0.1)
         self.get_input_channel()
 
     def get_input_channel(self):
-        # Read the response
-        # TODO: Set testbed simulator to handle this command
-        current_channel = 1
+        current_channel = self.input_channel.get()[0]  # Yes, total hack
         self.current_input.submit_data(np.array([current_channel], dtype='int8'))
 
     def close(self):
