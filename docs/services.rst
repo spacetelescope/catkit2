@@ -49,6 +49,27 @@ the simulator that holds an instance of the optical model, saved in ``self.model
 
 The key ``interface`` specifies which service proxy is used for a service. Service proxies, and hence this key, are optional.
 
+Launching and Debugging a service
+-------------------
+
+Services can be started both by the Testbed upon requests from a TestbedProxy, or manually from the command line. The latter might be advantageous when debugging a service since not all the output of a service is logged. Services can be started manually from the command line using
+
+.. code-block:: python
+
+    python service_type.py --id <service_id> --port <service_port> --tesbed_port <testbed_port>
+
+or
+
+.. code-block:: python
+
+    service_type.exe --id <service_id> --port <service_port> --tesbed_port <testbed_port>
+
+where ``<service_id>``, ``<service_port>`` and ``<testbed_port>`` are replaced by their correct values. Services will
+register themselves with the testbed. After registration, you can use them from any TestbedProxy as usual. Note that
+even in this case, the ``service_id`` needs to be an entry in the ``services.yml`` configuration file. Otherwise, the
+testbed does not have a configuration to provide to the service. Services running in the terminal can be interrupted
+using Ctrl+C, or by stopping them using a separate TestbedProxy or ServiceProxy.
+
 File structure and launching
 ----------------------------
 
@@ -102,23 +123,3 @@ A service is also started automatically if you try to access an attribute (prope
 Creating your own service
 -------------------------
 
-Debugging a service
--------------------
-
-Services can be started both by the Testbed upon requests from a TestbedProxy, or manually from the command line. The latter might be advantageous when debugging a service since not all the output of a service is logged. Services can be started manually from the command line using
-
-.. code-block:: python
-
-    python service_type.py --id <service_id> --port <service_port> --tesbed_port <testbed_port>
-
-or
-
-.. code-block:: python
-
-    service_type.exe --id <service_id> --port <service_port> --tesbed_port <testbed_port>
-
-where ``<service_id>``, ``<service_port>`` and ``<testbed_port>`` are replaced by their correct values. Services will
-register themselves with the testbed. After registration, you can use them from any TestbedProxy as usual. Note that
-even in this case, the ``service_id`` needs to be an entry in the ``services.yml`` configuration file. Otherwise, the
-testbed does not have a configuration to provide to the service. Services running in the terminal can be interrupted
-using Ctrl+C, or by stopping them using a separate TestbedProxy or ServiceProxy.
