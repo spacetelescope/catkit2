@@ -1,6 +1,54 @@
 Services
 ========
 
+Using a service
+---------------
+
+Each service to be used with a testbed needs its own entry in the configuration file ``services.yml``. The config entry
+of each service contains two blocks:
+    - The **general** setup block
+    - The **service-specific** parameter block
+
+The **service-specific parameter block** contains any parameters specific to the service in question
+
+The **general setup block** contains four standardized entries, although not all of them are mandatory:
+
+    - `service_type`
+    - `simulated_service_type`
+    - `interface`
+    - `requires_safety`
+
+An example for such a general setup block, in this case for a camera, is given here:
+
+.. code-block:: YAML
+
+    science_camera:
+      service_type: zwo_camera
+      simulated_service_type: camera_sim
+      interface: camera
+      requires_safety: false
+
+      ... # -> specific parameter block
+
+The "name" of a service, in the above example ``science_camera``, is called the ``service_id`` and needs to be unique
+across all services. You can have several services use the same ``service_type``, for example all of ``cam1``, ``cam2``
+and ``cam3`` using ``service_type: zwo_camera``, but you cannot duplicate service IDs.
+
+You can find example service configurations for each service type in the documentation of the built-in services.
+
+.. note::
+    The config keys ``service_type`` and ``requires_safety`` are mandatory, the others are not. You need at least the ``service_type`` when running on hardware, which will be interpreted as the simulated service type when running in simulated mode if the latter hasn’t been set explicitly. The ``interface`` (service proxy) is optional.
+
+The key ``requires_safety`` is a simple boolean that defines whether safety is checked while the service is running, and
+whether changes in the safety reports will influence the running service.
+
+The key ``simulated_service_type`` designates which service is used when running the testbed in simulated mode.
+Simulated services are also "just" services, implemented in the same way. The crucial difference is that they do not
+talk to hardware, instead they talk to the testbed simulator stored in the object ``self.testbed.simulator``. And it is
+the simulator that holds an instance of the optical model, saved in ``self.model``.
+
+The key ``interface`` specifies which service proxy is used for a service. Service proxies, and hence this key, are optional.
+
 File structure and launching
 ----------------------------
 
