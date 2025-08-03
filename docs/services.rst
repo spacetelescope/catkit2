@@ -119,7 +119,3 @@ A service is also started automatically if you try to access an attribute (prope
 .. code-block:: python
 
     testbed.start_service('science_camera')
-
-Creating your own service
--------------------------
-
