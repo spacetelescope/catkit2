@@ -17,6 +17,9 @@ class OpticalFiberSwitchSim(Service):
     def open(self):
         self.input_channel = self.make_data_stream('input_channel', 'int8', [1], 20)
         self.current_input = self.make_data_stream('current_input', 'int8', [1], 20)
+        # In sim, we start off from the same input channel each time
+        self.input_channel.submit_data(np.array([1], dtype='int8'))
+
         self.get_input_channel()
 
     def main(self):
