@@ -8,13 +8,18 @@ Catkit2
    installation
    contribution
    overview
-   safety
-   services
-   configuration
    benchmarks
-   protocol
    acknowledging_catkit2
    team
+
+.. toctree::
+   :maxdepth: 1
+   :caption: User Guide
+
+   configuration
+   protocol
+   services
+   safety
 
 .. toctree::
    :maxdepth: 1
