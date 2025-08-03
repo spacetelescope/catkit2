@@ -8,15 +8,13 @@ Environment variables
 
 Set ``FOR_DISABLE_CONSOLE_CTRL_HANDLER`` to ``1``. This disables the Fortran Ctrl+C handler, and avoids crashing of the Python program upon receiving on a Keyboard interrupt. This is necessary if you import scipy, which uses Fortran modules.
 
-On Windows, you can set environment variables for your account only from the control panel, which doesn't require administrator rights.
+- On Windows, you can set environment variables for your account only from the control panel, which doesn't require administrator rights.
 
-On MacOS, assuming a bash shell this is done by adding the following line at the end of your ``.bash_profile`` file:
+- On MacOS, assuming a bash shell this is done by adding the following line at the end of your ``.bash_profile`` file, which is located in your home directory and can be created if it does not exist:
 
 .. code-block:: bash
-    export FOR_DISABLE_CONSOLE_CTRL_HANDLER=1
 
-The ``.bash_profile`` file is located in your home directory and can be created if it does not exist.
-This line can be added using VI or a text editor like BBEdit that allows to edit hidden files.
+    export FOR_DISABLE_CONSOLE_CTRL_HANDLER=1
 
 Shared memory configuration
 ---------------------------
@@ -30,7 +28,8 @@ and a value of at least 2000 is recommended. Most people find 4096 to be suffici
 
     ulimit -n <number>
 
-Note: This issue is OS version dependent and might need to be revisited.
+.. note::
+    This issue is OS version dependent and might need to be revisited.
 
 
 C++ compiler
@@ -51,7 +50,7 @@ Package installation
 
 The following will create a new Conda environment with the required C++ and Python packages. You will need to install drivers and SDKs for some devices yourself to use those devices.
 
-For installation with an Apple Silicon chip with python=3.7 (current default on catkit2), you need to follow these steps:
+For installation with an **Apple Silicon chip with python=3.7** (current default on catkit2), you need to follow these steps:
 
 .. code-block:: bash
 
@@ -61,7 +60,7 @@ For installation with an Apple Silicon chip with python=3.7 (current default on 
     conda config --env --set subdir osx-64
     conda env update --file environment.yml
 
-For all other platforms, and if running with a newer Python versions, you can use the following command:
+For **all other platforms**, and if running with a newer Python versions, you can use the following command:
 
 .. code-block:: bash
 
