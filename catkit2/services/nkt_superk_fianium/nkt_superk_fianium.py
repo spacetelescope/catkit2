@@ -113,7 +113,7 @@ class NktSuperkFianium(Service):
         # once the monitor threads have started.
         self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
         self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
-        self.pulse_picker_ratio.submit_data(np.array([100], dtype='uint16'))  # Picking a safe default value of 100.
+        self.pulse_picker_ratio.submit_data(np.array([100], dtype='uint16'))  # Setting a safe default value of 100.
 
         self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']], dtype='float32'))
         self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']], dtype='float32'))
