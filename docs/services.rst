@@ -44,23 +44,23 @@ whether changes in the safety reports will influence the running service.
 
 The key ``simulated_service_type`` designates which service is used when running the testbed in simulated mode.
 Simulated services are also "just" services, implemented in the same way. The crucial difference is that they do not
-talk to hardware, instead they talk to the testbed simulator stored in the object ``self.testbed.simulator``. And it is
+talk to hardware, instead they talk to the testbed simulator service stored in the object ``self.testbed.simulator``. And it is
 the simulator that holds an instance of the optical model, saved in ``self.model``.
 
-The key ``interface`` specifies which service proxy is used for a service. Service proxies, and hence this key, are optional.
+The key ``interface`` specifies which service proxy is used for a service. This key is optional. In that case a default service proxy class will be used.
 
 Launching and Debugging a service
 -------------------
 
 Services can be started both by the Testbed upon requests from a TestbedProxy, or manually from the command line. The latter might be advantageous when debugging a service since not all the output of a service is logged. Services can be started manually from the command line using
 
-.. code-block:: python
+.. code-block:: bash
 
     python service_type.py --id <service_id> --port <service_port> --tesbed_port <testbed_port>
 
 or
 
-.. code-block:: python
+.. code-block:: bash
 
     service_type.exe --id <service_id> --port <service_port> --tesbed_port <testbed_port>
 
@@ -69,13 +69,6 @@ register themselves with the testbed. After registration, you can use them from 
 even in this case, the ``service_id`` needs to be an entry in the ``services.yml`` configuration file. Otherwise, the
 testbed does not have a configuration to provide to the service. Services running in the terminal can be interrupted
 using Ctrl+C, or by stopping them using a separate TestbedProxy or ServiceProxy.
-
-File structure for services
----------------------------
-
-All services have an associated service type. This can be either a Python script (named ``<service_type>.py``), or a fully compiled binary application (named ``<service_type>.exe`` or ``<service_type>``).
-
-All catkit2 services are located in the directory `services`.
 
 Service state
 -------------
