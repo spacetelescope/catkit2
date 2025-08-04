@@ -50,7 +50,7 @@ the simulator that holds an instance of the optical model, saved in ``self.model
 The key ``interface`` specifies which service proxy is used for a service. This key is optional. In that case a default service proxy class will be used.
 
 Launching and Debugging a service
--------------------
+---------------------------------
 
 Services can be started both by the Testbed upon requests from a TestbedProxy, or manually from the command line. The latter might be advantageous when debugging a service since not all the output of a service is logged. Services can be started manually from the command line using
 
