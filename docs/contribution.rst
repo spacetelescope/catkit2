@@ -1,7 +1,7 @@
 Contributions
 =============
 
-Contribution guidelines and process instructions for the ``catkit2`` package. 
+Contribution guidelines and process instructions for the ``catkit2`` package. We welcome contributions through GitHub.
 
 Guidelines
 ---------
@@ -26,15 +26,18 @@ Process
    assign yourself or others. 
 2. Make a new branch off of the current develop. Use branch names like ``bugfix/nature_of_bug`` or
    ``feature/nature_of_feature``. 
-3. Open a **Draft** pull request as soon as possible, even if your work seems far
+3. Open a **Draft** pull request (PR) as soon as possible, even if your work seems far
    away from being merged. This allows us to comunicate through comments on the
    PR in a way that is permanent and visible to everyone and allows us to
-   inspect code changes with diffs. 
+   inspect code changes with diffs.
+
    a) Link your PR to the issue in Step 1, e.g. write ``Fixes #188`` in the PR
-   description to link it to Issue 188. 
-   b) Write a detailed descript in the PR. This helps define the scope of the
+   description to link it to Issue 188 (if there is one).
+
+   b) Write a detailed description in the PR. This helps define the scope of the
    PR, gives reviewers and idea what to expect, and helps with testing. Update
-   as necessary as the PR evolves. 
+   as necessary as the PR evolves.
+
    c) Assign yourself and others working on the PR, and add labels as
    applicable. The assignee is responsible for finishing the PR. If you cannot
    finish this work, find and assign someone else who can complete it. 

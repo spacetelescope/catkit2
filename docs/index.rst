@@ -6,15 +6,19 @@ Catkit2
    :caption: Getting Started
 
    installation
-   contribution
    overview
-   safety
-   services
-   configuration
-   benchmarks
-   protocol
    acknowledging_catkit2
-   team
+   contribution
+
+.. toctree::
+   :maxdepth: 1
+   :caption: User Guide
+
+   configuration
+   protocol
+   services
+   benchmarks
+   safety
 
 .. toctree::
    :maxdepth: 1
