@@ -27,12 +27,12 @@ class TestNktSuperkBase(unittest.TestCase):
         
         self.mock_service.make_data_stream.return_value = self.mock_stream
 
-    @patch('catkit2.services.nkt_superk_base.Service')
-    @patch('catkit2.services.nkt_superk_base.ThreadPoolExecutor')
+    @patch('catkit2.base_services.nkt_superk_base.Service')
+    @patch('catkit2.base_services.nkt_superk_base.ThreadPoolExecutor')
     def test_cannot_instantiate_abstract_base(self, mock_executor, mock_service):
         """Test that the abstract base class cannot be instantiated."""
         with patch.dict('sys.modules', {'catkit2.testbed.service': Mock()}):
-            from catkit2.services.nkt_superk_base import NktSuperkBase
+            from catkit2.base_services.nkt_superk_base import NktSuperkBase
             
             with self.assertRaises(TypeError):
                 # Should fail because abstract methods are not implemented
@@ -95,7 +95,7 @@ class TestNktSuperkBase(unittest.TestCase):
                  patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.closePorts'), \
                  patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.RegisterResultTypes'):
                 
-                from catkit2.services.nkt_superk_base import NktSuperkBase
+                from catkit2.base_services.nkt_superk_base import NktSuperkBase
                 from catkit2.services.nkt_superk_evo.nkt_superk_evo import NktSuperkEvo
                 from catkit2.services.nkt_superk_fianium.nkt_superk_fianium import NktSuperkFianium
                 
