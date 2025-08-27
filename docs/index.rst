@@ -36,8 +36,7 @@ Catkit2
    services/newport_picomotor
    services/newport_xps_q8
    services/ni_daq
-   services/nkt_superk_evo
-   services/nkt_superk_fianium
+   services/nkt_superk
    services/oceanoptics_spectrometer
    services/omega_ithx_w3
    services/phasics_cam
