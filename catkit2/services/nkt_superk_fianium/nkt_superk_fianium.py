@@ -1,4 +1,4 @@
-from catkit2.base_services.nkt_superk_base import NktSuperkBase, read_register, write_register
+from catkit2.base_services.nkt_superk import NktSuperk, read_register, write_register
 
 import numpy as np
 from enum import Enum
@@ -26,7 +26,7 @@ class Fianium(Enum):
     REG_ERROR_CODE = 0x67
 
 
-class NktSuperkFianium(NktSuperkBase):
+class NktSuperkFianium(NktSuperk):
     '''The service for both the NKT SuperK FIANIUM and NKT SuperK VARIA.
 
     Both devices are combined into a single service due to the need for

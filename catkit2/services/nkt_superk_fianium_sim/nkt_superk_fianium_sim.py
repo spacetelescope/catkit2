@@ -1,9 +1,9 @@
-from catkit2.base_services.nkt_superk_sim_base import NktSuperkSimBase
+from catkit2.base_services.nkt_superk import NktSuperk
 
 import numpy as np
 
 
-class NktSuperkFianiumSim(NktSuperkSimBase):
+class NktSuperkFianiumSim(NktSuperk):
     def __init__(self):
         super().__init__('nkt_superk_fianium_sim')
         self.pulse_picker_safety = self.config.get('pulse_picker_safety')
