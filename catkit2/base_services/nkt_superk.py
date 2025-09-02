@@ -130,6 +130,7 @@ class NktSuperk(Service, ABC):
             'swp_setpoint': self.monitor_func(self.swp_setpoint, self.set_swp_setpoint),
             'lwp_setpoint': self.monitor_func(self.lwp_setpoint, self.set_lwp_setpoint),
             'emission': self.monitor_func(self.emission, self.set_emission),
+            'power_setpoint': self.monitor_func(self.power_setpoint, self.set_power_setpoint),
             'varia_status': self.update_func(self.update_varia_status)
         }
 

@@ -25,7 +25,6 @@ class NktSuperkFianium(NktSuperk):
     def _get_device_specific_funcs(self):
         """Get FIANIUM-specific thread functions."""
         return {
-            'power_setpoint': self.monitor_func(self.power_setpoint, self.set_power_setpoint),
             'pulse_picker_ratio': self.monitor_pulse_picker_ratio(self.pulse_picker_ratio, self.set_pulse_picker_ratio)
         }
 

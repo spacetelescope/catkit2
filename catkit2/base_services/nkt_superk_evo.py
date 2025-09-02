@@ -27,7 +27,6 @@ class NktSuperkEvo(NktSuperk):
     def _get_device_specific_funcs(self):
         """Get EVO-specific thread functions."""
         return {
-            'power_setpoint': self.monitor_func(self.power_setpoint, self.set_power_setpoint),
             'current_setpoint': self.monitor_func(self.current_setpoint, self.set_current_setpoint),
             'evo_status': self.update_func(self.update_evo_status)
         }
