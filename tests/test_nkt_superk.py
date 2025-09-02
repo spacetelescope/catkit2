@@ -86,7 +86,7 @@ class TestNktSuperk(unittest.TestCase):
                         pass
 
                 # Test hardware service detection
-                hw_service = TestNktSuperk('nkt_superk_evo')
+                hw_service = TestNktSuperk('nkt_superk_evo_hardware')
                 self.assertFalse(hw_service.is_simulation)
 
                 # Test simulation service detection
@@ -101,31 +101,31 @@ class TestNktSuperk(unittest.TestCase):
             'NKTP_DLL': Mock()
         }):
             with patch('catkit2.base_services.nkt_superk.Service'), \
-                 patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerReadU16'), \
-                 patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerWriteU16'), \
-                 patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerReadU8'), \
-                 patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerWriteU8'), \
-                 patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerReadS16'), \
-                 patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.openPorts'), \
-                 patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.closePorts'), \
-                 patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.RegisterResultTypes'), \
-                 patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerReadU16'), \
-                 patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerWriteU16'), \
-                 patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerReadU8'), \
-                 patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerWriteU8'), \
-                 patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerReadS16'), \
-                 patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.openPorts'), \
-                 patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.closePorts'), \
-                 patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.RegisterResultTypes'):
+                 patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerReadU16'), \
+                 patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerWriteU16'), \
+                 patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerReadU8'), \
+                 patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerWriteU8'), \
+                 patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerReadS16'), \
+                 patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.openPorts'), \
+                 patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.closePorts'), \
+                 patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.RegisterResultTypes'), \
+                 patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerReadU16'), \
+                 patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerWriteU16'), \
+                 patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerReadU8'), \
+                 patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerWriteU8'), \
+                 patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerReadS16'), \
+                 patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.openPorts'), \
+                 patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.closePorts'), \
+                 patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.RegisterResultTypes'):
 
                 from catkit2.base_services.nkt_superk import NktSuperk
-                from catkit2.services.nkt_superk_evo.nkt_superk_evo import NktSuperkEvo
-                from catkit2.services.nkt_superk_fianium.nkt_superk_fianium import NktSuperkFianium
+                from catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware import NktSuperkEvoHardware
+                from catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware import NktSuperkFianiumHardware
                 from catkit2.services.nkt_superk_evo_sim.nkt_superk_evo_sim import NktSuperkEvoSim
                 from catkit2.services.nkt_superk_fianium_sim.nkt_superk_fianium_sim import NktSuperkFianiumSim
 
                 # Test inheritance for all services
-                all_services = [NktSuperkEvo, NktSuperkFianium, NktSuperkEvoSim, NktSuperkFianiumSim]
+                all_services = [NktSuperkEvoHardware, NktSuperkFianiumHardware, NktSuperkEvoSim, NktSuperkFianiumSim]
                 for service_class in all_services:
                     self.assertTrue(issubclass(service_class, NktSuperk))
 
@@ -157,7 +157,7 @@ class TestNktSuperk(unittest.TestCase):
                     'get_lwp_setpoint', 'get_varia_status_bits', 'check_result'
                 ]
 
-                for service_class in [NktSuperkEvo, NktSuperkFianium]:
+                for service_class in [NktSuperkEvoHardware, NktSuperkFianiumHardware]:
                     for method in hardware_methods:
                         self.assertTrue(hasattr(service_class, method))
 
@@ -169,20 +169,20 @@ class TestNktSuperk(unittest.TestCase):
         }):
             with patch('catkit2.base_services.nkt_superk.Service'):
                 # Mock necessary register functions
-                with patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerReadU16'), \
-                     patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerWriteU16'), \
-                     patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerReadU8'), \
-                     patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerWriteU8'), \
-                     patch('catkit2.services.nkt_superk_evo.nkt_superk_evo.registerReadS16'):
+                with patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerReadU16'), \
+                     patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerWriteU16'), \
+                     patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerReadU8'), \
+                     patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerWriteU8'), \
+                     patch('catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware.registerReadS16'):
 
-                    from catkit2.services.nkt_superk_evo.nkt_superk_evo import NktSuperkEvo
+                    from catkit2.services.nkt_superk_evo_hardware.nkt_superk_evo_hardware import NktSuperkEvoHardware
                     from catkit2.services.nkt_superk_evo_sim.nkt_superk_evo_sim import NktSuperkEvoSim
 
                     # Test EVO-specific methods for both hardware and simulation
                     evo_methods = ['update_evo_status', 'set_power_setpoint', 'set_current_setpoint']
 
                     for method in evo_methods:
-                        self.assertTrue(hasattr(NktSuperkEvo, method))
+                        self.assertTrue(hasattr(NktSuperkEvoHardware, method))
                         self.assertTrue(hasattr(NktSuperkEvoSim, method))
 
     def test_fianium_specific_methods(self):
@@ -193,19 +193,19 @@ class TestNktSuperk(unittest.TestCase):
         }):
             with patch('catkit2.base_services.nkt_superk.Service'):
                 # Mock necessary register functions
-                with patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerReadU16'), \
-                     patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerWriteU16'), \
-                     patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerReadU8'), \
-                     patch('catkit2.services.nkt_superk_fianium.nkt_superk_fianium.registerWriteU8'):
+                with patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerReadU16'), \
+                     patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerWriteU16'), \
+                     patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerReadU8'), \
+                     patch('catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware.registerWriteU8'):
 
-                    from catkit2.services.nkt_superk_fianium.nkt_superk_fianium import NktSuperkFianium
+                    from catkit2.services.nkt_superk_fianium_hardware.nkt_superk_fianium_hardware import NktSuperkFianiumHardware
                     from catkit2.services.nkt_superk_fianium_sim.nkt_superk_fianium_sim import NktSuperkFianiumSim
 
                     # Test FIANIUM-specific methods for both hardware and simulation
                     fianium_methods = ['set_power_setpoint', 'set_pulse_picker_ratio', 'monitor_pulse_picker_ratio']
 
                     for method in fianium_methods:
-                        self.assertTrue(hasattr(NktSuperkFianium, method))
+                        self.assertTrue(hasattr(NktSuperkFianiumHardware, method))
                         self.assertTrue(hasattr(NktSuperkFianiumSim, method))
 
 

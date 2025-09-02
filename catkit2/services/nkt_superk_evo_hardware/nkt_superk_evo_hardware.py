@@ -1,4 +1,5 @@
-from catkit2.base_services.nkt_superk import NktSuperk, read_register, write_register
+from catkit2.base_services.nkt_superk import read_register, write_register
+from catkit2.base_services.nkt_superk_evo import NktSuperkEvo
 
 import numpy as np
 from enum import Enum
@@ -6,8 +7,8 @@ from enum import Enum
 try:
     from NKTP_DLL import *
 except ImportError:
-    print('To use NKT SDK, you need to install the SDK and check the NKTP_SDK_PATH environment variable.')
-    raise
+    raise RuntimeError('NKT SDK is required for hardware services but not available. '
+                       'Install the SDK and check the NKTP_SDK_PATH environment variable.')
 
 
 class Evo(Enum):
@@ -37,42 +38,15 @@ class Evo(Enum):
     REG_MAC_ADDRESS = 0xB3
 
 
-class NktSuperkEvo(NktSuperk):
-    '''The service for both the NKT SuperK EVO and NKT SuperK VARIA.
+class NktSuperkEvoHardware(NktSuperkEvo):
+    '''The hardware service for both the NKT SuperK EVO and NKT SuperK VARIA.
 
     Both devices are combined into a single service due to the need for
     a single open port to the device that cannot be shared between
     multiple services.
     '''
     def __init__(self):
-        super().__init__('nkt_superk_evo')
-
-    def _create_device_specific_streams(self):
-        """Create EVO-specific data streams."""
-        # EVO-specific streams
-        self.base_temperature = self.make_data_stream('base_temperature', 'float32', [1], 20)
-        self.supply_voltage = self.make_data_stream('supply_voltage', 'float32', [1], 20)
-        self.external_control_input = self.make_data_stream('external_control_input', 'float32', [1], 20)
-
-        self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
-        self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
-
-        # Set initial EVO setpoints from config
-        self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
-        self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
-
-    def _get_device_specific_funcs(self):
-        """Get EVO-specific thread functions."""
-        return {
-            'power_setpoint': self.monitor_func(self.power_setpoint, self.set_power_setpoint),
-            'current_setpoint': self.monitor_func(self.current_setpoint, self.set_current_setpoint),
-            'evo_status': self.update_func(self.update_evo_status)
-        }
-
-    def _device_specific_cleanup(self):
-        """Perform EVO-specific cleanup."""
-        # No specific cleanup needed for EVO
-        pass
+        super().__init__('nkt_superk_evo_hardware')
 
     def update_evo_status(self):
         """Update EVO-specific status information."""
@@ -112,5 +86,5 @@ class NktSuperkEvo(NktSuperk):
 
 
 if __name__ == '__main__':
-    service = NktSuperkEvo()
+    service = NktSuperkEvoHardware()
     service.run()

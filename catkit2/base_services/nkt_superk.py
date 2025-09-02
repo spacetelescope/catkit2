@@ -87,7 +87,7 @@ class NktSuperk(Service, ABC):
         """Initialize the NKT SuperK service.
 
         Args:
-            service_type: The specific service type (e.g., 'nkt_superk_evo')
+            service_type: The specific service type (e.g., 'nkt_superk_evo_hardware')
         """
         super().__init__(service_type)
 
