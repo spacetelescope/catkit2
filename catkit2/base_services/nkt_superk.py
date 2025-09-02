@@ -110,14 +110,16 @@ class NktSuperk(Service, ABC):
 
         # Common data streams for SuperK source
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
+        self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
 
         # Set initial VARIA setpoints from config
         self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']], dtype='float32'))
         self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']], dtype='float32'))
         self.lwp_setpoint.submit_data(np.array([self.config['lwp_setpoint']], dtype='float32'))
 
-        # Set initial emission from config
+        # Set initial emission and power from config
         self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
+        self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
 
         # Create device-specific data streams
         self._create_device_specific_streams()

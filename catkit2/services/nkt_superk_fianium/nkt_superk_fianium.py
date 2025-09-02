@@ -40,11 +40,9 @@ class NktSuperkFianium(NktSuperk):
     def _create_device_specific_streams(self):
         """Create FIANIUM-specific data streams."""
         # FIANIUM-specific streams
-        self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
         self.pulse_picker_ratio = self.make_data_stream('pulse_picker_ratio', 'uint16', [1], 20)
 
         # Set initial FIANIUM setpoints from config
-        self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
         self.pulse_picker_ratio.submit_data(np.array([100], dtype='uint16'))  # Setting a safe default value of 100.
 
     def _get_device_specific_funcs(self):
