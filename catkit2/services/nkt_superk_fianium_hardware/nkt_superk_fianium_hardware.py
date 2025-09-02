@@ -1,7 +1,6 @@
 from catkit2.base_services.nkt_superk import read_register, write_register
 from catkit2.base_services.nkt_superk_fianium import NktSuperkFianium
 
-import numpy as np
 from enum import Enum
 
 try:
