@@ -250,7 +250,15 @@ class NktSuperk(Service, ABC):
                 new_filter_position=nd_setpoint
             )
         else:
-            self._set_nd_setpoint_hardware(nd_setpoint)
+            device_id = Varia.DEVICE_ID
+            register_value = int(nd_setpoint / 0.1)
+
+            self.log.debug(f'Writing value {register_value} to {Varia.REG_ND_SETPOINT}.')
+
+            future = self.pool.submit(registerWriteU16, self.port, device_id.value,
+                                      Varia.REG_ND_SETPOINT.value, register_value, -1)
+            result = future.result()
+            self.check_result(result)
 
     def set_swp_setpoint(self, swp_setpoint):
         """Set SWP filter setpoint."""
@@ -260,7 +268,15 @@ class NktSuperk(Service, ABC):
                 new_filter_position=swp_setpoint
             )
         else:
-            self._set_swp_setpoint_hardware(swp_setpoint)
+            device_id = Varia.DEVICE_ID
+            register_value = int(swp_setpoint / 0.1)
+
+            self.log.debug(f'Writing value {register_value} to {Varia.REG_SWP_SETPOINT}.')
+
+            future = self.pool.submit(registerWriteU16, self.port, device_id.value,
+                                      Varia.REG_SWP_SETPOINT.value, register_value, -1)
+            result = future.result()
+            self.check_result(result)
 
     def set_lwp_setpoint(self, lwp_setpoint):
         """Set LWP filter setpoint."""
@@ -270,44 +286,16 @@ class NktSuperk(Service, ABC):
                 new_filter_position=lwp_setpoint
             )
         else:
-            self._set_lwp_setpoint_hardware(lwp_setpoint)
+            device_id = Varia.DEVICE_ID
+            register_value = int(lwp_setpoint / 0.1)
 
-    # Hardware register operations (only used by hardware services)
-    def _set_nd_setpoint_hardware(self, nd_setpoint):
-        """Set ND filter setpoint using hardware register."""
-        device_id = Varia.DEVICE_ID
-        register_value = int(nd_setpoint / 0.1)
+            self.log.debug(f'Writing value {register_value} to {Varia.REG_LWP_SETPOINT}.')
 
-        self.log.debug(f'Writing value {register_value} to {Varia.REG_ND_SETPOINT}.')
+            future = self.pool.submit(registerWriteU16, self.port, device_id.value,
+                                      Varia.REG_LWP_SETPOINT.value, register_value, -1)
+            result = future.result()
+            self.check_result(result)
 
-        future = self.pool.submit(registerWriteU16, self.port, device_id.value,
-                                  Varia.REG_ND_SETPOINT.value, register_value, -1)
-        result = future.result()
-        self.check_result(result)
-
-    def _set_swp_setpoint_hardware(self, swp_setpoint):
-        """Set SWP filter setpoint using hardware register."""
-        device_id = Varia.DEVICE_ID
-        register_value = int(swp_setpoint / 0.1)
-
-        self.log.debug(f'Writing value {register_value} to {Varia.REG_SWP_SETPOINT}.')
-
-        future = self.pool.submit(registerWriteU16, self.port, device_id.value,
-                                  Varia.REG_SWP_SETPOINT.value, register_value, -1)
-        result = future.result()
-        self.check_result(result)
-
-    def _set_lwp_setpoint_hardware(self, lwp_setpoint):
-        """Set LWP filter setpoint using hardware register."""
-        device_id = Varia.DEVICE_ID
-        register_value = int(lwp_setpoint / 0.1)
-
-        self.log.debug(f'Writing value {register_value} to {Varia.REG_LWP_SETPOINT}.')
-
-        future = self.pool.submit(registerWriteU16, self.port, device_id.value,
-                                  Varia.REG_LWP_SETPOINT.value, register_value, -1)
-        result = future.result()
-        self.check_result(result)
 
     # Hardware register read operations (only defined for hardware services)
     def get_monitor_input(self):
