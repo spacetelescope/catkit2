@@ -21,7 +21,7 @@ Configuration
 .. code-block:: YAML
 
     nkt_superk:
-        service_type: nkt_superk_evo
+        service_type: nkt_superk_evo_hardware
         simulated_service_type: nkt_superk_evo_sim
         interface: nkt_superk_evo
         requires_safety: false
@@ -41,7 +41,7 @@ Configuration
 .. code-block:: YAML
 
     nkt_superk:
-        service_type: nkt_superk_fianium
+        service_type: nkt_superk_fianium_hardware
         simulated_service_type: nkt_superk_fianium_sim
         interface: nkt_superk_fianium
         requires_safety: false
@@ -87,6 +87,8 @@ Datastreams
 
 ``lwp_filter_moving``: Whether the long wavelength (low-pass) filter is moving for the VARIA.
 
+``power_setpoint``: Output emission power level of the EVO/FIANIUM (in percent).
+
 **EVO-Specific Datastreams:**
 
 ``base_temperature``: Base temperature output by the EVO (Celsius).
@@ -97,14 +99,10 @@ Datastreams
 
 ``emission``: Output emission of the EVO (int) - 0 is OFF, 1 is ON.
 
-``power_setpoint``: Output emission power level of the EVO (in percent).
-
 ``current_setpoint``: Output current level of the EVO (in percent).
 
 **FIANIUM-Specific Datastreams:**
 
 ``emission``: Output emission of the FIANIUM (int) - 0 is OFF, 3 is ON.
-
-``power_setpoint``: Output emission power level of the FIANIUM (in percent).
 
 ``pulse_picker_ratio``: Pulse picker ratio for the FIANIUM.
