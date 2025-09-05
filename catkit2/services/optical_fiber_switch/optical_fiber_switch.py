@@ -32,7 +32,10 @@ class OpticalFiberSwitch(Service):
 
         self.input_channel = self.make_data_stream('input_channel', 'int8', [1], 20)
         self.current_input = self.make_data_stream('current_input', 'int8', [1], 20)
-        self.get_input_channel()
+
+        response = self.read_response()
+        open_channel = str(response)[-2]  # Get the channel number which is before the closing quote
+        self.current_input.submit_data(np.array([open_channel], dtype='int8'))
 
     def main(self):
         while not self.should_shut_down:
@@ -56,13 +59,14 @@ class OpticalFiberSwitch(Service):
             self.switch.write(command)
             self.log.info(f"Switch to input channel {channel}.")
             self.sleep(0.1)
-            self.get_input_channel()
+            self.current_input.submit_data(np.array([channel], dtype='int8'))
+            self.read_response()
 
         except serial.SerialException as e:
             self.log.error(f"Serial error while setting input channel: {e}")
             raise RuntimeError(f"Failed to set input channel: {e}")
 
-    def get_input_channel(self):
+    def read_response(self):
         # Ask for the status after setting the channel
         self.switch.write(self.COMMAND_ASK_STATUS)
         self.sleep(0.1)
@@ -70,10 +74,11 @@ class OpticalFiberSwitch(Service):
         # Read the response
         response = self.switch.read(4)
         self.log.info(f"Received response: {response}")
-        current_channel = str(response)[-2]  # Get the channel number which is before the closing quote
-        self.current_input.submit_data(np.array([current_channel], dtype='int8'))
+
         if not len(response) == 4:
             self.log.warning(f"Incomplete response: {response}")
+
+        return response
 
     def close(self):
         self.switch.close()
