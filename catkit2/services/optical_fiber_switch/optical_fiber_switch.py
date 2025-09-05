@@ -69,11 +69,10 @@ class OpticalFiberSwitch(Service):
 
         # Read the response
         response = self.switch.read(4)
-        if len(response) == 4:
-            self.log.info(f"Received response: {response}")
-            current_channel = str(response)[-2]  # Get the channel number which is before the closing quote
-            self.current_input.submit_data(np.array([current_channel], dtype='int8'))
-        else:
+        self.log.info(f"Received response: {response}")
+        current_channel = str(response)[-2]  # Get the channel number which is before the closing quote
+        self.current_input.submit_data(np.array([current_channel], dtype='int8'))
+        if not len(response) == 4:
             self.log.warning(f"Incomplete response: {response}")
 
     def close(self):
