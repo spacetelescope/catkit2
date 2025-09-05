@@ -20,7 +20,8 @@ class OpticalFiberSwitchSim(Service):
         # In sim, we start off from the same input channel each time
         self.input_channel.submit_data(np.array([1], dtype='int8'))
 
-        self.get_input_channel()
+        open_channel = self.read_response()
+        self.current_input.submit_data(np.array([open_channel], dtype='int8'))
 
     def main(self):
         while not self.should_shut_down:
@@ -41,11 +42,11 @@ class OpticalFiberSwitchSim(Service):
         self.testbed.simulator.set_source_power(source_name=self.id, power=channel)
         self.log.info(f"Switch to input channel {channel}.")
         self.sleep(0.1)
-        self.get_input_channel()
+        self.current_input.submit_data(np.array([channel], dtype='int8'))
+        self.read_response()
 
-    def get_input_channel(self):
-        current_channel = self.input_channel.get()[0]  # Yes, total hack
-        self.current_input.submit_data(np.array([current_channel], dtype='int8'))
+    def read_response(self):
+        return 0
 
     def close(self):
         pass
