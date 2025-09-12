@@ -29,9 +29,11 @@ class CoolerMode(Enum):
     on = 2.0    # target temperature = -20 deg
     max = 4.0   # target temperature = -31 deg
 
+
 class FanStatus(Enum):
     off = 1.0
     on = 2.0
+
 
 def _create_property(hamamatsu_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
