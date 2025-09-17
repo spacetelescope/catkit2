@@ -8,15 +8,14 @@ It provides a simple interface to control the camera and acquire images.
 from __future__ import annotations
 import contextlib
 
-from catkit2.base_services.camera import CameraService
+from catkit2.base_services.camera import CameraService, StoppedAcquisition
 
 from vmbpy import (AllocationMode,
                    Camera, Frame, Stream,
                    FrameStatus,
                    PixelFormat,
                    VmbSystem,
-                   VmbCameraError
-)
+                   VmbCameraError)
 
 
 class AlliedVisionCamera(CameraService):

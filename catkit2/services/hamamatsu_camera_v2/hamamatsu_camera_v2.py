@@ -7,7 +7,8 @@ It provides a simple interface to control the camera and acquire images.
 from enum import Enum
 import os
 import sys
-from catkit2.base_services.camera import CameraService
+import threading
+from catkit2.base_services.camera import CameraService, StoppedAcquisition
 
 try:
     sdk_path = os.environ.get('CATKIT_DCAM_SDK_PATH')
@@ -38,6 +39,9 @@ class HamamatsuCamera(CameraService):
         """
         super().__init__('hamamatsu_camera_v2')
 
+        # Create lock for camera access
+        self.mutex = threading.Lock()
+
     def open(self):
         # Dictionary to store the pixel format and the corresponding numpy dtype and dcam pixel format
         self.pixel_formats = {
@@ -56,8 +60,9 @@ class HamamatsuCamera(CameraService):
             raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
 
         # Read ROI of full sensor before ROI is adapted.
-        self.sensor_width
-        self.sensor_height
+        # TODO: What to do with this
+        self.sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
+        self.sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
 
         # Set subarray mode to on so that it checks subarray compatibility when picking ROI
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
@@ -94,11 +99,19 @@ class HamamatsuCamera(CameraService):
         self.log.info('Using pixel format: %s', self.current_pixel_format)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.IMAGE_PIXELTYPE, self.pixel_formats[self.current_pixel_format])
 
-        def make_property_helper(name, read_only=False):
+        def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
             if read_only:
                 self.make_property(name, lambda: getattr(self, name))
             else:
-                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
+                if requires_stopped_acquisition:
+                    def setter(val):
+                        with StoppedAcquisition(self):
+                            setattr(self, name, val)
+                else:
+                    def setter(val):
+                        setattr(self, name, val)
+
+                self.make_property(name, lambda: getattr(self, name), setter)
 
         make_property_helper('brightness', read_only=True)
         make_property_helper('fan_status')
@@ -146,46 +159,48 @@ class HamamatsuCamera(CameraService):
         return img
 
     def get_roi_width(self):
-        pass
+        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHSIZE'))
 
     def set_roi_width(self, width):
-        pass
+        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHSIZE'), width)
 
     def get_roi_height(self):
-        pass
+        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVSIZE'))
 
     def set_roi_height(self, height):
-        pass
+        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVSIZE'), height)
 
     def get_roi_offset_x(self):
-        pass
+        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVPOS'))
 
     def set_roi_offset_x(self, offset_x):
-        pass
+        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVPOS'), offset_x)
 
     def get_roi_offset_y(self):
-        pass
+        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHPOS'))
 
     def set_roi_offset_y(self, offset_y):
-        pass
+        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHPOS'), offset_y)
 
     def get_sensor_width(self):
-        pass
+        width = self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH)
+        return int(width)
 
     def get_sensor_height(self):
-        pass
+        height = self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT)
+        return int(height)
 
     def get_exposure_time(self):
-        pass
+        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'EXPOSURETIME')) * 1e6
 
     def set_exposure_time(self, exposure_time):
-        pass
+        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'EXPOSURETIME'), exposure_time / 1e6)
 
     def get_gain(self):
-        pass
+        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'CONTRASTGAIN'))
 
     def set_gain(self, gain):
-        pass
+        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'CONTRASTGAIN'), gain)
 
     def get_temperature(self):
         """
@@ -199,6 +214,26 @@ class HamamatsuCamera(CameraService):
             The temperature of the camera in degrees Celsius.
         """
         return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORTEMPERATURE)
+
+    @property
+    def brightness(self):
+        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSITIVITY'))
+
+    @property
+    def fan_status(self):
+        return FanStatus(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLERFAN'))).name
+
+    @fan_status.setter
+    def fan_status(self, status):
+        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLERFAN'), FanStatus[status].value)
+
+    @property
+    def cooler_mode(self):
+        return CoolerMode(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLER'))).name
+
+    @cooler_mode.setter
+    def cooler_mode(self, mode):
+        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLER'), CoolerMode[mode].value)
 
 
 if __name__ == '__main__':
