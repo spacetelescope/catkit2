@@ -60,9 +60,8 @@ class HamamatsuCamera(CameraService):
             raise RuntimeError(f'Dcam.dev_open() fails with error {self.cam.lasterr()}')
 
         # Read ROI of full sensor before ROI is adapted.
-        # TODO: What to do with this
-        self.sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
-        self.sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
+        self._sensor_width = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH))
+        self._sensor_height = int(self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT))
 
         # Set subarray mode to on so that it checks subarray compatibility when picking ROI
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.SUBARRAYMODE, 2.0)
@@ -183,12 +182,10 @@ class HamamatsuCamera(CameraService):
         self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHPOS'), offset_y)
 
     def get_sensor_width(self):
-        width = self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_WIDTH)
-        return int(width)
+        return self._sensor_width
 
     def get_sensor_height(self):
-        height = self.cam.prop_getvalue(dcam.DCAM_IDPROP.IMAGE_HEIGHT)
-        return int(height)
+        return self._sensor_height
 
     def get_exposure_time(self):
         return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'EXPOSURETIME')) * 1e6
