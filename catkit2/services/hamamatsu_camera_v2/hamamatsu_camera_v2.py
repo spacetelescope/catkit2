@@ -8,6 +8,7 @@ from enum import Enum
 import os
 import sys
 import threading
+import numpy as np
 from catkit2.base_services.camera import CameraService, StoppedAcquisition
 
 try:
@@ -211,6 +212,26 @@ class HamamatsuCamera(CameraService):
             The temperature of the camera in degrees Celsius.
         """
         return self.cam.prop_getvalue(dcam.DCAM_IDPROP.SENSORTEMPERATURE)
+
+    def monitor_temperature(self):
+        """
+        Monitor the temperature of the camera.
+
+        This function is a separate thread that monitors the temperature of
+        the camera and submits the data to the temperature data stream.
+        """
+        while not self.should_shut_down:
+            temperature = self.get_temperature()
+            self.temperature.submit_data(np.array([temperature]))
+
+            if temperature > self.critical_temperature and self.is_acquiring.get():
+                self.log.warning(f'Camera temperature = {temperature} > {self.critical_temperature} degrees.')
+                self.log.warning('Stopping acquisition and start fan.')
+                self.fan_status = 'on'
+                self.cooler_mode = 'on'
+                self.end_acquisition()
+
+            self.sleep(0.1)
 
     @property
     def brightness(self):
