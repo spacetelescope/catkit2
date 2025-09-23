@@ -141,7 +141,7 @@ class CameraService(Service):
                 img = self.capture_image()
                 transformed_img = self.rot_flip_image(img)
                 with trace_interval('processing frame'):
-                    self.images.submit_data(transformed_img)
+                    self.images.submit_data(transformed_img.astype('float32'))
 
         finally:
             self.end_acquisition()
