@@ -55,8 +55,8 @@ class CameraService(Service):
         self.height = self.config.get('height', self.sensor_height)
         self.log.info('Configured ROI width: {}, height: {}'.format(self.width, self.height))
 
-        self.offset_x = self.config.get('offset_x', 0)
-        self.offset_y = self.config.get('offset_y', 0)
+        self.offset_x = (self.config.get('offset_x', 0), self.config.get('offset_y', 0))
+        self.offset_y = (self.config.get('offset_x', 0), self.config.get('offset_y', 0))
         self.log.info('Configured offsets x: {}, y: {}'.format(self.offset_x, self.offset_y))
 
         # Note that transform_offset() must be called before updating the values of self.width and self.height.
@@ -287,7 +287,8 @@ class CameraService(Service):
         return offset_x
 
     @offset_x.setter
-    def offset_x(self, offset_x, offset_y):
+    def offset_x(self, offsets):
+        offset_x, offset_y = offsets
         camera_offset_x, _ = self.transform_offset(offset_x, offset_y)
         self.set_roi_offset_x(camera_offset_x)
 
@@ -301,7 +302,8 @@ class CameraService(Service):
         return offset_y
 
     @offset_y.setter
-    def offset_y(self, offset_x, offset_y):
+    def offset_y(self, offsets):
+        offset_x, offset_y = offsets
         _, camera_offset_y = self.transform_offset(offset_x, offset_y)
         self.set_roi_offset_y(camera_offset_y)
 
