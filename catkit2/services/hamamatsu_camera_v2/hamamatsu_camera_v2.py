@@ -107,19 +107,21 @@ class HamamatsuCamera(CameraService):
         self.log.info('Using pixel format: %s', self.current_pixel_format)
         self.cam.prop_setvalue(dcam.DCAM_IDPROP.IMAGE_PIXELTYPE, self.pixel_formats[self.current_pixel_format])
 
-        def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
-            if read_only:
-                self.make_property(name, lambda: getattr(self, name))
-            else:
-                if requires_stopped_acquisition:
-                    def setter(val):
-                        with StoppedAcquisition(self):
-                            setattr(self, name, val)
-                else:
-                    def setter(val):
-                        setattr(self, name, val)
+        def make_property_helper(property_name, read_only=False, dtype=None):
+            if dtype is None:
+                dtype = ''
 
-                self.make_property(name, lambda: getattr(self, name), setter)
+            def getter():
+                return getattr(self, property_name)
+
+            if read_only:
+                self.make_property(property_name, getter, type=dtype)
+                return
+
+            def setter(value):
+                setattr(self, property_name, value)
+
+            self.make_property(property_name, getter, setter, type=dtype)
 
         make_property_helper('brightness', read_only=True)
         make_property_helper('fan_status')
