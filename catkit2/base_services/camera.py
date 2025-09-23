@@ -72,29 +72,30 @@ class CameraService(Service):
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
-        def make_property_helper(property_name, read_only=False, dtype=None):
+        def make_property_helper(property_name, read_only=False, requires_stopped_acquisition=False, dtype=None):
             if dtype is None:
                 dtype = ''
 
-            def getter():
-                return getattr(self, property_name)
-
             if read_only:
-                self.make_property(property_name, getter, type=dtype)
-                return
+                self.make_property(property_name, lambda: getattr(self, property_name))
+            else:
+                if requires_stopped_acquisition:
+                    def setter(val):
+                        with StoppedAcquisition(self):
+                            setattr(self, property_name, val)
+                else:
+                    def setter(val):
+                        setattr(self, property_name, val)
 
-            def setter(value):
-                setattr(self, property_name, value)
+                self.make_property(property_name, lambda: getattr(self, property_name), setter)
 
-            self.make_property(property_name, getter, setter, type=dtype)
+        make_property_helper('width', dtype='int64', requires_stopped_acquisition=self.width_requires_stopped_acquisition)
+        make_property_helper('height', dtype='int64', requires_stopped_acquisition=self.height_requires_stopped_acquisition)
+        make_property_helper('offset_x', dtype='int64', requires_stopped_acquisition=self.offset_x_requires_stopped_acquisition)
+        make_property_helper('offset_y', dtype='int64', requires_stopped_acquisition=self.offset_y_requires_stopped_acquisition)
 
-        make_property_helper('width', dtype='int64')
-        make_property_helper('height', dtype='int64')
-        make_property_helper('offset_x', dtype='int64')
-        make_property_helper('offset_y', dtype='int64')
-
-        make_property_helper('exposure_time', dtype='int64')
-        make_property_helper('gain', dtype='int64')
+        make_property_helper('exposure_time', dtype='int64', requires_stopped_acquisition=self.exposure_time_requires_stopped_acquisition)
+        make_property_helper('gain', dtype='int64', requires_stopped_acquisition=self.gain_requires_stopped_acquisition)
 
         make_property_helper('sensor_width', read_only=True, dtype='int64')
         make_property_helper('sensor_height', read_only=True, dtype='int64')
