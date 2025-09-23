@@ -34,8 +34,6 @@ class FanStatus(Enum):
 
 
 class HamamatsuCamera(CameraService):
-    NUM_FRAMES = 20
-
     # Stopped acquisition flags for base class
     width_requires_stopped_acquisition = True
     height_requires_stopped_acquisition = True
@@ -145,7 +143,7 @@ class HamamatsuCamera(CameraService):
         dcam.Dcamapi.uninit()
 
     def start_acquisition(self):
-        if self.cam.buf_alloc(self.NUM_FRAMES) is False:
+        if self.cam.buf_alloc(self.NUM_FRAMES_IN_BUFFER) is False:
             raise RuntimeError(f'Dcam.buf_alloc() fails with error {self.cam.lasterr()}')
         if self.cam.cap_start() is False:
             raise RuntimeError(f'Dcam.cap_start() fails with error {self.cam.lasterr()}')
