@@ -40,6 +40,14 @@ class HamamatsuCamera(CameraService):
         """
         super().__init__('hamamatsu_camera_v2')
 
+        # Stopped acquisition flags for base class
+        self.width_requires_stopped_acquisition = True
+        self.height_requires_stopped_acquisition = True
+        self.offset_x_requires_stopped_acquisition = True
+        self.offset_y_requires_stopped_acquisition = True
+        self.exposure_time_requires_stopped_acquisition = False
+        self.gain_requires_stopped_acquisition = True
+
         # Create lock for camera access
         self.mutex = threading.Lock()
 
