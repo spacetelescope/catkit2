@@ -167,28 +167,36 @@ class HamamatsuCamera(CameraService):
         return img
 
     def get_roi_width(self):
-        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHSIZE'))
+        with self.mutex:
+            return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHSIZE'))
 
     def set_roi_width(self, width):
-        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHSIZE'), width)
+        with self.mutex:
+            self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHSIZE'), width)
 
     def get_roi_height(self):
-        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVSIZE'))
+        with self.mutex:
+            return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVSIZE'))
 
     def set_roi_height(self, height):
-        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVSIZE'), height)
+        with self.mutex:
+            self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVSIZE'), height)
 
     def get_roi_offset_x(self):
-        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVPOS'))
+        with self.mutex:
+            return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVPOS'))
 
     def set_roi_offset_x(self, offset_x):
-        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVPOS'), offset_x)
+        with self.mutex:
+            self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYVPOS'), offset_x)
 
     def get_roi_offset_y(self):
-        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHPOS'))
+        with self.mutex:
+            return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHPOS'))
 
     def set_roi_offset_y(self, offset_y):
-        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHPOS'), offset_y)
+        with self.mutex:
+            self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SUBARRAYHPOS'), offset_y)
 
     def get_sensor_width(self):
         return self._sensor_width
@@ -197,16 +205,20 @@ class HamamatsuCamera(CameraService):
         return self._sensor_height
 
     def get_exposure_time(self):
-        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'EXPOSURETIME')) * 1e6
+        with self.mutex:
+            return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'EXPOSURETIME')) * 1e6
 
     def set_exposure_time(self, exposure_time):
-        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'EXPOSURETIME'), exposure_time / 1e6)
+        with self.mutex:
+            self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'EXPOSURETIME'), exposure_time / 1e6)
 
     def get_gain(self):
-        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'CONTRASTGAIN'))
+        with self.mutex:
+            return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'CONTRASTGAIN'))
 
     def set_gain(self, gain):
-        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'CONTRASTGAIN'), gain)
+        with self.mutex:
+            self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'CONTRASTGAIN'), gain)
 
     def get_temperature(self):
         """
@@ -243,23 +255,28 @@ class HamamatsuCamera(CameraService):
 
     @property
     def brightness(self):
-        return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSITIVITY'))
+        with self.mutex:
+            return self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSITIVITY'))
 
     @property
     def fan_status(self):
-        return FanStatus(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLERFAN'))).name
+        with self.mutex:
+            return FanStatus(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLERFAN'))).name
 
     @fan_status.setter
     def fan_status(self, status):
-        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLERFAN'), FanStatus[status].value)
+        with self.mutex:
+            self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLERFAN'), FanStatus[status].value)
 
     @property
     def cooler_mode(self):
-        return CoolerMode(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLER'))).name
+        with self.mutex:
+            return CoolerMode(self.cam.prop_getvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLER'))).name
 
     @cooler_mode.setter
     def cooler_mode(self, mode):
-        self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLER'), CoolerMode[mode].value)
+        with self.mutex:
+            self.cam.prop_setvalue(getattr(dcam.DCAM_IDPROP, 'SENSORCOOLER'), CoolerMode[mode].value)
 
 
 if __name__ == '__main__':
