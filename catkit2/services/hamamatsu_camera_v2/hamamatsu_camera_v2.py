@@ -123,17 +123,13 @@ class HamamatsuCamera(CameraService):
 
             self.make_property(property_name, getter, setter, type=dtype)
 
+        self.critical_temperature = self.config.get('critical_temperature', 28.0)
+        self.cooler_mode = self.config.get('cooling_mode', 'on')
+        self.fan_status = self.config.get('fan_status', 'off')
+
         make_property_helper('brightness', read_only=True)
         make_property_helper('fan_status')
         make_property_helper('cooler_mode')
-
-        self.critical_temperature = self.config.get('critical_temperature', 28.0)
-
-        # Set water cooling mode
-        self.cooler_mode = self.config.get('cooling_mode', 'on')
-
-        # Check fan status and start or stop fan
-        self.fan_status = self.config.get('fan_status', 'off')
 
         super().open()
 
