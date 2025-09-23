@@ -9,7 +9,7 @@ import os
 import sys
 import threading
 import numpy as np
-from catkit2.base_services.camera import CameraService, StoppedAcquisition
+from catkit2.base_services.camera import CameraService
 
 try:
     sdk_path = os.environ.get('CATKIT_DCAM_SDK_PATH')

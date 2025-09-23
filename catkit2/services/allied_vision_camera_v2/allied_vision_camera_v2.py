@@ -19,6 +19,14 @@ from vmbpy import (AllocationMode,
 
 
 class AlliedVisionCamera(CameraService):
+    # Stopped acquisition flags for base class
+    width_requires_stopped_acquisition = True
+    height_requires_stopped_acquisition = True
+    offset_x_requires_stopped_acquisition = True
+    offset_y_requires_stopped_acquisition = True
+    exposure_time_requires_stopped_acquisition = False
+    gain_requires_stopped_acquisition = False
+
     def __init__(self, exit_stack: contextlib.ExitStack):
         '''
         Create a new AlliedVisionCamera service.
