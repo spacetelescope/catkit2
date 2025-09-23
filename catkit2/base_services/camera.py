@@ -144,8 +144,7 @@ class CameraService(Service):
                     self.images.submit_data(transformed_img)
 
         finally:
-            # Communicate with the simulator to stop camera acquisition.
-            self.end_acquisition(camera_name=self.id)
+            self.end_acquisition()
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
     def transform_offset(self, x, y, inverse=False):
