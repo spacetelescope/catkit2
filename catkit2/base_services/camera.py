@@ -291,7 +291,7 @@ class CameraService(Service):
 
         offset_x, _ = self.transform_offset(camera_offset_x, camera_offset_y, inverse=True)
 
-        return offset_x
+        return int(offset_x)
 
     @offset_x.setter
     def offset_x(self, offsets):
@@ -306,7 +306,7 @@ class CameraService(Service):
 
         _, offset_y = self.transform_offset(camera_offset_x, camera_offset_y, inverse=True)
 
-        return offset_y
+        return int(offset_y)
 
     @offset_y.setter
     def offset_y(self, offsets):
