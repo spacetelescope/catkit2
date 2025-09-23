@@ -21,6 +21,14 @@ except Exception as error:
 
 
 class ZwoCamera(CameraService):
+    # Stopped acquisition flags for base class
+    width_requires_stopped_acquisition = True
+    height_requires_stopped_acquisition = True
+    offset_x_requires_stopped_acquisition = False
+    offset_y_requires_stopped_acquisition = False
+    exposure_time_requires_stopped_acquisition = False
+    gain_requires_stopped_acquisition = False
+
     def __init__(self):
         super().__init__('zwo_camera_v2')
 
@@ -60,7 +68,7 @@ class ZwoCamera(CameraService):
         # Create a camera object using the zwoasi library.
         self.camera = zwoasi.Camera(camera_index)
 
-        # Get all of the camera controls.
+        # Get all camera controls.
         controls = self.camera.get_controls()
 
         # Restore all controls to default values, in case any other application modified them.
@@ -115,9 +123,9 @@ class ZwoCamera(CameraService):
                 self.make_property(name, lambda: getattr(self, name), setter)
 
         # Set up general camera properties.
-        make_property_helper('brightness')  # TODO: where to put getter and setter for this?
+        make_property_helper('brightness')
         make_property_helper('device_name', read_only=True)
-        make_property_helper('max_bandwidth')  # TODO: where to put getter and setter for this?
+        make_property_helper('max_bandwidth')
 
         super().open()
 
@@ -136,7 +144,11 @@ class ZwoCamera(CameraService):
         timeout = 10000  # ms
         img = self.camera.capture_video_frame(timeout=timeout)
 
-        return img.astype('float32')
+        # 2023-10-26 Temporary fix for HiCAT
+        if self.id == 'science_camera':
+            return np.ascontiguousarray(np.flip(img.astype('float32')))
+        else:
+            return img.astype('float32')
 
     def get_roi_width(self):
         width, height, bins, image_type = self.camera.get_roi_format()
@@ -220,6 +232,28 @@ class ZwoCamera(CameraService):
         temperature_times_ten, _ = self.camera.get_control_value(zwoasi.ASI_TEMPERATURE)
 
         return temperature_times_ten / 10
+
+    @property
+    def brightness(self):
+        brightness, auto = self.camera.get_control_value(zwoasi.ASI_BRIGHTNESS)
+        return brightness
+
+    @brightness.setter
+    def brightness(self, brightness):
+        self.camera.set_control_value(zwoasi.ASI_BRIGHTNESS, int(brightness))
+
+    @property
+    def max_bandwidth(self):
+        return self._max_bandwidth
+
+    @max_bandwidth.setter
+    def max_bandwidth(self, use_max):
+        # max USB bandwidth allows for maximum frame rates from ZWO camera
+        # however, some models have issues reading out large frame sizes when max value is set
+        if use_max:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        else:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
 
 
 if __name__ == '__main__':
