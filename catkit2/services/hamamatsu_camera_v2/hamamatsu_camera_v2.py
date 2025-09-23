@@ -34,6 +34,8 @@ class FanStatus(Enum):
 
 
 class HamamatsuCamera(CameraService):
+    NUM_FRAMES = 20
+
     def __init__(self):
         """
         Create a new HamamatsuCamera service.
