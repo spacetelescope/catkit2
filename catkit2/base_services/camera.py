@@ -252,9 +252,9 @@ class CameraService(Service):
     @property
     def width(self):
         if self.rot90:
-            return self.get_roi_height()
+            return int(self.get_roi_height())
         else:
-            return self.get_roi_width()
+            return int(self.get_roi_width())
 
     @width.setter
     def width(self, width):
@@ -266,9 +266,9 @@ class CameraService(Service):
     @property
     def height(self):
         if self.rot90:
-            return self.get_roi_width()
+            return int(self.get_roi_width())
         else:
-            return self.get_roi_height()
+            return int(self.get_roi_height())
 
     @height.setter
     def height(self, height):
