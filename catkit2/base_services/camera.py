@@ -249,6 +249,14 @@ class CameraService(Service):
         self.should_be_acquiring.clear()
 
     @property
+    def exposure_time(self):
+        return self.get_exposure_time()
+
+    @exposure_time.setter
+    def exposure_time(self, exposure_time):
+        self.set_exposure_time(exposure_time)
+
+    @property
     def width(self):
         if self.rot90:
             return int(self.get_roi_height())
