@@ -36,19 +36,19 @@ class FanStatus(Enum):
 class HamamatsuCamera(CameraService):
     NUM_FRAMES = 20
 
+    # Stopped acquisition flags for base class
+    width_requires_stopped_acquisition = True
+    height_requires_stopped_acquisition = True
+    offset_x_requires_stopped_acquisition = True
+    offset_y_requires_stopped_acquisition = True
+    exposure_time_requires_stopped_acquisition = False
+    gain_requires_stopped_acquisition = True
+
     def __init__(self):
         """
         Create a new HamamatsuCamera service.
         """
         super().__init__('hamamatsu_camera_v2')
-
-        # Stopped acquisition flags for base class
-        self.width_requires_stopped_acquisition = True
-        self.height_requires_stopped_acquisition = True
-        self.offset_x_requires_stopped_acquisition = True
-        self.offset_y_requires_stopped_acquisition = True
-        self.exposure_time_requires_stopped_acquisition = False
-        self.gain_requires_stopped_acquisition = True
 
         # Create lock for camera access
         self.mutex = threading.Lock()
