@@ -144,11 +144,7 @@ class ZwoCamera(CameraService):
         timeout = 10000  # ms
         img = self.camera.capture_video_frame(timeout=timeout)
 
-        # 2023-10-26 Temporary fix for HiCAT
-        if self.id == 'science_camera':
-            return np.ascontiguousarray(np.flip(img.astype('float32')))
-        else:
-            return img.astype('float32')
+        return img.astype('float32')
 
     def get_roi_width(self):
         width, height, bins, image_type = self.camera.get_roi_format()
