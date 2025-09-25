@@ -47,6 +47,7 @@ class HamamatsuCamera(CameraService):
         Create a new HamamatsuCamera service.
         """
         super().__init__('hamamatsu_camera_v2')
+        self.cam = None
 
         # Create lock for camera access
         self.mutex = threading.Lock()
