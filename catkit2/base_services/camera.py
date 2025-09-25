@@ -15,7 +15,7 @@ class StoppedAcquisition:
         self.was_running = self.cam.is_acquiring.get()[0] > 0
 
         if self.was_running:
-            self.cam.end_acquisition()
+            self.cam._end_acquisition()
 
             # Wait for the acquisition to actually end.
             while self.cam.is_acquiring.get()[0]:
@@ -23,7 +23,7 @@ class StoppedAcquisition:
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         if self.was_running:
-            self.cam.start_acquisition()
+            self.cam._start_acquisition()
 
 
 class CameraService(Service):
