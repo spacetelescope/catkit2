@@ -230,7 +230,7 @@ class CameraService(Service):
         if inverse:
             new_coords = np.linalg.multi_dot([T_back, Y, X, R.T, T_center, coords])
 
-        return new_coords[0], new_coords[1]
+        return int(np.round(new_coords[0])), int(np.round(new_coords[1]))
 
     def rot_flip_image(self, img):
         # rotation needs to happen first
