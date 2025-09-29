@@ -228,7 +228,7 @@ class CameraService(Service):
         new_coords = np.linalg.multi_dot([T_back, Y, X, R, T_center, coords])
 
         if inverse:
-            new_coords = np.linalg.multi_dot([T_back, Y, X, R.T, T_center, coords])
+            new_coords = np.linalg.multi_dot([T_back, R.T, Y, X, T_center, coords])
 
         return int(np.round(new_coords[0])), int(np.round(new_coords[1]))
 
