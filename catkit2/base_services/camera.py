@@ -177,11 +177,11 @@ class CameraService(Service):
         T_center = np.zeros((3, 3))
         np.fill_diagonal(T_center, 1)
         if inverse and self.rot90:
-            T_center[0][-1] = -self.height / 2
-            T_center[1][-1] = -self.width / 2
+            T_center[0][-1] = -self.sensor_height / 2
+            T_center[1][-1] = -self.sensor_width / 2
         else:
-            T_center[0][-1] = -self.width / 2
-            T_center[1][-1] = -self.height / 2
+            T_center[0][-1] = -self.sensor_width / 2
+            T_center[1][-1] = -self.sensor_height / 2
 
         # Initialize rotation matrix R.
         R = np.zeros((3, 3))
@@ -215,11 +215,11 @@ class CameraService(Service):
         # If forward with rotation, or if inverse without rotation.
         if (self.rot90 and not inverse) or (not self.rot90 and inverse):
             # Want to come back to new origin for which the height/width dimensions will be flipped if rotated.
-            T_back[0][-1] = self.height / 2
-            T_back[1][-1] = self.width / 2
+            T_back[0][-1] = self.sensor_height / 2
+            T_back[1][-1] = self.sensor_width / 2
         else:
-            T_back[0][-1] = self.width / 2
-            T_back[1][-1] = self.height / 2
+            T_back[0][-1] = self.sensor_width / 2
+            T_back[1][-1] = self.sensor_height / 2
 
         # Perform the dot product.
         # Translate to ROI center, rotate, flip in x then in y,
