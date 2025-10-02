@@ -10,6 +10,7 @@ class BenchletSimulator(Simulator):
     """
     def __init__(self):
         super().__init__('benchlet_simulator')
+        self.light_source_data = {}
         
     def open(self):
         self.model = BenchletOpticalModel(self.testbed.config['simulator'])
