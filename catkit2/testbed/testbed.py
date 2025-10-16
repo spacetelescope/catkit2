@@ -193,7 +193,11 @@ class ServiceReference:
                     # Send SIGINT to the process group of the child so all
                     # subprocesses in the group receive the interrupt.
                     pgid = os.getpgid(self.process.pid)
-                    os.killpg(pgid, signal.SIGINT)
+                    if pgid == os.getpgrp():
+                        # Child is in the same group as us; avoid interrupting self.
+                        os.kill(self.process.pid, signal.SIGINT)
+                    else:
+                        os.killpg(pgid, signal.SIGINT)
                 except AttributeError:
                     # Fallback: no process group support, send SIGINT to pid.
                     os.kill(self.process.pid, signal.SIGINT)
