@@ -218,7 +218,7 @@ class ServiceReference:
                 # Unknown OS: attempt POSIX-style SIGINT as a best-effort.
                 import signal
                 os.kill(self.process.pid, signal.SIGINT)
-        except (OSError, psutil.NoSuchProcess, PermissionError) as e:
+        except (OSError, psutil.NoSuchProcess, PermissionError):
             # If anything goes wrong, fall back to terminating the process
             # to avoid leaving it stuck. The caller can choose to escalate.
             try:
