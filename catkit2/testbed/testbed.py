@@ -177,18 +177,51 @@ class ServiceReference:
         if self.process is None:
             return
 
-        # TODO: Linux/MacOS compatibility.
-        ctrl_c_code = ';'.join([
-            'import ctypes',
-            'kernel = ctypes.windll.kernel32',
-            'kernel.FreeConsole()',
-            'kernel.AttachConsole({pid})',
-            'kernel.SetConsoleCtrlHandler(None, 1)',
-            'kernel.GenerateConsoleCtrlEvent(0, 0)'
-        ])
+        # Cross-platform interrupt handling.
+        # On POSIX (Linux/macOS) send SIGINT to the process group so the
+        # target process receives a KeyboardInterrupt-equivalent.
+        # On Windows keep the existing approach that generates a console
+        # ctrl event via the ctypes API.
+        if not self.is_alive:
+            return
 
-        if self.is_alive:
-            psutil.Popen([sys.executable, '-c', ctrl_c_code.format(pid=self.process.pid)])
+        try:
+            if os.name == 'posix':
+                import signal
+
+                try:
+                    # Send SIGINT to the process group of the child so all
+                    # subprocesses in the group receive the interrupt.
+                    pgid = os.getpgid(self.process.pid)
+                    os.killpg(pgid, signal.SIGINT)
+                except AttributeError:
+                    # Fallback: no process group support, send SIGINT to pid.
+                    os.kill(self.process.pid, signal.SIGINT)
+            elif os.name == 'nt':
+                # Windows: generate console ctrl event via ctypes.
+                ctrl_c_code = ';'.join([
+                    'import ctypes',
+                    'kernel = ctypes.windll.kernel32',
+                    'kernel.FreeConsole()',
+                    'kernel.AttachConsole({pid})',
+                    'kernel.SetConsoleCtrlHandler(None, 1)',
+                    'kernel.GenerateConsoleCtrlEvent(0, 0)'
+                ])
+
+                ctrl_cmd = ctrl_c_code.format(pid=self.process.pid)
+                psutil.Popen([sys.executable, '-c', ctrl_cmd])
+            else:
+                # Unknown OS: attempt POSIX-style SIGINT as a best-effort.
+                import signal
+                os.kill(self.process.pid, signal.SIGINT)
+        except Exception:
+            # If anything goes wrong, fall back to terminating the process
+            # to avoid leaving it stuck. The caller can choose to escalate.
+            try:
+                if self.process:
+                    self.process.terminate()
+            except Exception:
+                pass
 
     def terminate(self):
         '''Terminate the service.
