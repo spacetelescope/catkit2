@@ -218,14 +218,18 @@ class ServiceReference:
                 # Unknown OS: attempt POSIX-style SIGINT as a best-effort.
                 import signal
                 os.kill(self.process.pid, signal.SIGINT)
-        except Exception:
+        except (OSError, psutil.NoSuchProcess, PermissionError) as e:
             # If anything goes wrong, fall back to terminating the process
             # to avoid leaving it stuck. The caller can choose to escalate.
             try:
                 if self.process:
                     self.process.terminate()
-            except Exception:
-                pass
+            except (OSError, psutil.NoSuchProcess, PermissionError) as term_exc:
+                logger = globals().get("logger", None)
+                if logger:
+                    logger.warning(f"Failed to terminate process {self.process.pid if self.process else 'unknown'}: {term_exc}")
+                else:
+                    print(f"Warning: Failed to terminate process {self.process.pid if self.process else 'unknown'}: {term_exc}", file=sys.stderr)
 
     def terminate(self):
         '''Terminate the service.
