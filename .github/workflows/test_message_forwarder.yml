@@ -1,0 +1,59 @@
+name: Test Message Forwarder
+
+on:
+  push:
+    branches: [ message_networking_v2, main, develop ]
+    paths:
+      - 'catkit2/testbed/message_forwarder.py'
+      - 'catkit2/services/dummy_camera/dummy_camera.py'
+      - 'tests/test_message_forwarder.py'
+      - '.github/workflows/test_message_forwarder.yml'
+  pull_request:
+    branches: [ message_networking_v2, main, develop ]
+    paths:
+      - 'catkit2/testbed/message_forwarder.py'
+      - 'catkit2/services/dummy_camera/dummy_camera.py'
+      - 'tests/test_message_forwarder.py'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov numpy
+    
+    - name: Install catkit2
+      run: |
+        pip install -e . --no-build-isolation
+      continue-on-error: true
+      working-directory: .
+    
+    - name: Run unit tests for message forwarder
+      run: |
+        pytest tests/test_message_forwarder.py -v --tb=short
+    
+    - name: Generate coverage report
+      run: |
+        pytest tests/test_message_forwarder.py --cov=catkit2.testbed.message_forwarder --cov-report=xml --cov-report=term
+      continue-on-error: true
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: message-forwarder
+        fail_ci_if_error: false
+      continue-on-error: true

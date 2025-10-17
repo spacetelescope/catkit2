@@ -1,7 +1,9 @@
 from .. import catkit_bindings
 
 from .service_proxy import ServiceProxy
+from .remote_service_proxy import RemoteServiceProxy
 from .proxies import *  # noqa
+
 
 class TestbedProxy(catkit_bindings.TestbedProxy):
     '''A client for connecting to a testbed server.
@@ -30,12 +32,40 @@ class TestbedProxy(catkit_bindings.TestbedProxy):
         if service_id in self._services:
             return self._services[service_id]
 
-        # Get the service interface class.
-        interface_name = self.config['services'][service_id].get('interface')
-        service_proxy_class = ServiceProxy.get_service_interface(interface_name)
+        # Check if this is a remote service
+        service_config = self.config['services'].get(service_id, {})
+        remote_server = service_config.get('remote_server')
+        
+        if remote_server:
+            # This is a remote service - use RemoteServiceProxy
+            # Get remote testbed config by parsing the testbed config
+            testbed_config = self.config.get('testbed', {})
+            remote_brokers = testbed_config.get(
+                'remote_message_brokers', {}
+            )
+            
+            # Find the remote testbed config
+            remote_info = None
+            if remote_brokers.get('enabled'):
+                for conn in remote_brokers.get('connections', []):
+                    if conn.get('name') == remote_server:
+                        remote_info = conn
+                        break
+            
+            proxy = RemoteServiceProxy(
+                self, service_id, remote_server, remote_info
+            )
+        else:
+            # This is a local service - use normal ServiceProxy
+            # Get the service interface class.
+            interface_name = service_config.get('interface')
+            service_proxy_class = (
+                ServiceProxy.get_service_interface(interface_name)
+            )
 
-        # Create proxy and store it in the cache.
-        proxy = service_proxy_class(self, service_id)
+            # Create proxy and store it in the cache.
+            proxy = service_proxy_class(self, service_id)
+
         self._services[service_id] = proxy
 
         return proxy

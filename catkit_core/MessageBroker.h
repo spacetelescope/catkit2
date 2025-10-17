@@ -22,6 +22,29 @@ const size_t MAX_NUM_METADATA_ENTRIES = 12;
 
 const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
 
+// Network configuration for unified MessageBroker
+enum class NetworkMode : std::uint8_t
+{
+	LocalOnly = 0,  // No network communication
+	Server = 1,     // Act as network server
+	Client = 2,     // Connect to remote server
+	Hybrid = 3      // Both local and network capable
+};
+
+struct NetworkConfig
+{
+	NetworkMode mode = NetworkMode::LocalOnly;
+	std::string endpoint;
+	std::vector<std::string> remote_topic_prefixes;
+	bool auto_discovery = false;
+	
+	NetworkConfig() = default;
+	NetworkConfig(NetworkMode m) : mode(m) {}
+	NetworkConfig(NetworkMode m, std::string ep) : mode(m), endpoint(std::move(ep)) {}
+	NetworkConfig(NetworkMode m, std::string ep, std::vector<std::string> prefixes) 
+		: mode(m), endpoint(std::move(ep)), remote_topic_prefixes(std::move(prefixes)) {}
+};
+
 enum class MetadataType : std::uint8_t
 {
 	Integer,
@@ -91,6 +114,7 @@ public:
 	const Uuid &GetPayloadId() const;
 	std::uint64_t GetFrameId() const;
 	std::uint16_t GetPartialFrameId() const;
+	void SetFrameId(std::uint64_t frame_id);
 
 	const Uuid &GetTraceId() const;
 
@@ -110,6 +134,9 @@ public:
 	void SetMetadataEntry(std::string_view key, std::int64_t value);
 	void SetMetadataEntry(std::string_view key, double value);
 	void SetMetadataEntry(std::string_view key, std::string_view value);
+
+	std::size_t GetNumMetadataEntries() const;
+	const MetadataEntry &GetMetadataEntry(std::size_t index) const;
 
 	const std::uint64_t GetStartByte() const;
 	void SetStartByte(std::uint64_t start_byte);
@@ -163,6 +190,13 @@ public:
 
 	virtual std::vector<std::string> GetAllMessageTopics() = 0;
 	virtual double GetMessageRate(std::string_view topic) = 0;
+
+	// Network management interface (default implementations for backward compatibility)
+	virtual void SetNetworkConfig(const NetworkConfig& config) {}
+	virtual NetworkConfig GetNetworkConfig() const { return NetworkConfig(); }
+	virtual bool IsNetworkEnabled() const { return false; }
+	virtual void EnableNetwork(const NetworkConfig& config) { SetNetworkConfig(config); }
+	virtual void DisableNetwork() { SetNetworkConfig(NetworkConfig()); }
 
 	Message PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id = 0);
 	Message PrepareMessage(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0);

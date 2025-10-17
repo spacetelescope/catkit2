@@ -5,15 +5,50 @@
 #include "HostName.h"
 
 #include <algorithm>
+#include <atomic>
+#include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <cstring>
+#include <iostream>
+#include <limits>
+#include <string>
+#include <string_view>
+#include <type_traits>
 
 // Decay rate for the frame rate estimate in 1/sec.
 const double FRAMERATE_DECAY = 2.5;
 
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
+
+namespace
+{
+	constexpr std::size_t AlignUp(std::size_t value, std::size_t alignment)
+	{
+		if (alignment == 0)
+			return value;
+
+		const std::size_t remainder = value % alignment;
+		return remainder == 0 ? value : value + (alignment - remainder);
+	}
+
+	constexpr std::size_t BitWidth(std::size_t value)
+	{
+		std::size_t width = 0;
+		while (value != 0)
+		{
+			value >>= 1;
+			++width;
+		}
+		return width;
+	}
+
+	constexpr std::size_t HashMapEntrySize()
+	{
+		const std::size_t raw_entry_size = sizeof(std::uint8_t) + TOPIC_MAX_KEY_SIZE + sizeof(TopicHeader);
+		return AlignUp(raw_entry_size, alignof(std::atomic<std::uint8_t>));
+	}
+}
 
 template<typename T>
 T fetch_max(std::atomic<T> &atom, T value)
@@ -159,6 +194,7 @@ LocalMessageBroker::LocalMessageBroker(
 	m_MemoryBlocks(memory_blocks),
 	m_MessageHeaders(header->message_headers)
 {
+
 }
 
 std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks)
@@ -211,10 +247,43 @@ std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Create(StructStream &str
 		std::move(topic_headers),
 		std::move(message_header_allocator),
 		std::move(event),
-		allocators,
+		std::move(allocators),
 		memory_blocks,
 		stream.GetBuffer()
 	));
+}
+
+std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Create(std::string_view broker_name, std::vector<std::shared_ptr<Memory>> memory_blocks)
+{
+	std::string header_name = std::string(broker_name) + ".hdr";
+
+	std::size_t required_size = CalculateBufferSize(memory_blocks);
+	required_size = AlignUp(required_size, MEMORY_ALIGNMENT);
+	required_size = std::max<std::size_t>(required_size, 1ull << 20); // Minimum 1 MiB header.
+
+	for (std::size_t attempt = 0; attempt < 8; ++attempt)
+	{
+		std::shared_ptr<SharedMemory> header_shared_memory = SharedMemory::Create(header_name, required_size);
+
+		try
+		{
+			auto stream = StructStream(header_shared_memory);
+			return LocalMessageBroker::Create(stream, memory_blocks);
+		}
+		catch (const std::runtime_error &ex)
+		{
+			header_shared_memory->Destroy();
+			header_shared_memory.reset();
+
+			std::string_view message(ex.what());
+			if (message.find("StructStream::Extract exceeded buffer capacity") == std::string_view::npos)
+				throw;
+
+			required_size = AlignUp(required_size * 3 / 2, MEMORY_ALIGNMENT);
+		}
+	}
+
+	throw std::runtime_error("Failed to allocate sufficient header memory for LocalMessageBroker");
 }
 
 std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Open(StructStream &stream)
@@ -260,13 +329,85 @@ std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Open(StructStream &strea
 	));
 }
 
-std::size_t LocalMessageBroker::CalculateBufferSize()
+std::size_t LocalMessageBroker::CalculateBufferSize(const std::vector<std::shared_ptr<Memory>> &memory_blocks, std::size_t initial_offset)
 {
-	return 0;
+	auto advance = [](std::size_t &offset, std::size_t alignment, std::size_t size)
+	{
+		offset = AlignUp(offset, alignment);
+		offset += size;
+	};
+
+	std::size_t offset = initial_offset;
+
+	advance(offset, alignof(std::array<std::uint8_t, 4>), sizeof(std::array<std::uint8_t, 4>));
+	advance(offset, alignof(MessageBrokerHeader), sizeof(MessageBrokerHeader));
+
+	for (int i = 0; i < 3; ++i)
+		advance(offset, alignof(std::size_t), sizeof(std::size_t));
+	offset = AlignUp(offset, alignof(std::atomic<std::uint8_t>));
+	advance(offset, 1, HashMapEntrySize() * TOPIC_HASH_MAP_SIZE);
+
+	offset = AlignUp(offset, alignof(PoolAllocator::BlockHandle));
+	advance(offset, alignof(std::array<std::uint8_t, 4>), sizeof(std::array<std::uint8_t, 4>));
+	advance(offset, alignof(std::uint32_t), sizeof(std::uint32_t));
+	advance(offset, alignof(std::atomic<PoolAllocator::BlockHandle>), sizeof(std::atomic<PoolAllocator::BlockHandle>));
+	advance(offset, alignof(std::atomic<PoolAllocator::BlockHandle>), sizeof(std::atomic<PoolAllocator::BlockHandle>) * MAX_NUM_MESSAGES);
+	advance(offset, alignof(std::atomic_size_t), sizeof(std::atomic_size_t) * MAX_NUM_MESSAGES);
+
+	advance(offset, alignof(std::array<std::uint8_t, 4>), sizeof(std::array<std::uint8_t, 4>));
+	advance(offset, alignof(std::max_align_t), Event::GetSharedStateSize());
+
+	const std::size_t allocator_min_size = std::min<std::size_t>(MIN_SIZE_POOL, MEMORY_ALIGNMENT * 64);
+
+	for (const auto &memory_block : memory_blocks)
+	{
+		if (!memory_block)
+			continue;
+
+		const std::size_t capacity = round_down_to_power_of_2(memory_block->GetCapacity());
+
+		advance(offset, alignof(std::array<std::uint8_t, 4>), sizeof(std::array<std::uint8_t, 4>));
+		advance(offset, alignof(std::size_t), sizeof(std::size_t));
+		advance(offset, alignof(std::size_t), sizeof(std::size_t));
+		advance(offset, alignof(std::size_t), sizeof(std::size_t));
+
+		advance(offset, alignof(std::array<std::uint8_t, 4>), sizeof(std::array<std::uint8_t, 4>));
+		advance(offset, alignof(std::size_t), sizeof(std::size_t));
+		advance(offset, alignof(std::size_t), sizeof(std::size_t));
+
+		const std::size_t ratio = std::max<std::size_t>(std::size_t(1), capacity / allocator_min_size);
+		const std::size_t depth = BitWidth(ratio) ? BitWidth(ratio) - 1 : 0;
+		const std::size_t node_count = 1ull << (depth + 1);
+
+		advance(offset, alignof(std::atomic_uint16_t), sizeof(std::atomic_uint16_t) * node_count);
+		advance(offset, alignof(std::atomic_size_t), sizeof(std::atomic_size_t) * (depth + 1));
+
+		advance(offset, HybridPoolAllocator::PoolAlignment(), HybridPoolAllocator::PoolStorageSize() * node_count);
+
+		advance(offset, alignof(MemoryType), sizeof(MemoryType));
+
+		switch (memory_block->GetMemoryType())
+		{
+			case MemoryType::SharedMemory:
+				advance(offset, alignof(char), SHARED_MEMORY_FNAME_SIZE);
+				break;
+			case MemoryType::LocalMemory:
+				advance(offset, alignof(char *), sizeof(char *));
+				advance(offset, alignof(std::size_t), sizeof(std::size_t));
+				advance(offset, alignof(int), sizeof(int));
+				break;
+			default:
+				throw std::runtime_error("Unsupported memory type when calculating LocalMessageBroker header size.");
+		}
+	}
+
+	return offset;
 }
 
 Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
 {
+
+	
 	// Allocate a payload.
 	auto allocator = GetAllocator(memory_block_id);
 
@@ -352,7 +493,9 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 	DEBUG_PRINT("Publishing message.");
 
 	if (message.m_HasBeenPublished)
-		throw std::runtime_error("Message has already been published.");
+	{
+		return message;
+	}
 
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
@@ -450,11 +593,13 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 
 	m_Event->Signal();
 
-	// Deallocate the message header and payload.
-	PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
-	m_MessageHeaderAllocator->Release(message_header_index);
-
-	allocator->Release(message.m_Header->payload_info.block_handle);
+	if (!is_final)
+	{
+		// For non-final messages, deallocate the message header and payload.
+		PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
+		m_MessageHeaderAllocator->Release(message_header_index);
+		allocator->Release(message.m_Header->payload_info.block_handle);
+	}
 
 	if (!is_final)
 	{
@@ -498,6 +643,7 @@ Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame
 	auto memory = GetMemory(header->payload_info.memory_block_id);
 	auto payload = memory->GetAddress(offset);
 
+
 	return Message(header, payload, frame_id, true);
 }
 
@@ -537,11 +683,13 @@ std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, si
 std::optional<Message> LocalMessageBroker::GetCurrentMessage(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
+	auto last = topic_header->last_frame_id.load(std::memory_order_relaxed);
 
-	if (topic_header->last_frame_id == 0)
+
+	if (last == 0)
 		return std::nullopt;
 
-	auto frame_id = topic_header->last_frame_id - 1;
+	auto frame_id = last - 1;
 
 	return FetchMessage(topic_header, frame_id);
 }
@@ -572,7 +720,41 @@ std::optional<Message> LocalMessageBroker::TryGetNextMessage(std::string_view to
 	if (!topic_header->IsMessageAvailable(frame_id))
 		return std::nullopt;
 
-	return FetchMessage(topic_header, frame_id);
+	auto next_frame_id = topic_header->next_frame_id.load(std::memory_order_relaxed);
+	if (frame_id >= next_frame_id)
+		return std::nullopt;
+
+	std::size_t slot = frame_id % TOPIC_MAX_NUM_MESSAGES;
+	auto message_handle = topic_header->message_headers[slot];
+	if (message_handle == PoolAllocator::INVALID_HANDLE)
+		return std::nullopt;
+
+	if (message_handle >= MAX_NUM_MESSAGES)
+		return std::nullopt;
+
+	auto &message_header = m_MessageHeaders[message_handle];
+
+	if (message_header.payload_info.memory_block_id >= m_MemoryBlocks.size())
+		return std::nullopt;
+
+	if (message_header.payload_info.block_handle == HybridPoolAllocator::INVALID_HANDLE)
+		return std::nullopt;
+
+	if (message_header.payload_info.total_size == 0)
+		return std::nullopt;
+
+	const auto &array_info = message_header.payload_info.array_info;
+	if (array_info.item_size == 0 && array_info.ndim == 0)
+		return std::nullopt;
+
+	if (message_header.topic[0] == '\0')
+		return std::nullopt;
+
+	auto message = FetchMessage(topic_header, frame_id);
+	message.m_FrameId = frame_id;
+	const auto &info = message.GetArrayInfo();
+
+	return message;
 }
 
 ShareableType LocalMessageBroker::GetType() const
@@ -664,12 +846,13 @@ TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 	DEBUG_PRINT("Topic header not found: creating a new one.");
 
 	// The topic header doesn't exist, so create it.
-	TopicHeader temp_topic_header;
+	TopicHeader temp_topic_header{};
 
 	temp_topic_header.next_frame_id = 0;
 	temp_topic_header.first_frame_id = 0;
 	temp_topic_header.last_frame_id = 0;
 	temp_topic_header.frame_rate = 0.0;
+	temp_topic_header.message_headers.fill(PoolAllocator::INVALID_HANDLE);
 
 	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
 

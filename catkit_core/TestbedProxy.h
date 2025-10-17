@@ -94,7 +94,7 @@ private:
 	bool m_HasGottenInfo;
 
 	std::shared_ptr<DataStream> m_HeartbeatStream;
-	std::shared_ptr<SharedMemory> m_MessageBrokerHeader;
+	std::shared_ptr<Memory> m_MessageBrokerHeader;
 	std::shared_ptr<MessageBroker> m_MessageBroker;
 
 	bool m_IsSimulated;

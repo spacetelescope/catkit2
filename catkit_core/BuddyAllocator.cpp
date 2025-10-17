@@ -11,7 +11,7 @@
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
 
-const std::array<std::uint8_t, 4> BUDDY_ALLOCATOR_VERSION = {0, 0, 0, 0};
+const std::array<std::uint8_t, 4> BUDDY_ALLOCATOR_VERSION = {0, 7, 0, 0};
 
 const std::uint16_t REF_ZERO = 1ull << 15;
 const std::uint16_t OCC = 1ull << 14;

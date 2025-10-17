@@ -8,7 +8,7 @@ logging.level = "INFO"
 
 [project]
 name = "catkit2"
-version = "0.0.1"
+version = "0.7.0"
 authors = [
   {name = "E.H. Por et al."},
 ]

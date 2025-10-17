@@ -1,6 +1,7 @@
 #include "Event.h"
 #include "Timing.h"
 #include "LocalMemory.h"
+#include "benchmark_constants.h"
 
 #include <thread>
 #include <atomic>
@@ -12,6 +13,8 @@
 #include <vector>
 #include <numeric>
 #include <cmath>
+
+const size_t BUFFER_SIZE = MEGABYTE;
 
 #ifdef _WIN32
 #include <windows.h>
@@ -152,7 +155,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Create the buffer.
-	buffer = LocalMemory::Create(1024 * 1024);
+	buffer = LocalMemory::Create(BUFFER_SIZE);
 
 	std::size_t num_cores = std::thread::hardware_concurrency();
 

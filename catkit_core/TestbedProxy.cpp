@@ -3,10 +3,13 @@
 #include "Timing.h"
 #include "HostName.h"
 #include "LocalMessageBroker.h"
+#include "LocalMemory.h"
 #include "testbed.pb.h"
 
+#include <exception>
 #include <memory>
 #include <regex>
+#include <vector>
 
 using namespace std;
 using namespace zmq;
@@ -14,6 +17,40 @@ using json = nlohmann::json;
 using namespace std::string_literals;
 
 const double HEARTBEAT_LIVENESS = 30;
+
+namespace
+{
+	constexpr std::size_t REMOTE_BROKER_HEADER_BYTES = 64 * 1024 * 1024;
+	constexpr std::size_t REMOTE_BROKER_BUFFER_BYTES = 256 * 1024 * 1024;
+
+	std::shared_ptr<LocalMessageBroker> CreateInProcessBroker(std::shared_ptr<Memory> &header_out)
+	{
+		auto header_memory = LocalMemory::Create(REMOTE_BROKER_HEADER_BYTES);
+		StructStream stream(header_memory);
+
+		std::vector<std::shared_ptr<Memory>> memory_blocks;
+		memory_blocks.push_back(LocalMemory::Create(REMOTE_BROKER_BUFFER_BYTES));
+
+		auto broker = LocalMessageBroker::Create(stream, memory_blocks);
+		header_out = header_memory;
+
+		return broker;
+	}
+
+	std::string ReplaceHostPlaceholder(std::string value, const std::string &host)
+	{
+		const std::string placeholder = "{host}";
+		size_t pos = value.find(placeholder);
+
+		while (pos != std::string::npos)
+		{
+			value.replace(pos, placeholder.size(), host);
+			pos = value.find(placeholder, pos + host.size());
+		}
+
+		return value;
+	}
+}
 
 TestbedProxy::TestbedProxy(std::string host, int port)
 	: Client(host, port), m_Host(host), m_Port(port), m_HasGottenInfo(false)
@@ -50,9 +87,13 @@ void TestbedProxy::StartService(const std::string &service_id)
 	{
 		reply.ParseFromString(MakeRequest("start_service", Serialize(request)));
 	}
+	catch (const std::exception &e)
+	{
+		throw std::runtime_error(string("Unable to start service: ") + e.what());
+	}
 	catch (...)
 	{
-		throw std::runtime_error("Unable to start service.");
+		throw std::runtime_error("Unable to start service: unknown error");
 	}
 }
 
@@ -73,9 +114,13 @@ void TestbedProxy::StopService(const std::string &service_id)
 	{
 		reply.ParseFromString(MakeRequest("stop_service", Serialize(request)));
 	}
+	catch (const std::exception &e)
+	{
+		throw std::runtime_error(string("Unable to stop service: ") + e.what());
+	}
 	catch (...)
 	{
-		throw std::runtime_error("Unable to stop service.");
+		throw std::runtime_error("Unable to stop service: unknown error");
 	}
 }
 
@@ -90,9 +135,13 @@ void TestbedProxy::InterruptService(const std::string &service_id)
 	{
 		reply.ParseFromString(MakeRequest("interrupt_service", Serialize(request)));
 	}
+	catch (const std::exception &e)
+	{
+		throw std::runtime_error(string("Unable to interrupt service: ") + e.what());
+	}
 	catch (...)
 	{
-		throw std::runtime_error("Unable to interrupt service.");
+		throw std::runtime_error("Unable to interrupt service: unknown error");
 	}
 }
 
@@ -107,9 +156,13 @@ void TestbedProxy::TerminateService(const std::string &service_id)
 	{
 		reply.ParseFromString(MakeRequest("terminate_service", Serialize(request)));
 	}
+	catch (const std::exception &e)
+	{
+		throw std::runtime_error(string("Unable to terminate service: ") + e.what());
+	}
 	catch (...)
 	{
-		throw std::runtime_error("Unable to terminate service.");
+		throw std::runtime_error("Unable to terminate service: unknown error");
 	}
 }
 
@@ -157,9 +210,13 @@ std::string TestbedProxy::RegisterService(std::string service_id, std::string se
 	{
 		reply.ParseFromString(MakeRequest("register_service", Serialize(request)));
 	}
+	catch (const std::exception &e)
+	{
+		throw std::runtime_error(string("Service could not be registered: ") + e.what());
+	}
 	catch (...)
 	{
-		throw std::runtime_error("Service could not be registered.");
+		throw std::runtime_error("Service could not be registered: unknown error");
 	}
 
 	return reply.state_stream_id();
@@ -381,9 +438,32 @@ void TestbedProxy::GetTestbedInfo()
 
 	m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
 
-	m_MessageBrokerHeader = SharedMemory::Open(reply.message_broker_id());
-	StructStream stream = StructStream(m_MessageBrokerHeader);
-	m_MessageBroker = LocalMessageBroker::Open(stream);
+	std::shared_ptr<LocalMessageBroker> local_broker;
+	bool has_local_broker = false;
+	std::exception_ptr local_broker_exception;
+
+	try
+	{
+		m_MessageBrokerHeader = SharedMemory::Open(reply.message_broker_id());
+		StructStream stream = StructStream(m_MessageBrokerHeader);
+		local_broker = LocalMessageBroker::Open(stream);
+		has_local_broker = true;
+	}
+	catch (...)
+	{
+		local_broker_exception = std::current_exception();
+	}
+
+	// Use local shared memory broker (multi-remote support is handled by Testbed)
+	if (!has_local_broker)
+	{
+		if (local_broker_exception)
+			std::rethrow_exception(local_broker_exception);
+
+		throw std::runtime_error("Failed to open message broker shared memory.");
+	}
+
+	m_MessageBroker = local_broker;
 
 	m_LoggingIngressPort = reply.logging_ingress_port();
 	m_LoggingEgressPort = reply.logging_egress_port();

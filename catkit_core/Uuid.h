@@ -3,6 +3,7 @@
 
 #include <random>
 #include <string>
+#include <string_view>
 #include <array>
 
 struct Uuid
@@ -10,6 +11,7 @@ struct Uuid
 	std::array<unsigned char, 16> data;
 
 	static void Generate(Uuid *uuid);
+	static Uuid FromString(std::string_view str);
 
 	bool operator==(const Uuid &other) const;
 	bool operator!=(const Uuid &other) const;

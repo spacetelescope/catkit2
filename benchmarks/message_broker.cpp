@@ -2,16 +2,19 @@
 
 #include "LocalMemory.h"
 #include "LocalMessageBroker.h"
+#include "benchmark_constants.h"
 
 const size_t NUM_MESSAGES = 10000000;
+const size_t BUFFER_SIZE = LARGE_BUFFER_SIZE;      // 512 MB
+const size_t MEMORY_BLOCK_SIZE = MEDIUM_BUFFER_SIZE;  // 128 MB
 
 int main(int argc, char *argv[])
 {
-	auto buffer = LocalMemory::Create(1024 * 1024 * 512);
+	auto buffer = LocalMemory::Create(BUFFER_SIZE);
 	auto stream = StructStream(buffer);
 
 	std::vector<std::shared_ptr<Memory>> memory_blocks;
-	memory_blocks.push_back(LocalMemory::Create(stream, 1024 * 1024 * 128));
+	memory_blocks.push_back(LocalMemory::Create(stream, MEMORY_BLOCK_SIZE));
 
 	auto message_broker = LocalMessageBroker::Create(stream, memory_blocks);
 

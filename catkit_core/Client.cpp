@@ -10,6 +10,7 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <mutex>
 
@@ -33,6 +34,20 @@ string Client::MakeRequest(const string &what, const string &request)
 
 	zmq::multipart_t request_msg;
 
+	// Build a request in the form expected by the server:
+	// Each request should contain a request id, an empty delimiter frame,
+	// the request type and the request payload. The ROUTER socket on the
+	// server side will prepend the client identity, resulting in five
+	// frames received by Server::RunInternal: identity, request_id, "",
+	// type, data.
+	// Create a simple request id using a timestamp + thread id to reduce
+	// collision likelihood.
+	auto now = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+	std::ostringstream rid;
+	rid << now << "-" << std::this_thread::get_id();
+
+	request_msg.addstr(rid.str());
+	request_msg.addstr("");
 	request_msg.addstr(what);
 	request_msg.addstr(request);
 
@@ -51,7 +66,31 @@ string Client::MakeRequest(const string &what, const string &request)
 			throw std::runtime_error("The server did not respond in time. Is it running?");
 		}
 
-		if (reply_msg.size() != 2)
+		// Accept two formats for replies:
+		//  - [reply_type, reply_data] (2 frames)
+		//  - [request_id, "", reply_type, reply_data] (4 frames) where a ROUTER
+		//    socket passes along the request id and empty delimiter. In the
+		//    latter case strip the first two frames.
+		if (reply_msg.size() == 4)
+		{
+			try
+			{
+				// Peek at the second frame to see if it's the empty delimiter.
+				std::string possible_reqid = reply_msg.popstr();
+				std::string possible_empty = reply_msg.popstr();
+
+				if (!possible_empty.empty())
+				{
+					LOG_ERROR("The server responded with 4 parts but the second was not empty.\n");
+					throw std::runtime_error("The server responded in a wrong format.");
+				}
+			}
+			catch (...) {
+				LOG_ERROR("Error while processing 4-frame reply.");
+				throw std::runtime_error("The server responded in a wrong format.");
+			}
+		}
+		else if (reply_msg.size() != 2)
 		{
 			LOG_ERROR("The server responded with " + std::to_string(reply_msg.size()) + " parts rather than 2.");
 			throw std::runtime_error("The server responded in a wrong format.");

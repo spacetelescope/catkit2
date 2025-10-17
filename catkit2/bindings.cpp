@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 #include <variant>
-#include <charconv>
 
 #include "DataStream.h"
 #include "Timing.h"
@@ -36,6 +35,7 @@
 #include "Uuid.h"
 #include "ArrayView.h"
 #include "ProcessStats.h"
+#include "Util.h"
 
 #include "testbed.pb.h"
 
@@ -275,19 +275,82 @@ py::object ToPython(const Value &value)
 
 py::dtype DtypeToPython(const ArrayInfo *array_info)
 {
-	char dtype_buf[6];
-	dtype_buf[0] = array_info->byte_order;
-	dtype_buf[1] = array_info->data_type;
+	const char order = array_info->byte_order == 0 ? '=' : array_info->byte_order;
+	std::string format;
 
-	auto [ptr, ec] = std::to_chars(dtype_buf + 2, dtype_buf + sizeof(dtype_buf) - 1, array_info->item_size);
-	if (ec != std::errc())
+	if (order != '|')
+		format.push_back(order);
+
+	switch (array_info->data_type)
 	{
-		auto error_message = std::make_error_code(ec).message();
-		throw std::runtime_error("Failed to convert item size to string: " + error_message);
+		case 'u':
+		{
+			switch (array_info->item_size)
+			{
+				case 1: format.push_back('B'); break;
+				case 2: format.push_back('H'); break;
+				case 4: format.push_back('I'); break;
+				case 8: format.push_back('Q'); break;
+				default:
+					throw std::runtime_error("Unsupported unsigned integer item size");
+			}
+			break;
+		}
+		case 'i':
+		{
+			switch (array_info->item_size)
+			{
+				case 1: format.push_back('b'); break;
+				case 2: format.push_back('h'); break;
+				case 4: format.push_back('i'); break;
+				case 8: format.push_back('q'); break;
+				default:
+					throw std::runtime_error("Unsupported signed integer item size");
+			}
+			break;
+		}
+		case 'f':
+		{
+			switch (array_info->item_size)
+			{
+				case 2: format.push_back('e'); break; // float16
+				case 4: format.push_back('f'); break;
+				case 8: format.push_back('d'); break;
+				default:
+					throw std::runtime_error("Unsupported float item size");
+			}
+			break;
+		}
+		case 'c':
+		{
+			format.push_back('Z');
+			switch (array_info->item_size)
+			{
+				case 8: format.push_back('f'); break;  // complex64
+				case 16: format.push_back('d'); break; // complex128
+				default:
+					throw std::runtime_error("Unsupported complex item size");
+			}
+			break;
+		}
+		case '?':
+			format.push_back('?');
+			break;
+		case 'S':
+		case 'U':
+		{
+			// NumPy expects a size suffix for string types.
+			format.push_back(array_info->data_type);
+			format += std::to_string(array_info->item_size);
+			return py::dtype(format);
+		}
+		default:
+		{
+			throw std::runtime_error(std::string("Unsupported ArrayInfo data type: ") + array_info->data_type);
+		}
 	}
-	*ptr = '\0';
 
-	return py::dtype(dtype_buf);
+	return py::dtype(format);
 }
 
 py::array ToPython(const ArrayView &array)
@@ -1082,33 +1145,21 @@ PYBIND11_MODULE(catkit_bindings, m)
 		{
 			auto res = subscription.TryGetNextMessage();
 			if (res)
-				return py::cast(res.value());
+			{
+				Message msg = std::move(*res);
+				return py::cast(std::move(msg));
+			}
 
 			return py::none();
 		});
 
-	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
-		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
-		{
-			auto stream = StructStream(header);
-			auto broker = LocalMessageBroker::Create(stream, memory_blocks);
-
-			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
-		})
-		.def_static("open", [](std::shared_ptr<Memory> memory)
-		{
-			auto stream = StructStream(memory);
-			auto broker = LocalMessageBroker::Open(stream);
-
-			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
-		})
-		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, std::uint8_t memory_block_id)
+	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker")
+		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string &topic, size_t payload_size, std::uint8_t memory_block_id)
 		{
 			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
-
 			return message;
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("memory_block_id") = 0)
-		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
+		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string &topic, size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
 			{
@@ -1119,11 +1170,11 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return broker->PrepareMessage(topic, payload_size, py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("publish_message", [](std::shared_ptr<LocalMessageBroker> broker, Message& message, bool is_final)
+		.def("publish_message", [](std::shared_ptr<MessageBroker> broker, Message &message, bool is_final)
 		{
 			broker->PublishMessage(message, is_final);
 		}, py::arg("message"), py::arg("is_final") = true)
-		.def("publish_data", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
+		.def("publish_data", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
 			{
@@ -1134,31 +1185,28 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("data"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("publish_array", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::array array, py::object trace_id, std::uint8_t memory_block_id)
+		.def("publish_array", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::array array, py::object trace_id, std::uint8_t memory_block_id)
 		{
-			ArrayInfo info;
+			py::buffer_info buffer_info = array.request();
 
-			auto dtype = array.dtype();
-			info.data_type = dtype.kind();
-			info.item_size = dtype.itemsize();
-			info.byte_order = dtype.byteorder();
-
-			if (array.ndim() > MAX_NUM_DIMENSIONS)
+			if (buffer_info.ndim > static_cast<py::ssize_t>(MAX_NUM_DIMENSIONS))
 				throw std::runtime_error("Array dimension is too large.");
 
-			info.ndim = array.ndim();
+			ArrayInfo info{};
+			info = FormatStringToDtype(buffer_info.format);
+			info.item_size = static_cast<std::uint8_t>(buffer_info.itemsize);
+			info.ndim = static_cast<std::uint8_t>(buffer_info.ndim);
 
-			for (size_t i = 0; i < info.ndim; ++i)
+			for (std::size_t i = 0; i < info.ndim; ++i)
 			{
-				info.shape[i] = array.shape()[i];
-				info.strides[i] = array.strides()[i];
+				info.shape[i] = static_cast<std::uint32_t>(buffer_info.shape[i]);
+				info.strides[i] = static_cast<std::uint32_t>(buffer_info.strides[i]);
 			}
 
 			if (!info.IsCContiguous() && !info.IsFContiguous())
 				throw std::runtime_error("Array has to be either C or F contiguous.");
 
-			// All checks are complete. Let's copy/submit the raw data.
-			const ArrayView array_view{info, array.mutable_data()};
+			const ArrayView array_view{info, buffer_info.ptr};
 			if (trace_id.is_none())
 			{
 				broker->PublishArray(topic, array_view, memory_block_id);
@@ -1168,31 +1216,19 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("try_get_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
-		{
-			auto res = broker->TryGetMessage(topic, frame_id);
-			if (res)
-				return py::cast(res.value());
-
-			return py::none();
-		}, py::arg("topic"), py::arg("frame_id"))
-		.def("get_current_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
+		.def("get_current_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic) -> py::object
 		{
 			auto res = broker->GetCurrentMessage(topic);
-			if (res)
-				return py::cast(res.value());
+			if (!res)
+				return py::none();
 
-			return py::none();
+			Message message = std::move(res.value());
+			return py::cast(std::move(message));
 		}, py::arg("topic"))
-		.def("is_message_available", &LocalMessageBroker::IsMessageAvailable)
-		.def("will_message_be_available", &LocalMessageBroker::WillMessageBeAvailable)
-		.def("get_newest_message_id", &LocalMessageBroker::GetNewestMessageId)
-		.def("get_oldest_message_id", &LocalMessageBroker::GetOldestMessageId)
-		.def("get_message_rate", &LocalMessageBroker::GetMessageRate)
-		.def("get_all_message_topics", &LocalMessageBroker::GetAllMessageTopics)
-		.def("subscribe", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::object preferred_next_frame_id, MessageSubscriptionMode mode)
+		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
+		.def("get_message_rate", &MessageBroker::GetMessageRate)
+		.def("subscribe", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::object preferred_next_frame_id, MessageSubscriptionMode mode)
 		{
-			// Check if the starting frame ID is a number or None.
 			if (preferred_next_frame_id.is_none())
 			{
 				return broker->Subscribe(topic, mode);
@@ -1202,6 +1238,45 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return broker->Subscribe(topic, py::cast<std::uint64_t>(preferred_next_frame_id), mode);
 			}
 		}, py::arg("topic"), py::arg("preferred_next_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
+
+	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>, MessageBroker>(m, "LocalMessageBroker")
+		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
+		{
+			// Create StructStream from the header memory and use the existing Create function
+			auto stream = StructStream(header);
+			auto broker = LocalMessageBroker::Create(stream, memory_blocks);
+
+			return broker;
+		})
+		.def_static("calculate_required_header_size", [](std::vector<std::shared_ptr<Memory>> memory_blocks)
+		{
+			auto required = LocalMessageBroker::CalculateBufferSize(memory_blocks);
+			return py::int_(required);
+		})
+		.def_static("open", [](std::shared_ptr<Memory> memory)
+		{
+			auto stream = StructStream(memory);
+			auto broker = LocalMessageBroker::Open(stream);
+
+			return broker;
+		})
+		.def("try_get_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
+		{
+			auto res = broker->TryGetMessage(topic, frame_id);
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		}, py::arg("topic"), py::arg("frame_id"))
+		.def("is_message_available", &LocalMessageBroker::IsMessageAvailable)
+		.def("will_message_be_available", &LocalMessageBroker::WillMessageBeAvailable)
+		.def("get_newest_message_id", &LocalMessageBroker::GetNewestMessageId)
+		.def("get_oldest_message_id", &LocalMessageBroker::GetOldestMessageId)
+		.def("get_message_rate", &LocalMessageBroker::GetMessageRate)
+		.def("get_all_message_topics", &LocalMessageBroker::GetAllMessageTopics);
+
+	// Deprecated RemoteMessageBroker and DistributedMessageBroker bindings removed
+	// Use MessageBroker.create_unified() instead
 
 	py::class_<PoolAllocator, std::shared_ptr<PoolAllocator>>(m, "PoolAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t capacity)
@@ -1284,6 +1359,16 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def("acquire", &HybridPoolAllocator::Acquire)
 		.def("release", &HybridPoolAllocator::Release);
+
+	m.def("_debug_message_broker_header_size", []()
+	{
+		return sizeof(MessageBrokerHeader);
+	});
+
+	m.def("_debug_topic_hash_map_size", []()
+	{
+		return HashMap::GetSharedStateSize(TOPIC_HASH_MAP_SIZE, TOPIC_MAX_KEY_SIZE, sizeof(TopicHeader));
+	});
 
 	py::class_<ProcessStats>(m, "ProcessStats")
 		.def(py::init<>())

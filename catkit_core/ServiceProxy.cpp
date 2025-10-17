@@ -29,7 +29,19 @@ ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string se
 
 	auto service_info = testbed->GetServiceInfo(m_ServiceId);
 
-	m_State = DataStream::Open(service_info.state_stream_id);
+	// Try to open the state stream, but don't fail if it doesn't exist
+	// (which indicates a remote service running on another testbed)
+	try
+	{
+		m_State = DataStream::Open(service_info.state_stream_id);
+	}
+	catch (const std::exception &e)
+	{
+		// State stream doesn't exist locally - likely a remote service.
+		// We'll proceed without it; monitoring will be handled remotely.
+		LOG_DEBUG("Could not open state stream for service "s + service_id + ": "s + e.what() + ". This service may be remote."s);
+		m_State = nullptr;
+	}
 
 	Connect();
 }
@@ -183,6 +195,13 @@ std::shared_ptr<DataStream> ServiceProxy::GetHeartbeat()
 
 ServiceState ServiceProxy::GetState()
 {
+	// For remote services (m_State is nullptr), we can't access the state stream.
+	// Assume the service is running; the remote testbed manages its actual state.
+	if (!m_State)
+	{
+		return ServiceState::RUNNING;
+	}
+
 	ServiceState state = ServiceState(m_State->GetLatestFrame().AsArray<std::int8_t>()(0));
 
 	return state;
@@ -335,7 +354,17 @@ void ServiceProxy::Connect()
 	for (auto& [key, value] : reply.datastream_ids())
 		m_DataStreamIds[key] = value;
 
-	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
+	// Try to open the heartbeat stream, but don't fail if it doesn't exist
+	// (which may happen for remote services)
+	try
+	{
+		m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
+	}
+	catch (const std::exception &e)
+	{
+		LOG_DEBUG("Could not open heartbeat stream: "s + e.what());
+		m_Heartbeat = nullptr;
+	}
 
 	m_TimeLastConnect = frame.m_TimeStamp;
 	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");

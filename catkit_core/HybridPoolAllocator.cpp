@@ -8,7 +8,7 @@
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
 
-const std::array<std::uint8_t, 4> HYBRID_POOL_ALLOCATOR_VERSION = {0, 0, 0, 0};
+const std::array<std::uint8_t, 4> HYBRID_POOL_ALLOCATOR_VERSION = {0, 7, 0, 0};
 
 HybridPoolAllocator::HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::shared_ptr<BuddyAllocator> allocator, Pool *pools, std::shared_ptr<Memory> memory_block)
 	: Shareable(memory_block), m_Capacity(capacity), m_MinSize(min_size), m_MinSizePool(min_size_pool), m_Allocator(std::move(allocator)), m_Pools(pools)

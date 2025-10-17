@@ -1,14 +1,20 @@
 from catkit2.testbed.service import Service
+from catkit2.testbed.message_forwarder import serialize_array
 
 import time
 from hcipy import *
 import numpy as np
 import threading
+import logging
+
+log = logging.getLogger(__name__)
 
 class DummyCamera(Service):
+
     def __init__(self):
         super().__init__('dummy_camera')
 
+        self.acquisition_frame_rate = self.config.get('acquisition_frame_rate', 10)
         self.exposure_time = self.config['exposure_time']
         self.gain = self.config['gain']
         self._width = self.config['width']
@@ -24,27 +30,44 @@ class DummyCamera(Service):
         self.should_be_acquiring.set()
 
         self.pupil_grid = make_pupil_grid(128)
-        self.aperture = evaluate_supersampled(make_hicat_aperture(True), self.pupil_grid, 4)
+        self.aperture = evaluate_supersampled(
+            make_hicat_aperture(True), self.pupil_grid, 4
+        )
         self.wf = Wavefront(self.aperture)
         self.wf.total_power = 1
 
-        self.images = self.make_data_stream('images', 'uint16', [self.sensor_height, self.sensor_width], 20)
-        self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
+        self.images = self.make_data_stream(
+            'images', 'uint16',
+            [self.sensor_height, self.sensor_width], 20
+        )
+        self.temperature = self.make_data_stream(
+            'temperature', 'float64', [1], 20
+        )
 
-        self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], 20)
+        self.is_acquiring = self.make_data_stream(
+            'is_acquiring', 'int8', [1], 20
+        )
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
-        # self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
-        self.temperature_thread = threading.Thread(target=self.monitor_temperature)
+        self.temperature_thread = threading.Thread(
+            target=self.monitor_temperature
+        )
         self.temperature_thread.start()
 
         # Create properties
         def make_property_helper(name, read_only=False):
             if read_only:
-                self.make_property(name, lambda: getattr(self, name))
+                self.make_property(
+                    name, lambda: getattr(self, name)
+                )
             else:
-                self.make_property(name, lambda: getattr(self, name), lambda val: setattr(self, name, val))
+                self.make_property(
+                    name,
+                    lambda: getattr(self, name),
+                    lambda val: setattr(self, name, val)
+                )
 
+        make_property_helper('acquisition_frame_rate')
         make_property_helper('exposure_time')
         make_property_helper('gain')
 
@@ -88,20 +111,57 @@ class DummyCamera(Service):
 
     def acquisition_loop(self):
         self.is_acquiring.submit_data(np.array([1], dtype='int8'))
+        log.info('Entered acquisition_loop')
+
+        # Calculate frame period from frame rate
+        frame_period = 1.0 / self.acquisition_frame_rate
 
         while self.should_be_acquiring.is_set() and not self.should_shut_down:
+            frame_start_time = time.time()
+
             img = self.get_image()
+            img_arr = np.asarray(img)
+            log.info(f'Got image, shape={img_arr.shape}')
 
             # Make sure the data stream has the right size and datatype.
-            has_correct_parameters = np.allclose(self.images.shape, img.shape)
+            has_correct_parameters = np.allclose(
+                self.images.shape, img_arr.shape
+            )
 
             if not has_correct_parameters:
-                self.images.update_parameters('uint16', img.shape, 20)
+                self.images.update_parameters('uint16', img_arr.shape, 20)
 
             frame = self.images.request_new_frame()
             frame.data[:] = img
             self.images.submit_frame(frame.id)
-            time.sleep(self.exposure_time / 1e6)
+
+            # Publish image to message broker for remote access
+            try:
+                topic = f'{self.id}/images'
+
+                # Convert img to bytes with metadata - handle both numpy
+                # arrays and HCIPy Fields
+                if type(img).__name__ == 'Field':
+                    # HCIPy Field - convert to numpy array
+                    img_array = np.asarray(img, dtype=np.float64)
+                else:
+                    # Already a numpy array
+                    img_array = np.asarray(img)
+
+                # Serialize with metadata (dtype and shape)
+                data = serialize_array(img_array)
+
+                self.testbed.message_broker.publish_data(topic, data)
+            except Exception as e:
+                log.error(
+                    f'Failed to publish image to message broker: {e}'
+                )
+
+            # Throttle to frame rate
+            elapsed = time.time() - frame_start_time
+            sleep_time = frame_period - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
@@ -113,7 +173,9 @@ class DummyCamera(Service):
             self.sleep(0.1)
 
     def start_acquisition(self):
+        log.info('start_acquisition() called')
         self.should_be_acquiring.set()
+        log.info('should_be_acquiring flag set')
 
     def end_acquisition(self):
         self.should_be_acquiring.clear()
@@ -183,6 +245,7 @@ class DummyCamera(Service):
 
     def repeater(self, value):
         return value
+
 
 if __name__ == '__main__':
     try:

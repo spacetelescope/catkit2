@@ -4,6 +4,7 @@
 #include "Timing.h"
 #include "Util.h"
 #include "Tracing.h"
+#include "SharedMemory.h"
 
 #include <algorithm>
 #include <iostream>
@@ -19,7 +20,7 @@
 
 using namespace std;
 
-const std::array<char, 4> CURRENT_DATASTREAM_VERSION = {0, 2, 0, 0};
+const std::array<char, 4> CURRENT_DATASTREAM_VERSION = {0, 7, 0, 0};
 
 // Decay rate for the frame rate estimate in 1/sec.
 const double FRAMERATE_DECAY = 2.5;
@@ -87,9 +88,14 @@ DataStream::~DataStream()
 
 std::shared_ptr<DataStream> DataStream::Create(std::string_view stream_name, std::string_view service_id, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
+	// Calculate the total size needed for the StructStream
+	// This includes: version (4 bytes) + DataStreamHeader + SharedMemory filename (256 bytes) + Event::Header
+	// Add extra padding to account for alignment requirements
+	size_t total_size = sizeof(std::array<char, 4>) + sizeof(DataStreamHeader) + SHARED_MEMORY_FNAME_SIZE + Event::GetSharedStateSize() + DATASTREAM_HEADER_PADDING;
+
 	// Make shared memory for header.
 	std::string stream_id = MakeStreamId(stream_name, service_id, GetProcessId());
-	std::shared_ptr<SharedMemory> header_shared_memory = SharedMemory::Create(std::string(stream_id) + ".hdr", sizeof(DataStreamHeader));
+	std::shared_ptr<SharedMemory> header_shared_memory = SharedMemory::Create(std::string(stream_id) + ".hdr", total_size);
 
 	// Create the StructStream to read from the created shared memory object.
 	auto stream = StructStream(header_shared_memory);

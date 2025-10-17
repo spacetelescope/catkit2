@@ -1,6 +1,10 @@
 #include "MessageBroker.h"
 
 #include <cstring>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <typeinfo>
 
 #include "LocalMessageBroker.h"
 
@@ -22,6 +26,11 @@ const Uuid &Message::GetPayloadId() const
 std::uint64_t Message::GetFrameId() const
 {
 	return m_FrameId;
+}
+
+void Message::SetFrameId(std::uint64_t frame_id)
+{
+	m_FrameId = frame_id;
 }
 
 std::uint16_t Message::GetPartialFrameId() const
@@ -123,6 +132,19 @@ void Message::SetMetadataEntry(std::string_view key, std::string_view value)
 	value.copy(entry->value.string.data(), entry->value.string.size() - 1);
 }
 
+std::size_t Message::GetNumMetadataEntries() const
+{
+	return m_Header->num_metadata_entries;
+}
+
+const MetadataEntry &Message::GetMetadataEntry(std::size_t index) const
+{
+	if (index >= m_Header->num_metadata_entries)
+		throw std::out_of_range("Metadata index out of range");
+
+	return m_Header->metadata_entries[index];
+}
+
 const std::uint64_t Message::GetStartByte() const
 {
 	return m_Header->start_byte;
@@ -166,10 +188,33 @@ std::optional<Message> MessageSubscription::TryGetNextMessage()
 	auto message = m_MessageBroker->TryGetNextMessage(m_Topic, m_PreferredNextFrameId, m_SubscriptionMode);
 
 	if (!message.has_value())
+	{
 		return message;
+	}
+
+	auto frame_id = message->GetFrameId();
+	auto topic = m_Topic;
+
+	// Refresh message from local broker if available
+	if (auto local_broker = std::dynamic_pointer_cast<LocalMessageBroker>(m_MessageBroker))
+	{
+		if (auto refreshed = local_broker->TryGetMessage(topic, frame_id))
+		{
+			message = std::move(refreshed);
+		}
+	}
+
+	// Validate frame ID
+	constexpr std::uint64_t FRAME_ID_SANITY_LIMIT = std::uint64_t(1) << 40; // ~1e12
+	bool frame_id_invalid = (frame_id == INVALID_FRAME_ID) || (frame_id > FRAME_ID_SANITY_LIMIT);
+	if (frame_id_invalid)
+	{
+		frame_id = m_PreferredNextFrameId;
+		message->SetFrameId(frame_id);
+	}
 
 	// We are going to return a message. Update our frame id for the next call.
-	m_PreferredNextFrameId = message->GetFrameId() + 1;
+	m_PreferredNextFrameId = frame_id + 1;
 
 	return message;
 }
@@ -227,10 +272,11 @@ Message MessageBroker::PublishArray(std::string_view topic, ArrayView array, uin
 
 Message MessageBroker::PublishArray(std::string_view topic, ArrayView array, Uuid trace_id, uint8_t memory_block_id)
 {
-	auto message = PrepareMessage(topic, array.info.GetSizeInBytes(), trace_id, memory_block_id);
+	auto payload_bytes = array.info.GetSizeInBytes();
+	auto message = PrepareMessage(topic, payload_bytes, trace_id, memory_block_id);
 
 	// Copy over array and array info.
-	std::memcpy(message.m_Payload, array.data, array.info.GetSizeInBytes());
+	std::memcpy(message.m_Payload, array.data, payload_bytes);
 	message.SetArrayInfo(array.info);
 
 	PublishMessage(message);
@@ -242,11 +288,15 @@ MessageSubscription MessageBroker::Subscribe(std::string_view topic, MessageSubs
 {
 	auto current_message = GetCurrentMessage(topic);
 	auto starting_frame_id = current_message.has_value() ? current_message->GetFrameId() : 0;
+	auto shared_self = shared_from_this();
+	std::shared_ptr<MessageBroker> broker_ptr(shared_self, this);
 
-	return Subscribe(topic, starting_frame_id, mode);
+	return MessageSubscription(broker_ptr, topic, starting_frame_id, mode);
 }
 
 MessageSubscription MessageBroker::Subscribe(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode)
 {
-	return MessageSubscription(shared_from_this(), topic, preferred_next_frame_id, mode);
+	auto shared_self = shared_from_this();
+	std::shared_ptr<MessageBroker> broker_ptr(shared_self, this);
+	return MessageSubscription(broker_ptr, topic, preferred_next_frame_id, mode);
 }

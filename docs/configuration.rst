@@ -32,6 +32,29 @@ Several sections are used internally by the testbed service and simulator. These
 
 - ``simulator.yml``. This special directory is used by the simulator and typically contains all parameters used to match testbed hardware with the simulator (eg. optical magnifications, coronagraph mask parameters, inclinations of optical elements, camera pixel sizes and focal lengths of mirrors and lenses). This provides a clear separation between hardware and simulator.
 
+Remote message broker configuration
+-----------------------------------
+
+`testbed.yml` optionally supports a ``remote_message_broker`` section that mirrors
+message traffic between multiple machines. When enabled the testbed launches a
+``RemoteMessageBroker`` instance that connects to remote peers and republishes
+messages published by the standard shared-memory message broker.
+
+.. code-block:: YAML
+
+        remote_message_broker:
+            enabled: true
+            bind: tcp://*:7600
+            connect: tcp://{host}:7600
+            remote_prefixes:
+                - remote_dummy_camera/
+
+``bind`` specifies the ZeroMQ endpoint that the testbed should listen on for
+remote peers. ``connect`` is the template used by services to reach the
+testbed; ``{host}`` is replaced automatically with the hostname passed to
+``TestbedProxy``. ``remote_prefixes`` defines which topic prefixes are routed to
+the remote broker. Use an empty string (``""``) to forward all topics.
+
 Distribution
 ------------
 

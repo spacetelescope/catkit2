@@ -12,10 +12,12 @@ import fasteners
 import psutil
 import zmq
 import numpy as np
+import logging
 
 from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, SharedMemory, LocalMessageBroker, get_timestamp, is_alive_state, Client, get_host_name
 from .logging import *
 from .distributor import ZmqDistributor
+from .message_forwarder import MessageBrokerForwarder, MessageBrokerReceiver
 
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
@@ -97,6 +99,79 @@ def create_shared_memory(name, size):
         return SharedMemory.create(name, size)
 
 
+def _parse_broker_endpoint(endpoint):
+    """Parse broker endpoint strings and return (host, port, raw_endpoint).
+
+    Supports:
+      - tcp://host:port
+      - host:port
+      - IPv6 in brackets: [::1]:5555
+      - wildcard host: '*' or '*:5555' (host -> None meaning any)
+    Attempts DNS resolution for hostnames and returns the first
+    resolved address.
+
+    Returns (host_or_none, port_or_none, original_endpoint)
+    """
+    if not endpoint:
+        return (None, None, endpoint)
+
+    ep = endpoint.strip()
+
+    # Remove scheme if present
+    if '://' in ep:
+        ep = ep.split('://', 1)[1]
+
+    # IPv6 with brackets
+    host = None
+    port = None
+    if ep.startswith('['):
+        # [addr]:port
+        if ']:' in ep:
+            host_part, port_part = ep.split(']:', 1)
+            host = host_part[1:]
+            port = port_part
+        else:
+            host = ep[1:-1]
+            port = None
+    else:
+        # split on last ':' to allow IPv6 fallback if user omitted brackets
+        if ':' in ep and ep.count(':') == 1:
+            host_part, port_part = ep.rsplit(':', 1)
+            host = host_part
+            port = port_part
+        else:
+            # no port or ambiguous IPv6, treat entire ep as host
+            host = ep
+            port = None
+
+    # Wildcard handling
+    if host == '*' or host == '' or host is None:
+        host_resolved = None
+    else:
+        # Try to resolve DNS; prefer IPv4 address strings for simplicity
+        try:
+            import socket as _socket
+
+            infos = _socket.getaddrinfo(
+                host, None, family=_socket.AF_UNSPEC, type=_socket.SOCK_STREAM)
+            # pick first address family result
+            if infos:
+                addr = infos[0][4][0]
+                host_resolved = addr
+            else:
+                host_resolved = host
+        except Exception:
+            host_resolved = host
+
+    # Normalize port
+    try:
+        port_num = int(port) if port is not None and str(port) != '' else None
+    except Exception:
+        port_num = None
+
+    return (host_resolved, port_num, endpoint)
+
+
 class ServiceReference:
     '''A reference to a service running on another process.
 
@@ -150,7 +225,7 @@ class ServiceReference:
 
     @property
     def process(self):
-        if self.process_id is None:
+        if self.process_id is None or self.process_id == -1:
             return None
 
         try:
@@ -177,18 +252,68 @@ class ServiceReference:
         if self.process is None:
             return
 
-        # TODO: Linux/MacOS compatibility.
-        ctrl_c_code = ';'.join([
-            'import ctypes',
-            'kernel = ctypes.windll.kernel32',
-            'kernel.FreeConsole()',
-            'kernel.AttachConsole({pid})',
-            'kernel.SetConsoleCtrlHandler(None, 1)',
-            'kernel.GenerateConsoleCtrlEvent(0, 0)'
-        ])
+        # Cross-platform interrupt handling.
+        # On POSIX (Linux/macOS) send SIGINT to the process group so the
+        # target process receives a KeyboardInterrupt-equivalent.
+        # On Windows keep the existing approach that generates a console
+        # ctrl event via the ctypes API.
+        if not self.is_alive:
+            return
 
-        if self.is_alive:
-            psutil.Popen([sys.executable, '-c', ctrl_c_code.format(pid=self.process.pid)])
+        try:
+            if os.name == 'posix':
+                import signal
+
+                try:
+                    # Send SIGINT to the process group of the child so all
+                    # subprocesses in the group receive the interrupt.
+                    pgid = os.getpgid(self.process.pid)
+                    if pgid == os.getpgrp():
+                        # Child is in the same group as us; avoid interrupting self.
+                        os.kill(self.process.pid, signal.SIGINT)
+                    else:
+                        os.killpg(pgid, signal.SIGINT)
+                except AttributeError:
+                    # Fallback: no process group support, send SIGINT to pid.
+                    os.kill(self.process.pid, signal.SIGINT)
+            elif os.name == 'nt':
+                # Windows: generate console ctrl event via ctypes.
+                ctrl_c_code = ';'.join([
+                    'import ctypes',
+                    'kernel = ctypes.windll.kernel32',
+                    'kernel.FreeConsole()',
+                    'kernel.AttachConsole({pid})',
+                    'kernel.SetConsoleCtrlHandler(None, 1)',
+                    'kernel.GenerateConsoleCtrlEvent(0, 0)'
+                ])
+
+                ctrl_cmd = ctrl_c_code.format(pid=self.process.pid)
+                psutil.Popen([sys.executable, '-c', ctrl_cmd])
+            else:
+                # Unknown OS: attempt POSIX-style SIGINT as a best-effort.
+                import signal
+                os.kill(self.process.pid, signal.SIGINT)
+        except (OSError, psutil.NoSuchProcess, PermissionError):
+            # If anything goes wrong, fall back to terminating the process
+            # to avoid leaving it stuck. The caller can choose to escalate.
+            try:
+                if self.process:
+                    self.process.terminate()
+            except (OSError, psutil.NoSuchProcess, PermissionError) as term_exc:
+                # Use self.log with lazy formatting to avoid long lines
+                try:
+                    pid = self.process.pid if self.process else 'unknown'
+                    self.log.warning(
+                        "Failed to terminate process %s: %s", pid, term_exc
+                    )
+                except Exception:
+                    # Fallback if logging isn't set up
+                    pid = self.process.pid if self.process else 'unknown'
+                    print(
+                        "Warning: Failed to terminate process %s: %s"
+                        % (pid, term_exc),
+                        file=sys.stderr,
+                    )
 
     def terminate(self):
         '''Terminate the service.
@@ -201,6 +326,7 @@ class ServiceReference:
         except psutil.NoSuchProcess:
             # Process was already shut down by itself.
             pass
+
 
 class Testbed:
     '''Manages services.
@@ -242,6 +368,24 @@ class Testbed:
         self.is_simulated = is_simulated
         self.config = config
 
+        # Map of named remote testbeds from configuration (name -> {'endpoint','host','port'})
+        self.remote_testbeds = {}
+        remote_brokers_config = self.config.get('testbed', {}).get('remote_message_brokers', {})
+        if remote_brokers_config.get('enabled'):
+            for conn in remote_brokers_config.get('connections', []):
+                name = conn.get('name')
+                endpoint = conn.get('endpoint')
+                if not name or not endpoint:
+                    continue
+
+                host, port, raw = _parse_broker_endpoint(endpoint)
+
+                self.remote_testbeds[name] = {
+                    'endpoint': endpoint,
+                    'host': host,
+                    'port': port
+                }
+
         self.services = {}
         self.launched_processes = []
 
@@ -250,6 +394,9 @@ class Testbed:
         self.log_forwarder = None
 
         self.tracing_distributor = None
+        
+        self.message_forwarder = None
+        self.message_receiver = None
 
         self.log = logging.getLogger(__name__)
 
@@ -267,8 +414,14 @@ class Testbed:
             self.startup_services.append('simulator')
 
         # Create a message broker.
-        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', 1024 * 1024 * 1024)
         self.message_broker_buffer = create_shared_memory(f'catkit_broker_{port}.buf', 1024 * 1024 * 1024 * 2)
+
+        required_header_bytes = LocalMessageBroker.calculate_required_header_size([self.message_broker_buffer])
+        # Align to 1 MiB to avoid excessive reallocations when configuration changes slightly.
+        alignment = 1024 * 1024
+        required_header_bytes = ((required_header_bytes + alignment - 1) // alignment) * alignment
+
+        self.message_broker_header = create_shared_memory(f'catkit_broker_{port}.hdr', required_header_bytes)
 
         self.message_broker = LocalMessageBroker.create(self.message_broker_header, [self.message_broker_buffer])
 
@@ -327,12 +480,16 @@ class Testbed:
                 # In some configurations of EntryPoint there is no 'module'
                 module = entry_point.value.split(':')[0]
 
-            spec = importlib.util.find_spec(module)
-            if spec is not None:
-                path = os.path.abspath(spec.origin)
-                self.register_service_type(entry_point.name, path)
-            else:
-                self.log.warning(f"Could not find spec for module: {module}")
+            try:
+                spec = importlib.util.find_spec(module)
+                if spec is not None:
+                    path = os.path.abspath(spec.origin)
+                    self.register_service_type(entry_point.name, path)
+                else:
+                    self.log.warning(
+                        f"Could not find spec for module: {module}")
+            except (ModuleNotFoundError, ImportError) as e:
+                self.log.warning(f"Could not import module {module}: {e}")
 
         # Create server instance and register request handlers.
         self.server = Server(port)
@@ -371,6 +528,10 @@ class Testbed:
 
             # Start tracing distributor.
             self.start_tracing_distributor()
+            
+            # Start message broker forwarding/receiving
+            self.start_message_forwarding()  # For remote testbeds
+            self.start_message_receiving()    # For main testbed
 
             heartbeat_thread = threading.Thread(target=self.do_heartbeats)
             heartbeat_thread.start()
@@ -417,6 +578,10 @@ class Testbed:
                 # Shut down the server.
                 self.server.stop()
 
+                # Stop message forwarding/receiving.
+                self.stop_message_forwarding()
+                self.stop_message_receiving()
+
                 # Stop tracing distributor.
                 self.stop_tracing_distributor()
 
@@ -447,12 +612,20 @@ class Testbed:
                     self.launched_processes.remove(process)
 
             for service_id, service in self.services.items():
+                # For remote services (process_id == -1), skip all local monitoring
+                is_remote = (service.process_id == -1)
+                
+                # Skip crash detection for remote services
                 if service.state not in [ServiceState.CLOSED, ServiceState.CRASHED, ServiceState.FAIL_SAFE]:
-                    if service.process is None:
+                    if service.process is None and not is_remote:
                         # The process is not running anymore, but its state indicates it's alive:
                         # it has crashed.
                         self.log.error(f'Service "{service.service_id}" appears to have crashed.')
                         service.state = ServiceState.CRASHED
+
+                # Skip heartbeat monitoring for remote services (no local heartbeat stream)
+                if is_remote or service.heartbeat is None:
+                    continue
 
                 if service.state == ServiceState.RUNNING:
                     heartbeat_time = service.heartbeat.get()[0]
@@ -529,6 +702,101 @@ class Testbed:
             self.tracing_distributor.stop()
             self.tracing_distributor = None
 
+    def start_message_forwarding(self):
+        '''Start message broker forwarding for remote services.
+        
+        This should be called on remote testbeds to forward their local
+        message broker messages to the main testbed.
+        '''
+        # Determine if we should forward messages (if we have topic prefixes)
+        remote_brokers_config = self.config.get('testbed', {}).get('remote_message_brokers', {})
+        
+        if not remote_brokers_config.get('enabled'):
+            return
+        
+        # For remote testbeds, we want to publish our messages for main testbed to subscribe
+        # Check if we're a remote testbed by looking for forwarder config
+        forwarder_config = remote_brokers_config.get('forwarder', {})
+        
+        if not forwarder_config.get('enabled'):
+            return
+        
+        # Get list of exact topics to forward
+        # For now, hardcode known topics (could be configured per service type)
+        topics_to_forward = []
+        for service_id in self.services.keys():
+            # Add known topics for camera services
+            if 'camera' in service_id.lower():
+                topics_to_forward.append(f'{service_id}/images')
+        
+        if not topics_to_forward:
+            self.log.warning('No topics to forward, message forwarding disabled')
+            return
+        
+        # Start forwarder
+        publish_port = forwarder_config.get('publish_port', 5555)
+        self.message_forwarder = MessageBrokerForwarder(
+            self.context,
+            self.message_broker,
+            publish_port,
+            topics_to_forward
+        )
+        self.message_forwarder.start()
+        self.log.info(f'Started message broker forwarder on port {publish_port}')
+    
+    def stop_message_forwarding(self):
+        '''Stop message broker forwarding.'''
+        if self.message_forwarder:
+            self.message_forwarder.stop()
+            self.message_forwarder = None
+    
+    def start_message_receiving(self):
+        '''Start receiving forwarded messages from remote testbeds.
+        
+        This should be called on the main testbed to receive messages
+        from remote testbeds.
+        '''
+        remote_brokers_config = self.config.get('testbed', {}).get('remote_message_brokers', {})
+        
+        if not remote_brokers_config.get('enabled'):
+            return
+        
+        # Build list of remote endpoints to subscribe to
+        remote_endpoints = []
+        for conn in remote_brokers_config.get('connections', []):
+            # Extract host from endpoint
+            endpoint = conn.get('endpoint', '')
+            if not endpoint:
+                continue
+            
+            # Parse endpoint to get host
+            # Format: "tcp://145.238.1.51:1234"
+            host = endpoint.split('://')[1].split(':')[0] if '://' in endpoint else endpoint.split(':')[0]
+            
+            # Use forwarder port (default 5555)
+            forwarder_port = conn.get('forwarder_port', 5555)
+            remote_endpoint = f'tcp://{host}:{forwarder_port}'
+            remote_endpoints.append(remote_endpoint)
+            self.log.info(f'Will subscribe to messages from {remote_endpoint}')
+        
+        if not remote_endpoints:
+            return
+        
+        # Start receiver
+        self.message_receiver = MessageBrokerReceiver(
+            self.context,
+            self.message_broker,
+            remote_endpoints
+        )
+        self.message_receiver.start()
+        self.log.info(f'Started message broker receiver for {len(remote_endpoints)} remote testbeds')
+    
+    def stop_message_receiving(self):
+        '''Stop receiving forwarded messages.'''
+        if self.message_receiver:
+            self.message_receiver.stop()
+            self.message_receiver = None
+
     def on_start_service(self, data):
         request = testbed_proto.StartServiceRequest()
         request.ParseFromString(data)
@@ -599,13 +867,66 @@ class Testbed:
 
         ref = self.services[service_id]
 
+        # If this is a remote service, query the remote testbed
+        if ref.process_id == -1:
+            # For remote services, we need to query the remote testbed
+            # to get the actual port where the service is listening
+            try:
+                config_service = self.config['services'][service_id]
+                remote_server_name = config_service.get('remote_server')
+                
+                if remote_server_name:
+                    remote_info = self.remote_testbeds.get(
+                        remote_server_name
+                    )
+                    
+                    if remote_info:
+                        remote_host = remote_info.get('host')
+                        remote_port = remote_info.get('port')
+                        
+                        if remote_host and remote_port:
+                            # Create a client to query the remote testbed
+                            remote_client = Client(
+                                remote_host, remote_port
+                            )
+                            remote_service_info = (
+                                remote_client.make_request(
+                                    'get_service_info',
+                                    testbed_proto.GetServiceInfoRequest(
+                                        service_id=service_id
+                                    ).SerializeToString()
+                                )
+                            )
+                            
+                            if remote_service_info:
+                                return remote_service_info
+                            
+            except Exception as e:
+                self.log.warning(
+                    f'Failed to get service info from '
+                    f'remote testbed: {e}'
+                )
+            
+            # Fallback: return minimal info with placeholder values
+            reply = testbed_proto.GetServiceInfoReply()
+            service_ref = reply.service
+            service_ref.id = service_id
+            service_ref.type = ref.service_type
+            service_ref.state_stream_id = f'remote_{service_id}_state'
+            service_ref.host = '127.0.0.1'
+            service_ref.port = 0
+            return reply.SerializeToString()
+
+        # Local service - return local info
         reply = testbed_proto.GetServiceInfoReply()
 
         service_ref = reply.service
         service_ref.id = service_id
         service_ref.type = ref.service_type
         service_ref.state_stream_id = ref.state_stream.stream_id
-        service_ref.host = self.host
+        # Always use hostname (or configured host if available) for connectivity,
+        # not 127.0.0.1, since 127.0.0.1 only works locally
+        service_ref.host = self.host_name
         service_ref.port = ref.port
 
         return reply.SerializeToString()
@@ -679,8 +1000,53 @@ class Testbed:
             self.log.debug(f'Service "{service_id}" was already started.')
             return
 
+
         service_type = self.services[service_id].service_type
 
+        # If this service is configured to run on a named remote testbed, forward
+        # the start request to that testbed instead of launching locally.
+        svc_cfg = self.config['services'].get(service_id, {})
+        remote_name = svc_cfg.get('remote_server')
+        if remote_name:
+            # Lookup remote testbed configuration
+            remote_info = self.remote_testbeds.get(remote_name)
+            if not remote_info:
+                raise RuntimeError(f'Remote testbed "{remote_name}" not configured.')
+
+            # Create a proxy and ask it to start the service there.
+            from .testbed_proxy import TestbedProxy  # local python wrapper around bindings
+
+            # Use host/port if known, otherwise fall back to endpoint parsing
+            host = remote_info.get('host') or '127.0.0.1'
+            port = remote_info.get('port') or self.port
+
+            proxy = TestbedProxy(host, port)
+            try:
+                proxy.start_service(service_id)
+            except Exception as e:
+                # Include the proxy error message to provide a useful reply
+                # back to the original requester (salvaged reply will contain this).
+                self.log.error(f'Failed to forward start_service to remote testbed {remote_name}: {e}')
+                raise RuntimeError(f'Unable to start service (remote testbed {remote_name}): {e}') from e
+
+            # Mark as remote service and get service details from remote testbed
+            # The remote testbed knows the actual service host/port after registration
+            self.services[service_id].process_id = -1  # Mark as remote
+            self.services[service_id].state = ServiceState.RUNNING
+
+            # Query remote testbed for actual service details
+            # Note: We can't access the service's state_stream or other shared memory
+            # from here, so we just mark it as remote and let ServiceProxy handle it
+            self.services[service_id].host = None  # Will be filled by remote registration
+            self.services[service_id].port = None  # Will be filled by remote registration
+
+            self.log.info(
+                f'Forwarded start of service "{service_id}" to remote '
+                f'testbed "{remote_name}" ({host}:{port}).')
+
+            return
+
+        # Otherwise start service locally as before.
         # Resolve service type;
         path = self.resolve_service_type(service_type)
         dirname = os.path.dirname(path)

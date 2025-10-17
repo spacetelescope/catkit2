@@ -49,6 +49,12 @@ target_link_libraries (catkit_core PUBLIC Eigen3::Eigen)
 find_package(nlohmann_json)
 target_include_directories(catkit_core PRIVATE ${JSON_INCLUDE_DIR})
 
+# Link cfitsio
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CFITSIO REQUIRED cfitsio)
+target_include_directories(catkit_core PUBLIC ${CFITSIO_INCLUDE_DIRS})
+target_link_libraries(catkit_core PUBLIC ${CFITSIO_LIBRARIES})
+
 # Link protobuf
 INCLUDE(FindProtobuf)
 find_package(Protobuf REQUIRED)

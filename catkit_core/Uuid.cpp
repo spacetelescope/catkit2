@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cstring>
+#include <stdexcept>
 
 class UuidGenerator
 {
@@ -70,4 +71,52 @@ std::string Uuid::to_string() const
 	}
 
 	return oss.str();
+}
+
+Uuid Uuid::FromString(std::string_view str)
+{
+	Uuid uuid{};
+
+	if (str.size() != 36)
+		throw std::invalid_argument("UUID string must be 36 characters long.");
+
+	// Validate dash positions (8-4-4-4-12 format).
+	if (str[8] != '-' || str[13] != '-' || str[18] != '-' || str[23] != '-')
+		throw std::invalid_argument("UUID string has an invalid format.");
+
+	std::string hex_digits;
+	hex_digits.reserve(32);
+
+	for (char c : str)
+	{
+		if (c == '-')
+			continue;
+
+		hex_digits.push_back(c);
+	}
+
+	if (hex_digits.size() != 32)
+		throw std::invalid_argument("UUID string has an invalid number of hexadecimal digits.");
+
+	auto hex_value = [](char c) -> int
+	{
+		if (c >= '0' && c <= '9')
+			return c - '0';
+		if (c >= 'a' && c <= 'f')
+			return 10 + (c - 'a');
+		if (c >= 'A' && c <= 'F')
+			return 10 + (c - 'A');
+
+		throw std::invalid_argument("Invalid hexadecimal character in UUID string.");
+	};
+
+	for (size_t i = 0; i < 16; ++i)
+	{
+		int high = hex_value(hex_digits[2 * i]);
+		int low = hex_value(hex_digits[2 * i + 1]);
+
+		uuid.data[i] = static_cast<unsigned char>((high << 4) | low);
+	}
+
+	return uuid;
 }

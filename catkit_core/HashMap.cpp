@@ -1,8 +1,10 @@
 #include "HashMap.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
@@ -155,7 +157,13 @@ std::shared_ptr<HashMap> HashMap::Create(StructStream &stream, std::size_t num_e
 	*stream.Extract<std::size_t>() = max_key_size;
 	*stream.Extract<std::size_t>() = value_size;
 
+	stream.AddPadding<std::atomic<EntryFlags>>();
 	auto data = stream.Extract<char>(CalculateEntrySize(max_key_size, value_size) * num_entries);
+
+	if (reinterpret_cast<std::uintptr_t>(data) % alignof(std::atomic<EntryFlags>) != 0)
+	{
+		throw std::runtime_error("HashMap storage is not properly aligned");
+	}
 
 	auto map = std::shared_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size, stream.GetBuffer()));
 
@@ -174,7 +182,13 @@ std::shared_ptr<HashMap> HashMap::Open(StructStream &stream)
 	auto num_entries = *stream.Extract<std::size_t>();
 	auto max_key_size = *stream.Extract<std::size_t>();
 	auto value_size = *stream.Extract<std::size_t>();
+	stream.AddPadding<std::atomic<EntryFlags>>();
 	auto data = stream.Extract<char>(CalculateEntrySize(max_key_size, value_size) * num_entries);
+
+	if (reinterpret_cast<std::uintptr_t>(data) % alignof(std::atomic<EntryFlags>) != 0)
+	{
+		throw std::runtime_error("HashMap storage is not properly aligned");
+	}
 
 	return std::shared_ptr<HashMap>(new HashMap(data, num_entries, max_key_size, value_size, stream.GetBuffer()));
 }

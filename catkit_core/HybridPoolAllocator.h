@@ -33,6 +33,8 @@ public:
 
 	ShareableType GetType() const override;
 	static std::size_t GetSharedStateSize(std::size_t capacity, std::size_t min_size);
+	static constexpr std::size_t PoolStorageSize() { return sizeof(Pool); }
+	static constexpr std::size_t PoolAlignment() { return alignof(Pool); }
 
 	Handle Allocate(std::size_t size);
 	bool Acquire(Handle handle);

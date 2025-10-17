@@ -33,7 +33,7 @@ The Zenodo citation can be found below:
     month        = may,
     year         = 2024,
     publisher    = {Zenodo},
-    version      = {v0.6.1},
+    version      = {v0.7.0},
     doi          = {10.5281/zenodo.11395554},
     url          = {https://doi.org/10.5281/zenodo.11395554},
     }

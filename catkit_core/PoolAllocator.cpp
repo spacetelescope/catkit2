@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
+const std::array<std::uint8_t, 4> VERSION = {0, 7, 0, 0};
 
 PoolAllocator::PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next, std::atomic_size_t *ref_count, std::shared_ptr<Memory> memory_block)
 	: Shareable(memory_block), m_Capacity(capacity), m_Head(head), m_Next(next), m_RefCount(ref_count)

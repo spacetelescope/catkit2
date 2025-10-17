@@ -58,29 +58,100 @@ class ZmqDistributor:
             :func:`~catkit2.testbed.ZmqDistributor.start()` to start the proxy.
         '''
         collector = self.context.socket(zmq.PULL)
-        collector.RCVTIMEO = 50
-        collector.bind(f'tcp://*:{self.input_port}')
+        # Use explicit sockopt methods and set short receive timeout so the thread can exit cleanly.
+        try:
+            collector.setsockopt(zmq.RCVTIMEO, 50)
+        except Exception:
+            # ignore if option not supported in this binding
+            pass
+
+        # Retry bind a few times to avoid races / transient EADDRINUSE
+        bind_ok = False
+        for attempt in range(5):
+            try:
+                collector.bind(f'tcp://*:{self.input_port}')
+                bind_ok = True
+                break
+            except Exception as e:
+                print(f'[ZmqDistributor] Attempt {attempt+1}: Failed to bind collector to tcp://*:{self.input_port}: {e}')
+                import time
+                time.sleep(0.1 * (attempt + 1))
+
+        if not bind_ok:
+            try:
+                collector.close()
+            except Exception:
+                pass
+            return
 
         publicist = self.context.socket(zmq.PUB)
-        publicist.bind(f'tcp://*:{self.output_port}')
+        # Retry bind for the publicist as well.
+        pub_bind_ok = False
+        for attempt in range(5):
+            try:
+                publicist.bind(f'tcp://*:{self.output_port}')
+                pub_bind_ok = True
+                break
+            except Exception as e:
+                print(f'[ZmqDistributor] Attempt {attempt+1}: Failed to bind publicist to tcp://*:{self.output_port}: {e}')
+                import time
+                time.sleep(0.1 * (attempt + 1))
+
+        if not pub_bind_ok:
+            try:
+                collector.close()
+            except Exception:
+                pass
+            try:
+                publicist.close()
+            except Exception:
+                pass
+            return
 
         self.is_running.set()
 
-        while not self.shutdown_flag.is_set():
-            try:
+        try:
+            while not self.shutdown_flag.is_set():
                 try:
-                    log_message = collector.recv_multipart()
-                    publicist.send_multipart(log_message)
-                except zmq.ZMQError as e:
-                    if e.errno == zmq.EAGAIN:
-                        # Timed out.
+                    # Receive with the RCVTIMEO set above; this may raise zmq.Again
+                    try:
+                        log_message = collector.recv_multipart()
+                    except zmq.Again:
+                        # timed out, check shutdown flag again
                         continue
-                    else:
-                        raise RuntimeError('Error during receive') from e
+                    except zmq.ZMQError as e:
+                        # Non-recoverable ZMQ error on recv; log and continue
+                        print(f'[ZmqDistributor] recv_multipart error: {e}')
+                        continue
 
-                if self.callback:
-                    self.callback(log_message)
+                    try:
+                        publicist.send_multipart(log_message)
+                    except zmq.ZMQError as e:
+                        print(f'[ZmqDistributor] send_multipart error: {e}')
+                        # continue; don't let this kill the thread
+                        continue
+
+                    if self.callback:
+                        try:
+                            self.callback(log_message)
+                        except Exception:
+                            print(traceback.format_exc())
+
+                except Exception:
+                    # Catch-all around processing loop to avoid leaving thread silently
+                    # and to avoid letting exceptions escape into native code.
+                    print(traceback.format_exc())
+                    # short sleep to avoid tight exception loop
+                    import time
+                    time.sleep(0.1)
+        finally:
+            # Ensure sockets are closed cleanly on exit.
+            try:
+                collector.close()
             except Exception:
-                # Something went wrong during handling of the log message.
-                # Let's ignore this error, but still print the exception.
-                print(traceback.format_exc())
+                pass
+
+            try:
+                publicist.close()
+            except Exception:
+                pass

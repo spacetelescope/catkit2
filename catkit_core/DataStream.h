@@ -14,6 +14,7 @@
 #include "Shareable.h"
 
 const size_t MAX_NUM_FRAMES_IN_BUFFER = 20;
+const size_t DATASTREAM_HEADER_PADDING = 1024;
 const long INFINITE_WAIT_TIME = LONG_MAX;
 
 struct DataFrameMetadata

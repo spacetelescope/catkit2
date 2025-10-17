@@ -16,7 +16,7 @@
 #include <array>
 #include <optional>
 
-const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
+const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 7, 0, 0};
 
 const size_t TOPIC_HASH_MAP_SIZE = 16384;
 const size_t TOPIC_MAX_NUM_MESSAGES = 32;
@@ -56,7 +56,7 @@ struct MessageBrokerHeader
 	MessageHeader message_headers[MAX_NUM_MESSAGES];
 };
 
-class LocalMessageBroker : public Shareable, public MessageBroker
+class LocalMessageBroker : public MessageBroker, public Shareable
 {
 	friend class MessageSubscription;
 
@@ -73,9 +73,10 @@ private:
 
 public:
 	static std::shared_ptr<LocalMessageBroker> Create(StructStream &stream, std::vector<std::shared_ptr<Memory>> memory_blocks);
+	static std::shared_ptr<LocalMessageBroker> Create(std::string_view broker_name, std::vector<std::shared_ptr<Memory>> memory_blocks);
 	static std::shared_ptr<LocalMessageBroker> Open(StructStream &stream);
 
-	static std::size_t CalculateBufferSize(); // TODO: Add parameters.
+	static std::size_t CalculateBufferSize(const std::vector<std::shared_ptr<Memory>> &memory_blocks, std::size_t initial_offset = 0);
 
 	// Prepare a message for publishing with a trace ID.
 	virtual Message PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0) override;
