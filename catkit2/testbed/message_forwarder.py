@@ -211,10 +211,24 @@ class MessageBrokerForwarder:
                                 ])
                         
                         except Exception as e:
-                            # Timeout or no message available, continue
-                            if 'expired' not in str(e).lower():
-                                self.log.warning(f'Error getting message for {topic}: {e}')
-                            continue
+                            error_str = str(e).lower()
+                            # Ignore expected errors: timeout or service crash
+                            if 'expired' in error_str:
+                                # Normal timeout, continue
+                                continue
+                            elif 'appears to be inactive' in error_str:
+                                # Service has crashed, stop this topic
+                                self.log.info(
+                                    f'Service inactive on {topic}, '
+                                    f'stopping forwarder for this topic'
+                                )
+                                break
+                            else:
+                                # Unexpected error, log and continue
+                                self.log.warning(
+                                    f'Error getting message for {topic}: {e}'
+                                )
+                                continue
                     
                     # Small sleep to avoid busy-waiting
                     time.sleep(0.001)

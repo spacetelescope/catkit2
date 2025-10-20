@@ -33,6 +33,14 @@ struct TopicHeader
 
 	double frame_rate;
 
+	// Timestamp (in seconds) of when the last message was published to this topic
+	// Used to detect when a remote service has crashed or stopped publishing
+	std::atomic<double> last_publish_time;
+	
+	// Flag to track if any message has been published to this topic
+	// This helps distinguish between "waiting for first message" and "service crashed"
+	std::atomic<bool> has_published_message;
+
 	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
 
 	bool IsMessageAvailable(std::size_t frame_id);

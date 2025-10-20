@@ -570,6 +570,13 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		// Make the message available.
 		fetch_max(topic_header->last_frame_id, frame_id + 1);
 
+		// Update the timestamp of last publish for this topic
+		// This is used to detect when a remote service has crashed
+		topic_header->last_publish_time.store(GetTimeStamp(), std::memory_order_relaxed);
+		
+		// Mark that this topic has published at least one message
+		topic_header->has_published_message.store(true, std::memory_order_relaxed);
+
 		// Update the framerate counter for this topic.
 		// TODO: put this after the event signaling, since we don't want this in the
 		// critical path.
@@ -704,8 +711,53 @@ std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic
 	if (topic_header->IsMessageAvailable(new_frame_id))
 		return FetchMessage(topic_header, new_frame_id);
 
+	// Detect service inactivity:
+	// If we're waiting for a new message but the service hasn't published anything
+	// for a long time, the service is likely dead.
+	// This prevents returning stale messages when a remote service has crashed.
+	// NOTE: This timeout is very conservative - it should only trigger if a service
+	// that was previously publishing messages suddenly stops.
+	// Timestamps are in nanoseconds, so 300 seconds = 300e9 nanoseconds
+	const double SERVICE_DEAD_TIMEOUT = 300.0 * 1e9; // 5 minutes in nanoseconds
+	double last_publish_time = topic_header->last_publish_time.load(std::memory_order_relaxed);
+	double current_time = GetTimeStamp();
+	
+	// Only trigger inactivity detection if we've already received at least one message
+	// (meaning we're waiting for a follow-up, not the initial message)
+	bool has_published = topic_header->has_published_message.load(std::memory_order_relaxed);
+	if (has_published && 
+	    last_publish_time > 0 && 
+	    (current_time - last_publish_time) > SERVICE_DEAD_TIMEOUT)
+	{
+		// Service appears to be dead or not publishing
+		throw std::runtime_error(
+			std::string("Service appears to be inactive on topic '") +
+			std::string(topic) + 
+			"'. Last message received " + 
+			std::to_string((current_time - last_publish_time) / 1e9) +
+			" seconds ago. Check if remote service has crashed."
+		);
+	}
+
 	// Otherwise, wait for it.
 	m_Event->Wait(timeout_in_seconds, [topic_header, new_frame_id]() { return topic_header->last_frame_id > new_frame_id; }, wait_type, error_check);
+
+	// Check again after wait completes
+	last_publish_time = topic_header->last_publish_time.load(std::memory_order_relaxed);
+	current_time = GetTimeStamp();
+	has_published = topic_header->has_published_message.load(std::memory_order_relaxed);
+	if (has_published &&
+	    last_publish_time > 0 && 
+	    (current_time - last_publish_time) > SERVICE_DEAD_TIMEOUT)
+	{
+		throw std::runtime_error(
+			std::string("Service appears to be inactive on topic '") +
+			std::string(topic) + 
+			"'. Last message received " + 
+			std::to_string((current_time - last_publish_time) / 1e9) +
+			" seconds ago. Check if remote service has crashed."
+		);
+	}
 
 	return FetchMessage(topic_header, new_frame_id);
 }
@@ -853,6 +905,11 @@ TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 	temp_topic_header.last_frame_id = 0;
 	temp_topic_header.frame_rate = 0.0;
 	temp_topic_header.message_headers.fill(PoolAllocator::INVALID_HANDLE);
+	// Initialize last_publish_time to 0 (invalid) - will be set on first publish
+	// This prevents false positives on newly created topics
+	temp_topic_header.last_publish_time.store(0.0, std::memory_order_relaxed);
+	// Mark as not having published any messages yet
+	temp_topic_header.has_published_message.store(false, std::memory_order_relaxed);
 
 	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
 

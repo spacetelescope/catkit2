@@ -243,8 +243,15 @@ class ServiceReference:
 
             request = service_proto.ShutDownRequest()
             client.make_request('shut_down', request.SerializeToString())
+            
+            # Update service state to CLOSED after successful shutdown
+            self.state = ServiceState.CLOSED
         except Exception as e:
-            raise RuntimeError("Something went wrong while stopping service.") from e
+            # Include the original exception details for better debugging
+            raise RuntimeError(
+                f"Something went wrong while stopping service '{self.service_id}' "
+                f"(host={self.host}, port={self.port}): {e}"
+            ) from e
 
     def interrupt(self):
         '''Send a keyboard interrupt to the service.
@@ -1034,15 +1041,50 @@ class Testbed:
             self.services[service_id].process_id = -1  # Mark as remote
             self.services[service_id].state = ServiceState.RUNNING
 
-            # Query remote testbed for actual service details
-            # Note: We can't access the service's state_stream or other shared memory
-            # from here, so we just mark it as remote and let ServiceProxy handle it
-            self.services[service_id].host = None  # Will be filled by remote registration
-            self.services[service_id].port = None  # Will be filled by remote registration
+            # Query remote testbed for actual service details (host/port where service is listening)
+            # Retry a few times in case the remote service hasn't registered yet
+            max_retries = 10
+            for attempt in range(max_retries):
+                try:
+                    remote_client = Client(host, port)
+                    remote_service_info_bytes = remote_client.make_request(
+                        'get_service_info',
+                        testbed_proto.GetServiceInfoRequest(
+                            service_id=service_id
+                        ).SerializeToString()
+                    )
+                    
+                    if remote_service_info_bytes:
+                        remote_service_info = testbed_proto.GetServiceInfoReply()
+                        remote_service_info.ParseFromString(remote_service_info_bytes)
+                        
+                        # Extract host and port from remote service info
+                        if remote_service_info.service.host and remote_service_info.service.port > 0:
+                            self.services[service_id].host = remote_service_info.service.host
+                            self.services[service_id].port = remote_service_info.service.port
+                            
+                            self.log.info(
+                                f'Forwarded start of service "{service_id}" to remote '
+                                f'testbed "{remote_name}" ({host}:{port}). '
+                                f'Service listening on {self.services[service_id].host}:'
+                                f'{self.services[service_id].port}.')
+                            return
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        time.sleep(0.1)
+                        continue
+                    else:
+                        self.log.warning(
+                            f'Could not get service info from remote testbed after {max_retries} attempts: {e}')
+            
+            # Fallback: set defaults if we couldn't get the info
+            self.services[service_id].host = '127.0.0.1'
+            self.services[service_id].port = 0
 
             self.log.info(
                 f'Forwarded start of service "{service_id}" to remote '
-                f'testbed "{remote_name}" ({host}:{port}).')
+                f'testbed "{remote_name}" ({host}:{port}). '
+                f'(Could not get service listening address from remote testbed)')
 
             return
 
