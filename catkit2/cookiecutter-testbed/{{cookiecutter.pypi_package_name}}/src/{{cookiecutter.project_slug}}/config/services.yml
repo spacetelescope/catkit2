@@ -1,0 +1,21 @@
+detector:
+  service_type: allied_vision_camera
+  simulated_service_type: camera_sim
+  interface: camera
+  requires_safety: false
+
+  camera_id: "DEV_1AB22C050456"
+  device_name: Allied Alvium 1800 U-500m
+
+  offset_x: 1200
+  offset_y: 600
+  width: 400
+  height: 400
+  sensor_width: 2592
+  sensor_height: 1944
+  exposure_time: 200
+  gain: 0
+
+simulator:
+  service_type: {{cookiecutter.project_slug}}_simulator
+  requires_safety: false
