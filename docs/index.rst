@@ -9,6 +9,7 @@ Catkit2
    overview
    acknowledging_catkit2
    contribution
+   testbed_implementation
 
 .. toctree::
    :maxdepth: 1
