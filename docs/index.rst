@@ -51,6 +51,7 @@ Catkit2
    services/thorlabs_mff101
    services/thorlabs_pm
    services/thorlabs_tsp01
+   services/watchdog
    services/web_power_switch
    services/zwo_camera
 
