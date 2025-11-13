@@ -237,7 +237,7 @@ void Service::Run(void (*error_check)())
 	std::uint64_t timestamp = 0;
 	m_Heartbeat->SubmitData(&timestamp);
 
-		ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
+	ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
 	m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
 
 	// CleanupAttributes() removed - let natural destruction handle cleanup
