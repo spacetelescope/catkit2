@@ -87,6 +87,7 @@ private:
 	std::atomic_bool m_IsRunning;
 	std::atomic_bool m_ShouldShutDown;
 	std::atomic_bool m_FailSafe;
+	std::atomic_bool m_IsBeingDestroyed;
 
 	std::shared_ptr<TestbedProxy> m_Testbed;
 

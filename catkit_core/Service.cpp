@@ -28,7 +28,7 @@ Service::Service(string service_type, string service_id, int service_port, int t
 	: m_Server(service_port), m_ServiceId(service_id), m_ServiceType(service_type),
 	m_LoggerConsole(), m_LoggerPublish(),
 	m_Heartbeat(nullptr), m_State(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
-	m_IsRunning(false), m_ShouldShutDown(false), m_FailSafe(false)
+	m_IsRunning(false), m_ShouldShutDown(false), m_FailSafe(false), m_IsBeingDestroyed(false)
 {
 	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
 	m_Config = m_Testbed->GetConfig()["services"][service_id];
@@ -62,6 +62,12 @@ Service::Service(string service_type, string service_id, int service_port, int t
 
 Service::~Service()
 {
+	// Mark that we're being destroyed to prevent any attribute access during cleanup
+	m_IsBeingDestroyed = true;
+
+	// Explicitly clean up attributes in a safe order
+	// This prevents circular references from keeping the Service alive
+	CleanupAttributes();
 }
 
 void Service::Run(void (*error_check)())
@@ -239,15 +245,19 @@ void Service::Run(void (*error_check)())
 
 	ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
 	m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
-
-	// CleanupAttributes() removed - let natural destruction handle cleanup
-	// to avoid Windows "Python has stopped working" crash on exit
 }
 
 void Service::CleanupAttributes()
 {
+	// Clear properties first - they may capture 'this' in lambdas
+	// Clearing them releases those captures and breaks potential cycles
 	m_Properties.clear();
+
+	// Clear commands next - same reasoning
 	m_Commands.clear();
+
+	// Finally clear data streams - these typically don't capture 'this'
+	// but clear them last to be safe
 	m_DataStreams.clear();
 }
 
@@ -499,6 +509,8 @@ void Service::MakeProperty(std::string property_name, PropertyGetter getter, Pro
 	m_Properties[property_name] = {getter, setter};
 }
 
+
+
 void Service::MakeCommand(std::string command_name, Command::CommandFunction func)
 {
 	LOG_DEBUG("Making command \"" + command_name + "\".");
@@ -506,6 +518,8 @@ void Service::MakeCommand(std::string command_name, Command::CommandFunction fun
 	auto cmd = std::make_shared<Command>(command_name, func);
 	m_Commands[command_name] = cmd;
 }
+
+
 
 std::shared_ptr<DataStream> Service::MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer)
 {
@@ -534,6 +548,9 @@ std::shared_ptr<TestbedProxy> Service::GetTestbed()
 
 std::string Service::GetProperty(std::string property_name)
 {
+	if (m_IsBeingDestroyed)
+		throw std::runtime_error("Cannot access property \"" + property_name + "\" while service is being destroyed.");
+
 	auto i = m_Properties.find(property_name);
 
 	if (i == m_Properties.end())
@@ -557,6 +574,9 @@ std::string Service::GetProperty(std::string property_name)
 
 void Service::SetProperty(std::string property_name, std::string_view value)
 {
+	if (m_IsBeingDestroyed)
+		throw std::runtime_error("Cannot set property \"" + property_name + "\" while service is being destroyed.");
+
 	auto i = m_Properties.find(property_name);
 
 	if (i == m_Properties.end())
