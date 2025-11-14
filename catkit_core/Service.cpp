@@ -53,8 +53,7 @@ Service::Service(string service_type, string service_id, int service_port, int t
 
 	LOG_DEBUG("Registering request handlers.");
 
-	m_Server.RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data); });
-	m_Server.RegisterRequestHandler("execute_command", [this](const string &data) { return this->HandleExecuteCommand(data); });
+	m_Server.RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data); }); });
 	m_Server.RegisterRequestHandler("shut_down", [this](const string &data) { return this->HandleShutDown(data); });
 
 	LOG_INFO("Intialized service.");
@@ -156,13 +155,13 @@ void Service::Run(void (*error_check)())
 		// Start the safety and heartbeat threads.
 		std::thread safety(&Service::MonitorSafety, this);
 		std::thread heartbeat(&Service::MonitorHeartbeats, this);
-		std::thread properties(&Service::MonitorProperties, this);
+		std::thread properties_and_commands(&Service::MonitorPropertiesAndCommands, this);
 
 		// Start the server.
 		m_Server.Start();
 
 		// Ensure the server and started threads are stopped when out of this scope.
-		Finally stop_server_and_monitors([this, &safety, &heartbeat, &properties]()
+		Finally stop_server_and_monitors([this, &safety, &heartbeat, &properties_and_commands]()
 		{
 			this->m_ShouldShutDown = true;
 
@@ -174,8 +173,8 @@ void Service::Run(void (*error_check)())
 			if (heartbeat.joinable())
 				heartbeat.join();
 
-			if (properties.joinable())
-				properties.join();
+			if (properties_and_commands.joinable())
+				properties_and_commands.join();
 		});
 
 		// Update service state.
@@ -354,7 +353,7 @@ void Service::MonitorHeartbeats()
 	}
 }
 
-void Service::MonitorProperties()
+void Service::MonitorPropertiesAndCommands()
 {
 	auto broker = m_Testbed->GetMessageBroker();
 	auto subscription = broker->Subscribe(m_ServiceId);
@@ -371,48 +370,17 @@ void Service::MonitorProperties()
 			auto message = message_optional.value();
 			auto topic = message.GetTopic();
 
-			// Only trigger on set messages.
-			if (topic.substr(topic.size() - 4) != "/set")
-				continue;
-
-			std::string get_topic = std::string(topic.substr(0, topic.size() - 4)) + "/get"s;
-			std::string error_topic = std::string(topic.substr(0, topic.size() - 4)) + "/error"s;
-
-			// Find the property name. The topic is "<service_id>/<property_name>/set".
-			std::string property_name = std::string(topic.substr(m_ServiceId.size() + 1, topic.size()- m_ServiceId.size() - 5));
-
-			// Find the property. If a property by that name doesn't exist, ignore the message.
-			auto property = m_Properties.find(property_name);
-			if (property == m_Properties.end())
-				continue;
-
-			try
+			// Trigger on set messages.
+			if (topic.size() >= 4 && topic.substr(topic.size() - 4) == "/set")
 			{
-				// Set the property value.
-				SetProperty(property_name, std::string_view((char *)message.GetPayload().data, message.GetPayloadSize()));
-			}
-			catch (const std::exception& e)
-			{
-				std::string error_message = "Failed to set property: "s + e.what();
-				LOG_ERROR(error_message);
-
-				broker->PublishData(error_topic, error_message.data(), error_message.size(), message.GetTraceId());
+				HandleSetPropertyMessage(broker, message);
 				continue;
 			}
 
-			try
+			// Trigger on execute messages.
+			if (topic.size() >= 8 && topic.substr(topic.size() - 8) == "/execute")
 			{
-				// Publish the new property value;
-				auto new_property_value = GetProperty(property_name);
-
-				broker->PublishData(get_topic, new_property_value.data(), new_property_value.size(), message.GetTraceId());
-			}
-			catch (const std::exception& e)
-			{
-				std::string error_message = "Failed to get property: "s + e.what();
-				LOG_ERROR(error_message);
-
-				broker->PublishData(error_topic, error_message.data(), error_message.size(), message.GetTraceId());
+				HandleExecuteCommandMessage(broker, message);
 				continue;
 			}
 		}
@@ -420,6 +388,99 @@ void Service::MonitorProperties()
 		{
 			continue;
 		}
+	}
+}
+
+void Service::HandleSetPropertyMessage(std::shared_ptr<MessageBroker> broker, const Message &message)
+{
+	auto topic = message.GetTopic();
+
+	std::string get_topic = std::string(topic.substr(0, topic.size() - 4)) + "/get"s;
+	std::string error_topic = std::string(topic.substr(0, topic.size() - 4)) + "/error"s;
+
+	// Find the property name. The topic is "<service_id>/<property_name>/set".
+	std::string property_name = std::string(topic.substr(m_ServiceId.size() + 1, topic.size() - m_ServiceId.size() - 5));
+
+	// Find the property. If a property by that name doesn't exist, ignore the message.
+	auto property = m_Properties.find(property_name);
+	if (property == m_Properties.end())
+		return;
+
+	try
+	{
+		// Set the property value.
+		SetProperty(property_name, std::string_view((char *)message.GetPayload().data, message.GetPayloadSize()));
+	}
+	catch (const std::exception& e)
+	{
+		std::string error_message = "Failed to set property: "s + e.what();
+		LOG_ERROR(error_message);
+
+		broker->PublishData(error_topic, error_message.data(), error_message.size(), message.GetTraceId());
+		return;
+	}
+
+	try
+	{
+		// Publish the new property value;
+		auto new_property_value = GetProperty(property_name);
+
+		broker->PublishData(get_topic, new_property_value.data(), new_property_value.size(), message.GetTraceId());
+	}
+	catch (const std::exception& e)
+	{
+		std::string error_message = "Failed to get property: "s + e.what();
+		LOG_ERROR(error_message);
+
+		broker->PublishData(error_topic, error_message.data(), error_message.size(), message.GetTraceId());
+		return;
+	}
+}
+
+void Service::HandleExecuteCommandMessage(std::shared_ptr<MessageBroker> broker, const Message &message)
+{
+	auto topic = message.GetTopic();
+
+	std::string return_topic = std::string(topic.substr(0, topic.size() - 8)) + "/return"s;
+	std::string error_topic = std::string(topic.substr(0, topic.size() - 8)) + "/error"s;
+
+	// Find the command name. The topic is "<service_id>/command_name/execute".
+	std::string command_name = std::string(topic.substr(m_ServiceId.size() + 1, topic.size() - m_ServiceId.size() - 9));
+
+	// Find the command. If a command by that name doesn't exist, ignore the message.
+	auto command = m_Commands.find(command_name);
+	if (command == m_Commands.end())
+		return;
+
+	try
+	{
+		// Decode the arguments.
+		catkit_proto::Dict args_proto;
+		args_proto.ParseFromArray(message.GetPayload().data, message.GetPayloadSize());
+
+		Dict args;
+		FromProto(&args_proto, args);
+
+		// Execute the command.
+		auto res = command->second->Execute(args);
+
+		// Encode the return value.
+		catkit_proto::service::ExecuteCommandReply reply;
+		ToProto(res, reply.mutable_result());
+
+		string reply_string;
+		reply.SerializeToString(&reply_string);
+
+		// Publish the return value.
+		broker->PublishData(return_topic, reply_string.data(), reply_string.size(), message.GetTraceId());
+	}
+	catch (const std::exception &e)
+	{
+		// Publish the error on the error topic.
+		std::string error_message = "Failed to execute command: "s + e.what();
+		LOG_ERROR(error_message);
+
+		broker->PublishData(error_topic, error_message.data(), error_message.size(), message.GetTraceId());
 	}
 }
 
@@ -599,30 +660,6 @@ string Service::HandleGetInfo(const string &data)
 	reply.set_heartbeat_stream_id(m_Heartbeat->GetStreamId());
 
 	std::string reply_string;
-	reply.SerializeToString(&reply_string);
-
-	return reply_string;
-}
-
-string Service::HandleExecuteCommand(const string &data)
-{
-	catkit_proto::service::ExecuteCommandRequest request;
-	request.ParseFromString(data);
-
-	std::string command_name = request.command_name();
-	auto command = GetCommand(command_name);
-
-	if (!command)
-		throw std::runtime_error("Command \""s + command_name + "\" does not exist.");
-
-	Dict args;
-	FromProto(&request.arguments(), args);
-	auto res = command->Execute(args);
-
-	catkit_proto::service::ExecuteCommandReply reply;
-	ToProto(res, reply.mutable_result());
-
-	string reply_string;
 	reply.SerializeToString(&reply_string);
 
 	return reply_string;
