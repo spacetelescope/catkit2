@@ -470,8 +470,8 @@ void Service::HandleExecuteCommandMessage(std::shared_ptr<MessageBroker> broker,
 		auto res = command->second->Execute(args);
 
 		// Encode the return value.
-		catkit_proto::service::ExecuteCommandReply reply;
-		ToProto(res, reply.mutable_result());
+		catkit_proto::Value reply;
+		ToProto(res, &reply);
 
 		string reply_string;
 		reply.SerializeToString(&reply_string);

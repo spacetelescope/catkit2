@@ -187,11 +187,11 @@ Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &argument
 			throw std::runtime_error("Error while executing command: "s + std::string((char *) reply_message.GetPayload().data, reply_message.GetPayloadSize()));
 
 		// Parse the response message and return the retrieved value.
-		catkit_proto::service::ExecuteCommandReply reply;
+		catkit_proto::Value reply;
 		reply.ParseFromString(std::string((char *) reply_message.GetPayload().data, reply_message.GetPayloadSize()));
 
 		Value res;
-		FromProto(&reply.result(), res);
+		FromProto(&reply, res);
 
 		return res;
 	}
