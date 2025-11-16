@@ -65,10 +65,11 @@ public:
 	void CleanupAttributes();
 
 private:
+	std::string GetInfo();
+
 	std::string GetProperty(std::string property_name);
 	void SetProperty(std::string property_name, std::string_view value);
 
-	std::string HandleGetInfo(const std::string &data);
 	std::string HandleShutDown(const std::string &data);
 
 	void MonitorSafety();

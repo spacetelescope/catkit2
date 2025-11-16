@@ -11,6 +11,7 @@
 #include <stdexcept>
 
 using namespace std::string_literals;
+using json = nlohmann::json;
 
 const double TIMEOUT_TO_START = 120;  // seconds
 const double TIMEOUT_SET_PROPERTY = 120;  // seconds
@@ -361,22 +362,24 @@ void ServiceProxy::Connect()
 	// Connect to the service.
 	m_Client = std::make_unique<Client>(service_info.host, service_info.port);
 
-	// Get property, command and datastream names.
-	std::string reply_string = m_Client->MakeRequest("get_info", "");
+	auto info_message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/info"s);
 
-	catkit_proto::service::GetInfoReply reply;
-	reply.ParseFromString(reply_string);
+	if (!info_message.has_value())
+		throw std::runtime_error("The service did not publish its info.");
 
-	for (auto &i : reply.property_names())
-		m_PropertyNames.push_back(i);
+	auto info_payload = info_message.value().GetPayload();
+	auto info = json::parse((char *) info_payload.data, (char *) info_payload.data + info_payload.info.GetSizeInBytes());
 
-	for (auto &i : reply.command_names())
-		m_CommandNames.push_back(i);
+	for (auto it : info["property_names"])
+		m_PropertyNames.push_back(it);
 
-	for (auto& [key, value] : reply.datastream_ids())
+	for (auto it : info["command_names"])
+		m_CommandNames.push_back(it);
+
+	for (auto& [key, value] : info["datastream_ids"].items())
 		m_DataStreamIds[key] = value;
 
-	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
+	m_Heartbeat = DataStream::Open(info["heartbeat_stream_id"].get<std::string>());
 
 	m_TimeLastConnect = frame.m_TimeStamp;
 	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");

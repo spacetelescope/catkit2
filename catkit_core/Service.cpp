@@ -53,7 +53,6 @@ Service::Service(string service_type, string service_id, int service_port, int t
 
 	LOG_DEBUG("Registering request handlers.");
 
-	m_Server.RegisterRequestHandler("get_info", [this](const string &data) { return this->HandleGetInfo(data); }); });
 	m_Server.RegisterRequestHandler("shut_down", [this](const string &data) { return this->HandleShutDown(data); });
 
 	LOG_INFO("Intialized service.");
@@ -118,6 +117,12 @@ void Service::Run(void (*error_check)())
 	}
 
 	LOG_INFO("Service was succesfully opened.");
+
+	// Publish info.
+	std::string service_info = GetInfo();
+	m_Testbed->GetMessageBroker()->PublishData(m_ServiceId + "/info/get"s, service_info.data(), service_info.size());
+
+	LOG_INFO("Published service info.");
 
 	// Publish all properties on startup.
 	for (const auto &pair : m_Properties)
@@ -638,31 +643,28 @@ void Service::SetProperty(std::string property_name, std::string_view value)
 	setter(val);
 }
 
-string Service::HandleGetInfo(const string &data)
+string Service::GetInfo()
 {
-	// There's no data in the request, so don't even parse it.
-	// Create the reply protobuffer object.
-	catkit_proto::service::GetInfoReply reply;
-
-	reply.set_service_id(m_ServiceId);
-	reply.set_service_type(m_ServiceType);
-	reply.set_config(m_Config.dump());
+	nlohmann::json reply = {
+		{"service_id", m_ServiceId},
+		{"service_type", m_ServiceType},
+		{"config", m_Config},
+		{"property_names", json::array()},
+		{"command_names", json::array()},
+		{"datastream_ids", json::object()},
+		{"heartbeat_stream_id", m_Heartbeat->GetStreamId()}
+	};
 
 	for (auto& [key, value] : m_Properties)
-		reply.add_property_names(key);
+		reply["property_names"].push_back(key);
 
 	for (auto& [key, value] : m_Commands)
-		reply.add_command_names(key);
+		reply["command_names"].push_back(key);
 
 	for (auto& [key, value] : m_DataStreams)
-		(*reply.mutable_datastream_ids())[key] = value->GetStreamId();
+		reply["datastream_ids"][key] = value->GetStreamId();
 
-	reply.set_heartbeat_stream_id(m_Heartbeat->GetStreamId());
-
-	std::string reply_string;
-	reply.SerializeToString(&reply_string);
-
-	return reply_string;
+	return reply.dump();
 }
 
 string Service::HandleShutDown(const string &data)
