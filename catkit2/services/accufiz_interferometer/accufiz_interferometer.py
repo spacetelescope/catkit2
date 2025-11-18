@@ -110,9 +110,13 @@ class AccufizInterferometer(Service):
         filemask = self.mask
         typeofmask = "Detector"
         parammask = {"maskType": typeofmask, "fileName": filemask}
-        set_mask_string = f"{self.html_prefix}/SetMask"
 
-        self.post(set_mask_string, data=parammask)
+        if self.new_software:
+            set_mask_string = f"{self.html_prefix}/SystemService/SetDetectorMask"
+            self.post(set_mask_string, json={"Mask": filemask})
+        else:
+            set_mask_string = f"{self.html_prefix}/SetMask"
+            self.post(set_mask_string, data=parammask)
 
         return True
 
