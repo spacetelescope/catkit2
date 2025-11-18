@@ -73,11 +73,15 @@ class AccufizInterferometer(Service):
         self.num_frames_avg = self.config.get('num_avg', 2)
         self.fliplr = self.config.get('fliplr', True)
         self.rotate = self.config.get('rotate', 0)
+        self.new_software = self.config.get('new_software', False)
 
         # Set the 4D timeout.
-        self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
-        set_timeout_string = f"{self.html_prefix}/SetTimeout?timeOut={self.timeout}"
-        self.get(set_timeout_string)
+        if self.new_software:
+            self.html_prefix = f"http://{self.ip}"
+        else:
+            self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
+            set_timeout_string = f"{self.html_prefix}/SetTimeout?timeOut={self.timeout}"
+            self.get(set_timeout_string)
 
         # Set the mask
         self.set_mask()
@@ -182,7 +186,11 @@ class AccufizInterferometer(Service):
             If data acquisition or saving fails.
         """
         # Send request to take data.
-        resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(self.num_frames_avg)})
+        if self.new_software:
+            resp = self.get( f"{self.html_prefix}/SystemService/TakeAveragedMeasurement?numberOfSamples={self.num_frames_avg}")
+        else:
+            resp = self.post(f"{self.html_prefix}/AverageMeasure",
+                             data={"count": int(self.num_frames_avg)})
 
         if "success" not in resp.text:
             raise RuntimeError(f"{self.config_id}: Failed to take data - {resp.text}.")
@@ -198,7 +206,10 @@ class AccufizInterferometer(Service):
         server_file_path = server_file_path.replace('/', '\\\\')
 
         # Send request to save data.
-        self.post(f"{self.html_prefix}/SaveMeasurement", data={"fileName": server_file_path})
+        if self.new_software:
+            self.get(f"{self.html_prefix}/SaveDataToDisk", data={"fileName": server_file_path})
+        else:
+            self.post(f"{self.html_prefix}/SaveMeasurement", data={"fileName": server_file_path})
 
         if not glob(f"{local_file_path}.h5"):
             raise RuntimeError(f"{self.config_id}: Failed to save measurement data to '{local_file_path}'.")
