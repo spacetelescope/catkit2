@@ -50,3 +50,4 @@ dependencies:
   - pip:
     - dcps
     - zwoasi>=0.0.21
+    - cookiecutter

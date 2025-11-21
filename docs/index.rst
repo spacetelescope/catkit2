@@ -9,6 +9,7 @@ Catkit2
    overview
    acknowledging_catkit2
    contribution
+   testbed_implementation
 
 .. toctree::
    :maxdepth: 1
@@ -50,6 +51,7 @@ Catkit2
    services/thorlabs_mff101
    services/thorlabs_pm
    services/thorlabs_tsp01
+   services/watchdog
    services/web_power_switch
    services/zwo_camera
 
