@@ -225,9 +225,12 @@ class AccufizInterferometer(Service):
         img = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * mask
 
         # self.detector_masks.submit_data(mask.astype(np.uint8))
+        if self.new_software:
+            image = self.convert_csv_to_fits(local_file_path, rotate=self.rotate, fliplr=self.fliplr, create_fits=self.save_fits)
+        else:
+            image = self.convert_h5_to_fits(local_file_path, rotate=self.rotate, fliplr=self.fliplr, mask=mask, img=img, create_fits=self.save_fits)
 
-        image = self.convert_h5_to_fits(local_file_path, rotate=self.rotate, fliplr=self.fliplr, mask=mask, img=img, create_fits=self.save_fits)
-        # Remove HDF5 file if not required
+        # Remove HDF5 or CSV file if not required
         if (not self.save_h5) and os.path.exists(local_file_path):
             os.remove(local_file_path)
 
