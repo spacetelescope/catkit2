@@ -289,6 +289,85 @@ class AccufizInterferometer(Service):
 
         return image
 
+    @staticmethod
+    def convert_csv_to_fits(filepath, rotate, fliplr, wavelength=632.8,
+                            create_fits=False):
+        """
+        Convert CSV data to FITS format and process image data.
+
+        Parameters
+        ----------
+        filepath : str
+            Filepath for the CSV data.
+        rotate : int
+            Rotation angle in degrees.
+        fliplr : bool
+            If True, flip the image horizontally.
+        wavelength : float, optional
+            Wavelength for scaling, default is 632.8 nm.
+        create_fits : bool, optional
+            If True, save the processed image as a FITS file.
+
+        Returns
+        -------
+        numpy.ndarray
+            Processed image data.
+        """
+        filepath = filepath if filepath.endswith(".csv") else f"{filepath}.csv"
+        fits_filepath = f"{os.path.splitext(filepath)[0]}.fits"
+
+        image = []
+        with open(filepath, 'r') as csvfile:
+            reader = csv.reader(csvfile)
+            header_dict = {}
+
+            # Iterate over each row in the CSV file
+            for i, row in enumerate(reader):
+                final_row = []
+                # First 12 rows contain header information.
+                if i < 12:
+                    try:
+                        hkey, _, hval = row[0].partition(': ')
+                        header_dict[hkey] = float(hval)
+                    except ValueError:
+                        header_dict[hkey] = hval
+                    except IndexError:
+                        pass
+                else:
+                    for item in row:
+                        try:
+                            final_row.append(float(item.strip()))
+                        except:
+                            final_row.append(np.nan)
+                    image.append(final_row)
+
+            image = np.array(image)
+
+            # Remove all masked rows and columns (NaNs)
+            mask_rows = np.all(np.isnan(image), axis=1)
+            image = image[~mask_rows]
+
+            mask_cols = np.all(np.isnan(image), axis=0)
+            image = image[:, ~mask_cols]
+
+            # Apply the rotation and flips.
+            image = rotate_and_flip_image(image, rotate, fliplr)
+
+            # Convert waves to nanometers.
+            image = image * wavelength
+
+            if create_fits:
+                hdu = fits.PrimaryHDU(data=image)
+                for key, value in header_dict.items():
+                    try:
+                        hdu.header[key.capitalize()[:8]] = value
+                    except ValueError:
+                        hdu.header[key.capitalize()[:8]] = str(value)
+
+                hdu.writeto(fits_filepath, overwrite=True)
+
+            return image
+
     def main(self):
         """
         Main loop to manage data acquisition and processing.
