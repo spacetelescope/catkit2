@@ -346,7 +346,7 @@ class AccufizInterferometer(Service):
                     for item in row:
                         try:
                             final_row.append(float(item.strip()))
-                        except:
+                        except ValueError:
                             final_row.append(np.nan)
                     image.append(final_row)
 
