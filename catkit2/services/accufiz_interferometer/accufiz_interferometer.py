@@ -193,7 +193,7 @@ class AccufizInterferometer(Service):
         """
         # Send request to take data.
         if self.new_software:
-            resp = self.get( f"{self.html_prefix}/SystemService/TakeAveragedMeasurement?numberOfSamples={self.num_frames_avg}")
+            resp = self.get(f"{self.html_prefix}/SystemService/TakeAveragedMeasurement?numberOfSamples={self.num_frames_avg}")
         else:
             resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(self.num_frames_avg)})
 
