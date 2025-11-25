@@ -193,10 +193,9 @@ class AccufizInterferometer(Service):
         if self.new_software:
             resp = self.get( f"{self.html_prefix}/SystemService/TakeAveragedMeasurement?numberOfSamples={self.num_frames_avg}")
         else:
-            resp = self.post(f"{self.html_prefix}/AverageMeasure",
-                             data={"count": int(self.num_frames_avg)})
+            resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(self.num_frames_avg)})
 
-        if "success" not in resp.text:
+        if not self.new_software and "success" not in resp.text:
             raise RuntimeError(f"{self.config_id}: Failed to take data - {resp.text}.")
 
         filename = str(uuid.uuid4())
@@ -211,18 +210,25 @@ class AccufizInterferometer(Service):
 
         # Send request to save data.
         if self.new_software:
-            self.get(f"{self.html_prefix}/SaveDataToDisk", data={"fileName": server_file_path})
+            data = server_file_path + ".csv"
+            dumped_data = json.dumps(data)
+            encoded_data = dumped_data.encode('utf-8')
+            self.post(f"{self.html_prefix}/DataService/SaveDataToDisk/", data=encoded_data, headers={'Content-type': 'application/json'})
+
         else:
             self.post(f"{self.html_prefix}/SaveMeasurement", data={"fileName": server_file_path})
 
-        if not glob(f"{local_file_path}.h5"):
+        if not glob(f"{local_file_path}.h5") and not glob(f"{local_file_path}.csv"):
             raise RuntimeError(f"{self.config_id}: Failed to save measurement data to '{local_file_path}'.")
 
-        local_file_path = local_file_path if local_file_path.endswith(".h5") else f"{local_file_path}.h5"
-        self.log.info(f"{self.config_id}: Succeeded to save measurement data to '{local_file_path}'")
+        if self.new_software:
+            local_file_path = local_file_path if local_file_path.endswith(".csv") else f"{local_file_path}.csv"
+        else:
+            local_file_path = local_file_path if local_file_path.endswith(".h5") else f"{local_file_path}.h5"
+            mask = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('Detectormask', 1))
+            img = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * mask
 
-        mask = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('Detectormask', 1))
-        img = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * mask
+        self.log.info(f"{self.config_id}: Succeeded to save measurement data to '{local_file_path}'")
 
         # self.detector_masks.submit_data(mask.astype(np.uint8))
         if self.new_software:
@@ -234,7 +240,7 @@ class AccufizInterferometer(Service):
         if (not self.save_h5) and os.path.exists(local_file_path):
             os.remove(local_file_path)
 
-        return image
+        return np.ascontiguousarray(image)
 
     @staticmethod
     def convert_h5_to_fits(filepath, rotate, fliplr, img, mask, wavelength=632.8, create_fits=False):
