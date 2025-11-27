@@ -240,7 +240,6 @@ void Service::Run(void (*error_check)())
 	ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
 	m_Broker->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
 
-
 	CleanupAttributes();
 }
 
@@ -350,16 +349,22 @@ void Service::MonitorHeartbeats()
 void Service::MonitorPropertiesAndCommands()
 {
 	auto subscription = m_Broker->Subscribe(m_ServiceId);
+	std::uint64_t last_heartbeat = 0;
 
 	while (!ShouldShutDown())
 	{
 		try
 		{
-			// Update my own heartbeat.
 			std::uint64_t timestamp = GetTimeStamp();
 
-			ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
-			m_Broker->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
+			// Update my own heartbeat, if enough time has expired since the last one.
+			if ((timestamp - last_heartbeat) >= (SERVICE_LIVELINESS * 1e9 / 5))
+			{
+				ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
+				m_Broker->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
+
+				last_heartbeat = timestamp;
+			}
 
 			// Get the next message for a potential property set or command execute.
 			auto message_optional = subscription.GetNextMessage(SERVICE_LIVELINESS / 5, EventWaitMethod::Default);
