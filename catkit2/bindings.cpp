@@ -644,7 +644,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("state", &ServiceProxy::GetState)
 		.def_property_readonly("is_alive", &ServiceProxy::IsAlive)
 		.def_property_readonly("is_running", &ServiceProxy::IsRunning)
-		.def_property_readonly("heartbeat", &ServiceProxy::GetHeartbeat)
 		.def("start", [](ServiceProxy &service, double timeout_in_sec)
 		{
 			service.Start(timeout_in_sec, error_check_python);

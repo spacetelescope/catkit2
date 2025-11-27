@@ -27,15 +27,15 @@ const double SAFETY_INTERVAL = 60;  // seconds.
 Service::Service(string service_type, string service_id, int service_port, int testbed_port)
 	: m_Server(service_port), m_ServiceId(service_id), m_ServiceType(service_type),
 	m_LoggerConsole(), m_LoggerPublish(),
-	m_Heartbeat(nullptr), m_State(nullptr), m_Safety(nullptr), m_Testbed(nullptr),
+	m_Testbed(nullptr), m_Broker(nullptr),
 	m_IsRunning(false), m_ShouldShutDown(false), m_FailSafe(false)
 {
 	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
 	m_Config = m_Testbed->GetConfig()["services"][service_id];
 
-	m_LoggerPublish.Connect(service_id, "tcp://127.0.0.1:"s + to_string(m_Testbed->GetLoggingIngressPort()));
+	m_Broker = m_Testbed->GetMessageBroker();
 
-	m_Heartbeat = DataStream::Create("heartbeat", service_id, DataType::DT_UINT64, {1}, 20);
+	m_LoggerPublish.Connect(service_id, "tcp://127.0.0.1:"s + to_string(m_Testbed->GetLoggingIngressPort()));
 
 	tracing_proxy.Connect(service_id, "127.0.0.1", m_Testbed->GetTracingIngressPort());
 
@@ -44,8 +44,7 @@ Service::Service(string service_type, string service_id, int service_port, int t
 		service_type,
 		"127.0.0.1",
 		service_port,
-		GetProcessId(),
-		m_Heartbeat->GetStreamId()
+		GetProcessId()
 	);
 
 	m_State = DataStream::Open(state_stream_id);
@@ -120,7 +119,7 @@ void Service::Run(void (*error_check)())
 
 	// Publish info.
 	std::string service_info = GetInfo();
-	m_Testbed->GetMessageBroker()->PublishData(m_ServiceId + "/info/get"s, service_info.data(), service_info.size());
+	m_Broker->PublishData(m_ServiceId + "/info/get"s, service_info.data(), service_info.size());
 
 	LOG_INFO("Published service info.");
 
@@ -134,7 +133,7 @@ void Service::Run(void (*error_check)())
 		{
 			auto value = GetProperty(property_name);
 			std::string topic = m_ServiceId + "/"s + property_name + "/get"s;
-			m_Testbed->GetMessageBroker()->PublishData(topic, value.data(), value.size());
+			m_Broker->PublishData(topic, value.data(), value.size());
 		}
 		catch (std::exception &e)
 		{
@@ -152,10 +151,9 @@ void Service::Run(void (*error_check)())
 		// Put out an initial heartbeat.
 		// This ensures that there is always a heartbeat on this channel.
 		std::uint64_t timestamp = GetTimeStamp();
-		m_Heartbeat->SubmitData(&timestamp);
 
 		ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
-		m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
+		m_Broker->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
 
 		// Start the safety and heartbeat threads.
 		std::thread safety(&Service::MonitorSafety, this);
@@ -239,10 +237,9 @@ void Service::Run(void (*error_check)())
 
 	// Set heartbeat timestamp to zero to signal a dead service.
 	std::uint64_t timestamp = 0;
-	m_Heartbeat->SubmitData(&timestamp);
 
 	ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
-	m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
+	m_Broker->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
 
 
 	CleanupAttributes();
@@ -327,13 +324,6 @@ void Service::MonitorHeartbeats()
 {
 	while (!ShouldShutDown())
 	{
-		// Update my own heartbeat.
-		std::uint64_t timestamp = GetTimeStamp();
-		m_Heartbeat->SubmitData(&timestamp);
-
-		ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
-		m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
-
 		// Check the testbed heartbeat.
 		if (!m_Testbed->IsAlive())
 		{
@@ -347,11 +337,11 @@ void Service::MonitorHeartbeats()
 
 		double cpu_usage = m_ProcessStats.GetCpuUsage();
 		ArrayInfo cpu_usage_info = {'f', '=', 8, 1, {1}, {1}};
-		m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/cpu_usage/get", {cpu_usage_info, &cpu_usage});
+		m_Broker->PublishArray(m_ServiceId + "/cpu_usage/get", {cpu_usage_info, &cpu_usage});
 
 		uint64_t memory_usage = m_ProcessStats.GetMemoryUsage();
 		ArrayInfo memory_usage_info = {'u', '=', 8, 1, {1}, {1}};
-		m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/memory_usage/get", {memory_usage_info, &memory_usage});
+		m_Broker->PublishArray(m_ServiceId + "/memory_usage/get", {memory_usage_info, &memory_usage});
 
 		// Sleep until next check.
 		Sleep(SERVICE_LIVELINESS / 5);
@@ -360,13 +350,19 @@ void Service::MonitorHeartbeats()
 
 void Service::MonitorPropertiesAndCommands()
 {
-	auto broker = m_Testbed->GetMessageBroker();
-	auto subscription = broker->Subscribe(m_ServiceId);
+	auto subscription = m_Broker->Subscribe(m_ServiceId);
 
 	while (!ShouldShutDown())
 	{
 		try
 		{
+			// Update my own heartbeat.
+			std::uint64_t timestamp = GetTimeStamp();
+
+			ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
+			m_Broker->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
+
+			// Get the next message for a potential property set or command execute.
 			auto message_optional = subscription.GetNextMessage(SERVICE_LIVELINESS / 5, EventWaitMethod::Default);
 
 			if (!message_optional.has_value())
@@ -378,14 +374,14 @@ void Service::MonitorPropertiesAndCommands()
 			// Trigger on set messages.
 			if (topic.size() >= 4 && topic.substr(topic.size() - 4) == "/set")
 			{
-				HandleSetPropertyMessage(broker, message);
+				HandleSetPropertyMessage(m_Broker, message);
 				continue;
 			}
 
 			// Trigger on execute messages.
 			if (topic.size() >= 8 && topic.substr(topic.size() - 8) == "/execute")
 			{
-				HandleExecuteCommandMessage(broker, message);
+				HandleExecuteCommandMessage(m_Broker, message);
 				continue;
 			}
 		}
@@ -651,8 +647,7 @@ string Service::GetInfo()
 		{"config", m_Config},
 		{"property_names", json::array()},
 		{"command_names", json::array()},
-		{"datastream_ids", json::object()},
-		{"heartbeat_stream_id", m_Heartbeat->GetStreamId()}
+		{"datastream_ids", json::object()}
 	};
 
 	for (auto& [key, value] : m_Properties)

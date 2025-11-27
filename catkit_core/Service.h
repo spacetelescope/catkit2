@@ -91,6 +91,7 @@ private:
 	std::atomic_bool m_FailSafe;
 
 	std::shared_ptr<TestbedProxy> m_Testbed;
+	std::shared_ptr<MessageBroker> m_Broker;
 
 	std::string m_ServiceId;
 	std::string m_ServiceType;

@@ -218,11 +218,6 @@ std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name,
 	return m_DataStreams[name];
 }
 
-std::shared_ptr<DataStream> ServiceProxy::GetHeartbeat()
-{
-	return m_Heartbeat;
-}
-
 ServiceState ServiceProxy::GetState()
 {
 	ServiceState state = ServiceState(m_State->GetLatestFrame().AsArray<std::int8_t>()(0));

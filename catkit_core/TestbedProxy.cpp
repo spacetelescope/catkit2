@@ -140,7 +140,7 @@ ServiceReference TestbedProxy::GetServiceInfo(const std::string &service_id)
 	return res;
 }
 
-std::string TestbedProxy::RegisterService(std::string service_id, std::string service_type, std::string host, int port, int process_id, std::string heartbeat_stream_id)
+std::string TestbedProxy::RegisterService(std::string service_id, std::string service_type, std::string host, int port, int process_id)
 {
 	catkit_proto::testbed::RegisterServiceRequest request;
 
@@ -149,7 +149,6 @@ std::string TestbedProxy::RegisterService(std::string service_id, std::string se
 	request.set_host(host);
 	request.set_port(port);
 	request.set_process_id(process_id);
-	request.set_heartbeat_stream_id(heartbeat_stream_id);
 
 	catkit_proto::testbed::RegisterServiceReply reply;
 
