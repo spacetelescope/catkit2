@@ -98,10 +98,6 @@ private:
 
 	nlohmann::json m_Config;
 
-	std::shared_ptr<DataStream> m_Heartbeat;
-	std::shared_ptr<DataStream> m_Safety;
-	std::shared_ptr<DataStream> m_State;
-
 	std::map<std::string, std::pair<PropertyGetter, PropertySetter>> m_Properties;
 
 	std::map<std::string, std::shared_ptr<Command>> m_Commands;

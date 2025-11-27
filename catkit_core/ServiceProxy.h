@@ -60,8 +60,6 @@ private:
 
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
 
-	std::shared_ptr<DataStream> m_Heartbeat;
-	std::shared_ptr<DataStream> m_State;
 	std::uint64_t m_TimeLastConnect;
 };
 

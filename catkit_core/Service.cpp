@@ -47,7 +47,6 @@ Service::Service(string service_type, string service_id, int service_port, int t
 		GetProcessId()
 	);
 
-	m_State = DataStream::Open(state_stream_id);
 	UpdateState(ServiceState::INITIALIZING);
 
 	LOG_DEBUG("Registering request handlers.");
@@ -677,7 +676,8 @@ string Service::HandleShutDown(const string &data)
 void Service::UpdateState(ServiceState state)
 {
 	int8_t new_state = state;
-	m_State->SubmitData(&new_state);
+
+	m_Broker->PublishData(m_ServiceId + "/state/get", &new_state, sizeof(new_state));
 }
 
 void print_usage()

@@ -18,7 +18,7 @@ const double TIMEOUT_SET_PROPERTY = 120;  // seconds
 const double TIMEOUT_EXECUTE_COMMAND = 120;  // seconds
 
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
-	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr), m_State(nullptr),
+	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr),
 	m_TimeLastConnect(0)
 {
 	// Do a check to see if the service id is correct.
@@ -30,8 +30,6 @@ ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string se
 	}
 
 	auto service_info = testbed->GetServiceInfo(m_ServiceId);
-
-	m_State = DataStream::Open(service_info.state_stream_id);
 
 	Connect();
 }
@@ -220,9 +218,14 @@ std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name,
 
 ServiceState ServiceProxy::GetState()
 {
-	ServiceState state = ServiceState(m_State->GetLatestFrame().AsArray<std::int8_t>()(0));
+	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/state/get");
 
-	return state;
+	if (!message.has_value())
+		throw std::runtime_error("The service doesn't have a state message.");
+
+	std::int8_t *state = (std::int8_t *) message.value().GetPayload().data;
+
+	return ServiceState(*state);
 }
 
 bool ServiceProxy::IsRunning()
@@ -333,9 +336,12 @@ void ServiceProxy::Terminate()
 void ServiceProxy::Connect()
 {
 	// Check if the service is running.
-	// Do an explicit check on the state stream to avoid infinite loop.
-	auto frame = m_State->GetLatestFrame();
-	ServiceState state = ServiceState(frame.AsArray<std::int8_t>()(0));
+	// Do an explicit check because we need the timestamp as well.
+	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/state/get");
+	if (!message.has_value())
+		throw std::runtime_error("Service " + m_ServiceId + " didn't have a service state.");
+
+	ServiceState state = ServiceState(*((std::int8_t *)message.value().GetPayload().data));
 
 	if (state != ServiceState::RUNNING)
 	{
@@ -345,7 +351,7 @@ void ServiceProxy::Connect()
 	}
 
 	// Check if we are already connected to the Service.
-	if (m_TimeLastConnect == frame.m_TimeStamp)
+	if (m_TimeLastConnect == message.value().GetProducerTimestamp())
 		return;
 
 	// We need to reconnect, so let's disconnect first.
@@ -374,9 +380,7 @@ void ServiceProxy::Connect()
 	for (auto& [key, value] : info["datastream_ids"].items())
 		m_DataStreamIds[key] = value;
 
-	m_Heartbeat = DataStream::Open(info["heartbeat_stream_id"].get<std::string>());
-
-	m_TimeLastConnect = frame.m_TimeStamp;
+	m_TimeLastConnect = message.value().GetProducerTimestamp();
 	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");
 }
 
@@ -387,8 +391,6 @@ void ServiceProxy::Disconnect()
 	m_CommandNames.clear();
 	m_DataStreamIds.clear();
 	m_DataStreams.clear();
-
-	m_Heartbeat = nullptr;
 }
 
 std::vector<std::string> ServiceProxy::GetPropertyNames(void (*error_check)())
