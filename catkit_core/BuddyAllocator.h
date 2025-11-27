@@ -32,6 +32,9 @@ public:
 
 	void PrintState() const;
 
+	size_t GetUsage() const;
+	size_t GetCapacity() const;
+
 private:
 	BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success, std::shared_ptr<Memory> memory_block);
 

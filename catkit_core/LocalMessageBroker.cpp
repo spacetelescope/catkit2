@@ -692,5 +692,15 @@ void LocalMessageBroker::PrintDebugInfo() const
 
 	std::cout << "LocalMessageBroker " << this << ":" << std::endl
 		<< "  Number of topics: " << topics.size() << " / " << m_TopicHeaders->GetCapacity() << std::endl
-		<< "  Message headers: " << m_MessageHeaderAllocator->GetNumUsedBlocks() << " / " << m_MessageHeaderAllocator->GetCapacity() << std::endl;
+		<< "  Message headers: " << m_MessageHeaderAllocator->GetNumUsedBlocks() << " / " << m_MessageHeaderAllocator->GetCapacity() << std::endl
+		<< "  Message payloads:" << std::endl;
+
+	size_t i = 0;
+
+	for (auto &alloc : m_Allocators)
+	{
+		std::cout << "    Block " << i << ": " << alloc->GetUsage() << " / " << alloc->GetCapacity() << std::endl;
+
+		i++;
+	}
 }
