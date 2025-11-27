@@ -218,7 +218,7 @@ std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name,
 
 ServiceState ServiceProxy::GetState()
 {
-	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/state/get");
+	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/service_state/get");
 
 	if (!message.has_value())
 		throw std::runtime_error("The service doesn't have a state message.");
@@ -337,7 +337,7 @@ void ServiceProxy::Connect()
 {
 	// Check if the service is running.
 	// Do an explicit check because we need the timestamp as well.
-	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/state/get");
+	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/service_state/get");
 	if (!message.has_value())
 		throw std::runtime_error("Service " + m_ServiceId + " didn't have a service state.");
 

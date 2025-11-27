@@ -677,7 +677,7 @@ void Service::UpdateState(ServiceState state)
 {
 	int8_t new_state = state;
 
-	m_Broker->PublishData(m_ServiceId + "/state/get", &new_state, sizeof(new_state));
+	m_Broker->PublishData(m_ServiceId + "/service_state/get", &new_state, sizeof(new_state));
 }
 
 void print_usage()
