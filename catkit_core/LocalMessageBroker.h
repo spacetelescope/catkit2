@@ -115,6 +115,8 @@ public:
 
 	ShareableType GetType() const override;
 
+	virtual void PrintDebugInfo() const override;
+
 private:
 	Message FetchMessage(TopicHeader *topic_header, size_t frame_id);
 	std::uint64_t GetNextMessageId(TopicHeader *topic_header, size_t preferred_next_frame_id, MessageSubscriptionMode mode);

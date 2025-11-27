@@ -175,6 +175,8 @@ public:
 
 	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
 	MessageSubscription Subscribe(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+
+	virtual void PrintDebugInfo() const;
 };
 
 #endif // MESSAGE_BROKER_H

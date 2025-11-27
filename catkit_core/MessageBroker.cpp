@@ -250,3 +250,7 @@ MessageSubscription MessageBroker::Subscribe(std::string_view topic, size_t pref
 {
 	return MessageSubscription(shared_from_this(), topic, preferred_next_frame_id, mode);
 }
+
+void MessageBroker::PrintDebugInfo() const
+{
+}

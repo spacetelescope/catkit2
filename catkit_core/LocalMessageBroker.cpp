@@ -685,3 +685,12 @@ TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 
 	return topic_header;
 }
+
+void LocalMessageBroker::PrintDebugInfo() const
+{
+	auto topics = m_TopicHeaders->GetAllKeys();
+
+	std::cout << "LocalMessageBroker " << this << ":" << std::endl
+		<< "  Number of topics: " << topics.size() << " / " << m_TopicHeaders->GetCapacity() << std::endl
+		<< "  Message headers: " << m_MessageHeaderAllocator->GetNumUsedBlocks() << " / " << m_MessageHeaderAllocator->GetCapacity() << std::endl;
+}
