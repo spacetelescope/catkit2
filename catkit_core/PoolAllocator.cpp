@@ -142,3 +142,21 @@ ShareableType PoolAllocator::GetType() const
 {
 	return ShareableType::PoolAllocator;
 }
+
+size_t PoolAllocator::GetNumUsedBlocks() const
+{
+	size_t count = 0;
+
+	for (size_t i = 0; i < m_Capacity; ++i)
+	{
+		if (m_RefCount[i].load(std::memory_order_relaxed) > 0)
+			count++;
+	}
+
+	return count;
+}
+
+size_t PoolAllocator::GetCapacity() const
+{
+	return m_Capacity;
+}

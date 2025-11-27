@@ -53,6 +53,7 @@ public:
 	void *Find(std::string_view key) const;
 
 	std::vector<std::string> GetAllKeys() const;
+	size_t GetCapacity() const;
 
 	ShareableType GetType() const override;
 };
