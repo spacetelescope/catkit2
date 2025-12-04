@@ -105,6 +105,7 @@ class ThorlabsMcls1(Service):
 
         self.threads = {}
 
+        self.vcp_port = self.config.get('vcp_port', 'VCP0')
         # Use a reentrant lock to avoid deadlock when setting the channel.
         self.lock = threading.RLock()
 
@@ -137,12 +138,12 @@ class ThorlabsMcls1(Service):
             # Another way to figure out the COM port is to go to the MCLS1 Application and dicsonnect the source.
             # When you reconnect the source, COM port it is connected to will be displayed.
 
-            if 'VCP3' in thing:
+            if self.vcp_port in thing:
                 self.port = split[i - 1]
                 print(f'port number from thing ={self.port}')
                 break
         else:
-            raise Exception('Device VCP3 not found - The MCLS1 probably switched COM port after a reboot')
+            raise Exception(f'Device {self.vcp_port} not found - The MCLS1 probably switched port after a reboot')
 
         self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
