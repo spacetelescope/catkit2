@@ -76,7 +76,10 @@ def make_getter(command, stream_name):
         # Submit retrieved value to stream.
         stream = getattr(self, stream_name)
         print(f"value= {value}")
-        stream.submit_data(np.array([value]).astype(stream.dtype))
+        try:
+            stream.submit_data(np.array([value]).astype(stream.dtype))
+        except ValueError:
+            raise ValueError('Error likely due to incorrect COM/VCP port after a reboot')
 
         return value
 
@@ -131,12 +134,15 @@ class ThorlabsMcls1(Service):
             # Last time this happened we identified the COM port in the device manager by unplugging / replugging
             # and then figuring the corresponding VCP port from the above debugging message.
 
-            if 'VCP0' in thing:
+            # Another way to figure out the COM port is to go to the MCLS1 Application and dicsonnect the source.
+            # When you reconnect the source, COM port it is connected to will be displayed.
+
+            if 'VCP3' in thing:
                 self.port = split[i - 1]
                 print(f'port number from thing ={self.port}')
                 break
         else:
-            raise Exception('Device VCP0 not found - The MCLS1 probably switched port after a reboot')
+            raise Exception('Device VCP3 not found - The MCLS1 probably switched COM port after a reboot')
 
         self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
 
