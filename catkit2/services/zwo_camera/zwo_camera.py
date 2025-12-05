@@ -63,29 +63,46 @@ class ZwoCamera(Service):
         expected_device_name = self.config['device_name']
         expected_device_id = self.config.get('device_id', None)
 
+        best_match_index = None
+        best_match_score = 0
+        best_match_length_diff = float('inf')
+
         for i in range(num_cameras):
             device_name = zwoasi._get_camera_property(i)['Name']
+            self.log.info(device_name)
 
-            if not device_name.startswith(expected_device_name):
-                continue
+            # Calculate matching score (number of matching characters, case insensitive)
+            match_score = sum(1 for a, b in zip(expected_device_name.lower(), device_name.lower()) if a == b)
+            length_diff = abs(len(device_name) - len(expected_device_name))
 
-            if expected_device_id is None:
-                camera_index = i
-                break
-            else:
-                zwoasi._open_camera(i)
-                try:
-                    device_id = zwoasi._get_id(i)
-                    if device_id == str(expected_device_id):
-                        camera_index = i
-                        break
-                except Exception as e:
-                    raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.') from e
-                finally:
-                    zwoasi._close_camera(i)
+            # Check if this is a better match
+            is_better_match = (match_score > best_match_score or
+                             (match_score == best_match_score and length_diff < best_match_length_diff))
 
-        else:
+            if is_better_match:
+                if expected_device_id is None:
+                        best_match_index = i
+                        best_match_score = match_score
+                        best_match_length_diff = length_diff
+                else:
+                    zwoasi._open_camera(i)
+                    try:
+                        device_id = zwoasi._get_id(i)
+                        if device_id == str(expected_device_id):
+                                best_match_index = i
+                                best_match_score = match_score
+                                best_match_length_diff = length_diff
+                    except Exception as e:
+                        raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.') from e
+                    finally:
+                        zwoasi._close_camera(i)
+
+        if best_match_index is None:
             raise RuntimeError(f'Camera {expected_device_name} with id {expected_device_id} not found.')
+
+        camera_index = best_match_index
+
+        self.log.info(f'Matched {zwoasi._get_camera_property(camera_index)["Name"]}')
 
         # Create a camera object using the zwoasi library.
         self.camera = zwoasi.Camera(camera_index)
@@ -95,14 +112,21 @@ class ZwoCamera(Service):
 
         # Restore all controls to default values, in case any other application modified them.
         for c in controls:
-            self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
+            # Some control values such as Temperature and CoolerPowerPerc are not writable for zwo cool models
+            if ('IsWritable' in controls[c]) and controls[c]['IsWritable']:
+                self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
 
         print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
 
         print('Bandwidth before:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
-        # Set bandwidth overload control to minvalue.
-        self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        self._max_bandwidth = self.config.get('max_bandwidth', True)
+
+        # Max USB bandwidth gives highest FPS performance at small ROI - however it sometimes causes the service to crash with large frame sizes
+        if self._max_bandwidth:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        else:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
 
         print('Bandwidth after:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
@@ -168,6 +192,8 @@ class ZwoCamera(Service):
         make_property_helper('sensor_height', read_only=True)
 
         make_property_helper('device_name', read_only=True)
+
+        make_property_helper('max_bandwidth')
 
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
@@ -321,6 +347,19 @@ class ZwoCamera(Service):
     @offset_y.setter
     def offset_y(self, offset_y):
         self.camera.set_roi_start_position(self.offset_x, offset_y)
+
+    @property
+    def max_bandwidth(self):
+        return self._max_bandwidth
+
+    @max_bandwidth.setter
+    def max_bandwidth(self, use_max):
+        # max USB bandwidth allows for maximum frame rates from ZWO camera
+        # however, some models have issues reading out large frame sizes when max value is set
+        if use_max:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
+        else:
+            self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
 
 if __name__ == '__main__':
     service = ZwoCamera()

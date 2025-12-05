@@ -16,7 +16,7 @@
 using namespace std;
 using namespace zmq;
 
-const int SOCKET_TIMEOUT = 60000;  // milliseconds.
+const int SOCKET_TIMEOUT = 160000;  // milliseconds.
 
 Client::Client(std::string host, int port)
     : m_Host(host), m_Port(port)

@@ -11,6 +11,7 @@ from glob import glob
 from catkit2.testbed.service import Service
 import os
 import threading
+from restart_4sight import Restart4SightWebService
 
 
 def rotate_and_flip_image(data, theta, flip):
@@ -54,6 +55,10 @@ class AccufizInterferometer(Service):
         """
         super().__init__('accufiz_interferometer')
 
+        # diagnostic
+        self.alive_frames = 0
+        self.alive_time = None
+
         # Essential configurations
         self.mask = self.config['mask']
         self.server_path = self.config['server_path']
@@ -73,6 +78,9 @@ class AccufizInterferometer(Service):
         self.num_frames_avg = self.config.get('num_avg', 2)
         self.fliplr = self.config.get('fliplr', True)
         self.rotate = self.config.get('rotate', 0)
+        self.binning = self.config.get('binning', 1)
+        self.circular_crop = self.config.get('circular_crop', True)
+        self.log.info(f'Set binning to {self.binning}')
 
         # Set the 4D timeout.
         self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
@@ -94,6 +102,27 @@ class AccufizInterferometer(Service):
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
 
+        # Create properties
+        def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
+            if read_only:
+                self.make_property(name, lambda: getattr(self, name))
+            else:
+                def setter(val):
+                    setattr(self, name, val)
+
+                self.make_property(name, lambda: getattr(self, name), setter)
+
+        make_property_helper('folder')
+
+    @property
+    def folder(self):
+        return self.local_path
+
+    @folder.setter
+    def folder(self, newfolder):
+        self.server_path = newfolder
+        self.local_path = newfolder
+
     def set_mask(self):
         """
         Set the mask for the simulator. The mask must be local to the 4D computer in a specified directory.
@@ -108,7 +137,9 @@ class AccufizInterferometer(Service):
         parammask = {"maskType": typeofmask, "fileName": filemask}
         set_mask_string = f"{self.html_prefix}/SetMask"
 
-        self.post(set_mask_string, data=parammask)
+        resp = self.post(set_mask_string, data=parammask)
+
+        self.log.info(f'loaded mask {filemask} resp {resp.text}')
 
         return True
 
@@ -168,6 +199,47 @@ class AccufizInterferometer(Service):
         return resp
 
     def take_measurement(self):
+        max_attempts = 3
+        num_attempts = 0
+        successful = False
+        img = None
+        while (num_attempts < max_attempts) and (not successful):
+            try:
+                num_attempts += 1
+                img = self._take_measurement()
+                successful = True
+            except KeyboardInterrupt as k:
+                raise k
+            except Exception as e:
+                self.log.error(f'Attempt {num_attempts}. encountered issue {e} will try to restart the server and try again', exc_info=True)
+                hours = (time.time() - self.alive_time)/(60*60)
+                self.testbed.watchdog.send_diagnostic(message=f'Attempt {num_attempts}. encountered issue {e} will try to restart the 4sight server and try again...'
+                                                      + f'\n\nTotal frames taken = {self.alive_frames}, alive {hours:.2f} hours')
+                proc = Restart4SightWebService()
+                proc.perform_restart()
+                time.sleep(15)
+                resp = self.post(f"{self.html_prefix}/AverageMeasure",
+                data= {"count": int(self.num_frames_avg)})
+                if "success" in resp.text:
+                    self.log.info('Test image successful!')
+                else:
+                    self.log.info(f"failed to take 4D measurement attempt")
+                self.alive_frames = 0
+                self.alive_time = time.time()
+
+        if not successful:
+            raise Exception(f'restarted 4sight web service {max_attempts} and was not able to get images')
+        
+        has_correct_parameters = np.allclose(self.images.shape, img.shape)
+
+        if not has_correct_parameters:
+            self.images.update_parameters('float32', img.shape, 20)
+
+        self.images.submit_data(img.astype('float32'))
+        
+        return img
+
+    def _take_measurement(self):
         """
         Take a measurement, save the data, and return the processed image.
 
@@ -181,11 +253,24 @@ class AccufizInterferometer(Service):
         RuntimeError
             If data acquisition or saving fails.
         """
-        # Send request to take data.
-        resp = self.post(f"{self.html_prefix}/AverageMeasure", data={"count": int(self.num_frames_avg)})
+        if self.alive_time is None:
+            self.alive_time = time.time()
+        num_tries = 0
+        successful_measurement = False
+        while (num_tries < 3) and (not successful_measurement):
+            num_tries += 1
+            # Send request to take data.
+            resp = self.post(f"{self.html_prefix}/AverageMeasure",
+                            data={"count": int(self.num_frames_avg)})
+            if "success" in resp.text:
+                successful_measurement = True
+            else:
+                self.log.info(f"failed to take 4D measurement attempt {num_tries}")
+                time.sleep(1)
 
-        if "success" not in resp.text:
-            raise RuntimeError(f"{self.config_id}: Failed to take data - {resp.text}.")
+        if not successful_measurement:
+            raise RuntimeError(
+                f"{self.config_id}: Failed to take data - {resp.text}.")
 
         filename = str(uuid.uuid4())
         server_file_path = os.path.join(self.server_path, filename)
@@ -206,20 +291,64 @@ class AccufizInterferometer(Service):
         local_file_path = local_file_path if local_file_path.endswith(".h5") else f"{local_file_path}.h5"
         self.log.info(f"{self.config_id}: Succeeded to save measurement data to '{local_file_path}'")
 
-        mask = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('Detectormask', 1))
-        img = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * mask
+        num_tries = 0
+        successful_read = False
+        while (num_tries < 2) and (not successful_read):
+            try:
+                num_tries += 1
+                mask = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('Detectormask', 1))
+                # LM - mask not matching new image size. I wonder if we should have an option to disable the mask instead
+                if self.circular_crop:
+                    img = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * mask
+                else:
+                    # The detector mask key is not loaded and does not match the size of the 1/4 image
+                    img = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data'))
+                    img[img > 65000] = np.nan
 
-        # self.detector_masks.submit_data(mask.astype(np.uint8))
+                    # When operating in 1/4 resolution mode, the image returned by the 4D is 491 x 492 pixels (Not square!). 
+                    # Since the last column is all NaNs in this case, we just trim it out manually,  
+                    # because having a non-square image turns out to cause a ripple effect of problems later, otherwise. 
+                    if (img.shape[0] == 491) and (img.shape[1] == 492):
+                        img = img[:,:-1]
+    
+                # if we get here we have successfully read the data
+                successful_read = True
+            except Exception as e:
+                self.log.info(f'{e} - failed to read data out of file. Maybe it is still writing... trying again')
+                time.sleep(1)
 
-        image = self.convert_h5_to_fits(local_file_path, rotate=self.rotate, fliplr=self.fliplr, mask=mask, img=img, create_fits=self.save_fits)
+        # Make sure the data stream has the right size and datatype.
+        self.log.info(str(mask.shape))
+        print(mask)
+        if mask.shape == ():
+            mask = np.ones((self.image_height, self.image_width), dtype=np.uint8)
+            print(mask)
+    
+        has_correct_parameters = np.allclose(mask.shape, [self.image_height, self.image_width]) 
+        
+        if not has_correct_parameters:
+            self.image_height = mask.shape[0]
+            self.image_width = mask.shape[1]
+            self.detector_masks.update_parameters('uint8', [self.image_height, self.image_width], self.NUM_FRAMES_IN_BUFFER)
+
+        self.detector_masks.submit_data(mask.astype(np.uint8))
+
+        image = self.convert_h5_to_fits(local_file_path, rotate=self.rotate,
+                                        fliplr=self.fliplr, mask=mask, img=img, create_fits=self.save_fits,
+                                        binning=self.binning, circular_crop=self.circular_crop)
+
         # Remove HDF5 file if not required
         if (not self.save_h5) and os.path.exists(local_file_path):
             os.remove(local_file_path)
 
+        self.alive_frames += 1
+
+
         return np.ascontiguousarray(image, dtype=np.float32)
+    
 
     @staticmethod
-    def convert_h5_to_fits(filepath, rotate, fliplr, img, mask, wavelength=632.8, create_fits=False):
+    def convert_h5_to_fits(filepath, rotate, fliplr, img, mask, wavelength=632.8, create_fits=False, binning=1, circular_crop=True):
         """
         Convert HDF5 data to FITS format and process image data.
 
@@ -248,25 +377,26 @@ class AccufizInterferometer(Service):
         filepath = filepath if filepath.endswith(".h5") else f"{filepath}.h5"
         fits_filepath = f"{os.path.splitext(filepath)[0]}.fits"
 
-        mask = np.array(h5py.File(filepath, 'r').get('measurement0').get('Detectormask', 1))
-        img = np.array(h5py.File(filepath, 'r').get('measurement0').get('genraw').get('data')) * mask
 
         if create_fits:
             fits.PrimaryHDU(mask).writeto(fits_filepath, overwrite=True)
+        
+        if circular_crop:
+            radiusmask = np.int64(np.sqrt(np.sum(mask) / math.pi))
+            center = ndimage.measurements.center_of_mass(mask)
 
-        radiusmask = np.int64(np.sqrt(np.sum(mask) / math.pi))
-        center = ndimage.measurements.center_of_mass(mask)
-
-        image = np.clip(img, -10, +10)[
-            np.int64(center[0]) - radiusmask:np.int64(center[0]) + radiusmask - 1,
-            np.int64(center[1]) - radiusmask:np.int64(center[1]) + radiusmask - 1
-        ]
+            image = np.clip(img, -10, +10)[
+                np.int64(center[0]) - radiusmask:np.int64(center[0]) + radiusmask - 1,
+                np.int64(center[1]) - radiusmask:np.int64(center[1]) + radiusmask - 1
+            ]
+        else:
+            image = img
 
         # Apply the rotation and flips.
         image = rotate_and_flip_image(image, rotate, fliplr)
 
         # Convert waves to nanometers.
-        image = image * wavelength
+        image = image[::binning, ::binning] * wavelength
 
         if create_fits:
             fits_hdu = fits.PrimaryHDU(image)
@@ -292,12 +422,6 @@ class AccufizInterferometer(Service):
             while self.should_be_acquiring.is_set() and not self.should_shut_down:
                 img = self.take_measurement()
 
-                has_correct_parameters = np.allclose(self.images.shape, img.shape)
-
-                if not has_correct_parameters:
-                    self.images.update_parameters('float32', img.shape, 20)
-
-                self.images.submit_data(img.astype('float32'))
         finally:
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 

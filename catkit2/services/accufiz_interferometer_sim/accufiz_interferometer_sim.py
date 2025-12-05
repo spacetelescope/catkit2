@@ -113,6 +113,7 @@ class AccufizInterferometerSim(Service):
         self.num_frames_avg = self.config.get('num_avg', 2)
         self.fliplr = self.config.get('fliplr', True)
         self.rotate = self.config.get('rotate', 0)
+        self.binning = self.config.get('binning', 1)
         self.sim_data = self.config.get('sim_data', None)
 
         # Set the 4D timeout.
@@ -134,6 +135,27 @@ class AccufizInterferometerSim(Service):
         self.make_command('take_measurement', self.take_measurement)
         self.make_command('start_acquisition', self.start_acquisition)
         self.make_command('end_acquisition', self.end_acquisition)
+
+        # Create properties
+        def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
+            if read_only:
+                self.make_property(name, lambda: getattr(self, name))
+            else:
+                def setter(val):
+                    setattr(self, name, val)
+
+                self.make_property(name, lambda: getattr(self, name), setter)
+
+        make_property_helper('folder')
+
+    @property
+    def folder(self):
+        return self.local_path
+
+    @folder.setter
+    def folder(self, newfolder):
+        self.server_path = newfolder
+        self.local_path = newfolder
 
     def set_mask(self):
         """
@@ -323,7 +345,7 @@ class AccufizInterferometerSim(Service):
         image = rotate_and_flip_image(image, rotate, fliplr)
 
         # Convert waves to nanometers.
-        image = image * wavelength
+        image = image[::binning, ::binning] * wavelength
 
         if create_fits:
             fits_hdu = fits.PrimaryHDU(image)
