@@ -36,24 +36,24 @@ class PhysikStageControllerSim(Service):
     def open(self):
         """Initialize the simulated PI device."""
         # Get initial positions from config
-        initial_pos = self.config.get('initial_position', {'x': 0, 'y': 0})
+        initial_pos = self.config.get('initial_position', None)
 
         # Map axis names to numbers (configurable)
         self.axis_map = self.config.get('axis_map', {
             'x': 1,
             'y': 2
         })
+        if initial_pos:
+            # Initialize current positions
+            for name, axis_num in self.axis_map.items():
+                if name in initial_pos:
+                    self.current_positions[axis_num] = float(initial_pos[name])
+                    self.target_positions[axis_num] = float(initial_pos[name])
+                else:
+                    self.current_positions[axis_num] = 0.0
+                    self.target_positions[axis_num] = 0.0
 
-        # Initialize current positions
-        for name, axis_num in self.axis_map.items():
-            if name in initial_pos:
-                self.current_positions[axis_num] = float(initial_pos[name])
-                self.target_positions[axis_num] = float(initial_pos[name])
-            else:
-                self.current_positions[axis_num] = 0.0
-                self.target_positions[axis_num] = 0.0
-
-        self.log.info(f'Simulated controller initialized with positions: {initial_pos}')
+            self.log.info(f'Simulated controller initialized with positions: {initial_pos}')
 
         # Create data streams for telemetry
         num_axes = len(self.axis_map)
