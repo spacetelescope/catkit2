@@ -19,16 +19,16 @@ class PhysikStageControllerSim(Service):
 
         # Create lock for simulated device access
         self.mutex = threading.Lock()
-        
+
         # Store current and target positions
         self.current_positions = {}
         self.target_positions = {}
-        
+
         # Simulation parameters
         self.motion_speed = self.config.get('motion_speed', 10.0)  # units per second
         self.position_tolerance = self.config.get('position_tolerance', 0.001)  # tolerance for "on target"
         self.update_rate = self.config.get('update_rate', 100.0)  # Hz for position updates
-        
+
         # Motion state
         self.is_moving = False
         self.motion_start_time = None
@@ -37,13 +37,13 @@ class PhysikStageControllerSim(Service):
         """Initialize the simulated PI device."""
         # Get initial positions from config
         initial_pos = self.config.get('initial_position', {'x': 0, 'y': 0})
-        
+
         # Map axis names to numbers (configurable)
         self.axis_map = self.config.get('axis_map', {
             'x': 1,
             'y': 2
         })
-        
+
         # Initialize current positions
         for name, axis_num in self.axis_map.items():
             if name in initial_pos:
@@ -60,7 +60,7 @@ class PhysikStageControllerSim(Service):
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
         self.target_positions_stream = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
         self.is_moving_stream = self.make_data_stream('is_moving', 'int8', [1], 20)
-        
+
         # Submit initial state
         self._submit_positions()
         self.is_moving_stream.submit_data(np.array([0], dtype='int8'))
@@ -68,7 +68,7 @@ class PhysikStageControllerSim(Service):
         # Create properties for each axis
         for name, axis_num in self.axis_map.items():
             self._make_axis_property(name, axis_num)
-        
+
         # Create commands
         self.make_command('move_to', self.move_to)
         self.make_command('move_relative', self.move_relative)
@@ -79,20 +79,20 @@ class PhysikStageControllerSim(Service):
         """Create a property for an axis."""
         def getter():
             return self.current_positions[axis_num]
-        
+
         def setter(value):
             self.move_to({name: float(value)})
-        
+
         self.make_property(f'position_{name}', getter, setter)
 
     def _submit_positions(self):
         """Submit current positions to telemetry stream."""
-        pos_array = np.array([self.current_positions[i] for i in sorted(self.current_positions.keys())], 
-                            dtype='float64')
+        pos_array = np.array([self.current_positions[i] for i in sorted(self.current_positions.keys())],
+                             dtype='float64')
         self.positions.submit_data(pos_array)
-        
-        target_array = np.array([self.target_positions[i] for i in sorted(self.target_positions.keys())], 
-                               dtype='float64')
+
+        target_array = np.array([self.target_positions[i] for i in sorted(self.target_positions.keys())],
+                                 dtype='float64')
         self.target_positions_stream.submit_data(target_array)
 
     def _update_simulated_motion(self):
@@ -100,36 +100,36 @@ class PhysikStageControllerSim(Service):
         with self.mutex:
             dt = 1.0 / self.update_rate
             max_step = self.motion_speed * dt
-            
+
             any_moving = False
-            
+
             for axis_num in self.current_positions.keys():
                 current = self.current_positions[axis_num]
                 target = self.target_positions[axis_num]
                 error = target - current
-                
+
                 if abs(error) > self.position_tolerance:
                     any_moving = True
                     # Move towards target with limited speed
                     step = np.clip(error, -max_step, max_step)
                     self.current_positions[axis_num] = current + step
-            
+
             self.is_moving = any_moving
-            
+
         return any_moving
 
     def main(self):
         """Main loop - simulate motion and update positions."""
         sleep_time = 1.0 / self.update_rate
-        
+
         while not self.should_shut_down:
             # Update simulated motion
             is_moving = self._update_simulated_motion()
-            
+
             # Submit telemetry
             self._submit_positions()
             self.is_moving_stream.submit_data(np.array([1 if is_moving else 0], dtype='int8'))
-            
+
             self.sleep(sleep_time)
 
     def close(self):
@@ -139,7 +139,7 @@ class PhysikStageControllerSim(Service):
     def move_to(self, positions):
         """
         Move to absolute positions.
-        
+
         Parameters
         ----------
         positions : dict
@@ -154,14 +154,14 @@ class PhysikStageControllerSim(Service):
                     self.log.info(f"Moving axis {name} to {value}")
                 else:
                     self.log.warning(f"Unknown axis name: {name}")
-            
+
             self.is_moving = True
             self.motion_start_time = time.time()
 
     def move_relative(self, deltas):
         """
         Move relative to current positions.
-        
+
         Parameters
         ----------
         deltas : dict
@@ -177,14 +177,14 @@ class PhysikStageControllerSim(Service):
                     absolute_positions[name] = self.target_positions[axis_num] + float(delta)
                 else:
                     self.log.warning(f"Unknown axis name: {name}")
-        
+
         if absolute_positions:
             self.move_to(absolute_positions)
 
     def get_positions(self):
         """
         Get current positions.
-        
+
         Returns
         -------
         positions : dict
@@ -207,20 +207,20 @@ class PhysikStageControllerSim(Service):
     def wait_on_target(self, timeout=None):
         """
         Wait for all axes to reach their target positions.
-        
+
         Parameters
         ----------
         timeout : float, optional
             Maximum time to wait in seconds
         """
         start_time = time.time()
-        
+
         while self.is_moving:
             if timeout is not None and (time.time() - start_time) > timeout:
                 self.log.warning("Wait on target timed out")
                 return False
             time.sleep(0.01)
-        
+
         return True
 
 
