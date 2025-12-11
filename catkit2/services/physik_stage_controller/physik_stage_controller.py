@@ -40,10 +40,7 @@ class PhysikStageController(Service):
         if initial_pos:
             # Initialize current positions
             for name, axis_num in self.axis_map.items():
-                if name in initial_pos:
-                    self.current_positions[axis_num] = float(initial_pos[name])
-                else:
-                    self.current_positions[axis_num] = 0.0
+                self.current_positions[axis_num] = initial_pos.get(name, 0.0)
 
             self.log.info(f'Initial positions: {initial_pos}')
 
