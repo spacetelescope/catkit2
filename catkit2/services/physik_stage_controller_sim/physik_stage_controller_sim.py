@@ -93,7 +93,6 @@ class PhysikStageControllerSim(Service):
 
         target_array = np.array([self.target_positions[i] for i in sorted(self.target_positions.keys())],
                                  dtype='float64')
-        self.log.info(f'submitting {target_array}')
         self.target_positions_stream.submit_data(target_array)
 
     def _update_simulated_motion(self):
