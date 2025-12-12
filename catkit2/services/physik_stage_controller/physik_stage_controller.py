@@ -27,23 +27,22 @@ class PhysikStageController(Service):
         if serialnum is None:
             raise Exception('Must have controller serial number in config to find controller')
 
-        # Get initial positions from config
-        initial_pos = self.config.get('initial_position', {'x': 0, 'y': 0})
-
         # Map axis names to numbers (configurable)
         self.axis_map = self.config.get('axis_map', {
             'x': 1,
             'y': 2
         })
 
-        # Initialize current positions
-        for name, axis_num in self.axis_map.items():
-            if name in initial_pos:
-                self.current_positions[axis_num] = float(initial_pos[name])
-            else:
-                self.current_positions[axis_num] = 0.0
+        # Get initial positions from config
+        initial_pos = self.config.get('initial_position', None)
 
-        self.log.info(f'Initial positions: {initial_pos}')
+        # only initialized positions when asked, otherwise keep last settings
+        if initial_pos:
+            # Initialize current positions
+            for name, axis_num in self.axis_map.items():
+                self.current_positions[axis_num] = initial_pos.get(name, 0.0)
+
+            self.log.info(f'Initial positions: {initial_pos}')
 
         # Connect to device
         self.pidevice = GCSDevice(controller_name)

@@ -35,8 +35,6 @@ class PhysikStageControllerSim(Service):
 
     def open(self):
         """Initialize the simulated PI device."""
-        # Get initial positions from config
-        initial_pos = self.config.get('initial_position', {'x': 0, 'y': 0})
 
         # Map axis names to numbers (configurable)
         self.axis_map = self.config.get('axis_map', {
@@ -44,19 +42,21 @@ class PhysikStageControllerSim(Service):
             'y': 2
         })
 
-        # Initialize current positions
-        for name, axis_num in self.axis_map.items():
-            if name in initial_pos:
-                self.current_positions[axis_num] = float(initial_pos[name])
-                self.target_positions[axis_num] = float(initial_pos[name])
-            else:
-                self.current_positions[axis_num] = 0.0
-                self.target_positions[axis_num] = 0.0
+        # Get initial positions from config
+        initial_pos = self.config.get('initial_position', None)
 
-        self.log.info(f'Simulated controller initialized with positions: {initial_pos}')
+        # only initialized positions when asked, otherwise keep last settings
+        if initial_pos:
+            # Initialize current positions
+            for name, axis_num in self.axis_map.items():
+                self.current_positions[axis_num] = initial_pos.get(name, 0.0)
+
+            self.log.info(f'Initial positions: {self.current_positions}')
+            self.target_positions = self.current_positions
 
         # Create data streams for telemetry
         num_axes = len(self.axis_map)
+        self.log.info(f'num_axis={num_axes}, axis_map={self.axis_map}')
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
         self.target_positions_stream = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
         self.is_moving_stream = self.make_data_stream('is_moving', 'int8', [1], 20)
