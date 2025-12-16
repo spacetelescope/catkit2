@@ -47,6 +47,7 @@ public:
 	bool IsAlive();
 
 	void ShutDown();
+	void ReloadConfig(const nlohmann::json &new_config);
 
 	std::shared_ptr<DataStream> GetHeartbeat();
 

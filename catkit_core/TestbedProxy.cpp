@@ -196,6 +196,26 @@ void TestbedProxy::ShutDown()
 	}
 }
 
+void TestbedProxy::ReloadConfig(const json &new_config)
+{
+	catkit_proto::testbed::ReloadConfigRequest request;
+	request.set_config(new_config.dump());
+
+	catkit_proto::testbed::ReloadConfigReply reply;
+
+	try
+	{
+		reply.ParseFromString(MakeRequest("reload_config", Serialize(request)));
+	}
+	catch (...)
+	{
+		throw std::runtime_error("Unable to reload config.");
+	}
+
+	// Invalidate cached config so it gets refetched on next access
+	m_HasGottenInfo = false;
+}
+
 std::shared_ptr<DataStream> TestbedProxy::GetHeartbeat()
 {
 	GetTestbedInfo();
