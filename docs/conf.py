@@ -34,8 +34,8 @@ extensions = [
     'breathe'
 ]
 
-breathe_projects = {"catkit_core": "./doxygen/xml/"}
-breathe_default_project = "catkit_core"
+breathe_projects = {"catkit2_core": "./doxygen/xml/"}
+breathe_default_project = "catkit2_core"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

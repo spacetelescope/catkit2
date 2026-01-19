@@ -1,5 +1,5 @@
-catkit_core
+catkit2_core
 ===========
 
 .. doxygenindex::
-    :project: catkit_core
+    :project: catkit2_core

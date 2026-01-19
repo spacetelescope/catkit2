@@ -1,0 +1,21 @@
+package:
+  name: catkit2-core
+  version: "0.0.1"
+
+source:
+  path: ../
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - cmake
+    - make
+    - {{ compiler('cxx') }}
+    - cppzmq=4.8.1
+    - eigen=3.4.0
+    - nlohmann_json=3.9.1
+  host:
+    - zeromq>=4.0.0
+    - libprotobuf

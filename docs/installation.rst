@@ -73,7 +73,7 @@ At this point, all C++ and Python dependencies of catkit2 should have been downl
 
     pip install -e .
 
-This will use the default CMake generator to compile catkit_core and its Python bindings. If the default generator doesn't support 64bit compilation, this step will return an error and you will need to specify a default generator to use by setting the ``CMAKE_GENERATOR`` environment variable to your preferred generator. You can list all generators installed on your machine with ``cmake --help``. You will have to restart your terminal after changing your environment variables as usual.
+This will use the default CMake generator to compile catkit2_core and its Python bindings. If the default generator doesn't support 64bit compilation, this step will return an error and you will need to specify a default generator to use by setting the ``CMAKE_GENERATOR`` environment variable to your preferred generator. You can list all generators installed on your machine with ``cmake --help``. You will have to restart your terminal after changing your environment variables as usual.
 
 
 Some services require manual installation of their respective drivers to access the devices that they operate.

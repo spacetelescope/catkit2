@@ -61,4 +61,4 @@ Catkit2
    :caption: API Documentation
 
    catkit2
-   catkit_core
+   catkit2_core
