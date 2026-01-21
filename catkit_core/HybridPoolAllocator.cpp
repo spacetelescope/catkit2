@@ -335,3 +335,13 @@ HybridPoolAllocator::Bucket &HybridPoolAllocator::GetBucket(std::size_t level)
 
 	return m_Buckets[thread_id][level];
 }
+
+size_t HybridPoolAllocator::GetUsage() const
+{
+	return m_Allocator->GetUsage();
+}
+
+size_t HybridPoolAllocator::GetCapacity() const
+{
+	return m_Allocator->GetCapacity();
+}

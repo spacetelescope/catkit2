@@ -296,6 +296,11 @@ std::vector<std::string> HashMap::GetAllKeys() const
 	return res;
 }
 
+size_t HashMap::GetCapacity() const
+{
+	return m_NumEntries;
+}
+
 ShareableType HashMap::GetType() const
 {
 	return ShareableType::HashMap;

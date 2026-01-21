@@ -1190,6 +1190,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("get_oldest_message_id", &LocalMessageBroker::GetOldestMessageId)
 		.def("get_message_rate", &LocalMessageBroker::GetMessageRate)
 		.def("get_all_message_topics", &LocalMessageBroker::GetAllMessageTopics)
+		.def("print_debug_info", &LocalMessageBroker::PrintDebugInfo)
 		.def("subscribe", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::object preferred_next_frame_id, MessageSubscriptionMode mode)
 		{
 			// Check if the starting frame ID is a number or None.

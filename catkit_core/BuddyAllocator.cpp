@@ -422,3 +422,31 @@ void BuddyAllocator::PrintState() const
 		}
 	}
 }
+
+size_t BuddyAllocator::GetUsage() const
+{
+	size_t used = 0;
+
+	for (size_t level = 1; level < m_Depth; ++level)
+	{
+		Handle begin = 1 << (level - 1);
+		Handle end = 1 << level;
+
+		size_t size = GetSize(begin);
+
+		for (Handle i = begin; i < end; ++i)
+		{
+			auto val = m_Tree[i].load(std::memory_order_relaxed);
+
+			if (val & OCC)
+				used += size;
+		}
+	}
+
+	return used;
+}
+
+size_t BuddyAllocator::GetCapacity() const
+{
+	return m_Capacity;
+}

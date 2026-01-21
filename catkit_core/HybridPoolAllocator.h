@@ -40,6 +40,9 @@ public:
 
 	std::size_t GetOffset(Handle handle) const;
 
+	size_t GetUsage() const;
+	size_t GetCapacity() const;
+
 public:
 	HybridPoolAllocator(std::size_t capacity, std::size_t min_size, std::size_t min_size_pool, std::shared_ptr<BuddyAllocator> allocator, Pool *pools, std::shared_ptr<Memory> memory_block);
 	~HybridPoolAllocator();
