@@ -243,9 +243,6 @@ void Service::Run(void (*error_check)())
 
 	ArrayInfo info{'u', '=', 8, 1, {1, 1, 1, 1}, {8, 1, 1, 1}};
 	m_Testbed->GetMessageBroker()->PublishArray(m_ServiceId + "/heartbeat/get", {info, &timestamp});
-
-
-	CleanupAttributes();
 }
 
 void Service::CleanupAttributes()
