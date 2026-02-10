@@ -61,6 +61,15 @@ class PhysikStageControllerSim(Service):
         self.target_positions_stream = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
         self.is_moving_stream = self.make_data_stream('is_moving', 'int8', [1], 20)
 
+        # Create data stream for move_to command
+        self.move_to_stream = self.make_data_stream('move_to_stream', 'float64', [num_axes], 20)
+
+        # Precompute reverse map for speed
+        self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
+
+        # Start the worker thread
+        threading.Thread(target=self._move_to_stream_worker, daemon=True).start()
+
         # Submit initial state
         self._submit_positions()
         self.is_moving_stream.submit_data(np.array([0], dtype='int8'))
@@ -117,6 +126,15 @@ class PhysikStageControllerSim(Service):
             self.is_moving = any_moving
 
         return any_moving
+    
+    def _move_to_stream_worker(self):
+        while not self.should_shut_down:
+            data = self.move_to_stream.get()
+            if data is not None:
+                positions = {self.axis_num_to_name[num]: float(data[idx])
+                            for idx, num in enumerate(sorted(self.axis_map.values()))}
+                self.move_to(positions)
+            self.sleep(0)  # yield control without adding extra delay
 
     def main(self):
         """Main loop - simulate motion and update positions."""
