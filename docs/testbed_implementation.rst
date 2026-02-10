@@ -8,6 +8,7 @@ pyproject.toml, template docs, and a sample simulated service to be able to star
 To generate the testbed repository, from the command line run:
 
 .. code-block:: shell
+
    cookiecutter catkit2/cookiecutter-testbed
 
 You will then be prompted with a series of questions answered by typing directly in the console. One of these will specify the testbed name (e.g. ``my_testbed``).
@@ -15,6 +16,7 @@ You will then be prompted with a series of questions answered by typing directly
 You can then start the server for ``my_testbed`` by running:
 
 .. code-block:: shell
+   
    cd my_testbed
    pip install -e .
    my_testbed start server --simulated
