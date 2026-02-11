@@ -126,16 +126,21 @@ class PhysikStageControllerSim(Service):
             self.is_moving = any_moving
 
         return any_moving
-    
+
     def _move_to_stream_worker(self):
         while not self.should_shut_down:
-            data = self.move_to_stream.get()
-            if data is not None:
+            try:
+                frame = self.move_to_stream.get_next_frame(wait_time_in_ms=250)
+                data = frame.data
+                
                 positions = {self.axis_num_to_name[num]: float(data[idx])
                             for idx, num in enumerate(sorted(self.axis_map.values()))}
                 self.move_to(positions)
-            self.sleep(0)  # yield control without adding extra delay
-
+                
+                self.sleep(0)  
+            except RuntimeError:
+                pass
+        
     def main(self):
         """Main loop - simulate motion and update positions."""
         sleep_time = 1.0 / self.update_rate
