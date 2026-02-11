@@ -36,6 +36,8 @@
 #include "Uuid.h"
 #include "ArrayView.h"
 #include "ProcessStats.h"
+#include "RemoteMessageBroker.h"
+#include "RemoteBrokerServer.h"
 
 #include "testbed.pb.h"
 
@@ -900,6 +902,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def_property_readonly("filename", &SharedMemory::GetFileName);
 
+	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker");
+
 	py::class_<LocalMemory, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
 		.def_static("create", [](size_t num_bytes)
 		{
@@ -1291,6 +1295,133 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("update", &ProcessStats::Update)
 		.def_property_readonly("memory_usage", &ProcessStats::GetMemoryUsage)
 		.def_property_readonly("cpu_usage", &ProcessStats::GetCpuUsage);
+
+	py::class_<PeerConfig>(m, "PeerConfig")
+		.def(py::init<>())
+		.def_readwrite("name", &PeerConfig::name)
+		.def_readwrite("host", &PeerConfig::host)
+		.def_readwrite("port", &PeerConfig::port);
+
+	py::class_<RemoteBrokerServer>(m, "RemoteBrokerServer")
+		.def(py::init<std::shared_ptr<MessageBroker>, uint16_t, int>(),
+			py::arg("broker"),
+			py::arg("port"),
+			py::arg("num_workers") = 4)
+		.def("start", &RemoteBrokerServer::Start)
+		.def("stop", &RemoteBrokerServer::Stop, py::call_guard<py::gil_scoped_release>())
+		.def_property_readonly("is_running", &RemoteBrokerServer::IsRunning);
+
+	py::class_<RemoteMessageBroker, MessageBroker, std::shared_ptr<RemoteMessageBroker>>(m, "RemoteMessageBroker")
+		.def(py::init<std::shared_ptr<LocalMessageBroker>, std::string, std::vector<PeerConfig>>(),
+			py::arg("local_broker"),
+			py::arg("local_machine_name"),
+			py::arg("peers"))
+		.def("prepare_message", [](std::shared_ptr<RemoteMessageBroker> broker, const std::string& topic, size_t payload_size, py::object trace_id, uint8_t memory_block_id)
+		{
+			if (trace_id.is_none())
+			{
+				return broker->PrepareMessage(topic, payload_size, memory_block_id);
+			}
+			else
+			{
+				return broker->PrepareMessage(topic, payload_size, py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("payload_size"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("publish_message", [](std::shared_ptr<RemoteMessageBroker> broker, Message& message, bool is_final)
+		{
+			broker->PublishMessage(message, is_final);
+		}, py::arg("message"), py::arg("is_final") = true)
+		.def("publish_data", [](std::shared_ptr<RemoteMessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, uint8_t memory_block_id)
+		{
+			if (trace_id.is_none())
+			{
+				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), memory_block_id);
+			}
+			else
+			{
+				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("data"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("publish_array", [](std::shared_ptr<RemoteMessageBroker> broker, std::string topic, py::array array, py::object trace_id, uint8_t memory_block_id)
+		{
+			ArrayInfo info;
+
+			auto dtype = array.dtype();
+			info.data_type = dtype.kind();
+			info.item_size = dtype.itemsize();
+			info.byte_order = dtype.byteorder();
+
+			if (array.ndim() > MAX_NUM_DIMENSIONS)
+				throw std::runtime_error("Array dimension is too large.");
+
+			info.ndim = array.ndim();
+
+			for (size_t i = 0; i < info.ndim; ++i)
+			{
+				info.shape[i] = array.shape()[i];
+				info.strides[i] = array.strides()[i];
+			}
+
+			if (!info.IsCContiguous() && !info.IsFContiguous())
+				throw std::runtime_error("Array has to be either C or F contiguous.");
+
+			// All checks are complete. Let's copy/submit the raw data.
+			const ArrayView array_view{info, array.mutable_data()};
+			if (trace_id.is_none())
+			{
+				broker->PublishArray(topic, array_view, memory_block_id);
+			}
+			else
+			{
+				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("try_get_message", [](std::shared_ptr<RemoteMessageBroker> broker, std::string topic, size_t frame_id) -> py::object
+		{
+			auto res = broker->TryGetNextMessage(topic, frame_id);
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		}, py::arg("topic"), py::arg("frame_id"))
+		.def("get_current_message", [](std::shared_ptr<RemoteMessageBroker> broker, std::string_view topic) -> py::object
+		{
+			auto res = broker->GetCurrentMessage(topic);
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		}, py::arg("topic"))
+		.def("is_message_available", [](RemoteMessageBroker &broker, std::string topic, size_t frame_id)
+		{
+			return broker.IsMessageAvailable(topic, frame_id);
+		})
+		.def("will_message_be_available", [](RemoteMessageBroker &broker, std::string topic, size_t frame_id)
+		{
+			return broker.WillMessageBeAvailable(topic, frame_id);
+		})
+		.def("get_newest_message_id", [](RemoteMessageBroker &broker, std::string topic)
+		{
+			return broker.GetNewestMessageId(topic);
+		})
+		.def("get_oldest_message_id", [](RemoteMessageBroker &broker, std::string topic)
+		{
+			return broker.GetOldestMessageId(topic);
+		})
+		.def("get_message_rate", &RemoteMessageBroker::GetMessageRate)
+		.def("get_all_message_topics", &RemoteMessageBroker::GetAllMessageTopics)
+		.def("subscribe", [](std::shared_ptr<RemoteMessageBroker> broker, std::string topic, py::object preferred_next_frame_id, MessageSubscriptionMode mode)
+		{
+			// Check if the starting frame ID is a number or None.
+			if (preferred_next_frame_id.is_none())
+			{
+				return broker->Subscribe(topic, mode);
+			}
+			else
+			{
+				return broker->Subscribe(topic, py::cast<std::uint64_t>(preferred_next_frame_id), mode);
+			}
+		}, py::arg("topic"), py::arg("preferred_next_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
