@@ -14,6 +14,10 @@ struct PeerConfig
 	std::string name;
 	std::string host;
 	int port;
+
+	PeerConfig() = default;
+	PeerConfig(std::string name_, std::string host_, int port_)
+		: name(std::move(name_)), host(std::move(host_)), port(port_) {}
 };
 
 class RemoteMessageBroker : public MessageBroker

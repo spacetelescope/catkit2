@@ -1091,7 +1091,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			return py::none();
 		});
 
-	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
+	py::class_<LocalMessageBroker, MessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
 		{
 			auto stream = StructStream(header);
@@ -1298,6 +1298,10 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 	py::class_<PeerConfig>(m, "PeerConfig")
 		.def(py::init<>())
+		.def(py::init<std::string, std::string, int>(),
+			py::arg("name"),
+			py::arg("host"),
+			py::arg("port"))
 		.def_readwrite("name", &PeerConfig::name)
 		.def_readwrite("host", &PeerConfig::host)
 		.def_readwrite("port", &PeerConfig::port);
