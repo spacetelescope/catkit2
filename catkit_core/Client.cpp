@@ -29,6 +29,7 @@ Client::~Client()
 
 string Client::MakeRequest(const string &what, const string &request)
 {
+	std::cerr << "[DEBUG] Client::MakeRequest - what: " << what << ", request_size: " << request.size() << ", host: " << m_Host << ":" << m_Port << std::endl;
     auto socket = GetSocket();
 
 	zmq::multipart_t request_msg;
@@ -59,6 +60,7 @@ string Client::MakeRequest(const string &what, const string &request)
 
 		std::string reply_type = reply_msg.popstr();
 		std::string reply_data = reply_msg.popstr();
+		std::cerr << "[DEBUG] Client::MakeRequest - reply_type: " << reply_type << ", reply_data: " << reply_data << std::endl;
 
 		if (reply_type == "OK")
 		{

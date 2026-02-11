@@ -4,10 +4,14 @@
 #include <sstream>
 #include <stdexcept>
 #include <optional>
+#include <iostream>
 
 RemoteBrokerServer::RemoteBrokerServer(std::shared_ptr<MessageBroker> broker, uint16_t port, int num_workers)
 	: m_Broker(broker), m_Server(port, num_workers)
 {
+	std::cerr << "[DEBUG] RemoteBrokerServer::ctor - broker ptr: " << m_Broker.get() << std::endl;
+	std::cerr << "[DEBUG] RemoteBrokerServer::ctor - port: " << port << ", workers: " << num_workers << std::endl;
+
 	// Register request handlers
 	m_Server.RegisterRequestHandler("PUBLISH",
 		[this](const std::string& req) { return HandlePublish(req); });
@@ -43,24 +47,35 @@ bool RemoteBrokerServer::IsRunning() const
 
 std::string RemoteBrokerServer::HandlePublish(const std::string& request_data)
 {
+	std::cerr << "[DEBUG] HandlePublish called - request_size: " << request_data.size() << std::endl;
+
 	try
 	{
 		// Deserialize the message
 		auto msg_opt = DeserializeMessage(request_data);
+		std::cerr << "[DEBUG] DeserializeMessage returned has_value: " << msg_opt.has_value() << std::endl;
+
 		if (!msg_opt.has_value())
 		{
+			std::cerr << "[DEBUG] DeserializeMessage failed" << std::endl;
 			return "ERROR: Failed to deserialize message";
 		}
 
 		Message& msg = msg_opt.value();
+		std::cerr << "[DEBUG] Message topic: " << (msg.m_Header ? msg.m_Header->topic : "NULL") << std::endl;
+		std::cerr << "[DEBUG] Message payload_size: " << msg.GetPayloadSize() << std::endl;
+		std::cerr << "[DEBUG] m_Broker ptr: " << m_Broker.get() << std::endl;
+		std::cerr << "[DEBUG] About to call PublishMessage..." << std::endl;
 
 		// Publish to local broker
 		m_Broker->PublishMessage(msg, true);
 
+		std::cerr << "[DEBUG] PublishMessage completed successfully" << std::endl;
 		return "OK";
 	}
 	catch (const std::exception& e)
 	{
+		std::cerr << "[ERROR] Exception in HandlePublish: " << e.what() << std::endl;
 		return std::string("ERROR: ") + e.what();
 	}
 }

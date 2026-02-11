@@ -128,6 +128,7 @@ void Server::ReceiveLoop()
         req.request_type = request_msg.popstr();
         req.request_data = request_msg.popstr();
 
+        std::cerr << "[DEBUG] ReceiveLoop received: type=" << req.request_type << " client=" << req.client_identity << std::endl;
         LOG_DEBUG("Request received: "s + req.request_type + " from " + req.client_identity);
 
         // Enqueue for workers
@@ -161,6 +162,7 @@ void Server::WorkerLoop(int worker_id)
 
             req = std::move(m_RequestQueue.front());
             m_RequestQueue.pop();
+            std::cerr << "[DEBUG] Worker " << worker_id << " dequeued request: type=" << req.request_type << std::endl;
         }
 
         // Process request (this can take a long time, but doesn't block other workers)
@@ -177,13 +179,16 @@ void Server::WorkerLoop(int worker_id)
         }
         else
         {
+            std::cerr << "[DEBUG] Worker " << worker_id << " calling handler for: " << req.request_type << std::endl;
             try
             {
                 // Move request_data to handler to avoid copy (handler takes const& but we don't need it after)
                 reply_data = handler->second(std::move(req.request_data));
+                std::cerr << "[DEBUG] Worker " << worker_id << " handler completed for: " << req.request_type << std::endl;
             }
             catch (std::exception &e)
             {
+                std::cerr << "[ERROR] Worker " << worker_id << " exception in handler: " << e.what() << std::endl;
                 LOG_ERROR("Encountered error during handling of request: "s + e.what());
                 reply_type = "ERROR";
                 reply_data = e.what();
