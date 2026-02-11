@@ -5,15 +5,19 @@
 #include <sstream>
 #include <stdexcept>
 #include <optional>
+#include <iostream>
 
 RemoteMessageBroker::RemoteMessageBroker(std::shared_ptr<LocalMessageBroker> local_broker,
                                           const std::string& local_machine_name,
                                           const std::vector<PeerConfig>& peers)
 	: m_LocalBroker(local_broker), m_LocalMachineName(local_machine_name)
 {
+	std::cerr << "[DEBUG] RemoteMessageBroker::ctor - local_machine: " << local_machine_name << std::endl;
+	std::cerr << "[DEBUG] RemoteMessageBroker::ctor - peer count: " << peers.size() << std::endl;
 	// Create Client objects for each peer
 	for (const auto& peer : peers)
 	{
+		std::cerr << "[DEBUG] RemoteMessageBroker::ctor - peer: " << peer.name << " @ " << peer.host << ":" << peer.port << std::endl;
 		m_PeerClients[peer.name] = std::make_unique<Client>(peer.host, peer.port);
 	}
 }
@@ -54,6 +58,9 @@ Client& RemoteMessageBroker::GetClientForMachine(const std::string& machine)
 Message RemoteMessageBroker::PrepareMessageImpl(std::string_view topic, size_t payload_size,
                                                 Uuid trace_id, uint8_t memory_block_id)
 {
+	std::cerr << "[DEBUG] RemoteMessageBroker::PrepareMessageImpl - topic: " << topic << ", payload_size: " << payload_size << std::endl;
+	std::cerr << "[DEBUG] RemoteMessageBroker::PrepareMessageImpl - IsLocalTopic: " << IsLocalTopic(topic) << std::endl;
+
 	if (IsLocalTopic(topic))
 	{
 		// Local topic: use LocalMessageBroker's shared memory
@@ -70,6 +77,7 @@ Message RemoteMessageBroker::PrepareMessageImpl(std::string_view topic, size_t p
 
 		// Allocate payload on heap
 		void* payload = new uint8_t[payload_size];
+		std::cerr << "[DEBUG] RemoteMessageBroker::PrepareMessageImpl - allocated header: " << header << ", payload: " << payload << std::endl;
 
 		// Copy topic
 		std::strncpy(header->topic, topic_str.c_str(), TOPIC_MAX_KEY_SIZE - 1);
@@ -123,10 +131,13 @@ std::string RemoteMessageBroker::SerializeMessage(const Message& msg)
 Message RemoteMessageBroker::PublishMessage(Message message, bool is_final)
 {
 	std::string topic(message.GetTopic());
+	std::cerr << "[DEBUG] RemoteMessageBroker::PublishMessage - topic: " << topic << ", is_final: " << is_final << std::endl;
+	std::cerr << "[DEBUG] RemoteMessageBroker::PublishMessage - IsLocalTopic: " << IsLocalTopic(topic) << std::endl;
 
 	if (IsLocalTopic(topic))
 	{
 		// Local topic: delegate to LocalMessageBroker
+		std::cerr << "[DEBUG] RemoteMessageBroker::PublishMessage - delegating to local broker" << std::endl;
 		return m_LocalBroker->PublishMessage(message, is_final);
 	}
 	else
@@ -138,13 +149,18 @@ Message RemoteMessageBroker::PublishMessage(Message message, bool is_final)
 
 		// Remote topic: serialize and send over network
 		std::string machine = GetMachineFromTopic(topic);
+		std::cerr << "[DEBUG] RemoteMessageBroker::PublishMessage - remote machine: " << machine << std::endl;
 		Client& client = GetClientForMachine(machine);
+		std::cerr << "[DEBUG] RemoteMessageBroker::PublishMessage - got client" << std::endl;
 
 		// Serialize the message
 		std::string serialized = SerializeMessage(message);
+		std::cerr << "[DEBUG] RemoteMessageBroker::PublishMessage - serialized size: " << serialized.size() << std::endl;
 
 		// Send to remote
+		std::cerr << "[DEBUG] RemoteMessageBroker::PublishMessage - calling client.MakeRequest..." << std::endl;
 		std::string response = client.MakeRequest("PUBLISH", serialized);
+		std::cerr << "[DEBUG] RemoteMessageBroker::PublishMessage - response: " << response << std::endl;
 
 		if (response != "OK")
 		{
