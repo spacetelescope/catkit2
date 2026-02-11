@@ -81,6 +81,8 @@ class Message
 {
 	friend class LocalMessageBroker;
 	friend class MessageBroker;
+	friend class RemoteMessageBroker;
+	friend class RemoteBrokerServer;
 
 private:
 	Message(MessageHeader *header, void *payload, std::uint64_t frame_id, bool has_been_published = false);
