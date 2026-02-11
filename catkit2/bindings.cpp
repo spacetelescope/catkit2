@@ -37,7 +37,6 @@
 #include "ArrayView.h"
 #include "ProcessStats.h"
 #include "RemoteMessageBroker.h"
-#include "RemoteBrokerServer.h"
 
 #include "testbed.pb.h"
 
