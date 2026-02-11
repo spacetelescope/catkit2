@@ -3,6 +3,7 @@
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
+#include <optional>
 
 RemoteBrokerServer::RemoteBrokerServer(std::shared_ptr<MessageBroker> broker, uint16_t port, int num_workers)
 	: m_Broker(broker), m_Server(port, num_workers)
@@ -50,12 +51,12 @@ std::string RemoteBrokerServer::HandlePublish(const std::string& request_data)
 		{
 			return "ERROR: Failed to deserialize message";
 		}
-		
+
 		Message& msg = msg_opt.value();
-		
+
 		// Publish to local broker
 		m_Broker->PublishMessage(msg, true);
-		
+
 		return "OK";
 	}
 	catch (const std::exception& e)
@@ -67,42 +68,42 @@ std::string RemoteBrokerServer::HandlePublish(const std::string& request_data)
 RemoteBrokerServer::GetNextParams RemoteBrokerServer::ParseGetNextRequest(const std::string& data)
 {
 	GetNextParams params;
-	
+
 	// Parse binary format: [topic_len (4 bytes)][topic][frame_id (8 bytes)][mode (4 bytes)][timeout (8 bytes)]
 	if (data.length() < sizeof(uint32_t))
 	{
 		throw std::runtime_error("Invalid request data: too short");
 	}
-	
+
 	size_t offset = 0;
-	
+
 	// Read topic length
 	uint32_t topic_len;
 	std::memcpy(&topic_len, &data[offset], sizeof(uint32_t));
 	offset += sizeof(uint32_t);
-	
+
 	if (data.length() < offset + topic_len + sizeof(uint64_t) + sizeof(int) + sizeof(double))
 	{
 		throw std::runtime_error("Invalid request data: incomplete");
 	}
-	
+
 	// Read topic
 	params.topic = std::string(&data[offset], topic_len);
 	offset += topic_len;
-	
+
 	// Read frame_id
 	std::memcpy(&params.preferred_frame_id, &data[offset], sizeof(uint64_t));
 	offset += sizeof(uint64_t);
-	
+
 	// Read mode
 	int mode_int;
 	std::memcpy(&mode_int, &data[offset], sizeof(int));
 	params.mode = (mode_int == 0) ? MessageSubscriptionMode::NewestOnly : MessageSubscriptionMode::Sequential;
 	offset += sizeof(int);
-	
+
 	// Read timeout
 	std::memcpy(&params.timeout_seconds, &data[offset], sizeof(double));
-	
+
 	return params;
 }
 
@@ -112,17 +113,17 @@ std::string RemoteBrokerServer::HandleGetNext(const std::string& request_data)
 	{
 		// Parse request parameters
 		GetNextParams params = ParseGetNextRequest(request_data);
-		
+
 		// Call GetNextMessage with timeout
 		auto msg_opt = m_Broker->GetNextMessage(params.topic, params.preferred_frame_id,
 		                                         params.mode, params.timeout_seconds);
-		
+
 		if (!msg_opt.has_value())
 		{
 			// Timeout - return empty response
 			return "";
 		}
-		
+
 		// Serialize and return the message
 		return SerializeMessage(msg_opt.value());
 	}
@@ -138,13 +139,13 @@ std::string RemoteBrokerServer::HandleGetCurrent(const std::string& request_data
 	{
 		// request_data is just the topic string
 		auto msg_opt = m_Broker->GetCurrentMessage(request_data);
-		
+
 		if (!msg_opt.has_value())
 		{
 			// No message available - return empty response
 			return "";
 		}
-		
+
 		// Serialize and return the message
 		return SerializeMessage(msg_opt.value());
 	}
@@ -160,7 +161,7 @@ std::string RemoteBrokerServer::HandleGetRate(const std::string& request_data)
 	{
 		// request_data is just the topic string
 		double rate = m_Broker->GetMessageRate(request_data);
-		
+
 		// Convert to string
 		return std::to_string(rate);
 	}
@@ -173,11 +174,11 @@ std::string RemoteBrokerServer::HandleGetRate(const std::string& request_data)
 std::string RemoteBrokerServer::HandleListTopics(const std::string& request_data)
 {
 	(void)request_data;  // Unused
-	
+
 	try
 	{
 		std::vector<std::string> topics = m_Broker->GetAllMessageTopics();
-		
+
 		// Format as comma-separated list
 		std::string result;
 		for (size_t i = 0; i < topics.size(); ++i)
@@ -185,7 +186,7 @@ std::string RemoteBrokerServer::HandleListTopics(const std::string& request_data
 			if (i > 0) result += ",";
 			result += topics[i];
 		}
-		
+
 		return result;
 	}
 	catch (const std::exception& e)
@@ -198,23 +199,23 @@ std::string RemoteBrokerServer::SerializeMessage(const Message& msg)
 {
 	// Serialize MessageHeader and payload into a string
 	// Format: [header_size (4 bytes)][MessageHeader][payload]
-	
+
 	const MessageHeader* header = msg.m_Header;
 	size_t payload_size = msg.GetPayloadSize();
-	
+
 	std::string result;
 	result.resize(sizeof(uint32_t) + sizeof(MessageHeader) + payload_size);
-	
+
 	uint32_t header_size = sizeof(MessageHeader);
 	std::memcpy(&result[0], &header_size, sizeof(uint32_t));
 	std::memcpy(&result[sizeof(uint32_t)], header, sizeof(MessageHeader));
-	
+
 	if (payload_size > 0 && msg.m_Payload)
 	{
-		std::memcpy(&result[sizeof(uint32_t) + sizeof(MessageHeader)], 
+		std::memcpy(&result[sizeof(uint32_t) + sizeof(MessageHeader)],
 		            msg.m_Payload, payload_size);
 	}
-	
+
 	return result;
 }
 
@@ -224,28 +225,28 @@ std::optional<Message> RemoteBrokerServer::DeserializeMessage(const std::string&
 	{
 		return std::nullopt;
 	}
-	
+
 	// Deserialize from format: [header_size (4 bytes)][MessageHeader][payload]
 	if (data.length() < sizeof(uint32_t))
 	{
 		return std::nullopt;
 	}
-	
+
 	uint32_t header_size;
 	std::memcpy(&header_size, data.data(), sizeof(uint32_t));
-	
+
 	if (data.length() < sizeof(uint32_t) + header_size)
 	{
 		return std::nullopt;
 	}
-	
+
 	// Allocate header on heap
 	MessageHeader* header = new MessageHeader();
 	std::memcpy(header, data.data() + sizeof(uint32_t), header_size);
-	
+
 	// Calculate payload size and position
 	size_t payload_size = data.length() - sizeof(uint32_t) - header_size;
-	
+
 	// Allocate payload buffer and copy data
 	void* payload = nullptr;
 	if (payload_size > 0)
@@ -258,8 +259,8 @@ std::optional<Message> RemoteBrokerServer::DeserializeMessage(const std::string&
 		}
 		std::memcpy(payload, data.data() + sizeof(uint32_t) + header_size, payload_size);
 	}
-	
+
 	// Create message
 	// Note: The caller takes ownership of the header and payload memory
-	return Message(header, payload, header->partial_frame_id, false);
+	return std::optional<Message>(Message(header, payload, 0));
 }
