@@ -81,6 +81,7 @@ class PhysikStageController(Service):
 
         # Start the worker thread
         threading.Thread(target=self._move_to_stream_worker, daemon=True).start()
+        self.log.info("Worker started with 250ms timeout")
 
         # Submit initial positions
         self._submit_positions()
