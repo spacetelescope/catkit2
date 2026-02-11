@@ -85,7 +85,7 @@ class Message
 	friend class RemoteBrokerServer;
 
 private:
-	Message(MessageHeader *header, void *payload, std::uint64_t frame_id, bool has_been_published = false);
+	Message(MessageHeader *header, void *payload, std::uint64_t frame_id);
 
 public:
 	std::string_view GetTopic() const;
@@ -124,7 +124,6 @@ private:
 	void *m_Payload;
 
 	std::uint64_t m_FrameId;
-	bool m_HasBeenPublished;
 };
 
 enum class MessageSubscriptionMode

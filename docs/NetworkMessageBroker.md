@@ -699,7 +699,33 @@ while (running) {
   - Test concurrent access from multiple threads
   - Test timeout handling
 
-### Phase 5: Error Handling and Edge Cases
+### Phase 5: Simplification - Remove m_HasBeenPublished ✓ (COMPLETED)
+
+- [x] **Remove m_HasBeenPublished from Message struct**
+  - Removed from MessageBroker.h
+  - Updated constructor to take only 3 parameters
+  - Removed default parameter
+
+- [x] **Update LocalMessageBroker::PublishMessage()**
+  - Removed check for m_HasBeenPublished
+  - Now returns Message(nullptr, nullptr, 0) after publishing
+  - Simplified return logic
+
+- [x] **Update RemoteMessageBroker::PublishMessage()**
+  - Now returns Message(nullptr, nullptr, 0) after successful remote publish
+  - Clears temporary buffers
+
+- [x] **Update all Message constructor calls**
+  - Removed 4th parameter (has_been_published) from all call sites
+  - Updated LocalMessageBroker, RemoteMessageBroker, RemoteBrokerServer
+  - Added necessary includes for std::optional
+
+- [x] **Verify compilation and basic functionality**
+  - Code compiles successfully
+  - Local message broker still works correctly
+  - Return value of PublishMessage() is now consistent (nullptr Message)
+
+### Phase 6: Error Handling and Edge Cases
 
 - [ ] **Implement connection error handling**
   - Retry logic for failed connections
@@ -721,7 +747,7 @@ while (running) {
   - Log connection events
   - Log errors with context
 
-### Phase 6: Documentation and Polish
+### Phase 7: Documentation and Polish
 
 - [ ] **Update API documentation**
   - Document `RemoteMessageBroker` class

@@ -344,15 +344,15 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 
 	DEBUG_PRINT("Header set");
 
-	return Message(header, payload, INVALID_FRAME_ID, false);
+	return Message(header, payload, INVALID_FRAME_ID);
 }
 
 Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 {
 	DEBUG_PRINT("Publishing message.");
 
-	if (message.m_HasBeenPublished)
-		throw std::runtime_error("Message has already been published.");
+	if (message.m_Header == nullptr || message.m_Payload == nullptr)
+		throw std::runtime_error("Message is invalid. Use PrepareMessage() to create a valid message.");
 
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
@@ -475,9 +475,14 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		DEBUG_PRINT("Copied message header.");
 	}
 
-	message.m_HasBeenPublished = is_final;
-
-	return message;
+	if (is_final)
+	{
+		return Message(nullptr, nullptr, 0);
+	}
+	else
+	{
+		return message;
+	}
 }
 
 std::optional<Message> LocalMessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
@@ -498,7 +503,7 @@ Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame
 	auto memory = GetMemory(header->payload_info.memory_block_id);
 	auto payload = memory->GetAddress(offset);
 
-	return Message(header, payload, frame_id, true);
+	return Message(header, payload, frame_id);
 }
 
 std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, size_t preferred_next_frame_id, MessageSubscriptionMode mode)

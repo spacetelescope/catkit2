@@ -56,10 +56,6 @@ private:
 	std::shared_ptr<LocalMessageBroker> m_LocalBroker;
 	std::string m_LocalMachineName;
 	std::unordered_map<std::string, std::unique_ptr<Client>> m_PeerClients;
-	
-	// Temporary buffers for remote messages (until published)
-	// Key: topic string, Value: buffer vector
-	std::unordered_map<std::string, std::vector<uint8_t>> m_TempBuffers;
 
 	bool IsLocalTopic(std::string_view topic);
 	std::string GetMachineFromTopic(std::string_view topic);
