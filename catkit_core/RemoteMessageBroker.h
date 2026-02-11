@@ -3,6 +3,7 @@
 
 #include "MessageBroker.h"
 #include "Client.h"
+#include "Server.h"
 
 #include <string>
 #include <unordered_map>
@@ -61,11 +62,48 @@ private:
 	std::string GetMachineFromTopic(std::string_view topic);
 	Client& GetClientForMachine(const std::string& machine);
 	
-	// Serialization helpers
+	// Serialization helpers for peer communication
 	std::string SerializeMessage(const Message& msg);
 	std::string SerializeGetNextRequest(const std::string& topic, uint64_t frame_id, 
 	                                    int mode, double timeout);
 	std::optional<Message> DeserializeMessage(const std::string& data, std::vector<uint8_t>& buffer);
+};
+
+class RemoteBrokerServer
+{
+public:
+	RemoteBrokerServer(std::shared_ptr<MessageBroker> broker, uint16_t port, int num_workers = 4);
+	~RemoteBrokerServer();
+
+	void Start();
+	void Stop();
+
+	bool IsRunning() const;
+
+private:
+	std::shared_ptr<MessageBroker> m_Broker;
+	Server m_Server;
+
+	// Request handlers
+	std::string HandlePublish(const std::string& request_data);
+	std::string HandleGetNext(const std::string& request_data);
+	std::string HandleGetCurrent(const std::string& request_data);
+	std::string HandleGetRate(const std::string& request_data);
+	std::string HandleListTopics(const std::string& request_data);
+
+	// Serialization helpers for network protocol
+	std::string SerializeMessage(const Message& msg);
+	std::optional<Message> DeserializeMessage(const std::string& data);
+
+	// Helper to parse GetNext request
+	struct GetNextParams
+	{
+		std::string topic;
+		uint64_t preferred_frame_id;
+		MessageSubscriptionMode mode;
+		double timeout_seconds;
+	};
+	GetNextParams ParseGetNextRequest(const std::string& data);
 };
 
 #endif // REMOTE_MESSAGE_BROKER_H
