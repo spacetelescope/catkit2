@@ -102,6 +102,12 @@ std::string RemoteMessageBroker::SerializeMessage(const Message& msg)
 	// Serialize MessageHeader and payload into a string
 	// Format: [header_size (4 bytes)][MessageHeader][payload]
 	
+	// Safety check - header should never be null
+	if (!msg.m_Header)
+	{
+		throw std::runtime_error("Cannot serialize message with null header");
+	}
+	
 	const MessageHeader* header = msg.m_Header;
 	size_t payload_size = msg.GetPayloadSize();
 	
