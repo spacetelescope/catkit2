@@ -73,6 +73,15 @@ class PhysikStageController(Service):
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
         self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
 
+        # Create data stream for move_to command
+        self.move_to_stream = self.make_data_stream('move_to_stream', 'float64', [num_axes], 20)
+
+        # Precompute reverse map for speed
+        self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
+
+        # Start the worker thread
+        threading.Thread(target=self._move_to_stream_worker, daemon=True).start()
+
         # Submit initial positions
         self._submit_positions()
 
@@ -101,6 +110,16 @@ class PhysikStageController(Service):
         # Get positions in order of axis numbers
         pos_array = np.array([self.current_positions[i] for i in sorted(self.current_positions.keys())], dtype='float64')
         self.positions.submit_data(pos_array)
+
+    def _move_to_stream_worker(self):
+        """Worker thread that processes move commands from the data stream."""
+        while not self.should_shut_down:
+            data = self.move_to_stream.get()
+            if data is not None:
+                positions = {self.axis_num_to_name[num]: float(data[idx])
+                            for idx, num in enumerate(sorted(self.axis_map.values()))}
+                self.move_to(positions)
+            self.sleep(0)  # yield control without adding extra delay
 
     def main(self):
         """Main loop - monitor positions."""
