@@ -38,9 +38,9 @@ public:
 	void Start();
 	void Stop();
 
-	bool IsRunning();
+	bool IsRunning() const;
 
-	int GetPort();
+	int GetPort() const;
 	int GetNumWorkers() const;
 
 	void Sleep(double sleep_time_in_sec, void (*error_check)()=nullptr);
