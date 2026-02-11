@@ -4,8 +4,8 @@
 
 #include "LocalMessageBroker.h"
 
-Message::Message(MessageHeader *header, void *payload, std::uint64_t frame_id, bool has_been_published)
-	: m_Header(header), m_Payload(payload), m_FrameId(frame_id), m_HasBeenPublished(has_been_published)
+Message::Message(MessageHeader *header, void *payload, std::uint64_t frame_id)
+	: m_Header(header), m_Payload(payload), m_FrameId(frame_id)
 {
 }
 
