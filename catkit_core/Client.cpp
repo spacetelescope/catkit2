@@ -16,7 +16,10 @@
 using namespace std;
 using namespace zmq;
 
-const int SOCKET_TIMEOUT = 60000;  // milliseconds.
+#define DEBUG_PRINT(msg) std::cerr << "[DEBUG] " << __func__ << ":" << __LINE__ << " - " << msg << std::endl
+#define ERROR_PRINT(msg) std::cerr << "[ERROR] " << __func__ << ":" << __LINE__ << " - " << msg << std::endl
+
+const int SOCKET_TIMEOUT = 60000;
 
 Client::Client(std::string host, int port)
     : m_Host(host), m_Port(port)
@@ -29,7 +32,7 @@ Client::~Client()
 
 string Client::MakeRequest(const string &what, const string &request)
 {
-	std::cerr << "[DEBUG] Client::MakeRequest - what: " << what << ", request_size: " << request.size() << ", host: " << m_Host << ":" << m_Port << std::endl;
+	DEBUG_PRINT("what: " << what << ", request_size: " << request.size() << ", host: " << m_Host << ":" << m_Port);
     auto socket = GetSocket();
 
 	zmq::multipart_t request_msg;
@@ -60,7 +63,7 @@ string Client::MakeRequest(const string &what, const string &request)
 
 		std::string reply_type = reply_msg.popstr();
 		std::string reply_data = reply_msg.popstr();
-		std::cerr << "[DEBUG] Client::MakeRequest - reply_type: " << reply_type << ", reply_data: " << reply_data << std::endl;
+		DEBUG_PRINT("reply_type: " << reply_type << ", reply_data: " << reply_data);
 
 		if (reply_type == "OK")
 		{
