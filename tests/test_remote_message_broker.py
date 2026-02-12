@@ -15,184 +15,117 @@ from catkit2.catkit_bindings import (
 )
 
 
-# Fixtures for local message broker setup
 @pytest.fixture(scope='module')
-def header_memory():
-    """Create memory for message broker header."""
-    header = LocalMemory.create(1024 * 1024 * 512)
-    yield header
-
-
-@pytest.fixture(scope='module')
-def local_broker(header_memory):
+def local_broker_1():
     """Create a local message broker for testing."""
+    header_memory = LocalMemory.create(1024 * 1024 * 512)
     block = LocalMemory.create(1024 * 1024 * 1024)
+
     broker = LocalMessageBroker.create(header_memory, [block])
     yield broker
 
+@pytest.fixture(scope='module')
+def local_broker_2():
+    """Create a local message broker for testing."""
+    header_memory = LocalMemory.create(1024 * 1024 * 512)
+    block = LocalMemory.create(1024 * 1024 * 1024)
 
-@pytest.fixture
-def unused_port():
-    """Generate unique port numbers for tests."""
-    port = 15000
+    broker = LocalMessageBroker.create(header_memory, [block])
+    yield broker
 
-    def get_port():
-        nonlocal port
-        port += 1
-        return port
-
-    return get_port
-
-
-def test_local_topic_detection(local_broker, unused_port):
-    """Test that local topics are correctly identified."""
+@pytest.fixture(scope='module')
+def remote_broker(local_broker_1, local_broker_2, unused_port):
     port = unused_port()
 
-    # Create remote broker with local machine name
-    peers = []
-    remote_broker = RemoteMessageBroker(local_broker, "machine1", peers)
+    server = RemoteBrokerServer(local_broker_2, port)
+    server.start()
 
-    # Publish to local topic
+    peers = [PeerConfig("machine2", "127.0.0.1", port)]
+    remote_broker = RemoteMessageBroker(local_broker_1, "machine1", peers)
+
+    yield remote_broker
+
+    server.stop()
+
+def test_local_topic_detection(remote_broker, local_broker_1):
+    """Test that local topics are correctly identified."""
+    # Publish to local topic (machine1 is the local machine in the fixture)
     local_topic = "machine1/test_local"
     data = b'local data'
     remote_broker.publish_data(local_topic, data)
 
     # Verify message is in local broker
-    msg = local_broker.get_current_message(local_topic)
+    msg = local_broker_1.get_current_message(local_topic)
     assert msg is not None
     assert msg.payload.data == data
 
-def test_remote_topic_routing(local_broker, unused_port):
+def test_remote_topic_routing(remote_broker, local_broker_2):
     """Test that remote topics trigger network requests."""
-    port = unused_port()
+    # Publish to remote topic (machine2 is the remote machine in the fixture)
+    remote_topic = "machine2/test_remote"
+    data = b'remote data'
+    remote_broker.publish_data(remote_topic, data)
 
-    # Create server and client setup
-    peers = [PeerConfig("machine2", "127.0.0.1", port)]
-    remote_broker = RemoteMessageBroker(local_broker, "machine1", peers)
+    # Verify message arrived at server broker
+    time.sleep(0.1)  # Allow network transmission
+    msg = local_broker_2.get_current_message(remote_topic)
+    assert msg is not None
+    assert msg.payload.data == data
 
-    # Create server for machine2 (use same memory sizes as fixture)
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024 * 512),
-        [LocalMemory.create(1024 * 1024 * 1024)]
-    )
-    server = RemoteBrokerServer(server_broker, port)
-    server.start()
-
-    try:
-        # Publish to remote topic
-        remote_topic = "machine2/test_remote"
-        data = b'remote data'
-        remote_broker.publish_data(remote_topic, data)
-
-        # Verify message arrived at server broker
-        time.sleep(0.1)  # Allow network transmission
-        msg = server_broker.get_current_message(remote_topic)
-        assert msg is not None
-        assert msg.payload.data == data
-    finally:
-        server.stop()
-
-def test_message_round_trip(local_broker, unused_port):
+def test_message_round_trip(remote_broker, local_broker_2):
     """Test that messages can be serialized and deserialized correctly."""
-    port = unused_port()
+    # Publish array with metadata
+    topic = "machine2/test_roundtrip"
+    arr = np.array([1, 2, 3, 4, 5], dtype='float64')
 
-    # Setup server
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    server = RemoteBrokerServer(server_broker, port)
-    server.start()
+    msg = remote_broker.prepare_message(topic, arr.nbytes)
+    msg.payload = arr
+    msg.metadata['test_key'] = 42
+    remote_broker.publish_message(msg)
 
-    try:
-        # Setup client
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
+    # Verify at server
+    time.sleep(0.1)
+    received = local_broker_2.get_current_message(topic)
+    assert received is not None
+    assert np.array_equal(received.payload, arr)
 
-        # Publish array with metadata
-        topic = "server/test_roundtrip"
-        arr = np.array([1, 2, 3, 4, 5], dtype='float64')
+def test_different_dtypes(remote_broker, local_broker_2):
+    """Test serialization with various data types."""
+    dtypes = ['int8', 'uint8', 'int32', 'float32', 'float64']
+    for dtype in dtypes:
+        topic = f"machine2/test_{dtype}"
+        arr = np.array([1, 2, 3], dtype=dtype)
 
-        msg = client_broker.prepare_message(topic, arr.nbytes)
-        msg.payload = arr
-        msg.metadata['test_key'] = 42
-        client_broker.publish_message(msg)
+        remote_broker.publish_array(topic, arr)
+        time.sleep(0.05)
 
-        # Verify at server
-        time.sleep(0.1)
-        received = server_broker.get_current_message(topic)
+        received = local_broker_2.get_current_message(topic)
+        assert received is not None
+        assert received.payload.dtype == dtype
+        assert np.array_equal(received.payload, arr)
+
+def test_multidimensional_arrays(remote_broker, local_broker_2):
+    """Test serialization of multidimensional arrays."""
+    shapes = [[10, 10], [5, 5, 5], [3, 3, 3, 3]]
+    for shape in shapes:
+        topic = f"machine2/test_shape_{len(shape)}d"
+        arr = np.random.randn(*shape).astype('float32')
+
+        remote_broker.publish_array(topic, arr)
+        time.sleep(0.05)
+
+        received = local_broker_2.get_current_message(topic)
         assert received is not None
         assert np.array_equal(received.payload, arr)
-    finally:
-        server.stop()
-
-def test_different_dtypes(local_broker, unused_port):
-    """Test serialization with various data types."""
-    port = unused_port()
-
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    server = RemoteBrokerServer(server_broker, port)
-    server.start()
-
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
-
-        dtypes = ['int8', 'uint8', 'int32', 'float32', 'float64']
-        for dtype in dtypes:
-            topic = f"server/test_{dtype}"
-            arr = np.array([1, 2, 3], dtype=dtype)
-
-            client_broker.publish_array(topic, arr)
-            time.sleep(0.05)
-
-            received = server_broker.get_current_message(topic)
-            assert received is not None
-            assert received.payload.dtype == dtype
-            assert np.array_equal(received.payload, arr)
-    finally:
-        server.stop()
-
-def test_multidimensional_arrays(local_broker, unused_port):
-    """Test serialization of multidimensional arrays."""
-    port = unused_port()
-
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    server = RemoteBrokerServer(server_broker, port)
-    server.start()
-
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
-
-        shapes = [[10, 10], [5, 5, 5], [3, 3, 3, 3]]
-        for shape in shapes:
-            topic = f"server/test_shape_{len(shape)}d"
-            arr = np.random.randn(*shape).astype('float32')
-
-            client_broker.publish_array(topic, arr)
-            time.sleep(0.05)
-
-            received = server_broker.get_current_message(topic)
-            assert received is not None
-            assert np.array_equal(received.payload, arr)
-            assert list(received.payload.shape) == list(arr.shape)
-    finally:
-        server.stop()
+        assert list(received.payload.shape) == list(arr.shape)
 
 def test_server_start_stop(unused_port):
     """Test that server can start and stop correctly."""
     port = unused_port()
 
     broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024)]
+        LocalMemory.create(1024 * 1024 * 512),
+        [LocalMemory.create(1024 * 1024 * 1024)]
     )
 
     server = RemoteBrokerServer(broker, port)
@@ -204,259 +137,150 @@ def test_server_start_stop(unused_port):
     server.stop()
     assert not server.is_running
 
-def test_request_handlers(local_broker, unused_port):
+def test_request_handlers(remote_broker, local_broker_2):
     """Test that all request handlers work correctly."""
-    port = unused_port()
+    topic = "machine2/test_handlers"
 
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    server = RemoteBrokerServer(server_broker, port, num_workers=2)
-    server.start()
+    # Test PUBLISH
+    data = b'test data'
+    remote_broker.publish_data(topic, data)
+    time.sleep(0.1)
 
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
+    # Test GET_CURRENT
+    msg = remote_broker.get_current_message(topic)
+    assert msg is not None
 
-        topic = "server/test_handlers"
+    # Test GET_RATE
+    rate = remote_broker.get_message_rate(topic)
+    assert rate >= 0.0
 
-        # Test PUBLISH
-        data = b'test data'
-        client_broker.publish_data(topic, data)
-        time.sleep(0.1)
+    # Test LIST_TOPICS (returned as comma-separated string)
+    topics = local_broker_2.get_all_message_topics()
+    assert topic in topics
 
-        # Test GET_CURRENT
-        msg = client_broker.get_current_message(topic)
-        assert msg is not None
-
-        # Test GET_RATE
-        rate = client_broker.get_message_rate(topic)
-        assert rate >= 0.0
-
-        # Test LIST_TOPICS (returned as comma-separated string)
-        topics = server_broker.get_all_message_topics()
-        assert topic in topics
-    finally:
-        server.stop()
-
-def test_concurrent_publishes(local_broker, unused_port):
+def test_concurrent_publishes(remote_broker, local_broker_2):
     """Test concurrent publishing from multiple threads."""
-    port = unused_port()
+    num_messages = 50
+    errors = []
 
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 100)]
-    )
-    server = RemoteBrokerServer(server_broker, port, num_workers=4)
-    server.start()
+    def publish_messages(thread_id):
+        try:
+            for i in range(num_messages):
+                topic = f"machine2/thread_{thread_id}/msg_{i}"
+                data = f"data from thread {thread_id}, msg {i}".encode()
+                remote_broker.publish_data(topic, data)
+        except Exception as e:
+            errors.append(e)
 
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
+    # Start multiple threads
+    threads = []
+    for i in range(3):
+        t = threading.Thread(target=publish_messages, args=(i,))
+        threads.append(t)
+        t.start()
 
-        num_messages = 50
-        errors = []
+    # Wait for completion
+    for t in threads:
+        t.join()
 
-        def publish_messages(thread_id):
-            try:
-                for i in range(num_messages):
-                    topic = f"server/thread_{thread_id}/msg_{i}"
-                    data = f"data from thread {thread_id}, msg {i}".encode()
-                    client_broker.publish_data(topic, data)
-            except Exception as e:
-                errors.append(e)
+    assert len(errors) == 0, f"Errors during concurrent publish: {errors}"
 
-        # Start multiple threads
-        threads = []
-        for i in range(3):
-            t = threading.Thread(target=publish_messages, args=(i,))
-            threads.append(t)
-            t.start()
+    # Verify some messages arrived
+    time.sleep(0.2)
+    topics = local_broker_2.get_all_message_topics()
+    assert len(topics) >= num_messages
 
-        # Wait for completion
-        for t in threads:
-            t.join()
-
-        assert len(errors) == 0, f"Errors during concurrent publish: {errors}"
-
-        # Verify some messages arrived
-        time.sleep(0.2)
-        topics = server_broker.get_all_message_topics()
-        assert len(topics) >= num_messages
-    finally:
-        server.stop()
-
-def test_server_thread_pool(local_broker, unused_port):
+def test_server_thread_pool(remote_broker, local_broker_2):
     """Test that server thread pool handles concurrent requests."""
-    port = unused_port()
+    # Publish multiple messages
+    for i in range(10):
+        topic = f"machine2/concurrent_{i}"
+        remote_broker.publish_data(topic, f"msg {i}".encode())
 
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    # Use multiple workers
-    server = RemoteBrokerServer(server_broker, port, num_workers=4)
-    server.start()
+    time.sleep(0.1)
 
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
-
-        # Publish multiple messages
-        for i in range(10):
-            topic = f"server/concurrent_{i}"
-            client_broker.publish_data(topic, f"msg {i}".encode())
-
-        time.sleep(0.1)
-
-        # All messages should be available
-        for i in range(10):
-            topic = f"server/concurrent_{i}"
-            msg = server_broker.get_current_message(topic)
-            assert msg is not None
-    finally:
-        server.stop()
-
-def test_get_next_timeout(local_broker, unused_port):
-    """Test that GetNextMessage respects timeout."""
-    port = unused_port()
-
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    server = RemoteBrokerServer(server_broker, port)
-    server.start()
-
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
-
-        # Try to get message from non-existent topic with short timeout
-        topic = "server/non_existent"
-        start_time = time.time()
-
-        msg = client_broker.get_next_message(topic, timeout_in_seconds=0.1)
-        elapsed = time.time() - start_time
-
-        # Should return None on timeout
-        assert msg is None
-        # Should complete within reasonable time (allowing for network overhead)
-        assert elapsed < 0.5
-    finally:
-        server.stop()
-
-def test_get_next_with_data(local_broker, unused_port):
-    """Test GetNextMessage returns data when available."""
-    port = unused_port()
-
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    server = RemoteBrokerServer(server_broker, port)
-    server.start()
-
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
-
-        topic = "server/test_get_next"
-        data = b'test data'
-
-        # Publish first
-        client_broker.publish_data(topic, data)
-        time.sleep(0.1)
-
-        # Now get next message
-        msg = client_broker.get_next_message(topic, timeout_in_seconds=1.0)
+    # All messages should be available
+    for i in range(10):
+        topic = f"machine2/concurrent_{i}"
+        msg = local_broker_2.get_current_message(topic)
         assert msg is not None
-        assert msg.payload.data == data
-    finally:
-        server.stop()
 
-def test_newest_only_subscription(local_broker, unused_port):
+def test_get_next_timeout(remote_broker):
+    """Test that GetNextMessage respects timeout."""
+    # Try to get message from non-existent topic with short timeout
+    topic = "machine2/non_existent"
+    start_time = time.time()
+
+    msg = remote_broker.get_next_message(topic, timeout_in_seconds=0.1)
+    elapsed = time.time() - start_time
+
+    # Should return None on timeout
+    assert msg is None
+    # Should complete within reasonable time (allowing for network overhead)
+    assert elapsed < 0.5
+
+def test_get_next_with_data(remote_broker):
+    """Test GetNextMessage returns data when available."""
+    topic = "machine2/test_get_next"
+    data = b'test data'
+
+    # Publish first
+    remote_broker.publish_data(topic, data)
+    time.sleep(0.1)
+
+    # Now get next message
+    msg = remote_broker.get_next_message(topic, timeout_in_seconds=1.0)
+    assert msg is not None
+    assert msg.payload.data == data
+
+def test_newest_only_subscription(remote_broker):
     """Test NewestOnly subscription mode over network."""
-    port = unused_port()
+    topic = "machine2/test_newest"
 
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    server = RemoteBrokerServer(server_broker, port)
-    server.start()
+    # Publish multiple messages
+    for i in range(5):
+        remote_broker.publish_data(topic, f"msg {i}".encode())
+        time.sleep(0.01)
 
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
+    # Subscribe with NewestOnly
+    sub = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.NewestOnly)
 
-        topic = "server/test_newest"
+    # Should get the newest message (msg 4)
+    msg = sub.get_next_message(timeout_in_seconds=1.0)
+    assert msg is not None
+    assert b'4' in msg.payload.data
 
-        # Publish multiple messages
-        for i in range(5):
-            client_broker.publish_data(topic, f"msg {i}".encode())
-            time.sleep(0.01)
+def test_sequential_subscription(remote_broker):
+    """Test Sequential subscription mode over network."""
+    topic = "machine2/test_sequential"
 
-        # Subscribe with NewestOnly
-        sub = client_broker.subscribe(topic, mode=MessageSubscriptionMode.NewestOnly)
+    # Publish multiple messages
+    for i in range(5):
+        remote_broker.publish_data(topic, f"msg {i}".encode())
+        time.sleep(0.01)
 
-        # Should get the newest message (msg 4)
+    # Subscribe with Sequential
+    sub = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.Sequential)
+
+    # Should get messages in order
+    for i in range(5):
         msg = sub.get_next_message(timeout_in_seconds=1.0)
         assert msg is not None
-        assert b'4' in msg.payload.data
-    finally:
-        server.stop()
+        assert str(i).encode() in msg.payload.data
 
-def test_sequential_subscription(local_broker, unused_port):
-    """Test Sequential subscription mode over network."""
-    port = unused_port()
-
-    server_broker = LocalMessageBroker.create(
-        LocalMemory.create(1024 * 1024),
-        [LocalMemory.create(1024 * 1024 * 10)]
-    )
-    server = RemoteBrokerServer(server_broker, port)
-    server.start()
-
-    try:
-        peers = [PeerConfig("server", "127.0.0.1", port)]
-        client_broker = RemoteMessageBroker(local_broker, "client", peers)
-
-        topic = "server/test_sequential"
-
-        # Publish multiple messages
-        for i in range(5):
-            client_broker.publish_data(topic, f"msg {i}".encode())
-            time.sleep(0.01)
-
-        # Subscribe with Sequential
-        sub = client_broker.subscribe(topic, mode=MessageSubscriptionMode.Sequential)
-
-        # Should get messages in order
-        for i in range(5):
-            msg = sub.get_next_message(timeout_in_seconds=1.0)
-            assert msg is not None
-            assert str(i).encode() in msg.payload.data
-    finally:
-        server.stop()
-
-def test_unknown_peer(local_broker):
+def test_unknown_peer(remote_broker):
     """Test that accessing unknown peer raises error."""
-    peers = []  # No peers configured
-    remote_broker = RemoteMessageBroker(local_broker, "machine1", peers)
-
     # Trying to access remote topic should raise error
     with pytest.raises(RuntimeError, match="Unknown peer"):
         remote_broker.publish_data("unknown_machine/topic", b'data')
 
-def test_server_not_running(local_broker, unused_port):
+def test_server_not_running(local_broker_1, unused_port):
     """Test behavior when server is not running."""
     port = unused_port()
 
     # Don't start server
     peers = [PeerConfig("server", "127.0.0.1", port)]
-    remote_broker = RemoteMessageBroker(local_broker, "client", peers)
+    remote_broker = RemoteMessageBroker(local_broker_1, "client", peers)
 
     # Publish should fail or timeout
     with pytest.raises(RuntimeError):

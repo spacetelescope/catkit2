@@ -6,7 +6,7 @@ import pathlib
 import os
 import multiprocessing
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def unused_port():
     def get():
         with socket.socket() as sock:
