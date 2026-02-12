@@ -117,12 +117,14 @@ class PhysikStageController(Service):
             try:
                 frame = self.move_to_stream.get_next_frame(wait_time_in_ms=250)
                 data = frame.data
-                
-                positions = {self.axis_num_to_name[num]: float(data[idx])
-                            for idx, num in enumerate(sorted(self.axis_map.values()))}
+
+                positions = {
+                    self.axis_num_to_name[num]: float(data[idx])
+                    for idx, num in enumerate(sorted(self.axis_map.values()))
+                }
                 self.move_to(positions)
-                
-                self.sleep(0)  
+
+                self.sleep(0)
             except RuntimeError:
                 pass
 
