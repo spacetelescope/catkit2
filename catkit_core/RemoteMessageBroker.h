@@ -66,7 +66,6 @@ private:
 	std::string SerializeMessage(const Message& msg);
 	std::string SerializeGetNextRequest(const std::string& topic, uint64_t frame_id, 
 	                                    int mode, double timeout);
-	std::optional<Message> DeserializeMessage(const std::string& data, std::vector<uint8_t>& buffer);
 };
 
 class RemoteBrokerServer
@@ -90,10 +89,6 @@ private:
 	std::string HandleGetCurrent(const std::string& request_data);
 	std::string HandleGetRate(const std::string& request_data);
 	std::string HandleListTopics(const std::string& request_data);
-
-	// Serialization helpers for network protocol
-	std::string SerializeMessage(const Message& msg);
-	std::optional<Message> DeserializeMessage(const std::string& data);
 
 	// Helper to parse GetNext request
 	struct GetNextParams
