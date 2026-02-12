@@ -1,6 +1,7 @@
 import numpy as np
 import threading
 from catkit2.testbed.service import Service
+from catkit2.catkit_bindings import BufferHandlingMode
 from pipython import GCSDevice, pitools
 
 
@@ -75,6 +76,9 @@ class PhysikStageController(Service):
 
         # Create data stream for move_to command
         self.move_to_stream = self.make_data_stream('move_to_stream', 'float64', [num_axes], 20)
+
+        # Set to process all frames in order
+        self.move_to_stream.buffer_handling_mode = BufferHandlingMode.OLDEST_FIRST_OVERWRITE
 
         # Precompute reverse map for speed
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
