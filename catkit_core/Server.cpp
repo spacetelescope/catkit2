@@ -132,7 +132,7 @@ void Server::ReceiveLoop()
         req.request_data = request_msg.popstr();
 
         DEBUG_PRINT("received: type=" << req.request_type << " client=" << req.client_identity);
-        LOG_DEBUG("Request received: "s + req.request_type + " from " + req.client_identity);
+        LOG_DEBUG("Request received: "s + req.request_type);
 
         // Enqueue for workers
         {
