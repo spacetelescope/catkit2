@@ -1105,12 +1105,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
-		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, std::uint8_t memory_block_id)
-		{
-			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
-
-			return message;
-		}, py::arg("topic"), py::arg("payload_size"), py::arg("memory_block_id") = 0)
 		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
@@ -1171,14 +1165,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("try_get_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
-		{
-			auto res = broker->TryGetMessage(topic, frame_id);
-			if (res)
-				return py::cast(res.value());
-
-			return py::none();
-		}, py::arg("topic"), py::arg("frame_id"))
 		.def("get_current_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
 		{
 			auto res = broker->GetCurrentMessage(topic);
@@ -1187,7 +1173,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return py::none();
 		}, py::arg("topic"))
-		.def("get_current_message_id", [](std::shared_ptr<LocalMessageBroker>broker, std::string_view topic) -> py::object
+		.def("get_current_message_id", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
 		{
 			auto res = broker->GetCurrentMessageId(topic);
 
@@ -1384,14 +1370,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("try_get_message", [](std::shared_ptr<RemoteMessageBroker> broker, std::string topic, size_t frame_id) -> py::object
-		{
-			auto res = broker->TryGetNextMessage(topic, frame_id);
-			if (res)
-				return py::cast(res.value());
-
-			return py::none();
-		}, py::arg("topic"), py::arg("frame_id"))
 		.def("get_current_message", [](std::shared_ptr<RemoteMessageBroker> broker, std::string_view topic) -> py::object
 		{
 			auto res = broker->GetCurrentMessage(topic);

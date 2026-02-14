@@ -620,8 +620,7 @@ std::optional<Message> RemoteMessageBroker::GetNextMessage(std::string_view topi
 	if (IsLocalTopic(topic_str))
 	{
 		DEBUG_PRINT("delegating to local broker");
-		return m_LocalBroker->GetNextMessage(topic, preferred_next_frame_id, mode,
-		                                      timeout_in_seconds, wait_type, error_check);
+        return m_LocalBroker->Subscribe(topic, preferred_next_frame_id, mode).GetNextMessage(timeout_in_seconds, wait_type, error_check);
 	}
 	else
 	{
@@ -823,9 +822,9 @@ std::string RemoteBrokerServer::HandleGetNext(const std::string& request_data)
 		GetNextRequestMsg req = GetNextRequestMsg::Deserialize(request_data.data(), request_data.size());
 		std::string topic(req.topic);
 		MessageSubscriptionMode mode = (req.mode == 0) ? MessageSubscriptionMode::NewestOnly : MessageSubscriptionMode::Sequential;
-		
+
 		DEBUG_PRINT("calling GetNextMessage for topic: " << topic);
-		auto msg_opt = m_Broker->GetNextMessage(topic, req.frame_id, mode, req.timeout);
+        auto msg_opt = m_Broker->Subscribe(topic, req.frame_id, mode).GetNextMessage(req.timeout);
 		DEBUG_PRINT("GetNextMessage returned has_value: " << msg_opt.has_value());
 
 		// Serialize response using struct
