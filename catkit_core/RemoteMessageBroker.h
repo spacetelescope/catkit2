@@ -36,7 +36,12 @@ public:
 	                                   Uuid trace_id, uint8_t memory_block_id = 0) override;
 	virtual Message PublishMessage(Message message, bool is_final = true) override;
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) override;
-	virtual std::optional<Message> GetNextMessage(std::string_view topic,
+
+	virtual std::vector<std::string> GetAllMessageTopics() override;
+	virtual double GetMessageRate(std::string_view topic) override;
+
+protected:
+    virtual std::optional<Message> GetNextMessage(std::string_view topic,
 	                                               size_t preferred_next_frame_id,
 	                                               MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly,
 	                                               double timeout_in_seconds = -1,
@@ -45,8 +50,6 @@ public:
 	virtual std::optional<Message> TryGetNextMessage(std::string_view topic,
 	                                                  size_t preferred_next_frame_id,
 	                                                  MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
-	virtual std::vector<std::string> GetAllMessageTopics() override;
-	virtual double GetMessageRate(std::string_view topic) override;
 
 private:
 	std::shared_ptr<LocalMessageBroker> m_LocalBroker;

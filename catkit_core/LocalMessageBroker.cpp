@@ -489,16 +489,6 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 	}
 }
 
-std::optional<Message> LocalMessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	if (!topic_header->IsMessageAvailable(frame_id))
-		return std::nullopt;
-
-	return FetchMessage(topic_header, frame_id);
-}
-
 Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame_id)
 {
 	// Assume that the frame is available.
