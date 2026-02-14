@@ -808,7 +808,7 @@ size_t RemoteMessageBroker::GetOldestMessageId(std::string_view topic)
 // RemoteBrokerServer Implementation
 // =============================================================================
 
-RemoteBrokerServer::RemoteBrokerServer(std::shared_ptr<MessageBroker> broker, uint16_t port, int num_workers)
+RemoteBrokerServer::RemoteBrokerServer(std::shared_ptr<LocalMessageBroker> broker, uint16_t port, int num_workers)
 	: m_Broker(broker), m_Server(port, num_workers)
 {
 	DEBUG_PRINT("broker ptr: " << m_Broker.get() << ", port: " << port << ", workers: " << num_workers);
@@ -863,14 +863,17 @@ std::string RemoteBrokerServer::HandlePublish(const std::string& request_data)
 
 		DEBUG_PRINT("Message topic: " << msg.topic);
 		DEBUG_PRINT("Message payload_size: " << msg.payload_size);
-		DEBUG_PRINT("m_Broker ptr: " << m_Broker.get());
+        DEBUG_PRINT("Payload: " << msg.payload);
 		DEBUG_PRINT("Memory block Id: " << (int)msg.memory_block_id);
 
-		Message prepared_msg = m_Broker->PrepareMessage(msg.topic, msg.payload_size, msg.memory_block_id);
+		Message prepared_msg = m_Broker->PrepareMessage(msg.topic, msg.payload_size, (int) msg.memory_block_id);
 
 		DEBUG_PRINT("Prepared message.");
 
-		std::memcpy(prepared_msg.GetPayload().data, msg.payload, msg.payload_size);
+        DEBUG_PRINT("Prepared message payload size: " << prepared_msg.GetPayloadInfo().total_size);
+        DEBUG_PRINT("Prepared message block id: " << (int) prepared_msg.GetPayloadInfo().memory_block_id);
+
+		// std::memcpy(prepared_msg.GetPayload().data, msg.payload, msg.payload_size);
 
 		DEBUG_PRINT("Copied payload.");
 
