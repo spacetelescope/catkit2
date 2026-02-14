@@ -1306,7 +1306,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_readwrite("port", &PeerConfig::port);
 
 	py::class_<RemoteBrokerServer>(m, "RemoteBrokerServer")
-		.def(py::init<std::shared_ptr<MessageBroker>, uint16_t, int>(),
+		.def(py::init<std::shared_ptr<LocalMessageBroker>, uint16_t, int>(),
 			py::arg("broker"),
 			py::arg("port"),
 			py::arg("num_workers") = 4)

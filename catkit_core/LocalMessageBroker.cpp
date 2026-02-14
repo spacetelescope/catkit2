@@ -267,12 +267,13 @@ std::size_t LocalMessageBroker::CalculateBufferSize()
 
 Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
 {
+	std::cerr << "LocalMessageBroker::PrepareMessageImpl" << std::endl;
 	// Allocate a payload.
 	auto allocator = GetAllocator(memory_block_id);
 
 	if (allocator == nullptr)
 	{
-		throw std::runtime_error("Invalid device ID.");
+		throw std::runtime_error("Invalid device ID: " + std::to_string(memory_block_id));
 	}
 
 	DEBUG_PRINT("Gotten allocator.");
@@ -343,12 +344,15 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 	header->num_metadata_entries = 0;
 
 	DEBUG_PRINT("Header set");
+	std::cerr << "Header: " << header->payload_info.total_size << ", " << header->payload_info.memory_block_id << std::endl;
 
 	return Message(header, payload, INVALID_FRAME_ID);
 }
 
 Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 {
+	std::cerr << "LocalMessageBroker::PublishMessage" << std::endl;
+
 	DEBUG_PRINT("Publishing message.");
 
 	if (message.m_Header == nullptr || message.m_Payload == nullptr)
@@ -587,6 +591,7 @@ ShareableType LocalMessageBroker::GetType() const
 
 std::shared_ptr<HybridPoolAllocator> LocalMessageBroker::GetAllocator(uint8_t memory_block_id)
 {
+	std::cerr << "Number of memory blocks: " << m_Allocators.size() << std::endl;
 	if (memory_block_id >= m_Allocators.size())
 	{
 		return nullptr;

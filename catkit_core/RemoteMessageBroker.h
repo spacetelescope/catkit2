@@ -2,6 +2,7 @@
 #define REMOTE_MESSAGE_BROKER_H
 
 #include "MessageBroker.h"
+#include "LocalMessageBroker.h"
 #include "Client.h"
 #include "Server.h"
 
@@ -71,7 +72,7 @@ private:
 class RemoteBrokerServer
 {
 public:
-	RemoteBrokerServer(std::shared_ptr<MessageBroker> broker, uint16_t port, int num_workers = 4);
+	RemoteBrokerServer(std::shared_ptr<LocalMessageBroker> broker, uint16_t port, int num_workers = 4);
 	~RemoteBrokerServer();
 
 	void Start();
@@ -80,7 +81,7 @@ public:
 	bool IsRunning() const;
 
 private:
-	std::shared_ptr<MessageBroker> m_Broker;
+	std::shared_ptr<LocalMessageBroker> m_Broker;
 	Server m_Server;
 
 	// Request handlers
