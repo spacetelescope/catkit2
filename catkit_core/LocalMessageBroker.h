@@ -101,18 +101,6 @@ public:
 	// Try to get a message by topic and frame ID.
 	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
 
-	// Check for message availability.
-	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
-
-	// Check if a message will be available in the future.
-	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);
-
-	// Get the newest message ID for a topic.
-	size_t GetNewestMessageId(std::string_view topic);
-
-	// Get the oldest message ID for a topic.
-	size_t GetOldestMessageId(std::string_view topic);
-
 	ShareableType GetType() const override;
 
 	virtual void PrintDebugInfo() const override;

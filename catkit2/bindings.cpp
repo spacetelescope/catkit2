@@ -1187,10 +1187,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return py::none();
 		}, py::arg("topic"))
-		.def("is_message_available", &LocalMessageBroker::IsMessageAvailable)
-		.def("will_message_be_available", &LocalMessageBroker::WillMessageBeAvailable)
-		.def("get_newest_message_id", &LocalMessageBroker::GetNewestMessageId)
-		.def("get_oldest_message_id", &LocalMessageBroker::GetOldestMessageId)
+		.def("get_current_message_id", [](std::shared_ptr<LocalMessageBroker>broker, std::string_view topic) -> py::object
+		{
+			auto res = broker->GetCurrentMessageId(topic);
+
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		}, py::arg("topic"))
 		.def("get_message_rate", &LocalMessageBroker::GetMessageRate)
 		.def("get_all_message_topics", &LocalMessageBroker::GetAllMessageTopics)
 		.def("print_debug_info", &LocalMessageBroker::PrintDebugInfo)
@@ -1395,22 +1400,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return py::none();
 		}, py::arg("topic"))
-		.def("is_message_available", [](RemoteMessageBroker &broker, std::string topic, size_t frame_id)
+		.def("get_current_message_id", [](std::shared_ptr<LocalMessageBroker>broker, std::string_view topic) -> py::object
 		{
-			return broker.IsMessageAvailable(topic, frame_id);
-		})
-		.def("will_message_be_available", [](RemoteMessageBroker &broker, std::string topic, size_t frame_id)
-		{
-			return broker.WillMessageBeAvailable(topic, frame_id);
-		})
-		.def("get_newest_message_id", [](RemoteMessageBroker &broker, std::string topic)
-		{
-			return broker.GetNewestMessageId(topic);
-		})
-		.def("get_oldest_message_id", [](RemoteMessageBroker &broker, std::string topic)
-		{
-			return broker.GetOldestMessageId(topic);
-		})
+			auto res = broker->GetCurrentMessageId(topic);
+
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		}, py::arg("topic"))
 		.def("get_message_rate", &RemoteMessageBroker::GetMessageRate)
 		.def("get_all_message_topics", &RemoteMessageBroker::GetAllMessageTopics)
 		.def("subscribe", [](std::shared_ptr<RemoteMessageBroker> broker, std::string topic, py::object preferred_next_frame_id, MessageSubscriptionMode mode)

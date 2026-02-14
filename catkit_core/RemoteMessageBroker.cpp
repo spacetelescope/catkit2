@@ -732,82 +732,6 @@ double RemoteMessageBroker::GetMessageRate(std::string_view topic)
 	}
 }
 
-bool RemoteMessageBroker::IsMessageAvailable(std::string_view topic, size_t frame_id)
-{
-	DEBUG_PRINT("topic: " << topic << ", frame_id: " << frame_id << ", IsLocalTopic: " << IsLocalTopic(topic));
-	std::string topic_str(topic);
-
-	if (IsLocalTopic(topic_str))
-	{
-		bool available = m_LocalBroker->IsMessageAvailable(topic, frame_id);
-		DEBUG_PRINT("local broker result: " << available);
-		return available;
-	}
-	else
-	{
-		DEBUG_PRINT("remote topic, returning false (not implemented)");
-		return false;
-	}
-}
-
-bool RemoteMessageBroker::WillMessageBeAvailable(std::string_view topic, size_t frame_id)
-{
-	DEBUG_PRINT("topic: " << topic << ", frame_id: " << frame_id << ", IsLocalTopic: " << IsLocalTopic(topic));
-	std::string topic_str(topic);
-
-	if (IsLocalTopic(topic_str))
-	{
-		bool available = m_LocalBroker->WillMessageBeAvailable(topic, frame_id);
-		DEBUG_PRINT("local broker result: " << available);
-		return available;
-	}
-	else
-	{
-		DEBUG_PRINT("remote topic, returning false (not implemented)");
-		return false;
-	}
-}
-
-size_t RemoteMessageBroker::GetNewestMessageId(std::string_view topic)
-{
-	DEBUG_PRINT("topic: " << topic << ", IsLocalTopic: " << IsLocalTopic(topic));
-	std::string topic_str(topic);
-
-	if (IsLocalTopic(topic_str))
-	{
-		size_t id = m_LocalBroker->GetNewestMessageId(topic);
-		DEBUG_PRINT("local broker result: " << id);
-		return id;
-	}
-	else
-	{
-		DEBUG_PRINT("remote topic, returning 0 (not implemented)");
-		return 0;
-	}
-}
-
-size_t RemoteMessageBroker::GetOldestMessageId(std::string_view topic)
-{
-	DEBUG_PRINT("topic: " << topic << ", IsLocalTopic: " << IsLocalTopic(topic));
-	std::string topic_str(topic);
-
-	if (IsLocalTopic(topic_str))
-	{
-		size_t id = m_LocalBroker->GetOldestMessageId(topic);
-		DEBUG_PRINT("local broker result: " << id);
-		return id;
-	}
-	else
-	{
-		DEBUG_PRINT("remote topic, returning 0 (not implemented)");
-		return 0;
-	}
-}
-
-// =============================================================================
-// RemoteBrokerServer Implementation
-// =============================================================================
-
 RemoteBrokerServer::RemoteBrokerServer(std::shared_ptr<LocalMessageBroker> broker, uint16_t port, int num_workers)
 	: m_Broker(broker), m_Server(port, num_workers)
 {
@@ -890,34 +814,18 @@ std::string RemoteBrokerServer::HandlePublish(const std::string& request_data)
 	}
 }
 
-RemoteBrokerServer::GetNextParams RemoteBrokerServer::ParseGetNextRequest(const std::string& data)
-{
-	DEBUG_PRINT("parsing request data, size: " << data.size());
-	// Parse using the message struct
-	GetNextRequestMsg msg = GetNextRequestMsg::Deserialize(data.data(), data.length());
-
-	GetNextParams params;
-	params.topic = std::string(msg.topic);
-	params.preferred_frame_id = msg.frame_id;
-	params.mode = (msg.mode == 0) ? MessageSubscriptionMode::NewestOnly : MessageSubscriptionMode::Sequential;
-	params.timeout_seconds = msg.timeout;
-
-	DEBUG_PRINT("parsed: topic=" << params.topic << ", frame_id=" << params.preferred_frame_id << ", mode=" << (params.mode == MessageSubscriptionMode::NewestOnly ? "NewestOnly" : "Sequential") << ", timeout=" << params.timeout_seconds);
-	return params;
-}
-
 std::string RemoteBrokerServer::HandleGetNext(const std::string& request_data)
 {
 	DEBUG_PRINT("called, request_size: " << request_data.size());
 	try
 	{
-		// Parse request parameters
-		GetNextParams params = ParseGetNextRequest(request_data);
-
-		// Call GetNextMessage with timeout
-		DEBUG_PRINT("calling GetNextMessage for topic: " << params.topic);
-		auto msg_opt = m_Broker->GetNextMessage(params.topic, params.preferred_frame_id,
-			params.mode, params.timeout_seconds);
+		// Parse request using struct directly
+		GetNextRequestMsg req = GetNextRequestMsg::Deserialize(request_data.data(), request_data.size());
+		std::string topic(req.topic);
+		MessageSubscriptionMode mode = (req.mode == 0) ? MessageSubscriptionMode::NewestOnly : MessageSubscriptionMode::Sequential;
+		
+		DEBUG_PRINT("calling GetNextMessage for topic: " << topic);
+		auto msg_opt = m_Broker->GetNextMessage(topic, req.frame_id, mode, req.timeout);
 		DEBUG_PRINT("GetNextMessage returned has_value: " << msg_opt.has_value());
 
 		// Serialize response using struct

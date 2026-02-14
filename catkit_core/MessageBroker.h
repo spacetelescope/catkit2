@@ -161,6 +161,8 @@ public:
 	virtual Message PublishMessage(Message message, bool is_final = true) = 0;
 
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) = 0;
+	virtual std::optional<size_t> GetCurrentMessageId(std::string_view topic);
+
 	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) = 0;
 	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) = 0;
 
