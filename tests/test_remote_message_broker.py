@@ -67,7 +67,6 @@ def test_remote_topic_routing(remote_broker, local_broker_2):
     remote_broker.publish_data(remote_topic, data)
 
     # Verify message arrived at server broker
-    time.sleep(0.1)  # Allow network transmission
     msg = local_broker_2.get_current_message(remote_topic)
     assert msg is not None
     assert msg.payload.data == data
@@ -84,7 +83,6 @@ def test_message_round_trip(remote_broker, local_broker_2):
     remote_broker.publish_message(msg)
 
     # Verify at server
-    time.sleep(0.1)
     received = local_broker_2.get_current_message(topic)
     assert received is not None
     assert np.array_equal(received.payload, arr)
@@ -97,7 +95,6 @@ def test_different_dtypes(remote_broker, local_broker_2):
         arr = np.array([1, 2, 3], dtype=dtype)
 
         remote_broker.publish_array(topic, arr)
-        time.sleep(0.05)
 
         received = local_broker_2.get_current_message(topic)
         assert received is not None
@@ -112,7 +109,6 @@ def test_multidimensional_arrays(remote_broker, local_broker_2):
         arr = np.random.randn(*shape).astype('float32')
 
         remote_broker.publish_array(topic, arr)
-        time.sleep(0.05)
 
         received = local_broker_2.get_current_message(topic)
         assert received is not None
@@ -144,7 +140,6 @@ def test_request_handlers(remote_broker, local_broker_2):
     # Test PUBLISH
     data = b'test data'
     remote_broker.publish_data(topic, data)
-    time.sleep(0.1)
 
     # Test GET_CURRENT
     msg = remote_broker.get_current_message(topic)
@@ -186,7 +181,6 @@ def test_concurrent_publishes(remote_broker, local_broker_2):
     assert len(errors) == 0, f"Errors during concurrent publish: {errors}"
 
     # Verify some messages arrived
-    time.sleep(0.2)
     topics = local_broker_2.get_all_message_topics()
     assert len(topics) >= num_messages
 
@@ -196,8 +190,6 @@ def test_server_thread_pool(remote_broker, local_broker_2):
     for i in range(10):
         topic = f"machine2/concurrent_{i}"
         remote_broker.publish_data(topic, f"msg {i}".encode())
-
-    time.sleep(0.1)
 
     # All messages should be available
     for i in range(10):
@@ -231,7 +223,6 @@ def test_get_next_with_data(remote_broker):
 
     # Publish
     remote_broker.publish_data(topic, data)
-    time.sleep(0.1)
 
     # Now get next message
     msg = sub.get_next_message(timeout_in_sec=1.0)
@@ -245,7 +236,6 @@ def test_newest_only_subscription(remote_broker):
     # Publish multiple messages
     for i in range(5):
         remote_broker.publish_data(topic, f"msg {i}".encode())
-        time.sleep(0.01)
 
     # Subscribe with NewestOnly
     sub = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.NewestOnly)
@@ -259,13 +249,12 @@ def test_sequential_subscription(remote_broker):
     """Test Sequential subscription mode over network."""
     topic = "machine2/test_sequential"
 
+    # Subscribe with Sequential
+    sub = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.Sequential)
+
     # Publish multiple messages
     for i in range(5):
         remote_broker.publish_data(topic, f"msg {i}".encode())
-        time.sleep(0.01)
-
-    # Subscribe with Sequential
-    sub = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.Sequential)
 
     # Should get messages in order
     for i in range(5):
