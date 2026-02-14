@@ -1,24 +1,21 @@
 #include "RemoteMessageBroker.h"
 #include "LocalMessageBroker.h"
 #include "ArrayView.h"
+#include "Timing.h"
 
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
 #include <optional>
 #include <iostream>
+#include <algorithm>
 
 #define DEBUG_PRINT(msg) std::cerr << "[DEBUG] " << __func__ << ":" << __LINE__ << " - " << msg << std::endl
 #define ERROR_PRINT(msg) std::cerr << "[ERROR] " << __func__ << ":" << __LINE__ << " - " << msg << std::endl
 
-// =============================================================================
-// Message Format Structures - Zero-copy payload design
-// =============================================================================
-
-// PUBLISH message format: [topic_length (1 byte)][topic (variable)][payload_size (8 bytes)][memory_block_id (1 byte)]
-//                      [array_info]
-//                      [payload (variable)]
-// Payload is zero-copy - points into external buffer (ZMQ message)
+// PUBLISH message format:
+// [topic_length (1 byte)][topic (variable)][payload_size (8 bytes)][memory_block_id (1 byte)][array_info][payload (variable)]
+// Payload is zero-copy - points into external buffer
 struct PublishMsg
 {
     // Data fields
@@ -26,7 +23,7 @@ struct PublishMsg
     uint64_t payload_size;
     uint8_t memory_block_id;
     ArrayInfo array_info;
-    const void* payload;  // Zero-copy pointer into external buffer
+    const void* payload;
 
     // Get serialized size of this message
     size_t GetSize() const
@@ -39,12 +36,11 @@ struct PublishMsg
     }
 
     // Serialize into pre-allocated buffer
-    // Returns false if buffer too small or payload is null when payload_size > 0
+    // Returns false if buffer too small.
     bool Serialize(void* buffer, size_t buffer_size) const
     {
         size_t required_size = GetSize();
         if (buffer_size < required_size) return false;
-        if (payload_size > 0 && payload == nullptr) return false;
 
         char* buf = static_cast<char*>(buffer);
         size_t offset = 0;
@@ -456,10 +452,6 @@ struct ListTopicsResponseMsg
     }
 };
 
-// =============================================================================
-// RemoteMessageBroker Implementation
-// =============================================================================
-
 RemoteMessageBroker::RemoteMessageBroker(std::shared_ptr<LocalMessageBroker> local_broker,
                                           const std::string& local_machine_name,
                                           const std::vector<PeerConfig>& peers)
@@ -743,45 +735,67 @@ std::optional<Message> RemoteMessageBroker::GetNextMessage(std::string_view topi
 		DEBUG_PRINT("remote machine: " << machine);
 		Client& client = GetClientForMachine(machine);
 
-		// Serialize request
+		// Client-side timeout handling: poll with 0.1-second chunks
+		// Server caps timeout at 0.1 second to prevent worker thread blocking
+		const double CHUNK_TIMEOUT = 0.1;
+		Timer timer;
 		int mode_int = (mode == MessageSubscriptionMode::NewestOnly) ? 0 : 1;
-		std::string request = SerializeGetNextRequest(topic_str, preferred_next_frame_id,
-		                                               mode_int, timeout_in_seconds);
 
-		// Send GET_NEXT request
-		DEBUG_PRINT("sending GET_NEXT request...");
-		std::string response = client.MakeRequest("GET_NEXT", request);
-		DEBUG_PRINT("response received, size: " << response.size());
-
-		// Parse response
-		GetNextResponseMsg resp = GetNextResponseMsg::Deserialize(response.data(), response.size());
-
-		if (!resp.has_message)
+		while (timer.GetTime() < timeout_in_seconds)
 		{
-			DEBUG_PRINT("no message in response");
-			return std::nullopt;
+			double elapsed = timer.GetTime();
+			double remaining = timeout_in_seconds - elapsed;
+			double current_timeout = std::min(remaining, CHUNK_TIMEOUT);
+
+			// Serialize request with current chunk timeout
+			std::string request = SerializeGetNextRequest(topic_str, preferred_next_frame_id,
+			                                               mode_int, current_timeout);
+
+			// Send GET_NEXT request
+			DEBUG_PRINT("sending GET_NEXT request with timeout: " << current_timeout << " (elapsed: " << elapsed << ")");
+			std::string response = client.MakeRequest("GET_NEXT", request);
+			DEBUG_PRINT("response received, size: " << response.size());
+
+			// Parse response
+			GetNextResponseMsg resp = GetNextResponseMsg::Deserialize(response.data(), response.size());
+
+			if (resp.has_message)
+			{
+				DEBUG_PRINT("message received after " << timer.GetTime() << " seconds");
+
+				// Convert PublishMsg to Message
+				MessageHeader* header = new MessageHeader();
+				std::memset(header, 0, sizeof(MessageHeader));
+				std::memcpy(header->topic, resp.message.topic.data(), std::min(resp.message.topic.length(), static_cast<size_t>(TOPIC_MAX_KEY_SIZE - 1)));
+				header->topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+				header->payload_info.total_size = resp.message.payload_size;
+				header->payload_info.memory_block_id = resp.message.memory_block_id;
+				header->payload_info.offset_in_buffer = 0;
+
+				void* payload = std::malloc(resp.message.payload_size);
+				if (resp.message.payload_size > 0 && resp.message.payload)
+				{
+					std::memcpy(payload, resp.message.payload, resp.message.payload_size);
+				}
+
+				Message result(header, payload, 0);
+				result.SetArrayInfo(resp.message.array_info);
+
+				DEBUG_PRINT("deserialized message, payload_size: " << resp.message.payload_size);
+				return std::optional<Message>(std::move(result));
+			}
+
+			DEBUG_PRINT("no message after " << timer.GetTime() << " seconds");
+
+			// Check error callback if provided
+			if (error_check)
+			{
+				error_check();
+			}
 		}
 
-		// Convert PublishMsg to Message
-		MessageHeader* header = new MessageHeader();
-		std::memset(header, 0, sizeof(MessageHeader));
-		std::memcpy(header->topic, resp.message.topic.data(), std::min(resp.message.topic.length(), static_cast<size_t>(TOPIC_MAX_KEY_SIZE - 1)));
-		header->topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
-		header->payload_info.total_size = resp.message.payload_size;
-		header->payload_info.memory_block_id = resp.message.memory_block_id;
-		header->payload_info.offset_in_buffer = 0;
-
-		void* payload = std::malloc(resp.message.payload_size);
-		if (resp.message.payload_size > 0 && resp.message.payload)
-		{
-			std::memcpy(payload, resp.message.payload, resp.message.payload_size);
-		}
-
-		Message result(header, payload, 0);
-		result.SetArrayInfo(resp.message.array_info);
-
-		DEBUG_PRINT("deserialized message, payload_size: " << resp.message.payload_size);
-		return std::optional<Message>(std::move(result));
+		DEBUG_PRINT("timeout expired after " << timer.GetTime() << " seconds, no message");
+		return std::nullopt;
 	}
 }
 
@@ -934,7 +948,10 @@ std::string RemoteBrokerServer::HandleGetNext(const std::string& request_data)
 	MessageSubscriptionMode mode = (req.mode == 0) ? MessageSubscriptionMode::NewestOnly : MessageSubscriptionMode::Sequential;
 
 	DEBUG_PRINT("calling GetNextMessage for topic: " << topic);
-	auto msg_opt = m_Broker->Subscribe(topic, req.frame_id, mode).GetNextMessage(req.timeout);
+	// Cap server-side timeout at 1 second to prevent worker thread blocking
+	const double MAX_SERVER_TIMEOUT = 1.0;
+	double server_timeout = std::min(req.timeout, MAX_SERVER_TIMEOUT);
+	auto msg_opt = m_Broker->Subscribe(topic, req.frame_id, mode).GetNextMessage(server_timeout);
 	DEBUG_PRINT("GetNextMessage returned has_value: " << msg_opt.has_value());
 
 	// Serialize response using struct
