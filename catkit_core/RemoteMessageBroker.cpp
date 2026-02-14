@@ -1,5 +1,6 @@
 #include "RemoteMessageBroker.h"
 #include "LocalMessageBroker.h"
+#include "ArrayView.h"
 
 #include <cstring>
 #include <sstream>
@@ -14,7 +15,9 @@
 // Message Format Structures - Zero-copy payload design
 // =============================================================================
 
-// PUBLISH message format: [topic_length (1 byte)][topic (variable)][payload_size (8 bytes)][memory_block_id (1 byte)][payload (variable)]
+// PUBLISH message format: [topic_length (1 byte)][topic (variable)][payload_size (8 bytes)][memory_block_id (1 byte)]
+//                      [array_info]
+//                      [payload (variable)]
 // Payload is zero-copy - points into external buffer (ZMQ message)
 struct PublishMsg
 {
@@ -22,12 +25,17 @@ struct PublishMsg
     std::string topic;
     uint64_t payload_size;
     uint8_t memory_block_id;
+    ArrayInfo array_info;
     const void* payload;  // Zero-copy pointer into external buffer
 
     // Get serialized size of this message
     size_t GetSize() const
     {
-        return sizeof(uint8_t) + topic.length() + sizeof(uint64_t) + sizeof(uint8_t) + payload_size;
+        size_t size = sizeof(uint8_t) + topic.length() + sizeof(uint64_t) + sizeof(uint8_t);
+        size += sizeof(char) + sizeof(char) + sizeof(uint8_t) + sizeof(uint8_t);
+        size += MAX_NUM_DIMENSIONS * sizeof(uint32_t) * 2;  // shape + strides
+        size += payload_size;
+        return size;
     }
 
     // Serialize into pre-allocated buffer
@@ -55,6 +63,20 @@ struct PublishMsg
         // Write memory_block_id
         std::memcpy(buf + offset, &memory_block_id, sizeof(uint8_t));
         offset += sizeof(uint8_t);
+
+        // Write array_info
+        std::memcpy(buf + offset, &array_info.data_type, sizeof(char));
+        offset += sizeof(char);
+        std::memcpy(buf + offset, &array_info.byte_order, sizeof(char));
+        offset += sizeof(char);
+        std::memcpy(buf + offset, &array_info.item_size, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+        std::memcpy(buf + offset, &array_info.ndim, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+        std::memcpy(buf + offset, array_info.shape.data(), MAX_NUM_DIMENSIONS * sizeof(uint32_t));
+        offset += MAX_NUM_DIMENSIONS * sizeof(uint32_t);
+        std::memcpy(buf + offset, array_info.strides.data(), MAX_NUM_DIMENSIONS * sizeof(uint32_t));
+        offset += MAX_NUM_DIMENSIONS * sizeof(uint32_t);
 
         // Write payload (copy from external buffer)
         if (payload_size > 0)
@@ -89,6 +111,20 @@ struct PublishMsg
         // Read memory_block_id
         std::memcpy(&msg.memory_block_id, buf + offset, sizeof(uint8_t));
         offset += sizeof(uint8_t);
+
+        // Read array_info
+        std::memcpy(&msg.array_info.data_type, buf + offset, sizeof(char));
+        offset += sizeof(char);
+        std::memcpy(&msg.array_info.byte_order, buf + offset, sizeof(char));
+        offset += sizeof(char);
+        std::memcpy(&msg.array_info.item_size, buf + offset, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+        std::memcpy(&msg.array_info.ndim, buf + offset, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+        std::memcpy(msg.array_info.shape.data(), buf + offset, MAX_NUM_DIMENSIONS * sizeof(uint32_t));
+        offset += MAX_NUM_DIMENSIONS * sizeof(uint32_t);
+        std::memcpy(msg.array_info.strides.data(), buf + offset, MAX_NUM_DIMENSIONS * sizeof(uint32_t));
+        offset += MAX_NUM_DIMENSIONS * sizeof(uint32_t);
 
         // Payload points into data buffer (zero-copy)
         msg.payload = (msg.payload_size > 0) ? (buf + offset) : nullptr;
@@ -533,6 +569,7 @@ std::string RemoteMessageBroker::SerializeMessage(const Message& msg)
 	pub_msg.topic = std::string(msg.GetTopic().data());
 	pub_msg.payload_size = payload_size;
 	pub_msg.memory_block_id = header.payload_info.memory_block_id;
+	pub_msg.array_info = msg.GetArrayInfo();
 	pub_msg.payload = msg.GetPayload().data;
 
 	// Allocate buffer and serialize
@@ -674,8 +711,11 @@ std::optional<Message> RemoteMessageBroker::GetCurrentMessage(std::string_view t
 			std::memcpy(payload, resp.message.payload, resp.message.payload_size);
 		}
 
+		Message result(header, payload, 0);
+		result.SetArrayInfo(resp.message.array_info);
+
 		DEBUG_PRINT("deserialized message, payload_size: " << resp.message.payload_size);
-		return std::optional<Message>(Message(header, payload, 0));
+		return std::optional<Message>(std::move(result));
 	}
 }
 
@@ -737,8 +777,11 @@ std::optional<Message> RemoteMessageBroker::GetNextMessage(std::string_view topi
 			std::memcpy(payload, resp.message.payload, resp.message.payload_size);
 		}
 
+		Message result(header, payload, 0);
+		result.SetArrayInfo(resp.message.array_info);
+
 		DEBUG_PRINT("deserialized message, payload_size: " << resp.message.payload_size);
-		return std::optional<Message>(Message(header, payload, 0));
+		return std::optional<Message>(std::move(result));
 	}
 }
 
@@ -854,155 +897,128 @@ std::string RemoteBrokerServer::HandlePublish(const std::string& request_data)
 {
 	DEBUG_PRINT("called - request_size: " << request_data.size());
 
-	try
-	{
-		// Deserialize using the struct (zero-copy payload)
-		PublishMsg msg = PublishMsg::Deserialize(request_data.data(), request_data.size());
+	// Deserialize using the struct (zero-copy payload)
+	PublishMsg msg = PublishMsg::Deserialize(request_data.data(), request_data.size());
 
-		DEBUG_PRINT("Message topic: " << msg.topic);
-		DEBUG_PRINT("Message payload_size: " << msg.payload_size);
-		DEBUG_PRINT("m_Broker ptr: " << m_Broker.get());
-		DEBUG_PRINT("Memory block Id: " << (int)msg.memory_block_id);
+	DEBUG_PRINT("Message topic: " << msg.topic);
+	DEBUG_PRINT("Message payload_size: " << msg.payload_size);
+	DEBUG_PRINT("m_Broker ptr: " << m_Broker.get());
+	DEBUG_PRINT("Memory block Id: " << (int)msg.memory_block_id);
 
-		Message prepared_msg = m_Broker->PrepareMessage(msg.topic, msg.payload_size, msg.memory_block_id);
+	Message prepared_msg = m_Broker->PrepareMessage(msg.topic, msg.payload_size, msg.memory_block_id);
 
-		DEBUG_PRINT("Prepared message.");
+	DEBUG_PRINT("Prepared message.");
 
-		std::memcpy(prepared_msg.GetPayload().data, msg.payload, msg.payload_size);
+	// Copy array info
+	prepared_msg.SetArrayInfo(msg.array_info);
+	DEBUG_PRINT("Copied array info.");
 
-		DEBUG_PRINT("Copied payload.");
+	std::memcpy(prepared_msg.GetPayload().data, msg.payload, msg.payload_size);
 
-		// Publish to local broker
-		m_Broker->PublishMessage(prepared_msg, true);
+	DEBUG_PRINT("Copied payload.");
 
-		DEBUG_PRINT("PublishMessage completed successfully");
-		return "OK";
-	}
-	catch (const std::exception& e)
-	{
-		ERROR_PRINT("Exception: " << e.what());
-		return std::string("ERROR: ") + e.what();
-	}
+	// Publish to local broker
+	m_Broker->PublishMessage(prepared_msg, true);
+
+	DEBUG_PRINT("PublishMessage completed successfully");
+	return "OK";
 }
 
 std::string RemoteBrokerServer::HandleGetNext(const std::string& request_data)
 {
 	DEBUG_PRINT("called, request_size: " << request_data.size());
-	try
+
+	// Parse request using struct directly
+	GetNextRequestMsg req = GetNextRequestMsg::Deserialize(request_data.data(), request_data.size());
+	std::string topic(req.topic);
+	MessageSubscriptionMode mode = (req.mode == 0) ? MessageSubscriptionMode::NewestOnly : MessageSubscriptionMode::Sequential;
+
+	DEBUG_PRINT("calling GetNextMessage for topic: " << topic);
+	auto msg_opt = m_Broker->Subscribe(topic, req.frame_id, mode).GetNextMessage(req.timeout);
+	DEBUG_PRINT("GetNextMessage returned has_value: " << msg_opt.has_value());
+
+	// Serialize response using struct
+	GetNextResponseMsg resp;
+	resp.has_message = msg_opt.has_value() ? 1 : 0;
+
+	if (msg_opt.has_value())
 	{
-		// Parse request using struct directly
-		GetNextRequestMsg req = GetNextRequestMsg::Deserialize(request_data.data(), request_data.size());
-		std::string topic(req.topic);
-		MessageSubscriptionMode mode = (req.mode == 0) ? MessageSubscriptionMode::NewestOnly : MessageSubscriptionMode::Sequential;
-
-		DEBUG_PRINT("calling GetNextMessage for topic: " << topic);
-        auto msg_opt = m_Broker->Subscribe(topic, req.frame_id, mode).GetNextMessage(req.timeout);
-        DEBUG_PRINT("GetNextMessage returned has_value: " << msg_opt.has_value());
-
-		// Serialize response using struct
-		GetNextResponseMsg resp;
-		resp.has_message = msg_opt.has_value() ? 1 : 0;
-
-		if (msg_opt.has_value())
-		{
-			Message& inner_msg = msg_opt.value();
-			resp.message.topic = std::string(inner_msg.GetTopic().data());
-			resp.message.payload_size = inner_msg.GetPayloadSize();
-			resp.message.memory_block_id = inner_msg.m_Header ? inner_msg.m_Header->payload_info.memory_block_id : 0;
-			resp.message.payload = inner_msg.GetPayload().data;
-		}
-
-		std::string result;
-		result.resize(resp.GetSize());
-		if (!resp.Serialize(&result[0], result.size()))
-		{
-			return "ERROR: Failed to serialize response";
-		}
-
-		DEBUG_PRINT("serialized response size: " << result.size());
-		return result;
+		Message& inner_msg = msg_opt.value();
+		resp.message.topic = std::string(inner_msg.GetTopic().data());
+		resp.message.payload_size = inner_msg.GetPayloadSize();
+		resp.message.memory_block_id = inner_msg.m_Header ? inner_msg.m_Header->payload_info.memory_block_id : 0;
+		resp.message.array_info = inner_msg.GetArrayInfo();
+		resp.message.payload = inner_msg.GetPayload().data;
 	}
-	catch (const std::exception& e)
-	{
-		ERROR_PRINT("exception: " << e.what());
-		return std::string("ERROR: ") + e.what();
-	}
+
+	std::string result;
+	result.resize(resp.GetSize());
+	if (!resp.Serialize(&result[0], result.size()))
+		throw std::runtime_error("Something went wrong during serialization or the message.");
+
+	DEBUG_PRINT("serialized response size: " << result.size());
+	return result;
 }
 
 std::string RemoteBrokerServer::HandleGetCurrent(const std::string& request_data)
 {
 	DEBUG_PRINT("request_size: " << request_data.size());
-	try
+
+	GetCurrentRequestMsg req = GetCurrentRequestMsg::Deserialize(request_data.data(), request_data.size());
+	std::string topic(req.topic);
+	DEBUG_PRINT("topic: " << topic);
+
+	auto msg_opt = m_Broker->GetCurrentMessage(topic);
+
+	DEBUG_PRINT("has_value: " << msg_opt.has_value());
+
+	// Serialize response using struct
+	GetCurrentResponseMsg resp;
+	resp.has_message = msg_opt.has_value() ? 1 : 0;
+
+	if (msg_opt.has_value())
 	{
-		GetCurrentRequestMsg req = GetCurrentRequestMsg::Deserialize(request_data.data(), request_data.size());
-		std::string topic(req.topic);
-		DEBUG_PRINT("topic: " << topic);
-
-		auto msg_opt = m_Broker->GetCurrentMessage(topic);
-
-		DEBUG_PRINT("has_value: " << msg_opt.has_value());
-
-		// Serialize response using struct
-		GetCurrentResponseMsg resp;
-		resp.has_message = msg_opt.has_value() ? 1 : 0;
-
-		if (msg_opt.has_value())
-		{
-			Message& inner_msg = msg_opt.value();
-			resp.message.topic = std::string(inner_msg.GetTopic().data());
-			resp.message.payload_size = inner_msg.GetPayloadSize();
-			resp.message.memory_block_id = inner_msg.m_Header ? inner_msg.m_Header->payload_info.memory_block_id : 0;
-			resp.message.payload = inner_msg.GetPayload().data;
-		}
-
-		std::string result;
-		result.resize(resp.GetSize());
-		if (!resp.Serialize(&result[0], result.size()))
-		{
-			return "ERROR: Failed to serialize response";
-		}
-
-		DEBUG_PRINT("serialized size: " << result.size());
-		return result;
+		Message& inner_msg = msg_opt.value();
+		resp.message.topic = std::string(inner_msg.GetTopic().data());
+		resp.message.payload_size = inner_msg.GetPayloadSize();
+		resp.message.memory_block_id = inner_msg.m_Header ? inner_msg.m_Header->payload_info.memory_block_id : 0;
+		resp.message.array_info = inner_msg.GetArrayInfo();
+		resp.message.payload = inner_msg.GetPayload().data;
 	}
-	catch (const std::exception& e)
-	{
-		ERROR_PRINT("exception: " << e.what());
-		return std::string("ERROR: ") + e.what();
-	}
+
+	std::string result;
+	result.resize(resp.GetSize());
+	if (!resp.Serialize(&result[0], result.size()))
+		throw std::runtime_error("Something went wrong during serialization of the response.");
+
+	DEBUG_PRINT("serialized size: " << result.size());
+	return result;
 }
 
 std::string RemoteBrokerServer::HandleGetRate(const std::string& request_data)
 {
 	DEBUG_PRINT("request_size: " << request_data.size());
-	try
-	{
-		// Parse request using struct
-		GetRateRequestMsg req = GetRateRequestMsg::Deserialize(request_data.data(), request_data.size());
-		std::string topic(req.topic);
-		DEBUG_PRINT("topic: " << topic);
 
-		DEBUG_PRINT("calling GetMessageRate");
-		double rate = m_Broker->GetMessageRate(topic);
-		DEBUG_PRINT("rate: " << rate);
+	// Parse request using struct
+	GetRateRequestMsg req = GetRateRequestMsg::Deserialize(request_data.data(), request_data.size());
+	std::string topic(req.topic);
+	DEBUG_PRINT("topic: " << topic);
 
-		// Return response using struct
-		GetRateResponseMsg resp;
-		resp.rate = rate;
+	DEBUG_PRINT("calling GetMessageRate");
+	double rate = m_Broker->GetMessageRate(topic);
+	DEBUG_PRINT("rate: " << rate);
 
-		std::string result;
-		result.resize(resp.GetSize());
-		if (!resp.Serialize(&result[0], result.size()))
-		{
-			return "ERROR: Failed to serialize response";
-		}
-		return result;
-	}
-	catch (const std::exception& e)
-	{
-		ERROR_PRINT("exception: " << e.what());
-		return std::string("ERROR: ") + e.what();
-	}
+	// Return response using struct
+	GetRateResponseMsg resp;
+	resp.rate = rate;
+
+	std::string result;
+	result.resize(resp.GetSize());
+
+	if (!resp.Serialize(&result[0], result.size()))
+		throw std::runtime_error("Something went wrong during serialization of the response.");
+
+	return result;
 }
 
 std::string RemoteBrokerServer::HandleListTopics(const std::string& request_data)
@@ -1010,26 +1026,18 @@ std::string RemoteBrokerServer::HandleListTopics(const std::string& request_data
 	(void)request_data; // Unused
 	DEBUG_PRINT("called");
 
-	try
-	{
-		DEBUG_PRINT("calling GetAllMessageTopics");
-		std::vector<std::string> topics = m_Broker->GetAllMessageTopics();
-		DEBUG_PRINT("got " << topics.size() << " topics");
+	DEBUG_PRINT("calling GetAllMessageTopics");
+	std::vector<std::string> topics = m_Broker->GetAllMessageTopics();
+	DEBUG_PRINT("got " << topics.size() << " topics");
 
-		// Format as comma-separated list
-		std::string result;
-		for (size_t i = 0; i < topics.size(); ++i)
-		{
-			if (i > 0) result += ",";
-			result += topics[i];
-		}
-
-		DEBUG_PRINT("returning topic list");
-		return result;
-	}
-	catch (const std::exception& e)
+	// Format as comma-separated list
+	std::string result;
+	for (size_t i = 0; i < topics.size(); ++i)
 	{
-		ERROR_PRINT("exception: " << e.what());
-		return std::string("ERROR: ") + e.what();
+		if (i > 0) result += ",";
+		result += topics[i];
 	}
+
+	DEBUG_PRINT("returning topic list");
+	return result;
 }
