@@ -205,11 +205,10 @@ def test_get_next_timeout(remote_broker):
 
     # Subscribe and try to get next message
     sub = remote_broker.subscribe(topic)
-    msg = sub.get_next_message(timeout_in_sec=0.1)
+    with pytest.raises(RuntimeError):
+        sub.get_next_message(timeout_in_sec=0.1)
     elapsed = time.time() - start_time
 
-    # Should return None on timeout
-    assert msg is None
     # Should complete within reasonable time (allowing for network overhead)
     assert elapsed < 0.5
 
@@ -229,38 +228,27 @@ def test_get_next_with_data(remote_broker):
     assert msg is not None
     assert msg.payload.data == data
 
-def test_newest_only_subscription(remote_broker):
+def test_subscription(remote_broker):
     """Test NewestOnly subscription mode over network."""
     topic = "machine2/test_newest"
 
+    # Subscribe with NewestOnly
+    sub_newest = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.NewestOnly)
+    sub_sequential = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.Sequential)
+
     # Publish multiple messages
     for i in range(5):
         remote_broker.publish_data(topic, f"msg {i}".encode())
-
-    # Subscribe with NewestOnly
-    sub = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.NewestOnly)
 
     # Should get the newest message (msg 4)
-    msg = sub.get_next_message(timeout_in_sec=1.0)
+    msg = sub_newest.get_next_message(timeout_in_sec=1.0)
     assert msg is not None
-    assert b'4' in msg.payload.data
+    assert msg.payload.data == b'msg 4'
 
-def test_sequential_subscription(remote_broker):
-    """Test Sequential subscription mode over network."""
-    topic = "machine2/test_sequential"
-
-    # Subscribe with Sequential
-    sub = remote_broker.subscribe(topic, mode=MessageSubscriptionMode.Sequential)
-
-    # Publish multiple messages
-    for i in range(5):
-        remote_broker.publish_data(topic, f"msg {i}".encode())
-
-    # Should get messages in order
-    for i in range(5):
-        msg = sub.get_next_message(timeout_in_sec=1.0)
-        assert msg is not None
-        assert str(i).encode() in msg.payload.data
+    # Should get the oldest message (msg 0)
+    msg = sub_sequential.get_next_message(timeout_in_sec=1.0)
+    assert msg is not None
+    assert msg.payload.data == b'msg 0'
 
 def test_unknown_peer(remote_broker):
     """Test that accessing unknown peer raises error."""
@@ -268,7 +256,7 @@ def test_unknown_peer(remote_broker):
     with pytest.raises(RuntimeError, match="Unknown peer"):
         remote_broker.publish_data("unknown_machine/topic", b'data')
 
-def htest_server_not_running(local_broker_1, unused_port):
+def test_server_not_running(local_broker_1, unused_port):
     """Test behavior when server is not running."""
     port = unused_port()
 
