@@ -10,30 +10,43 @@
 #define DEBUG_PRINT(msg) std::cerr << "[DEBUG] " << __func__ << ":" << __LINE__ << " - " << msg << std::endl
 #define ERROR_PRINT(msg) std::cerr << "[ERROR] " << __func__ << ":" << __LINE__ << " - " << msg << std::endl
 
+// =============================================================================
+// Message Format Structures - Zero-copy payload design
+// =============================================================================
+
+// PUBLISH message format: [topic_length (1 byte)][topic (variable)][payload_size (8 bytes)][memory_block_id (1 byte)][payload (variable)]
+// Payload is zero-copy - points into external buffer (ZMQ message)
 struct PublishMsg
 {
     // Data fields
-    char topic[TOPIC_MAX_KEY_SIZE];
+    std::string topic;
     uint64_t payload_size;
     uint8_t memory_block_id;
-    const void* payload;
+    const void* payload;  // Zero-copy pointer into external buffer
 
-    static size_t GetSize(uint64_t payload_size)
+    // Get serialized size of this message
+    size_t GetSize() const
     {
-        return TOPIC_MAX_KEY_SIZE + sizeof(uint64_t) + sizeof(uint8_t) + payload_size;
+        return sizeof(uint8_t) + topic.length() + sizeof(uint64_t) + sizeof(uint8_t) + payload_size;
     }
 
+    // Serialize into pre-allocated buffer
+    // Returns false if buffer too small or payload is null when payload_size > 0
     bool Serialize(void* buffer, size_t buffer_size) const
     {
-        size_t required_size = GetSize(payload_size);
+        size_t required_size = GetSize();
         if (buffer_size < required_size) return false;
+        if (payload_size > 0 && payload == nullptr) return false;
 
         char* buf = static_cast<char*>(buffer);
         size_t offset = 0;
 
-        // Write topic (pad with zeros)
-        std::memcpy(buf + offset, topic, TOPIC_MAX_KEY_SIZE);
-        offset += TOPIC_MAX_KEY_SIZE;
+        // Write topic [length (1 byte)][string bytes]
+        uint8_t topic_len = static_cast<uint8_t>(topic.length());
+        std::memcpy(buf + offset, &topic_len, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+        std::memcpy(buf + offset, topic.data(), topic_len);
+        offset += topic_len;
 
         // Write payload_size
         std::memcpy(buf + offset, &payload_size, sizeof(uint64_t));
@@ -52,16 +65,22 @@ struct PublishMsg
         return true;
     }
 
+    // Deserialize from buffer - payload points into data (zero-copy)
+    // WARNING: data must remain valid as long as msg.payload is used
     static PublishMsg Deserialize(const void* data, size_t data_size)
     {
         PublishMsg msg;
         const char* buf = static_cast<const char*>(data);
         size_t offset = 0;
 
+        // Read topic length
+        uint8_t topic_len;
+        std::memcpy(&topic_len, buf + offset, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+
         // Read topic
-        std::memcpy(msg.topic, buf + offset, TOPIC_MAX_KEY_SIZE);
-        msg.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';  // Ensure null-terminated
-        offset += TOPIC_MAX_KEY_SIZE;
+        msg.topic = std::string(buf + offset, topic_len);
+        offset += topic_len;
 
         // Read payload_size
         std::memcpy(&msg.payload_size, buf + offset, sizeof(uint64_t));
@@ -78,30 +97,35 @@ struct PublishMsg
     }
 };
 
+// GET_NEXT request format: [topic_length (1 byte)][topic (variable)][frame_id (8 bytes)][mode (1 byte)][timeout (8 bytes)]
 struct GetNextRequestMsg
 {
     // Data fields
-    char topic[TOPIC_MAX_KEY_SIZE];
+    std::string topic;
     uint64_t frame_id;
     uint8_t mode;
     double timeout;
 
-    static const size_t TOTAL_SIZE = TOPIC_MAX_KEY_SIZE + sizeof(uint64_t) + sizeof(uint8_t) + sizeof(double);
-
-    static size_t GetSize()
+    // Get serialized size of this message
+    size_t GetSize() const
     {
-        return TOTAL_SIZE;
+        return sizeof(uint8_t) + topic.length() + sizeof(uint64_t) + sizeof(uint8_t) + sizeof(double);
     }
 
     bool Serialize(void* buffer, size_t buffer_size) const
     {
-        if (buffer_size < TOTAL_SIZE) return false;
+        size_t required_size = GetSize();
+        if (buffer_size < required_size) return false;
 
         char* buf = static_cast<char*>(buffer);
         size_t offset = 0;
 
-        std::memcpy(buf + offset, topic, TOPIC_MAX_KEY_SIZE);
-        offset += TOPIC_MAX_KEY_SIZE;
+        // Write topic [length (1 byte)][string bytes]
+        uint8_t topic_len = static_cast<uint8_t>(topic.length());
+        std::memcpy(buf + offset, &topic_len, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+        std::memcpy(buf + offset, topic.data(), topic_len);
+        offset += topic_len;
 
         std::memcpy(buf + offset, &frame_id, sizeof(uint64_t));
         offset += sizeof(uint64_t);
@@ -120,9 +144,14 @@ struct GetNextRequestMsg
         const char* buf = static_cast<const char*>(data);
         size_t offset = 0;
 
-        std::memcpy(msg.topic, buf + offset, TOPIC_MAX_KEY_SIZE);
-        msg.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
-        offset += TOPIC_MAX_KEY_SIZE;
+        // Read topic length
+        uint8_t topic_len;
+        std::memcpy(&topic_len, buf + offset, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+
+        // Read topic
+        msg.topic = std::string(buf + offset, topic_len);
+        offset += topic_len;
 
         std::memcpy(&msg.frame_id, buf + offset, sizeof(uint64_t));
         offset += sizeof(uint64_t);
@@ -136,15 +165,19 @@ struct GetNextRequestMsg
     }
 };
 
+// GET_NEXT response format: [has_message (1 byte)][message if has_message==1]
+// If has_message==1: [topic_length (1 byte)][topic (variable)][payload_size (8 bytes)][memory_block_id (1 byte)][payload (variable)]
+// Payload is zero-copy
 struct GetNextResponseMsg
 {
     // Data fields
     uint8_t has_message;
     PublishMsg message;  // Only valid if has_message == 1
 
-    static size_t GetSize(uint64_t payload_size)
+    // Get serialized size of this message
+    size_t GetSize() const
     {
-        return sizeof(uint8_t) + (payload_size > 0 ? PublishMsg::GetSize(payload_size) : 0);
+        return sizeof(uint8_t) + (has_message ? message.GetSize() : 0);
     }
 
     bool Serialize(void* buffer, size_t buffer_size) const
@@ -154,7 +187,7 @@ struct GetNextResponseMsg
         char* buf = static_cast<char*>(buffer);
         std::memcpy(buf, &has_message, sizeof(uint8_t));
 
-        if (has_message && message.payload_size > 0)
+        if (has_message)
         {
             return message.Serialize(buf + sizeof(uint8_t), buffer_size - sizeof(uint8_t));
         }
@@ -178,76 +211,114 @@ struct GetNextResponseMsg
     }
 };
 
+// GET_CURRENT request format: [topic_length (1 byte)][topic (variable)]
 struct GetCurrentRequestMsg
 {
-    char topic[TOPIC_MAX_KEY_SIZE];
+    std::string topic;
 
-    static const size_t TOTAL_SIZE = TOPIC_MAX_KEY_SIZE;
-
-    static size_t GetSize()
+    // Get serialized size of this message
+    size_t GetSize() const
     {
-        return TOTAL_SIZE;
+        return sizeof(uint8_t) + topic.length();
     }
 
     bool Serialize(void* buffer, size_t buffer_size) const
     {
-        if (buffer_size < TOTAL_SIZE) return false;
-        std::memcpy(buffer, topic, TOPIC_MAX_KEY_SIZE);
+        size_t required_size = GetSize();
+        if (buffer_size < required_size) return false;
+
+        char* buf = static_cast<char*>(buffer);
+        size_t offset = 0;
+
+        // Write topic [length (1 byte)][string bytes]
+        uint8_t topic_len = static_cast<uint8_t>(topic.length());
+        std::memcpy(buf + offset, &topic_len, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+        std::memcpy(buf + offset, topic.data(), topic_len);
+
         return true;
     }
 
     static GetCurrentRequestMsg Deserialize(const void* data, size_t data_size)
     {
         GetCurrentRequestMsg msg;
-        std::memcpy(msg.topic, data, TOPIC_MAX_KEY_SIZE);
-        msg.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+        const char* buf = static_cast<const char*>(data);
+        size_t offset = 0;
+
+        // Read topic length
+        uint8_t topic_len;
+        std::memcpy(&topic_len, buf + offset, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+
+        // Read topic
+        msg.topic = std::string(buf + offset, topic_len);
+
         return msg;
     }
 };
 
+// GET_CURRENT response format: [has_message (1 byte)][message if has_message==1]
 using GetCurrentResponseMsg = GetNextResponseMsg;
 
+// GET_RATE request format: [topic_length (1 byte)][topic (variable)]
 struct GetRateRequestMsg
 {
-    char topic[TOPIC_MAX_KEY_SIZE];
+    std::string topic;
 
-    static const size_t TOTAL_SIZE = TOPIC_MAX_KEY_SIZE;
-
-    static size_t GetSize()
+    // Get serialized size of this message
+    size_t GetSize() const
     {
-        return TOTAL_SIZE;
+        return sizeof(uint8_t) + topic.length();
     }
 
     bool Serialize(void* buffer, size_t buffer_size) const
     {
-        if (buffer_size < TOTAL_SIZE) return false;
-        std::memcpy(buffer, topic, TOPIC_MAX_KEY_SIZE);
+        size_t required_size = GetSize();
+        if (buffer_size < required_size) return false;
+
+        char* buf = static_cast<char*>(buffer);
+        size_t offset = 0;
+
+        // Write topic [length (1 byte)][string bytes]
+        uint8_t topic_len = static_cast<uint8_t>(topic.length());
+        std::memcpy(buf + offset, &topic_len, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+        std::memcpy(buf + offset, topic.data(), topic_len);
+
         return true;
     }
 
     static GetRateRequestMsg Deserialize(const void* data, size_t data_size)
     {
         GetRateRequestMsg msg;
-        std::memcpy(msg.topic, data, TOPIC_MAX_KEY_SIZE);
-        msg.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+        const char* buf = static_cast<const char*>(data);
+        size_t offset = 0;
+
+        // Read topic length
+        uint8_t topic_len;
+        std::memcpy(&topic_len, buf + offset, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+
+        // Read topic
+        msg.topic = std::string(buf + offset, topic_len);
+
         return msg;
     }
 };
 
+// GET_RATE response format: [rate (8 bytes)]
 struct GetRateResponseMsg
 {
     double rate;
 
-    static const size_t TOTAL_SIZE = sizeof(double);
-
     static size_t GetSize()
     {
-        return TOTAL_SIZE;
+        return sizeof(double);
     }
 
     bool Serialize(void* buffer, size_t buffer_size) const
     {
-        if (buffer_size < TOTAL_SIZE) return false;
+        if (buffer_size < GetSize()) return false;
         std::memcpy(buffer, &rate, sizeof(double));
         return true;
     }
@@ -260,6 +331,7 @@ struct GetRateResponseMsg
     }
 };
 
+// LIST_TOPICS request format: [empty]
 struct ListTopicsRequestMsg
 {
     static size_t GetSize()
@@ -278,6 +350,7 @@ struct ListTopicsRequestMsg
     }
 };
 
+// LIST_TOPICS response format: [num_topics (4 bytes)][for each: topic_len (4 bytes)][topic (variable)]
 struct ListTopicsResponseMsg
 {
     uint32_t num_topics;
@@ -346,6 +419,10 @@ struct ListTopicsResponseMsg
         return msg;
     }
 };
+
+// =============================================================================
+// RemoteMessageBroker Implementation
+// =============================================================================
 
 RemoteMessageBroker::RemoteMessageBroker(std::shared_ptr<LocalMessageBroker> local_broker,
                                           const std::string& local_machine_name,
@@ -440,7 +517,7 @@ Message RemoteMessageBroker::PrepareMessageImpl(std::string_view topic, size_t p
 std::string RemoteMessageBroker::SerializeMessage(const Message& msg)
 {
 	// Serialize MessageHeader and payload into a string
-	// Format: [topic][payload_size][memory_block_id][payload]
+	// Format: [topic_length (1 byte)][topic (variable)][payload_size (8 bytes)][memory_block_id (1 byte)][payload (variable)]
 
 	// Safety check - header should never be null
 	if (!msg.m_Header)
@@ -453,15 +530,14 @@ std::string RemoteMessageBroker::SerializeMessage(const Message& msg)
 
 	// Create message struct
 	PublishMsg pub_msg;
-	std::strncpy(pub_msg.topic, msg.GetTopic().data(), TOPIC_MAX_KEY_SIZE - 1);
-	pub_msg.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+	pub_msg.topic = std::string(msg.GetTopic().data());
 	pub_msg.payload_size = payload_size;
 	pub_msg.memory_block_id = header.payload_info.memory_block_id;
 	pub_msg.payload = msg.GetPayload().data;
 
 	// Allocate buffer and serialize
 	std::string result;
-	result.resize(PublishMsg::GetSize(payload_size));
+	result.resize(pub_msg.GetSize());
 	if (!pub_msg.Serialize(&result[0], result.size()))
 	{
 		throw std::runtime_error("Failed to serialize message");
@@ -526,15 +602,14 @@ std::string RemoteMessageBroker::SerializeGetNextRequest(const std::string& topi
 
 	// Create message struct
 	GetNextRequestMsg msg;
-	std::strncpy(msg.topic, topic.data(), TOPIC_MAX_KEY_SIZE - 1);
-	msg.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+	msg.topic = topic;
 	msg.frame_id = frame_id;
 	msg.mode = static_cast<uint8_t>(mode);
 	msg.timeout = timeout;
 
 	// Allocate buffer and serialize
 	std::string result;
-	result.resize(GetNextRequestMsg::GetSize());
+	result.resize(msg.GetSize());
 	if (!msg.Serialize(&result[0], result.size()))
 	{
 		throw std::runtime_error("Failed to serialize GetNextRequest");
@@ -562,11 +637,10 @@ std::optional<Message> RemoteMessageBroker::GetCurrentMessage(std::string_view t
 
 		// Serialize GET_CURRENT request
 		GetCurrentRequestMsg req;
-		std::strncpy(req.topic, topic_str.data(), TOPIC_MAX_KEY_SIZE - 1);
-		req.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+		req.topic = topic_str;
 
 		std::string request_data;
-		request_data.resize(GetCurrentRequestMsg::GetSize());
+		request_data.resize(req.GetSize());
 		if (!req.Serialize(&request_data[0], request_data.size()))
 		{
 			throw std::runtime_error("Failed to serialize GetCurrentRequest");
@@ -588,7 +662,8 @@ std::optional<Message> RemoteMessageBroker::GetCurrentMessage(std::string_view t
 		// Convert PublishMsg to Message
 		MessageHeader* header = new MessageHeader();
 		std::memset(header, 0, sizeof(MessageHeader));
-		std::memcpy(header->topic, resp.message.topic, TOPIC_MAX_KEY_SIZE);
+		std::memcpy(header->topic, resp.message.topic.data(), std::min(resp.message.topic.length(), static_cast<size_t>(TOPIC_MAX_KEY_SIZE - 1)));
+		header->topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
 		header->payload_info.total_size = resp.message.payload_size;
 		header->payload_info.memory_block_id = resp.message.memory_block_id;
 		header->payload_info.offset_in_buffer = 0;
@@ -650,7 +725,8 @@ std::optional<Message> RemoteMessageBroker::GetNextMessage(std::string_view topi
 		// Convert PublishMsg to Message
 		MessageHeader* header = new MessageHeader();
 		std::memset(header, 0, sizeof(MessageHeader));
-		std::memcpy(header->topic, resp.message.topic, TOPIC_MAX_KEY_SIZE);
+		std::memcpy(header->topic, resp.message.topic.data(), std::min(resp.message.topic.length(), static_cast<size_t>(TOPIC_MAX_KEY_SIZE - 1)));
+		header->topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
 		header->payload_info.total_size = resp.message.payload_size;
 		header->payload_info.memory_block_id = resp.message.memory_block_id;
 		header->payload_info.offset_in_buffer = 0;
@@ -704,11 +780,10 @@ double RemoteMessageBroker::GetMessageRate(std::string_view topic)
 
 		// Serialize GET_RATE request
 		GetRateRequestMsg req;
-		std::strncpy(req.topic, topic_str.data(), TOPIC_MAX_KEY_SIZE - 1);
-		req.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+		req.topic = topic_str;
 
 		std::string request_data;
-		request_data.resize(GetRateRequestMsg::GetSize());
+		request_data.resize(req.GetSize());
 		if (!req.Serialize(&request_data[0], request_data.size()))
 		{
 			throw std::runtime_error("Failed to serialize GetRateRequest");
@@ -786,17 +861,14 @@ std::string RemoteBrokerServer::HandlePublish(const std::string& request_data)
 
 		DEBUG_PRINT("Message topic: " << msg.topic);
 		DEBUG_PRINT("Message payload_size: " << msg.payload_size);
-        DEBUG_PRINT("Payload: " << msg.payload);
+		DEBUG_PRINT("m_Broker ptr: " << m_Broker.get());
 		DEBUG_PRINT("Memory block Id: " << (int)msg.memory_block_id);
 
-		Message prepared_msg = m_Broker->PrepareMessage(msg.topic, msg.payload_size, (int) msg.memory_block_id);
+		Message prepared_msg = m_Broker->PrepareMessage(msg.topic, msg.payload_size, msg.memory_block_id);
 
 		DEBUG_PRINT("Prepared message.");
 
-        DEBUG_PRINT("Prepared message payload size: " << prepared_msg.GetPayloadInfo().total_size);
-        DEBUG_PRINT("Prepared message block id: " << (int) prepared_msg.GetPayloadInfo().memory_block_id);
-
-		// std::memcpy(prepared_msg.GetPayload().data, msg.payload, msg.payload_size);
+		std::memcpy(prepared_msg.GetPayload().data, msg.payload, msg.payload_size);
 
 		DEBUG_PRINT("Copied payload.");
 
@@ -825,7 +897,7 @@ std::string RemoteBrokerServer::HandleGetNext(const std::string& request_data)
 
 		DEBUG_PRINT("calling GetNextMessage for topic: " << topic);
         auto msg_opt = m_Broker->Subscribe(topic, req.frame_id, mode).GetNextMessage(req.timeout);
-		DEBUG_PRINT("GetNextMessage returned has_value: " << msg_opt.has_value());
+        DEBUG_PRINT("GetNextMessage returned has_value: " << msg_opt.has_value());
 
 		// Serialize response using struct
 		GetNextResponseMsg resp;
@@ -834,15 +906,14 @@ std::string RemoteBrokerServer::HandleGetNext(const std::string& request_data)
 		if (msg_opt.has_value())
 		{
 			Message& inner_msg = msg_opt.value();
-			std::strncpy(resp.message.topic, inner_msg.GetTopic().data(), TOPIC_MAX_KEY_SIZE - 1);
-			resp.message.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+			resp.message.topic = std::string(inner_msg.GetTopic().data());
 			resp.message.payload_size = inner_msg.GetPayloadSize();
 			resp.message.memory_block_id = inner_msg.m_Header ? inner_msg.m_Header->payload_info.memory_block_id : 0;
 			resp.message.payload = inner_msg.GetPayload().data;
 		}
 
 		std::string result;
-		result.resize(GetNextResponseMsg::GetSize(resp.has_message ? resp.message.payload_size : 0));
+		result.resize(resp.GetSize());
 		if (!resp.Serialize(&result[0], result.size()))
 		{
 			return "ERROR: Failed to serialize response";
@@ -863,13 +934,6 @@ std::string RemoteBrokerServer::HandleGetCurrent(const std::string& request_data
 	DEBUG_PRINT("request_size: " << request_data.size());
 	try
 	{
-		// Parse binary format: [topic (TOPIC_MAX_KEY_SIZE)]
-		if (request_data.size() != GetCurrentRequestMsg::TOTAL_SIZE)
-		{
-			ERROR_PRINT("invalid request size: " << request_data.size() << ", expected: " << GetCurrentRequestMsg::TOTAL_SIZE);
-			return "ERROR: Invalid request size";
-		}
-
 		GetCurrentRequestMsg req = GetCurrentRequestMsg::Deserialize(request_data.data(), request_data.size());
 		std::string topic(req.topic);
 		DEBUG_PRINT("topic: " << topic);
@@ -885,15 +949,14 @@ std::string RemoteBrokerServer::HandleGetCurrent(const std::string& request_data
 		if (msg_opt.has_value())
 		{
 			Message& inner_msg = msg_opt.value();
-			std::strncpy(resp.message.topic, inner_msg.GetTopic().data(), TOPIC_MAX_KEY_SIZE - 1);
-			resp.message.topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
+			resp.message.topic = std::string(inner_msg.GetTopic().data());
 			resp.message.payload_size = inner_msg.GetPayloadSize();
 			resp.message.memory_block_id = inner_msg.m_Header ? inner_msg.m_Header->payload_info.memory_block_id : 0;
 			resp.message.payload = inner_msg.GetPayload().data;
 		}
 
 		std::string result;
-		result.resize(GetCurrentResponseMsg::GetSize(resp.has_message ? resp.message.payload_size : 0));
+		result.resize(resp.GetSize());
 		if (!resp.Serialize(&result[0], result.size()))
 		{
 			return "ERROR: Failed to serialize response";
@@ -928,7 +991,7 @@ std::string RemoteBrokerServer::HandleGetRate(const std::string& request_data)
 		resp.rate = rate;
 
 		std::string result;
-		result.resize(GetRateResponseMsg::GetSize());
+		result.resize(resp.GetSize());
 		if (!resp.Serialize(&result[0], result.size()))
 		{
 			return "ERROR: Failed to serialize response";
