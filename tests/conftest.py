@@ -50,5 +50,3 @@ def dummy_service(testbed):
     testbed.start_service('dummy_service')
 
     yield testbed.dummy_service
-
-    testbed.stop_service('dummy_service')
