@@ -25,9 +25,9 @@ class PhysikStageControllerSim(Service):
         self.target_positions = {}
 
         # Simulation parameters
-        self.motion_speed = self.config.get('motion_speed', 10.0)  # units per second
+        # self.motion_speed = self.config.get('motion_speed', 100.0)  # units per second
         self.position_tolerance = self.config.get('position_tolerance', 0.001)  # tolerance for "on target"
-        self.update_rate = self.config.get('update_rate', 100.0)  # Hz for position updates
+        self.update_rate = self.config.get('update_rate', 20000.0)  # Hz for position updates
 
         # Motion state
         self.is_moving = False
@@ -106,10 +106,13 @@ class PhysikStageControllerSim(Service):
         self.target_positions_stream.submit_data(target_array)
 
     def _update_simulated_motion(self):
-        """Update positions to simulate smooth motion towards targets."""
+        """Update positions using bandwidth-limited first-order dynamics."""
         with self.mutex:
             dt = 1.0 / self.update_rate
-            max_step = self.motion_speed * dt
+
+            # Choose realistic closed-loop bandwidth
+            bandwidth = 400  # Hz (reasonable for S-330 closed-loop)
+            alpha = 1 - np.exp(-2 * np.pi * bandwidth * dt)
 
             any_moving = False
 
@@ -120,13 +123,12 @@ class PhysikStageControllerSim(Service):
 
                 if abs(error) > self.position_tolerance:
                     any_moving = True
-                    # Move towards target with limited speed
-                    step = np.clip(error, -max_step, max_step)
-                    self.current_positions[axis_num] = current + step
+                    self.current_positions[axis_num] = current + alpha * error
 
             self.is_moving = any_moving
 
         return any_moving
+
 
     def _move_to_stream_worker(self):
         while not self.should_shut_down:
