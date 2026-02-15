@@ -688,26 +688,24 @@ std::optional<Message> RemoteMessageBroker::GetCurrentMessage(std::string_view t
 			return std::nullopt;
 		}
 
-		// Convert PublishMsg to Message
-		MessageHeader* header = new MessageHeader();
-		std::memset(header, 0, sizeof(MessageHeader));
-		std::memcpy(header->topic, resp.message.topic.data(), std::min(resp.message.topic.length(), static_cast<size_t>(TOPIC_MAX_KEY_SIZE - 1)));
-		header->topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
-		header->payload_info.total_size = resp.message.payload_size;
-		header->payload_info.memory_block_id = resp.message.memory_block_id;
-		header->payload_info.offset_in_buffer = 0;
+		// Publish message to local broker first
+		Message prepared_msg = m_LocalBroker->PrepareMessage(topic_str, resp.message.payload_size, 0);
+		prepared_msg.SetArrayInfo(resp.message.array_info);
+		std::memcpy(prepared_msg.GetPayload().data, resp.message.payload, resp.message.payload_size);
+		m_LocalBroker->PublishMessage(prepared_msg, true);
 
-		void* payload = std::malloc(resp.message.payload_size);
-		if (resp.message.payload_size > 0 && resp.message.payload)
+		// Now get the message from local broker.
+		// TODO: this is a race condition.
+		auto local_msg = m_LocalBroker->GetCurrentMessage(topic_str);
+		if (!local_msg.has_value())
 		{
-			std::memcpy(payload, resp.message.payload, resp.message.payload_size);
+			// Fallback: shouldn't happen but return nullopt if we can't get it
+			DEBUG_PRINT("failed to retrieve message from local broker");
+			return std::nullopt;
 		}
 
-		Message result(header, payload, 0);
-		result.SetArrayInfo(resp.message.array_info);
-
-		DEBUG_PRINT("deserialized message, payload_size: " << resp.message.payload_size);
-		return std::optional<Message>(std::move(result));
+		DEBUG_PRINT("retrieved message from local broker, payload_size: " << local_msg->GetPayloadSize());
+		return local_msg;
 	}
 }
 
@@ -763,26 +761,23 @@ std::optional<Message> RemoteMessageBroker::GetNextMessage(std::string_view topi
 			{
 				DEBUG_PRINT("message received after " << timer.GetTime() << " seconds");
 
-				// Convert PublishMsg to Message
-				MessageHeader* header = new MessageHeader();
-				std::memset(header, 0, sizeof(MessageHeader));
-				std::memcpy(header->topic, resp.message.topic.data(), std::min(resp.message.topic.length(), static_cast<size_t>(TOPIC_MAX_KEY_SIZE - 1)));
-				header->topic[TOPIC_MAX_KEY_SIZE - 1] = '\0';
-				header->payload_info.total_size = resp.message.payload_size;
-				header->payload_info.memory_block_id = resp.message.memory_block_id;
-				header->payload_info.offset_in_buffer = 0;
+				// Publish message to local broker first
+				Message prepared_msg = m_LocalBroker->PrepareMessage(topic_str, resp.message.payload_size, 0);
+				prepared_msg.SetArrayInfo(resp.message.array_info);
+				std::memcpy(prepared_msg.GetPayload().data, resp.message.payload, resp.message.payload_size);
+				m_LocalBroker->PublishMessage(prepared_msg, true);
 
-				void* payload = std::malloc(resp.message.payload_size);
-				if (resp.message.payload_size > 0 && resp.message.payload)
+				// Now get the message from local broker
+				auto local_msg = m_LocalBroker->GetCurrentMessage(topic_str);
+				if (!local_msg.has_value())
 				{
-					std::memcpy(payload, resp.message.payload, resp.message.payload_size);
+					// Fallback: shouldn't happen but return nullopt if we can't get it
+					DEBUG_PRINT("failed to retrieve message from local broker");
+					return std::nullopt;
 				}
 
-				Message result(header, payload, 0);
-				result.SetArrayInfo(resp.message.array_info);
-
-				DEBUG_PRINT("deserialized message, payload_size: " << resp.message.payload_size);
-				return std::optional<Message>(std::move(result));
+				DEBUG_PRINT("retrieved message from local broker, payload_size: " << local_msg->GetPayloadSize());
+				return local_msg;
 			}
 
 			DEBUG_PRINT("no message after " << timer.GetTime() << " seconds");
