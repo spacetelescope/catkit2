@@ -111,34 +111,210 @@ private:
 	char m_Delimiter;
 };
 
-bool TopicHeader::IsMessageAvailable(std::size_t frame_id)
-{
-	size_t first = first_frame_id.load(std::memory_order_relaxed);
-	size_t last = last_frame_id.load(std::memory_order_relaxed);
+constexpr std::uint64_t AVAILABILITY_BITMAP_MASK = (1 << TOPIC_MAX_NUM_MESSAGES) - 1;
 
-	return (frame_id >= first) && (frame_id < last);
+std::tuple<std::size_t, std::uint16_t> unpack_availability(std::uint64_t availability)
+{
+	return std::make_tuple(availability >> TOPIC_MAX_NUM_MESSAGES, availability & AVAILABILITY_BITMAP_MASK);
 }
 
-bool TopicHeader::WillMessageBeAvailable(std::size_t frame_id)
+std::uint64_t pack_availability(std::size_t first_id, std::uint16_t bitmap)
 {
-	size_t first = first_frame_id.load(std::memory_order_relaxed);
+	return (first_id << TOPIC_MAX_NUM_MESSAGES) & bitmap;
+}
+
+bool TopicHeader::IsMessageAvailable(std::size_t frame_id) const
+{
+	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+
+	auto slot = frame_id % TOPIC_MAX_NUM_MESSAGES;
+	return (frame_id >= first) && (frame_id < (first + TOPIC_MAX_NUM_MESSAGES) && ((bitmap >> slot) & 1));
+}
+
+bool TopicHeader::WillMessageBeAvailable(std::size_t frame_id) const
+{
+	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
 
 	return frame_id >= first;
 }
 
-std::size_t TopicHeader::GetOldestMessageId()
+std::size_t TopicHeader::GetFirstMessageId() const
 {
-	return first_frame_id.load(std::memory_order_relaxed);
+	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+
+	return first + countr_zero(bitmap);
 }
 
-std::size_t TopicHeader::GetNewestMessageId()
+std::size_t TopicHeader::GetLastMessageId() const
 {
-	size_t last = last_frame_id.load(std::memory_order_relaxed);
+	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
 
-	if (last == 0)
-		return 0;
+	return first + TOPIC_MAX_NUM_MESSAGES - 1 - countl_zero(bitmap);
+}
 
-	return last - 1;
+std::size_t TopicHeader::GetNextMessageId(size_t preferred_next_frame_id, MessageSubscriptionMode mode) const
+{
+	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+
+	size_t frame_id = preferred_next_frame_id;
+	size_t newest_frame_id = first + TOPIC_MAX_NUM_MESSAGES - 1;
+	size_t oldest_frame_id = first;
+
+	switch (mode)
+	{
+		case MessageSubscriptionMode::NewestOnly:
+
+		// If the frame we are aiming to read is not the newest,
+		// return the newest frame instead.
+		if (newest_frame_id >= frame_id)
+			frame_id = newest_frame_id;
+
+		break;
+
+		case MessageSubscriptionMode::Sequential:
+
+		// If the frame was discarded already,
+		// return the oldest available frame instead.
+		if (frame_id < oldest_frame_id)
+			frame_id = oldest_frame_id;
+
+		break;
+	}
+
+	return frame_id;
+}
+
+TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
+{
+	while (true)
+	{
+		auto current_availability = availability.load(std::memory_order_relaxed);
+		auto [first, bitmap] = unpack_availability(current_availability);
+
+		// Check if the message id is in our scope.
+		if (message_id < first)
+			return {
+				.success=false, .can_try_again=false,
+				.has_old_message_header=false, .old_message_header=0,
+				.message_id = message_id
+			};
+
+		// Check if we need to advance the first index.
+		if (message_id >= first + TOPIC_MAX_NUM_MESSAGES)
+		{
+			// We need to advance the scope.
+			first++;
+
+			// Get the message header in the evicted slot.
+			auto slot = (first - 1) % TOPIC_MAX_NUM_MESSAGES;
+			auto message_header = message_headers[slot];
+
+			// Mark that slot as unavailable.
+			bool was_available = bitmap & (1 << slot);
+			bitmap &= ~(1 << slot);
+
+			// Try to set the new availability.
+			auto new_availability = pack_availability(first, bitmap);
+			if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
+			{
+				// We failed, try again.
+				continue;
+			}
+
+			// We succeeded so the frame is marked. But it may not be the one we set out to mark.
+			bool success = (first - 1 + TOPIC_MAX_NUM_MESSAGES) == message_id;
+			return {
+				.success = success, .can_try_again = true,
+				.has_old_message_header = was_available, .old_message_header = message_header,
+				.message_id = message_id
+			};
+		}
+		else
+		{
+			// We don't need to advance the scope.
+			// Set the slot as available.
+			auto slot = message_id % TOPIC_MAX_NUM_MESSAGES;
+			bitmap &= ~(1 << slot);
+
+			// Try to set the new availability.
+			auto new_availability = pack_availability(first, bitmap);
+			if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
+			{
+				// We failed, try again.
+				continue;
+			}
+
+			// We succeeded so the frame is marked.
+			return {
+				.success = true, .can_try_again = false,
+				.has_old_message_header = false, .old_message_header = 0,
+				.message_id = message_id
+			};
+		}
+	}
+}
+
+TopicHeader::ReserveResult TopicHeader::TryReserveNext()
+{
+	while (true)
+	{
+		auto current_availability = availability.load(std::memory_order_relaxed);
+		auto [first, bitmap] = unpack_availability(current_availability);
+
+		// Advance the scope.
+		first++;
+
+		// Get the message header in the evicted slot.
+		auto slot = (first - 1) % TOPIC_MAX_NUM_MESSAGES;
+		auto message_header = message_headers[slot];
+
+		// Mark that slot as unavailable.
+		bool was_available = bitmap & (1 << slot);
+		bitmap &= ~(1 << slot);
+
+		// Try to set the new availability.
+		auto new_availability = pack_availability(first, bitmap);
+		if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
+		{
+			// We failed, try again.
+			continue;
+		}
+
+		// We succeeded so the frame is marked.
+		return {
+			.success = true, .can_try_again = true,
+			.has_old_message_header = was_available, .old_message_header = message_header,
+			.message_id = first + TOPIC_MAX_NUM_MESSAGES - 1
+		};
+	}
+}
+
+bool TopicHeader::TryMakeAvailable(std::size_t message_id)
+{
+	while (true)
+	{
+		auto current_availability = availability.load(std::memory_order_relaxed);
+		auto [first, bitmap] = unpack_availability(current_availability);
+
+		// If the message is outside of scope, we cannot make it available.
+		if ((first > message_id) || ((first + TOPIC_MAX_NUM_MESSAGES) <= message_id))
+			return false;
+
+		// Mark the slot on the bitmap.
+		// We need to do this with a CAS loop because we need to check the first_id too.
+		auto slot = message_id % TOPIC_MAX_NUM_MESSAGES;
+		bitmap |= (1 << slot);
+
+		// Try to set the new availability.
+		auto new_availability = pack_availability(first, bitmap);
+		if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
+		{
+			// We failed, try again.
+			continue;
+		}
+
+		return true;
+	}
 }
 
 LocalMessageBroker::LocalMessageBroker(
@@ -375,11 +551,11 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		if (message.m_Header->partial_frame_id == 0)
 		{
 			// Get a frame ID.
-			frame_id = topic_header->next_frame_id.fetch_add(1, std::memory_order_relaxed);
+			frame_id = topic_header->ReserveNextMessageId();
 		}
 		else
 		{
-			frame_id = topic_header->last_frame_id.load(std::memory_order_relaxed) - 1;
+			frame_id = message.GetFrameId();
 			message.m_Header->partial_frame_id++;
 		}
 
