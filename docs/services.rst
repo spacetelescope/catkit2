@@ -4,6 +4,30 @@ Services
 Using a service
 ---------------
 
+To use a serice, you need to have a TestbedProxy instance that is connected to the testbed server. You can then access
+the service as an attribute of the testbed proxy, using the service ID, as defined in the configuration file, as the attribute name.
+For example, if you have a service with the service ID ``science_camera``, you can access it through its proxy as follows:
+
+.. code-block:: python
+
+    from catkit2 import TestbedProxy
+
+    testbed = TestbedProxy('127.0.0.1', 1234)
+    science_camera = testbed.science_camera
+
+where the port number is replaced by the correct value of your testbed server. Alternatively, you can use the ``get_service()`` method of the testbed proxy:
+
+.. code-block:: python
+
+    science_camera = testbed.get_service('science_camera')
+
+The service proxy will automatically start the service as soon as you try to access one of its attributes (property or command or datastream) if it is not already running, and will raise an exception if the
+service has crashed or is in failsafe mode. You can then use the service proxy to call methods, access properties and
+datastreams of the service as usual.
+
+Service configuration
+---------------------
+
 Each service to be used with a testbed needs its own entry in the configuration file ``services.yml``. The config entry
 of each service contains two blocks:
 
@@ -53,15 +77,23 @@ The key ``interface`` specifies which service proxy is used for a service. This 
 Launching and Debugging a service
 ---------------------------------
 
-.. _launch-debug-service:
-
-Services can be started both by the Testbed upon requests from a TestbedProxy, or manually from the command line. The latter might be advantageous when debugging a service since not all the output of a service is logged. Services can be started manually from the command line using
+Services can be started both by the Testbed upon requests from a TestbedProxy, or manually from the command line. The
+latter might be advantageous when debugging a service since not all the output of a service is logged. Services can be
+started manually from the command line using (Python service):
 
 .. code-block:: bash
 
     python service_type.py --id <service_id> --port <service_port> --tesbed_port <testbed_port>
 
-or
+with an example for the science camera:
+
+.. code-block:: bash
+
+    python zwo_camera.py --id science_camera --port 1235 --tesbed_port 1234
+
+Note how the service port is arbitrary.
+
+This is also possible for a C++ service, using:
 
 .. code-block:: bash
 
@@ -110,7 +142,10 @@ For stopping and starting a service:
     testbed.science_camera.stop()
     testbed.science_camera.start()
 
-A service is also started automatically if you try to access an attribute (property or method or datastream) on a service. If the service has crashed, or is in failsafe mode, then the service will refuse to start by itself or via the service proxy alone. This is to avoid an infinite loop of the service crashing and restarting, which is not what we want. Instead, you can ask the testbed server to start a `CRASHED`/`FAIL_SAFE`/`CLOSED` service:
+A service is also started automatically if you try to access an attribute (property or command or datastream) on a service.
+If the service has crashed, or is in failsafe mode, then the service will refuse to start by itself or via the service
+proxy alone. This is to avoid an infinite loop of the service crashing and restarting, which is not what we want.
+Instead, you can ask the testbed server to start a `CRASHED`/`FAIL_SAFE`/`CLOSED` service:
 
 .. code-block:: python
 
