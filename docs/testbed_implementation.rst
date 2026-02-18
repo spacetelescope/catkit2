@@ -9,19 +9,7 @@ Generating a Testbed Repository
 
 You can generate a testbed either directly from GitHub or from a local clone of the ``catkit2`` repository.
 
-Using GitHub
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you do not have ``catkit2`` cloned locally, run:
-
-.. code-block:: shell
-
-   cookiecutter gh:spacetelescope/catkit2 --directory cookiecutter-testbed
-
-Using a local clone
-^^^^^^^^^^^^^^^^^^^
-
-If you already have a local copy of ``catkit2``, run Cookiecutter from the directory containing the repository:
+Run Cookiecutter from the directory containing the repository:
 
 .. code-block:: shell
 
