@@ -3,12 +3,16 @@ Safety
 
 Testbed safety in catkit2 is constantly monitored while the testbed is running. The `safety_monitor` service constantly checks datastreams from other services and checks if they are within the safe range. This can include for example the temperature as measured by a temperature sensor, the humidity as measured by a humidity sensor, or if the uninterruptible power supply (UPS) is still operating normally. The `safety_monitor` service submits the results of each of these checks onto its `is_safe` datastream.
 
-Any service that requires a safe testbed to operate, as indicated by its config section, periodically checks the `is_safe` datastream from the `safety_monitor` and will initiate shutdown if the testbed is deemed unsafe. Additionally, if the `safety_monitor` service becomes inactive, or if, for any reason, no more updates are submitted on its `is_safe` datastream, the testbed is deemed unsafe and the service will automatically shut down for safety reasons.
+Any service that requires a safe testbed to operate, as indicated by its config section, periodically checks the `is_safe` datastream from the `safety_monitor` and will initiate shutdown of itself if the testbed is deemed unsafe. Additionally, if the `safety_monitor` service becomes inactive, or if, for any reason, no more updates are submitted on its `is_safe` datastream, the testbed is deemed unsafe as well and the service will automatically shut down for safety reasons.
 
-Finally, all services, regardless of whether they require a safe testbed, will shut down if the testbed stops submitting heartbeats. This means that even if the testbed server crashes, all services will still safely shut down.
+Finally, all services, regardless of whether they require a safe testbed or not, will shut down if the testbed stops submitting heartbeats. This means that even if the testbed server crashes, all services will still safely shut down.
+
+Together, these safety checks provide a strict environment for services that require it.
 
 Safety checks performed
 -----------------------
+
+For testing the safety system, we performed many tests. Below you can find all individual performed checks, performed on the HiCAT testbed at Space Telescope Science Institute. While this is a specific testbed, these checks of the safety system are valid for all testbeds using the `safety_monitor` service.
 
 Crashing individual services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -221,15 +225,15 @@ Simulated network failure on the main computer.
 2022-09-12 (Remi Soummer).  Checked. Nothing restarting automatically.
 Getting the messages "refusing to start a crashed service" for both humidity sensors.
 
-Simulated humidity safety violation. 
+Simulated humidity safety violation.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Test:** Terminate omega_dm1 service while boston_dm service is running. 
+**Test:** Terminate omega_dm1 service while boston_dm service is running.
 
-**Check 1:** The boston_dm service should swith to 'FAIL_SAFE' mode. 
+**Check 1:** The boston_dm service should swith to 'FAIL_SAFE' mode.
 
-2023-05-22 (Raphael Pourcelot). Checked. 
+2023-05-22 (Raphael Pourcelot). Checked.
 
 **Check 2:** The boston_dm shouldn't be able to start while omega_dm1 is crashed.
 
-2023-05-22 (Raphael Pourcelot). Checked. 
+2023-05-22 (Raphael Pourcelot). Checked.

@@ -12,7 +12,7 @@ Each individual configuration YAML file gets its own section in the final config
 
 Comments are allowed in YAML files, and start with ``#``. Comments are not available from services or clients, and only appear in the original YAML files.
 
-Path names can be both relative or absolute paths. You can prepend relative paths with a ``!path`` directive to resolve the path relative to the directory of the YAML configuration file. An example:
+Path names can be both relative or absolute paths. You can prefix relative paths with a ``!path`` directive to resolve the path relative to the directory of the YAML configuration file. An example:
 
 .. code-block:: YAML
 
@@ -24,18 +24,18 @@ Of course, relative paths are prefered due to their compatibility on the compute
 Special sections
 -----------------
 
-Several sections are used internally by the testbed service and simulator. These are:
+Several sections are used internally by the testbed service and simulator. These sections are fixed and should exist in your testbed configuration. Their names are:
 
 - ``services.yml``. This section describes all information and accompanying configuration for all services, so that the server can start them. This information may include ip addresses, motor names, default camera subarrays, serial numbers, etc... Anything that can be kept in a JSON format can be put in the configuration.
 
-- ``testbed.yaml``. This section defines all parameters for operation of the testbed server. This includes, among other things, the default port number, the paths where service types can be found, and directory paths for output of experiment data. Additionally, this is used to signify the service types of the simulator and the testbed safety services.
+- ``testbed.yaml``. This section defines all parameters for operation of the testbed server itself. This includes, among other things, the default port number, the paths where service types can be found, and directory paths for output of experiment data. Additionally, this section is used to signify the service types of the simulator and the testbed safety services.
 
 - ``simulator.yml``. This special directory is used by the simulator and typically contains all parameters used to match testbed hardware with the simulator (eg. optical magnifications, coronagraph mask parameters, inclinations of optical elements, camera pixel sizes and focal lengths of mirrors and lenses). This provides a clear separation between hardware and simulator.
 
 Distribution
 ------------
 
-The full configuration, including all sections, is available from any testbed client.
+The full configuration, including all sections, is available from any testbed proxy.
 
 .. code-block:: Python
 
@@ -43,7 +43,7 @@ The full configuration, including all sections, is available from any testbed cl
     print(testbed.configuration)
     # Prints {'services': ['boston_dm': ....]}
 
-Whenever a service starts, it receives its own configuration from the server as part of the connection handshake. It therefore has no access to any configuration values from other services. This is an intentional decision to make it harder to use configuration values defined outside of your own service. If access to those is required (again, not recommended), a service can create its own testbed client to obtain it.
+Whenever a service starts, it receives its own configuration from the server as part of the connection handshake. Afterwards it is accessible from a Service using `self.config`. Therefore a service has no direct access to any configuration values from services other than itself. This is an intentional decision to make it harder to use configuration values defined outside of your own service. If access to those is required (again, not recommended), you can access it via the testbed proxy object:
 
 .. code-block:: Python
 
@@ -55,8 +55,7 @@ Whenever a service starts, it receives its own configuration from the server as 
             print(self.config)
             # Prints only the configuration for our service
 
-            testbed = TestbedProxy('127.0.0.1', self.server_port)
-            print(testbed.config)
+            print(self.testbed.config)
             # Prints the whole configuration.
 
-As the configuration files are distributed over a number of directories, it is strongly recommended that no process obtains the testbed configuration directly from those files, rather than from the testbed server.
+As the configuration files are distributed over a number of directories, it is strongly recommended that no process obtains the testbed configuration directly from those files. Always use testbed proxies to access the testbed configuration.
