@@ -150,3 +150,11 @@ Instead, you can ask the testbed server to start a `CRASHED`/`FAIL_SAFE`/`CLOSED
 .. code-block:: python
 
     testbed.start_service('science_camera')
+
+Creating your own service
+-------------------------
+
+- file structure and file naming for service
+- file structure and file naming for service proxy
+- config entry for service
+
