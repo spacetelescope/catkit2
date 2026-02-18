@@ -41,6 +41,7 @@ Catkit2
    services/nkt_superk_fianium
    services/oceanoptics_spectrometer
    services/omega_ithx_w3
+   services/optical_fiber_switch
    services/phasics_cam
    services/physik_stage_controller
    services/safety_manual_check

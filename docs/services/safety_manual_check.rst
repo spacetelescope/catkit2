@@ -1,7 +1,7 @@
 Safety Manual Check
 ===================
 
-A service that allows the user to manually check the safety of the testbed through the :ref:`safety_monitor` service.
+A service that allows the user to manually check the safety of the testbed through the ``safety_monitor`` service.
 
 This service has a property called ``value`` whose initial value is read from the configuration file, and it can be set to any value by the user.
 It is continuously submitted to the only datastream ``check``.
