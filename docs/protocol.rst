@@ -1,18 +1,46 @@
-Communication protocol
+Communication Protocol
 ======================
 
-This page provides details about the slow communication protocol used to communicate between the testbed, the services and experiments.
+This page describes the communication protocol used between the testbed, services, and experiments.
 
-Catkit2 uses a standard request-reply server-client model for communication. In Catkit2, the Service acts like a server and anyone contacting it will act like the client. Both the Testbed and each Service runs a server. For the Testbed server, the port number is known from the configuration file, but Services start their server on a random port. The Testbed server keeps track of the port number of each Service it starts. To connect to a Service, the ServiceProxy first contacts the Testbed to get the current port number for that Service. Then, the ServiceProxy connects to the Service directly using that retrieved port number.
+Catkit2 uses a standard request-reply client-server model for communication. In Catkit2, each Service acts as a server, and any connecting entity acts as a client. Both the Testbed and each Service run a server. The Testbed server's port number is specified in the configuration file, while Services start their servers on random ports. The Testbed server maintains a registry of each Service's port number. To connect to a Service, a ServiceProxy first contacts the Testbed to retrieve the Service's current port number, then connects directly to the Service.
 
-All slow communication is done over TCP using ZeroMQ sockets using the REQ-REP pattern. For the remainder of this section, we will use Server and Client (mirroring the C++ classes `Server` and `Client`), but you can substitute Service and ServiceProxy which act in that capacity. A typical server-client exchange goes like this:
+All communication occurs over TCP using ZeroMQ sockets with the REQ-REP pattern. For the remainder of this section, we use the terms "Server" and "Client" (referencing the C++ classes ``Server`` and ``Client``), but you can substitute Service and ServiceProxy, which fulfill those roles.
 
-* The client sends a request message to the server. This message contains two parts. The first parts is a string indicating the type of request, for example `set_property_request`. The second part contains data for this request, in this case the property name and the new property value. This data is serialized using protobuffers which yields the binary data for the second part of the message.
-* The server receives this message and looks into its dictionary of request handlers for a handler for that type of message.
-* The server executes the request handler, which unpacks the sent protobuffer data, performs the requested action and returns response data, again serialized by protobuffers, if the request was successful. In this example, the data would contain the new property value. If there was an error, the request handler can raise/throw an exception, which is captured by the server before sending its reply.
-* The server sends its reply to the client. This reply contains two parts. The first part indicates whether the request was successful, either containing `OK` or `ERROR`. The second part contains either the data returned by the request handler, or the exception message.
-* The client receives the reply, and raises/throws an error with the error message if the request failed on the server. Otherwise, the data is returned.
+Request-Reply Flow
+------------------
 
-There are some implementation details that are worth mentioning here. Currently, servers use a single worker thread for responding to requests. This is intentional: it simplifies the reasoning for how Services use the data and sets expectations for multithreading when setting properties. This single-threadedness however means that if there is a long-running request handler, the server itself doesn't respond to new requests. Therefore, long-running requests should be avoided. Ie. there should be no command `run_wavefront_control(num_iterations)` that runs a few iterations of wavefront control, but rather a command `start_wavefront_control(num_iterations)` that starts the wavefront control loop on the main thread of the service. This way of thinking might require some getting used to for people not familiar with this.
+A typical server-client exchange follows this pattern:
 
-Secondly, the client reuses sockets as much as possible. It maintains a pool of unused sockets and when `client->MakeRequest()` is called, a socket from that pool is used to send to message to the server. If the pool is empty, a new socket will be created, which might take a tiny bit of time to connect. After the request is finished, the used socket is automatically returned to the socket pool. This avoids mixing of requests as a certain ZeroMQ client socket is only used for one request at a time. If the server doesn't respond to the request in a certain amount of time, the request is considered lost. If, after this time, the server still sends the reply, it will be ignored. This is done internally by ZeroMQ using the `ZMQ_CORRELATE` option, which uses request identifiers to link received replies back to their corresponding requests.
+1. **Client sends request:** The request consists of two parts:
+   
+   * A string indicating the request type (e.g., ``set_property_request``)
+   * Request data serialized using Protocol Buffers (e.g., property name and new value)
+
+2. **Server receives request:** The server looks up the appropriate request handler in its registry.
+
+3. **Server processes request:** The handler deserializes the Protocol Buffer data, performs the requested action, and returns response data (again serialized with Protocol Buffers) if successful. If an error occurs, the handler raises an exception, which the server captures before sending the reply.
+
+4. **Server sends reply:** The reply contains two parts:
+   
+   * A status indicator (``OK`` or ``ERROR``)
+   * Either the response data or an error message
+
+5. **Client processes reply:** If the request failed, the client raises an error with the server's error message. Otherwise, the response data is returned.
+
+Implementation Details
+----------------------
+
+Single-Threaded Request Handling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Servers use a single worker thread for request handling. This design choice simplifies data access patterns and establishes clear expectations for multithreading when setting properties. However, this single-threaded approach means that long-running request handlers will block the server from responding to new requests. Therefore, avoid long-running operations in request handlers.
+
+For example, instead of implementing ``run_wavefront_control(num_iterations)`` as a blocking command that runs multiple iterations, implement it as ``start_wavefront_control(num_iterations)``, which initiates the wavefront control loop on the Service's main thread. This approach may require adjustment for those unfamiliar with asynchronous programming patterns.
+
+Socket Pooling
+~~~~~~~~~~~~~~
+
+The client maintains a pool of reusable sockets. When ``client->MakeRequest()`` is called, a socket is retrieved from the pool to send the message to the server. If the pool is empty, a new socket is created (which may incur a small connection overhead). After the request completes, the socket is automatically returned to the pool.
+
+This design prevents request interleaving, as each ZeroMQ client socket handles only one request at a time. If the server fails to respond within a specified timeout, the request is considered lost, and any subsequent reply from the server is ignored. ZeroMQ handles this internally using the ``ZMQ_CORRELATE`` option, which uses request identifiers to match replies with their corresponding requests.
