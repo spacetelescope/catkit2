@@ -2,7 +2,7 @@
 #define LOCAL_MESSAGE_BROKER_H
 
 #include "HashMap.h"
-#include "Event.h".
+#include "Event.h"
 #include "HybridPoolAllocator.h"
 #include "PoolAllocator.h"
 #include "SharedMemory.h"

@@ -511,7 +511,7 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 	header->producer_pid = GetProcessId();
 	header->producer_timestamp = 0;
 
-	header->partial_frame_id = 0;
+	header->partial_message_id = 0;
 	header->start_byte = 0;
 	header->end_byte = payload_size;
 
@@ -548,7 +548,7 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		std::uint64_t first_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
 
 		std::uint64_t frame_id;
-		if (message.m_Header->partial_frame_id == 0)
+		if (message.m_Header->partial_message_id == 0)
 		{
 			// Get a frame ID.
 			frame_id = topic_header->ReserveNextMessageId();
@@ -556,7 +556,7 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		else
 		{
 			frame_id = message.GetFrameId();
-			message.m_Header->partial_frame_id++;
+			message.m_Header->partial_message_id++;
 		}
 
 		// Check if we need to remove an old frame from the topic.
@@ -809,9 +809,7 @@ TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 	// The topic header doesn't exist, so create it.
 	TopicHeader temp_topic_header;
 
-	temp_topic_header.next_frame_id = 0;
-	temp_topic_header.first_frame_id = 0;
-	temp_topic_header.last_frame_id = 0;
+	temp_topic_header.availability = 0;
 	temp_topic_header.frame_rate = 0.0;
 
 	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
