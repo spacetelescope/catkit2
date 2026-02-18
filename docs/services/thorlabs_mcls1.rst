@@ -4,9 +4,6 @@ Thorlabs MCLS1 service contains software for controlling the `Thorlabs MCLS1` la
 The communication is done through serial communication. 
 Thorlabs software suite is publicly available at https://www.thorlabs.com/software-pages/mcls1/
 
-.. note::
-
-None.
 
 
 Configuration
