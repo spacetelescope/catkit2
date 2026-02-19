@@ -208,8 +208,7 @@ At the end of a service file, you need to add the following code to allow the se
         service = ServiceClassName()  # replace with the name of your service class
         service.run()
 
-Service implementation
+Example implementation
 ~~~~~~~~~~~~~~~~~~~~~~
 
-A good examples of a previously implemented service: Physik Stage Controller
-
+A good examples of a previously implemented service: `Physik Stage Controller <https://github.com/spacetelescope/catkit2/pull/401>`_
