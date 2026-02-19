@@ -1,5 +1,5 @@
-Testbed Implementation
-======================
+Getting started with your own testbed
+=====================================
 
 ``catkit2`` includes a `Cookiecutter  <https://github.com/audreyfeldroy/cookiecutter-pypackage>`__ template that
 generates a starter catkit2-based testbed repository from the command line. This provides a starting point for building
