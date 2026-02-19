@@ -3,6 +3,6 @@ pupil_mask:
   grid_size: 1.1
   dimensions: 400
 
-detector:
+sample_camera:
   pixel_size: .1
   roi: 400

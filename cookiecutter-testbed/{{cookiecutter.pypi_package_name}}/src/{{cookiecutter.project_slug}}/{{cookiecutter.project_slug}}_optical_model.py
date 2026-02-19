@@ -14,8 +14,8 @@ class {{cookiecutter.project_slug.capitalize()}}OpticalModel(OpticalModel):
         self.config = config
         self.wavelength = wavelength
 
-        @self.register_plane('detector', 'pupil')
-        def detector(wf):
+        @self.register_plane('sample_camera', 'pupil')
+        def sample_camera(wf):
             return self.prop(wf)
 
         @self.register_plane('pupil', 'light_source')
@@ -34,9 +34,9 @@ class {{cookiecutter.project_slug.capitalize()}}OpticalModel(OpticalModel):
 
     @property
     def detector_grid(self):
-        roi = self.config['detector']['roi']
+        roi = self.config['sample_camera']['roi']
         dims = np.array([roi, roi])
-        pixel_size = self.config['detector']['pixel_size']
+        pixel_size = self.config['sample_camera']['pixel_size']
 
         return hcipy.make_uniform_grid(dims, dims * pixel_size)
 

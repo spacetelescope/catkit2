@@ -1,4 +1,4 @@
-detector:
+sample_camera:
   service_type: allied_vision_camera
   simulated_service_type: camera_sim
   interface: camera
