@@ -157,22 +157,42 @@ Creating your own service
 File structure and file naming for services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Inside services folder, create a folder with the name of your new service, inside make a new python file with the same name.
-Inside this python file your new service should have the same name like your file but in came case. Also add a simulated service
-in a new folder called the same like the hardware servie folder, but with "_sim" at the end. For example...
-In the testbed/proxies folder, create a new file with the name of your service.
-Create a new service doc page in the docs folder for your service and add it ot the index.rst file.
+Create a folder under ``services/`` named for your service. Add a Python module with the same name. The service class
+inside the module should use the same name but in CamelCase.
+Also create a simulated-service folder using the same base name with the suffix ``_sim``.
+Add a proxy module for the service in ``testbed/proxies/`` (named after the service), and create a documentation page under `docs/` for the service; include that page in `index.rst`.
 
+::
+   Example:
+
+   services/
+    ├── my_service/
+    │   ├── my_service.py  # service implementation
+    ├── my_service_sim/
+    │   ├── my_service_sim.py  # simulated service implementation
+   testbed/
+    ├── proxies/
+    │   ├── my_service.py  # service proxy implementation
+
+Services and service proxies can also be defined outside of catkit2 if there is a more specific or new need.
+
+.. note::
+
+   No matter where a service and/or proxy is defined, they need to be added to the entry points in the ``pyproject.toml`` file of
+   catkit2, so that they can be found by the testbed server and testbed proxy.
 
 Service implementation
 ~~~~~~~~~~~~~~~~~~~~~~
-- Services inherit from Service
-- Simulated services inherit from Service
-- Service proxies inherit from ServiceProxy
 
-Services and service proxies can also be defined outside of catkit2 if there is a more specific or new need. No matter
-where a service and/or proxy is defined, they need to be added to the entry points in the setup.py file of catkit2, so
-that they can be found by the testbed server and testbed proxy.
+Each service is contained in its own module, and is implemented as a class. The name of the class can be arbitrary, but
+it is recommended to use the same name as the service type in CamelCase. For example, if your service type is ``my_service``,
+then the service class should be named ``MyService``. The same applies to the simulated service, which should be named ``MyServiceSim`` in this case.
+
+.. note::
+
+   - Services inherit from ``Service``
+   - Simulated services inherit from ``Service``
+   - Service proxies inherit from ``ServiceProxy``
 
 When implementing a service, you need to implement at least the following methods:
 - ``init()``: This method is called when the service process is started. Contains all the code that is needed to initialize the service. This includes for example reading any variables from the service configuration that are needed for the service to run.
@@ -181,8 +201,15 @@ When implementing a service, you need to implement at least the following method
 - ``close()``: This method is called when the service is stopped. Contains all the code that is needed to safely shut down the service in this method. This includes for example closing connections with hardware or other services, and stopping any threads that were started in the ``open()`` method.
 
 At the end of a service file, you need to add the following code to allow the service to be started:
+
 .. code-block:: python
 
     if __name__ == "__main__":
         service = ServiceClassName()  # replace with the name of your service class
         service.run()
+
+Service implementation
+~~~~~~~~~~~~~~~~~~~~~~
+
+A good examples of a previously implemented service: Physik Stage Controller
+
