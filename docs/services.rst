@@ -6,8 +6,9 @@ Using a service
 
 Each service to be used with a testbed needs its own entry in the configuration file ``services.yml``. The config entry
 of each service contains two blocks:
-    - The **general** setup block
-    - The **service-specific** parameter block
+
+- The **general** setup block
+- The **service-specific** parameter block
 
 The **service-specific parameter block** contains any parameters specific to the service in question
 
@@ -82,7 +83,7 @@ The state of the service is managed by the testbed and the service. It keeps tra
 * *Closing*. This means that the ``close()`` method is being called and that the service is being shut down safely.
 * *Unresponsive*. This means that the service process has stopped sending heartbeats, but is still running.
 * *Crashed*. This means that the service has crashed. The service may have raised an exception during its operation or may have crashed outright without even shutting down safely.
-* *Fail_safe*. This means that the service was safely closed because of safety violations. 
+* *Fail_safe*. This means that the service was safely closed because of safety violations.
 
 The allowed transitions for a service state are displayed in the below diagram.
 

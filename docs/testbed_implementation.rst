@@ -16,7 +16,7 @@ You will then be prompted with a series of questions answered by typing directly
 You can then start the server for ``my_testbed`` by running:
 
 .. code-block:: shell
-   
+
    cd my_testbed
    pip install -e .
    my_testbed start server --simulated

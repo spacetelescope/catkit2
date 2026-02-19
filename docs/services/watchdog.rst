@@ -1,5 +1,5 @@
 Watchdog Service
-===============
+================
 
 The watchdog service provides system monitoring and Slack notification capabilities for catkit2 testbeds. It allows users to send informational messages, alerts, and diagnostic reports (including system metrics) to configured Slack channels via webhook URLs.
 
