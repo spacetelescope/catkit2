@@ -1,8 +1,11 @@
 Testbed Implementation
 ======================
 
-``catkit2`` includes a `Cookiecutter  <https://github.com/audreyfeldroy/cookiecutter-pypackage>`__ template that generates a starter catkit2-based testbed repository from the command line. This provides a starting point for building your own testbed. Cookiecutter creates the basic project structure automatically, including configuration files, installation metadata, a ``pyproject.toml``, template documentation, and a minimal simulator service so that you can start a testbed server immediately.
-
+``catkit2`` includes a `Cookiecutter  <https://github.com/audreyfeldroy/cookiecutter-pypackage>`__ template that
+generates a starter catkit2-based testbed repository from the command line. This provides a starting point for building
+your own testbed. Cookiecutter creates the basic project structure automatically, including configuration files,
+installation metadata, a ``pyproject.toml``, template documentation, and a minimal simulator service and a camera so
+that you can start a testbed server immediately.
 
 Generating a Testbed Repository
 -------------------------------
@@ -75,55 +78,66 @@ When the prompts are complete, Cookiecutter creates a new project directory usin
 Starting the Testbed Server
 ---------------------------
 
-After generation, install the project and start the testbed server:
+After generation, install your project - make sure you have followed the :doc:`installation instructions <installation>` for catkit2 first
+and are in the same conda environment:
 
 .. code-block:: shell
 
    cd my_testbed 
    pip install -e .
+
+You are now ready to fire up your very own testbed server. To do so without having to have prepared any hardware,
+you can start the server in simulated mode using the following command:
+
+.. code-block:: shell
+
    my_testbed start server --simulated
 
-Replace ``my_testbed`` with the value you provided for
-``pypi_package_name``.
+where you replace ``my_testbed`` with the value you provided for ``pypi_package_name``.
 
-This will:
+When started with ``--simulated``, the server automatically runs the simulator service defined by the testbed configuration,
+and uses the simulated service type defined for each individual service..
 
-1. Install the package in editable mode.
-2. Start the testbed server.
-
-When started with ``--simulated``, the server automatically runs the simulator service defined by the testbed configuration.
-
-Next Steps
+Next steps
 ----------
 
-``my_testbed`` will be your testbed repo installed in editable mode. The generated repository includes:
+``my_testbed`` will be your testbed repo, installed in editable mode. The generated repository includes:
 **CODE_OF_CONDUCT.md**, **README.md**, **pyproject.toml** with metadata and dependencies, a **src/** directory containing the package code, and a **docs/** directory with template documentation. The package includes a minimal simulator service and simulated camera service that runs when the server starts in simulated mode. You can modify or replace this service to implement your own testbed functionality.
 
 After confirming the server starts successfully, you can:
 
-- explore the generated directory structure
-- inspect the simulator service and optical model
-- modify or replace services with your own implementations
-- add hardware-backed services when moving beyond simulation
+- Explore the generated **directory structure**
+- Inspect the **simulator service** and **optical model**
+- Modify, replace or **add services** with your own implementations
+- Add hardware service types when moving beyond simulation
 
-What to expect when running the server in simulated mode
---------------------------------------------------------
+What to expect when running in simulated mode
+---------------------------------------------
 
-When you run the server with ``--simulated``, you should see log output indicating that the server has started and that the simulator service is running. The server will be listening for incoming requests, and the simulator will be generating simulated data according to its configuration.
+When you run the server with ``--simulated``, you should see log output in the server terminal window indicating that
+the server has started and that the simulator service is running. The server will be listening for incoming requests,
+and the simulator will be generating simulated data according to its configuration.
 
-To quit the server, you can typically press ``Ctrl+C`` or ``CMD+C`` in the terminal where it is running. This will gracefully shut down the server and any running services.
+To quit the server, you can typically press ``Ctrl+C`` or ``CMD+C`` in the terminal where it is running. This will
+gracefully shut down the server and any running services. Watch out for incoming log messages if the server is still
+processing requests when you attempt to shut it down, as this can sometimes delay the shutdown process.
 
-By default, the ``my_testbed`` package includes a simple simulator service that runs when the server starts in simulated mode. Within the simulator service, there is an optical model defined in ``my_testbed_optical_model.py``. This optical model simulates a simple pupil mask and a camera, all parameters read from ``config/simulator.yml``, allows you to generate simulated camera images. 
+By default, the ``my_testbed`` package includes a simple simulator service that runs when the server starts in simulated mode.
+Instead of calling the hardware services defined by the hardware service type in each service configuration section,
+the simulator service calls on the sample optical model defined in ``my_testbed_optical_model.py``. This optical model
+simulates a simple pupil mask and a camera, and its parameters are read from ``config/simulator.yml``. By talking to the
+simulated camear, can access the simulated camera images generated by the optical model.
 
 
-Example usage of the simulated server: Streaming Camera Images 
+Example: Access Camera Images
 ---------------------------------------------------------------
 
-When running the server in simulated mode with the included simulator service (``my_testbed_simulator.py``), you can interact with the simulator service to stream camera images. The simulator service opens a data stream that allows you to request simulated camera images generated by the optical model.
+You can interact with the simulated camera in exactly the same way like you would with a real hardware camera. The camera
+has a data stream that holds camera images, in this case generated by the optical model.
 
-To generate a simulated camera image you can run the following from a python terminal:
+To access camera image through the camera service proxy, you can run the following from a python terminal:
 
-.. code-block:: shell
+.. code-block:: python
 
    from catkit2 import TestbedProxy
 
@@ -131,18 +145,27 @@ To generate a simulated camera image you can run the following from a python ter
    cam = testbed.sample_camera
    image = np.mean(list(cam.take_raw_exposures(5)), axis=0)
 
-How to transition to hardware from the ``my_testbed`` template
---------------------------------------------------------------
+This will have the camera acquire 5 raw exposures and return the average image.
 
-To transition from simulation to hardware, you can start by modifying the camera service to interface with your actual camera hardware instead of the simulated optical model, also update the relevant configuration files to reflect the hardware setup. Once you have made the necessary changes, you can start the server without the ``--simulated`` flag to run it in hardware mode.
+How to transition to hardware
+-----------------------------
+
+To transition from simulation to hardware, you can start by modifying the camera service to interface with your actual
+hardware camera model instead of the simulated version. For this, you need to update the ``sample_camera`` section in the
+``services.yml`` config file to reflect your specific setup. See :doc:`Services <services>` for details on the service config entries.
+
+Once you have made the necessary changes, you can start the server without the ``--simulated`` flag to run it in hardware mode:
 
 .. code-block:: shell
    my_testbed start server 
 
-It is recommended to add and calibrate hardware services one by one, testing each service by running the server without the ``--simulated`` flag to ensure that it is functioning correctly with the real hardware. This iterative approach allows you to identify and resolve issues with each service before moving on to the next, ensuring a smoother transition from simulation to hardware operation.
+It is recommended to add and calibrate hardware services one by one, testing each service by running the server without
+the ``--simulated`` flag to ensure that it is functioning correctly with the real hardware. You might also want to debug
+each service in its own terminal window to monitor its output and ensure it is communicating correctly with the hardware and the testbed server.
+You can find instructions for launching and debugging services in the :ref:`Launching and Debugging a service <launch-debug-service>` documentation.
 
 Extending your optical model
 ----------------------------
-Even as you transition to hardware, you can continue to use the simulated mode for testing and development. You can extend your optical model to include additional features or to better match the behavior of your testbed. This allows you to maintain a simulated environment for testing while you are developing and calibrating your hardware services.
-
-Example can be found in the ``my_testbed_optical_model.py`` file, where you can add new parameters, modify the simulation logic, or incorporate more complex features to enhance the fidelity of your simulated data. 
+Even as you transition to hardware, you can continue to use the simulated mode for testing and development. You can
+extend your optical model to include additional features or to better match the behavior of your testbed. This allows
+you to maintain a simulated environment for testing while you are developing and calibrating your hardware setup.

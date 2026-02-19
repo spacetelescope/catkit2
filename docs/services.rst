@@ -53,6 +53,8 @@ The key ``interface`` specifies which service proxy is used for a service. This 
 Launching and Debugging a service
 ---------------------------------
 
+.. _launch-debug-service:
+
 Services can be started both by the Testbed upon requests from a TestbedProxy, or manually from the command line. The latter might be advantageous when debugging a service since not all the output of a service is logged. Services can be started manually from the command line using
 
 .. code-block:: bash
