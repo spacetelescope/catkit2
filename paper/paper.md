@@ -16,34 +16,64 @@ authors:
   - name: Iva Laginja
     orcid: 0000-0002-3726-4881
     affiliation: 2
-  - name: Raphaël Pourcelot
-    affiliation: 3
   - name: Rémi Soummer
     affiliation: 3
-  - name: Arnaud Sevin
+  - name: Sarah Steiger
     affiliation: 3
-  - name: Ananya Sahoo
-    affiliation: 3
-  - name: Meiji Nguyen
-    affiliation: 3
+  - name: Raphaël Pourcelot
+    affiliation: 4
+  - name: Alexis Lau
+    affiliation: 5
+  - name: Lane Meier
+    affiliation: 6
+  - name: Christopher Moriarty
+    affiliation: 7
   - name: Jules Fowler
+    affiliation: 1
+  - name: Marshall Perrin 
     affiliation: 3
-  - name: Léo Egger
-    affiliation: 3
-  - name: Erin Pougheon
-    affiliation: 3
+  - name: Arnaud Sevin
+    affiliation: 8
+  - name: Leo Egger
+    affiliation: 8
   - name: Augustin Demagny
-    affiliation: 3
+    affiliation: 8
+  - name: Johan Mazoyer
+    affiliation: 8
+  - name: Ananya Sahoo
+    affiliation: 9
+  - name: Erin Pougheon
+    affiliation: 8
+  
 affiliations:
  - name: University of California, Santa Cruz, United States
    index: 1
-   ror: 00fsdxs93
- - name: Observatoire de Paris, PSL University, France
+   ror: 
+ - name: Laboratoire Lagrange, Observatoire de la Cote d'Azur, Université Cote d'Azur, CNRS
    index: 2
-   ror: 02feahw73
+   ror: 
  - name: Space Telescope Science Institute, United States
    index: 3
-   ror: 03kt4rr47
+   ror: 
+ - name: Max Planck Institute for Astrophysics,  Heidelberg, Germany
+   index: 4
+   ror: 
+ - name: Laboratoire d'Astrophysique de Marseille, Marseille, France
+   index: 5
+   ror: 
+ - name: Goddard Space Flight Center, Greenbelt, United States
+   index: 6
+   ror: 
+ - name: self 
+   index: 7
+   ror: 
+ - name: LIRA, Observatoire de Paris, France
+   index: 8
+   ror: 
+ - name: Lowell Center for Space Science and Technology, United States 
+   index: 9
+   ror: 
+     
 date: 16 February 2026
 bibliography: paper.bib
 ---
