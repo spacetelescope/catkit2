@@ -11,36 +11,47 @@ tags:
   - high-contrast imaging
 authors:
   - name: Emiel H. Por
-    orcid: 0000-0002-3693-7200
+    orcid: 0000-0002-3961-083X
     affiliation: 1
   - name: Iva Laginja
-    orcid: 0000-0002-3726-4881
+    orcid: 0000-0003-1783-5023
     affiliation: 2
   - name: Rémi Soummer
+    orcid: 0000-0003-2753-2819
     affiliation: 3
   - name: Sarah Steiger
+    orcid: 0000-0002-4787-3285
     affiliation: 3
   - name: Raphaël Pourcelot
+    orcid: 0000-0002-9758-051X
     affiliation: 4
   - name: Alexis Lau
+    orcid: 0000-0003-0742-6277
     affiliation: 5
   - name: Lane Meier
+    orcid: 0000-0003-3482-8589
     affiliation: 6
   - name: Christopher Moriarty
+    orcid: 0000-0002-1757-7573
     affiliation: 7
   - name: Jules Fowler
+    orcid: 0000-0002-0726-9323
     affiliation: 1
   - name: Marshall Perrin 
+    orcid: 0000-0002-3191-8151
     affiliation: 3
   - name: Arnaud Sevin
-    affiliation: 8
-  - name: Leo Egger
+    orcid: 0009-0005-4176-7632
     affiliation: 8
   - name: Augustin Demagny
     affiliation: 8
+  - name: Leo Egger
+    affiliation: 8
   - name: Johan Mazoyer
+    orcid: 0000-0002-9133-3091
     affiliation: 8
   - name: Ananya Sahoo
+    orcid: 0000-0003-2806-1254
     affiliation: 9
   - name: Erin Pougheon
     affiliation: 8
