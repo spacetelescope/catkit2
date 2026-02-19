@@ -97,7 +97,7 @@ Next Steps
 ----------
 
 ``my_testbed`` will be your testbed repo installed in editable mode. The generated repository includes:
-**CODE_OF_CONDUCT.md**, **README.md**, **LICENSE** as long as it is compliant with the catkit2 license, **pyproject.toml** with metadata and dependencies, a **src/** directory containing the package code, and a **docs/** directory with template documentation. The package includes a minimal simulator service that runs when the server starts in simulated mode. You can modify or replace this service to implement your own testbed functionality.
+**CODE_OF_CONDUCT.md**, **README.md**, **pyproject.toml** with metadata and dependencies, a **src/** directory containing the package code, and a **docs/** directory with template documentation. The package includes a minimal simulator service that runs when the server starts in simulated mode. You can modify or replace this service to implement your own testbed functionality.
 
 After confirming the server starts successfully, you can:
 
