@@ -50,7 +50,7 @@ bibliography: paper.bib
 
 # Summary
 
-CATKit2 (Control and Automation for Testbeds Kit 2) is a high-performance software framework designed for controlling complex laboratory hardware systems. Developed primarily for adaptive optics and high-contrast imaging testbeds in astronomy, it provides a robust infrastructure for hardware synchronization, real-time data streaming, and distributed process management. The framework enables researchers to orchestrate multiple hardware devices—such as cameras, deformable mirrors, motorized stages, light sources, and sensors—into cohesive, synchronized experimental setups.
+CATKit2 (Control and Automation for Testbeds Kit 2) [@por_2024_11395554] is a high-performance software framework designed for controlling complex laboratory hardware systems. Developed primarily for adaptive optics and high-contrast imaging testbeds in astronomy, it provides a robust infrastructure for hardware synchronization, real-time data streaming, and distributed process management. The framework enables researchers to orchestrate multiple hardware devices—such as cameras, deformable mirrors, motorized stages, light sources, and sensors—into cohesive, synchronized experimental setups.
 
 The software employs a service-oriented architecture where each hardware device or computational task runs as an independent service process. Services communicate through high-speed, low-latency data streams implemented via shared memory, enabling real-time data exchange between components with minimal overhead. A central testbed server manages service lifecycle, configuration distribution, and provides discovery mechanisms for clients. The framework supports both hardware operation and comprehensive simulation modes, allowing researchers to develop and test control algorithms without physical hardware.
 
@@ -58,7 +58,7 @@ CATKit2 is written in C++ for performance-critical operations with Python bindin
 
 # Statement of need
 
-Modern astronomical instrumentation relies increasingly on sophisticated laboratory testbeds to develop and validate technologies before deployment to observatories. These testbeds, such as the High-contrast Imager for Complex Apertures Testbed (HiCAT) at the Space Telescope Science Institute, require precise coordination of numerous hardware components operating at high speeds with strict timing requirements. Control frameworks must handle diverse hardware interfaces while maintaining microsecond-level synchronization and gigabyte-per-second data throughput.
+Modern astronomical instrumentation relies increasingly on sophisticated laboratory testbeds to develop and validate technologies before deployment to observatories. These testbeds, such as the High-contrast Imager for Complex Apertures Testbed (HiCAT) [@hicat] at the Space Telescope Science Institute, require precise coordination of numerous hardware components operating at high speeds with strict timing requirements. Control frameworks must handle diverse hardware interfaces while maintaining microsecond-level synchronization and gigabyte-per-second data throughput.
 
 Existing general-purpose laboratory automation tools often prioritize flexibility over performance, resulting in latency and jitter that are unacceptable for adaptive optics and wavefront sensing applications. Conversely, specialized control systems developed for specific instruments typically lack the modularity and extensibility needed for multi-purpose testbeds. There is a need for a framework that bridges this gap: providing both the performance required for real-time control loops and the flexibility to accommodate diverse hardware configurations.
 
@@ -90,20 +90,16 @@ Configuration management is performed by the centralized TestbedServer. This con
 
 Safety is a primary concern in hardware control systems. CATKit2 includes a safety service mechanism where designated services can monitor testbed conditions and trigger fail-safe states when unsafe conditions are detected. Services can declare safety dependencies, ensuring that they will not be started, or are stopped if a safety condition is triggered. This design provides defense in depth for expensive or delicate hardware components.
 
-
 ![End-to-end latency measurements for a typical adaptive optics control loop: wavefront sensor acquisition, processing, and deformable mirror command output.  Timing shown for Windows OS on the HiCAT testbed. 
 This plot showss the total time from the earliest point in a command when it is emitted to the latest point when the receiver (here the camera) has fully settled to the command.  This total time includes the initial CATKit2 processing before it is sent to the DM API, then the DM Communication and DAC inside the control electonics, the actual mechanical response of the DM surface, the camera integration time, readout time, image transfer to computer, type conversion and copy to Data Stream.  In this example the mid point of the DM surface transition is at 1.7 ms and the DM has fully settled after 2.7 ms. \label{fig:timing}](figure_3_e2e_latency.png)
 
+The server collects custom logging and tracing information from services and makes them available on a dedicated port. In particular, on-demand custom tracing is made available in the form of unified tracing file that can be vizualized by standard tools (e.g. Perfetto).  Tracing is simply implemented by adding a context manager around the section of the code that needs to be analyzed. Traces are available at the nanosecond level and special care has been taken to make sure this contributes negligible delay to code execution.          
 
-TODO: paragraph about tracing. 
-
-![On-demand custom traces can be exported readily to a trace file using a context manager.  Example from the HiCAT testbed using Perfetto for vizualisation during a wavefront sensing and control experiment. Frames are read on camera and processed in a closed loop to calculate corrections applied on the DM. \label{fig:tracing}](figure_4_tracing.png)
-
-
+![Example from the HiCAT testbed using Perfetto for vizualisation during a wavefront sensing and control experiment. Frames are read on camera and processed in a closed loop to calculate corrections applied on the DM. \label{fig:tracing}](figure_4_tracing.png)
 
 # Research impact statement
 
-CATKit2 has been in active development since 2022 and has been adopted by five astronomical instrumentation testbeds beyond its initial deployment on HiCAT [PLACEHOLDER: CITE TESTBEDS]. The framework has enabled research in high-contrast imaging, wavefront sensing, and adaptive optics, supporting the development of technologies relevant to future space-based exoplanet imaging missions.
+CATKit2 has been in active development since 2022 and has been adopted by five astronomical instrumentation testbeds beyond its initial deployment on the HiCAT testbed at the Space Telescope Science Institute. These now include the Très Haute Dynamique (THD2) at Observatoire de Paris, the Santa Cruz Extreme AO Lab (SEAL) at University of California Santa Cruz, the Exoplanet Spectroscopy lab (ExoSpec) at Goddard Space Flight Center, and the High Contrast High-Resolution Spectroscopy for Segmented Telescopes Testbed (HCST) at Caltech. The framework has enabled research in high-contrast imaging, wavefront sensing, and adaptive optics, supporting the development of technologies relevant to future space-based exoplanet imaging missions.
 
 By providing a robust simulation environment where hardware services can be replaced with software equivalents, CATKit2 has enabled researchers to validate control strategies before hardware implementation, significantly reducing development time and risk. This capability is particularly valuable for iterative algorithm development where rapid testing cycles are essential.
 
