@@ -19,66 +19,75 @@
   url          = {https://doi.org/10.5281/zenodo.11395554},
 }
 
-@inproceedings{epics,
-  author    = {Dalesio, L. R. and Hill, J. O. and Kraimer, M. R. and Lewis, S. and Murray, D. M. and Hunt, S. and Watson, W. and Clausen, M. and Dalesio, J.},
-  title     = {The Experimental Physics and Industrial Control System Architecture},
-  booktitle = {Proceedings of the International Conference on Accelerator and Large Experimental Physics Control Systems},
-  year      = {1991},
-  pages     = {278--282},
-  url       = {https://epics-controls.org/}
+@ARTICLE{epics,
+       author = {{Dalesio}, Leo R. and {Hill}, Jeffrey O. and {Kraimer}, Martin and {Lewis}, Stephen and {Murray}, Douglas and {Hunt}, Stephan and {Watson}, William and {Clausen}, Matthias and {Dalesio}, John},
+        title = "{The experimental physics and industrial control system architecture: past, present, and future}",
+      journal = {Nuclear Instruments and Methods in Physics Research A},
+         year = 1994,
+        month = dec,
+       volume = {352},
+       number = {1-2},
+        pages = {179-184},
+          doi = {10.1016/0168-9002(94)91493-1},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/1994NIMPA.352..179D},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
-@inproceedings{tango,
-  author    = {Chaize, Jean-Michel and Götz, Andy},
-  title     = {TANGO—An Open Source Device Control System},
-  booktitle = {Proceedings of the International Conference on Accelerator and Large Experimental Physics Control Systems},
-  year      = {2003},
-  pages     = {26--30},
-  url       = {https://www.tango-controls.org/}
+@article{tango,
+  title={TANGO collaboration and kernel status},
+  author={Taurel, E and others},
+  journal={ICALEPCS2011, Grenoble, October},
+  pages={1334},
+  year={2011}
 }
 
-@misc{hicat,
-  author    = {{HiCAT Team}},
-  title     = {High-contrast Imager for Complex Apertures Testbed},
-  year      = {2024},
-  url       = {https://hicat.stsci.edu/},
-  publisher = {Space Telescope Science Institute}
+@INPROCEEDINGS{hicat,
+       author = {{Soummer}, R{\'e}mi and {Pourcelot}, Rapha{\"e}l. and {Por}, Emiel H. and {Steiger}, Sarah and {Laginja}, Iva and {Buralli}, Benjamin and {Redmond}, Susan and {Pueyo}, Laurent and {Perrin}, Marshall D. and {Ferrari}, Marc and {Fowler}, Jules and {Hagopian}, John and {N'Diaye}, Mamadou and {Nguyen}, Meiji and {Nickson}, Bryony and {Petrone}, Peter and {Sahoo}, Ananya and {Sivaramakrishnan}, Anand and {Will}, Scott D.},
+        title = "{High-contrast imager for complex aperture telescopes (HiCAT): 11. System-level demonstration of the apodized pupil Lyot coronagraph with a segmented aperture in air}",
+     keywords = {Astrophysics - Instrumentation and Methods for Astrophysics},
+    booktitle = {Space Telescopes and Instrumentation 2024: Optical, Infrared, and Millimeter Wave},
+         year = 2024,
+       editor = {{Coyle}, Laura E. and {Matsuura}, Shuji and {Perrin}, Marshall D.},
+       series = {Society of Photo-Optical Instrumentation Engineers (SPIE) Conference Series},
+       volume = {13092},
+        month = aug,
+          eid = {130921Z},
+        pages = {130921Z},
+          doi = {10.1117/12.3018037},
+archivePrefix = {arXiv},
+       eprint = {2409.12931},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2024SPIE13092E..1ZS},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
-@inproceedings{laginja2023,
-  author    = {Laginja, Iva and others},
-  title     = {Wavefront Sensing and Control for High-Contrast Imaging with Complex Apertures},
-  booktitle = {Proceedings of SPIE},
-  year      = {2023},
-  volume    = {12680},
-  pages     = {126800Z},
-  doi       = {10.1117/12.2679629},
-  organization = {International Society for Optics and Photonics}
+@ARTICLE{pymodaq,
+       author = {{Weber}, S.~J.},
+        title = "{PyMoDAQ: An open-source Python-based software for modular data acquisition}",
+      journal = {Review of Scientific Instruments},
+         year = 2021,
+        month = apr,
+       volume = {92},
+       number = {4},
+          eid = {045104},
+        pages = {045104},
+          doi = {10.1063/5.0032116},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2021RScI...92d5104W},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
-@article{soummer2022,
-  author    = {Soummer, Rémi and others},
-  title     = {High-contrast imaging with complex apertures for future space missions},
-  journal   = {Proceedings of the International Astronomical Union},
-  year      = {2022},
-  volume    = {16},
-  pages     = {362--367},
-  publisher = {Cambridge University Press},
-  doi       = {10.1017/S1743921322001074}
-}
-
-@software{pymodaq,
-  author    = {Weber, Sébastien and others},
-  title     = {PyMoDAQ: A modular and open-source Python software for scientific instruments},
-  year      = {2024},
-  url       = {https://pymodaq.readthedocs.io/},
-  publisher = {GitHub}
-}
-
-@software{cacao,
-  author    = {Guyon, Olivier and {CACAO Team}},
-  title     = {CACAO: Compute and Control for Adaptive Optics},
-  year      = {2023},
-  url       = {https://github.com/cacao-org/cacao},
-  publisher = {GitHub}
+@INPROCEEDINGS{cacao,
+       author = {{Guyon}, Olivier and {Sevin}, Arnaud and {Gratadour}, Damien and {Bernard}, Julien and {Ltaief}, Hatem and {Sukkari}, Dalal and {Cetre}, Sylvain and {Skaf}, Nour and {Lozi}, Julien and {Martinache}, Frantz and {Clergeon}, Christophe and {Norris}, Barnaby and {Wong}, Alison and {Males}, Jared},
+        title = "{The compute and control for adaptive optics (CACAO) real-time control software package}",
+    booktitle = {Adaptive Optics Systems VI},
+         year = 2018,
+       editor = {{Close}, Laird M. and {Schreiber}, Laura and {Schmidt}, Dirk},
+       series = {Society of Photo-Optical Instrumentation Engineers (SPIE) Conference Series},
+       volume = {10703},
+        month = jul,
+          eid = {107031E},
+        pages = {107031E},
+          doi = {10.1117/12.2314315},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2018SPIE10703E..1EG},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
