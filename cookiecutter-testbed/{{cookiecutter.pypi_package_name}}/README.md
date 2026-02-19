@@ -6,7 +6,6 @@
 {{ cookiecutter.project_short_description }}
 
 * PyPI package: https://pypi.org/project/{{ cookiecutter.pypi_package_name }}/
-* Free software: MIT License
 * Documentation: https://{{ cookiecutter.pypi_package_name }}.readthedocs.io.
 
 ## Features
