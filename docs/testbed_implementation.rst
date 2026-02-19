@@ -126,6 +126,7 @@ To generate a simulated camera image you can run the following from a python ter
 .. code-block:: shell
 
    from catkit2 import TestbedProxy
+
    testbed = TestbedProxy('127.0.0.1', 1234)
    cam = testbed.sample_camera
    image = np.mean(list(cam.take_raw_exposures(5)), axis=0)
