@@ -4,7 +4,7 @@ Services
 Using a service
 ---------------
 
-To use a serice, you need to have a TestbedProxy instance that is connected to the testbed server. You can then access
+To use a service, you need to have a ``TestbedProxy`` instance that is connected to the testbed server. You can then access
 the service as an attribute of the testbed proxy, using the service ID, as defined in the configuration file, as the attribute name.
 For example, if you have a service with the service ID ``science_camera``, you can access it through its proxy as follows:
 
@@ -21,8 +21,8 @@ where the port number is replaced by the correct value of your testbed server. A
 
     science_camera = testbed.get_service('science_camera')
 
-The service proxy will automatically start the service as soon as you try to access one of its attributes (property or command or datastream) if it is not already running, and will raise an exception if the
-service has crashed or is in failsafe mode. You can then use the service proxy to call methods, access properties and
+The service proxy will automatically start the service as soon as you try to access one of its attributes (property, command or datastream) if it is not already running, and will raise an exception if the
+service has crashed or is in failsafe mode. You can then use the service proxy to call methods, or access properties and
 datastreams of the service as usual.
 
 Service configuration
@@ -34,9 +34,9 @@ of each service contains two blocks:
 - The **general** setup block
 - The **service-specific** parameter block
 
-The **service-specific parameter block** contains any parameters specific to the service in question
+The **service-specific** parameter block contains any parameters specific to the service in question.
 
-The **general setup block** contains four standardized entries, although not all of them are mandatory:
+The **general** setup block contains four standardized entries, although not all of them are mandatory:
 
     - `service_type`
     - `simulated_service_type`
@@ -56,8 +56,8 @@ An example for such a general setup block, in this case for a camera, is given h
       ... # -> specific parameter block
 
 The "name" of a service, in the above example ``science_camera``, is called the ``service_id`` and needs to be unique
-across all services. You can have several services use the same ``service_type``, for example all of ``cam1``, ``cam2``
-and ``cam3`` using ``service_type: zwo_camera``, but you cannot duplicate service IDs.
+across all services. You can however have several services use the same ``service_type``. For example, you can have three camera serviced with
+``service_ids`` ``cam1``, ``cam2`` and ``cam3`` all using ``service_type: zwo_camera``, but you cannot duplicate service IDs.
 
 You can find example service configurations for each service type in the documentation of the built-in services.
 
@@ -69,37 +69,37 @@ whether changes in the safety reports will influence the running service.
 
 The key ``simulated_service_type`` designates which service is used when running the testbed in simulated mode.
 Simulated services are also "just" services, implemented in the same way. The crucial difference is that they do not
-talk to hardware, instead they talk to the testbed simulator service stored in the object ``self.testbed.simulator``. And it is
-the simulator that holds an instance of the optical model, saved in ``self.model``.
+talk to hardware and instead talk to the testbed simulator service stored in the object ``self.testbed.simulator``.
+The simulator holds an instance of the optical model, saved in ``self.model``.
 
-The key ``interface`` specifies which service proxy is used for a service. This key is optional. In that case a default service proxy class will be used.
+The key ``interface`` specifies which service proxy is used for a service. This key is optional. If not set, a default service proxy class will be used.
 
-Launching and Debugging a service
+Launching and debugging a service
 ---------------------------------
 
-Services can be started both by the Testbed upon requests from a TestbedProxy, or manually from the command line. The
-latter might be advantageous when debugging a service since not all the output of a service is logged. Services can be
-started manually from the command line using (Python service):
+Services can be started both by the ``Testbed`` upon requests from a ``TestbedProxy``, or manually from the command line. The
+latter might be advantageous when debugging a service since not all the output of a service is logged. Services implemented in Python can be
+started manually from the command line using :
 
 .. code-block:: bash
 
-    python service_type.py --id <service_id> --port <service_port> --tesbed_port <testbed_port>
+    python service_type.py --id <service_id> --port <service_port> --testbed_port <testbed_port>
 
-with an example for the science camera:
+for the science camera this would look like:
 
 .. code-block:: bash
 
-    python zwo_camera.py --id science_camera --port 1235 --tesbed_port 1234
+    python zwo_camera.py --id science_camera --port 1235 --testbed_port 1234
 
-Note how the service port is arbitrary.
+Note that the service port here is arbitrary (more discussion later).
 
-This is also possible for a C++ service, using:
+C++ services can also be started manually from the command line using:
 
 .. code-block:: bash
 
     service_type.exe --id <service_id> --port <service_port> --tesbed_port <testbed_port>
 
-where ``<service_id>``, ``<service_port>`` and ``<testbed_port>`` are replaced by their correct values. Services will
+where ``<service_id>`` and ``<testbed_port>`` are replaced by their correct values, ``<service_port>`` is arbitrary. Services will
 register themselves with the testbed. After registration, you can use them from any TestbedProxy as usual. Note that
 even in this case, the ``service_id`` needs to be an entry in the ``services.yml`` configuration file. Otherwise, the
 testbed does not have a configuration to provide to the service. Services running in the terminal can be interrupted
@@ -110,14 +110,14 @@ Service state
 
 The state of the service is managed by the testbed and the service. It keeps track of what the service is currently doing. The service states are:
 
-* *Closed*. This means that no process for this service is running.
-* *Initializing*. This means that a process has been started, but it's still initializing and has not started opening the service yet.
-* *Opening*. This means that the ``open()`` method is being called and that connections with hardware or other services are being established.
-* *Running*. This means that the service is operational, the ``main()`` functions is being called and that the service is responding to requests on its server.
-* *Closing*. This means that the ``close()`` method is being called and that the service is being shut down safely.
-* *Unresponsive*. This means that the service process has stopped sending heartbeats, but is still running.
-* *Crashed*. This means that the service has crashed. The service may have raised an exception during its operation or may have crashed outright without even shutting down safely.
-* *Fail_safe*. This means that the service was safely closed because of safety violations.
+* *Closed*. No process for this service is running.
+* *Initializing*. A process has been started, but it's still initializing and has not started opening the service yet.
+* *Opening*. The ``open()`` method is being called and the connections with hardware or other services are being established.
+* *Running*. The service is operational, the ``main()`` function is being called and the service is responding to requests on its server.
+* *Closing*. The ``close()`` method is being called and the service is being shut down safely.
+* *Unresponsive*. The service process has stopped sending heartbeats, but is still running.
+* *Crashed*. The service has crashed. The service may have raised an exception during its operation or may have crashed outright without shutting down safely.
+* *Fail_safe*. The service was safely closed because of safety violations.
 
 The allowed transitions for a service state are displayed in the below diagram.
 
@@ -144,7 +144,7 @@ For stopping and starting a service:
 
 A service is also started automatically if you try to access an attribute (property or command or datastream) on a service.
 If the service has crashed, or is in failsafe mode, then the service will refuse to start by itself or via the service
-proxy alone. This is to avoid an infinite loop of the service crashing and restarting, which is not what we want.
+proxy alone. This is to avoid an infinite loop of the service crashing and restarting, which is undesired.
 Instead, you can ask the testbed server to start a `CRASHED`/`FAIL_SAFE`/`CLOSED` service:
 
 .. code-block:: python
@@ -158,7 +158,7 @@ File structure and file naming for services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a folder under ``services/`` named for your service. Add a Python module with the same name. The service class
-inside the module should use the same name but in CamelCase.
+inside the module should use the same name but in CamelCase, see also next section.
 Also create a simulated-service folder using the same base name with the suffix ``_sim``.
 Add a proxy module for the service in ``testbed/proxies/`` (named after the service), and create a documentation page under `docs/` for the service; include that page in `index.rst`.
 
@@ -195,10 +195,10 @@ then the service class should be named ``MyService``. The same applies to the si
    - Service proxies inherit from ``ServiceProxy``
 
 When implementing a service, you need to implement at least the following methods:
-- ``init()``: This method is called when the service process is started. Contains all the code that is needed to initialize the service. This includes for example reading any variables from the service configuration that are needed for the service to run.
-- ``open()``: This method is called when the service is started. Contains all the code that is needed to start the service and make it operational in this method. This includes for example establishing connections with hardware or other services, and starting any threads that are needed for the service to run.
-- ``main()``: This method is called when the service is running. Contains all the code that is needed to keep the service running in this method.
-- ``close()``: This method is called when the service is stopped. Contains all the code that is needed to safely shut down the service in this method. This includes for example closing connections with hardware or other services, and stopping any threads that were started in the ``open()`` method.
+- ``init()``: Called when the service process is started. Contains all the code that is needed to initialize the service. For example, this includes reading any variables from the service configuration that are needed for the service to run.
+- ``open()``: Called when the service is started. Contains all the code that is needed to start the service and make it operational. For example, this includes establishing connections with hardware or other services, and starting any threads that are needed for the service to run.
+- ``main()``: Called when the service is running. Contains all the code that is needed to keep the service running.
+- ``close()``: Called when the service is stopped. Contains all the code that is needed to safely shut down the service. For example, this includes closing connections with hardware or other services, and stopping any threads that were started in the ``open()`` method.
 
 At the end of a service file, you need to add the following code to allow the service to be started:
 
