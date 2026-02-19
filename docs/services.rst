@@ -205,7 +205,7 @@ At the end of a service file, you need to add the following code to allow the se
 .. code-block:: python
 
     if __name__ == "__main__":
-        service = ServiceClassName()  # replace with the name of your service class
+        service = MyService()  # replace with the name of your service class
         service.run()
 
 Example implementation
