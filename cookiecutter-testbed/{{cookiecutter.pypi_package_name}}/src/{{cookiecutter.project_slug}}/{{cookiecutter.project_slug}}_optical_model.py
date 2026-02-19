@@ -33,7 +33,7 @@ class {{cookiecutter.project_slug.capitalize()}}OpticalModel(OpticalModel):
         return hcipy.make_uniform_grid(dims, size)
 
     @property
-    def detector_grid(self):
+    def sample_camera_grid(self):
         roi = self.config['sample_camera']['roi']
         dims = np.array([roi, roi])
         pixel_size = self.config['sample_camera']['pixel_size']
@@ -43,7 +43,7 @@ class {{cookiecutter.project_slug.capitalize()}}OpticalModel(OpticalModel):
     @property
     @with_cached_result
     def prop(self):
-        return hcipy.FraunhoferPropagator(self.pupil_grid, self.detector_grid)
+        return hcipy.FraunhoferPropagator(self.pupil_grid, self.sample_camera_grid)
 
     @property
     @with_cached_result
