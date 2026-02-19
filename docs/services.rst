@@ -154,7 +154,35 @@ Instead, you can ask the testbed server to start a `CRASHED`/`FAIL_SAFE`/`CLOSED
 Creating your own service
 -------------------------
 
-- file structure and file naming for service
-- file structure and file naming for service proxy
-- config entry for service
+File structure and file naming for services
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Inside services folder, create a folder with the name of your new service, inside make a new python file with the same name.
+Inside this python file your new service should have the same name like your file but in came case. Also add a simulated service
+in a new folder called the same like the hardware servie folder, but with "_sim" at the end. For example...
+In the testbed/proxies folder, create a new file with the name of your service.
+Create a new service doc page in the docs folder for your service and add it ot the index.rst file.
+
+
+Service implementation
+~~~~~~~~~~~~~~~~~~~~~~
+- Services inherit from Service
+- Simulated services inherit from Service
+- Service proxies inherit from ServiceProxy
+
+Services and service proxies can also be defined outside of catkit2 if there is a more specific or new need. No matter
+where a service and/or proxy is defined, they need to be added to the entry points in the setup.py file of catkit2, so
+that they can be found by the testbed server and testbed proxy.
+
+When implementing a service, you need to implement at least the following methods:
+- ``init()``: This method is called when the service process is started. Contains all the code that is needed to initialize the service. This includes for example reading any variables from the service configuration that are needed for the service to run.
+- ``open()``: This method is called when the service is started. Contains all the code that is needed to start the service and make it operational in this method. This includes for example establishing connections with hardware or other services, and starting any threads that are needed for the service to run.
+- ``main()``: This method is called when the service is running. Contains all the code that is needed to keep the service running in this method.
+- ``close()``: This method is called when the service is stopped. Contains all the code that is needed to safely shut down the service in this method. This includes for example closing connections with hardware or other services, and stopping any threads that were started in the ``open()`` method.
+
+At the end of a service file, you need to add the following code to allow the service to be started:
+.. code-block:: python
+
+    if __name__ == "__main__":
+        service = ServiceClassName()  # replace with the name of your service class
+        service.run()
