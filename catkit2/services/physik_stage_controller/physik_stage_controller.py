@@ -135,6 +135,7 @@ class PhysikStageController(Service):
         if self.pidevice is not None:
             try:
                 with self.mutex:
+                    self.pidevice.STP()
                     self.pidevice.CloseConnection()
                 self.log.info("PI device connection closed")
             except Exception as e:
