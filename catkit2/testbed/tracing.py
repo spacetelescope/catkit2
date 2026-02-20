@@ -53,7 +53,7 @@ class TraceWriter:
         self._filename = filename
 
         # Subscribe to all trace topics
-        self.subscription = self.broker.subscribe('traces/#', mode=MessageSubscriptionMode.Sequential)
+        self.subscription = self.broker.subscribe('traces', mode=MessageSubscriptionMode.Sequential)
 
         self.thread = threading.Thread(target=self._loop)
         self.thread.start()
