@@ -853,8 +853,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def(py::init<>())
 		.def("connect", &LogForwarder::Connect);
 
-	m.def("trace_connect", [](std::string process_name, std::string host, int port) {
-		tracing_proxy.Connect(process_name, host, port);
+	m.def("trace_connect", [](std::string process_name, std::shared_ptr<LocalMessageBroker> broker) {
+		tracing_proxy.Connect(process_name, broker);
 	});
 	m.def("trace_disconnect", []() {
 		tracing_proxy.Disconnect();

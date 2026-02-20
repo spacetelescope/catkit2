@@ -1,11 +1,10 @@
 import logging
 import threading
-import zmq
 import json
 import contextlib
 from colorama import Fore, Back, Style
 
-from ..catkit_bindings import submit_log_entry, Severity
+from ..catkit_bindings import submit_log_entry, Severity, MessageSubscriptionMode
 
 class CatkitLogHandler(logging.StreamHandler):
     '''A log handler to pipe Python log messages into the catkit2 logging system.
@@ -27,10 +26,9 @@ class CatkitLogHandler(logging.StreamHandler):
         submit_log_entry(filename, line, function, severity, message)
 
 class LogObserver:
-    def __init__(self, host, port):
-        self.context = zmq.Context()
-        self.host = host
-        self.port = port
+    def __init__(self, broker):
+        self.broker = broker
+        self.subscription = None
 
         self.shutdown_flag = threading.Event()
         self.thread = None
@@ -38,6 +36,8 @@ class LogObserver:
     def start(self):
         '''Start the proxy thread.
         '''
+        # Subscribe to all log topics
+        self.subscription = self.broker.subscribe('logs', mode=MessageSubscriptionMode.Sequential)
         self.thread = threading.Thread(target=self.loop)
         self.thread.start()
 
@@ -52,27 +52,19 @@ class LogObserver:
             self.thread.join()
 
     def loop(self):
-        # Set up sockets.
-        socket = self.context.socket(zmq.SUB)
-        socket.connect(f'tcp://{self.host}:{self.port}')
-        socket.subscribe('')
-        socket.RCVTIMEO = 50
-
         # Main loop.
         while not self.shutdown_flag.is_set():
             # Receive new log message.
             try:
-                log_message = socket.recv_multipart()
-            except zmq.ZMQError as e:
-                if e.errno == zmq.EAGAIN:
-                    # Timed out.
+                message = self.subscription.get_next_message(timeout_in_sec=0.1)
+                if message is None:
                     continue
-                else:
-                    raise RuntimeError('Error during receive.') from e
+            except Exception:
+                continue
 
-            # Decode log message.
-            log_message = log_message[0].decode('ascii')
-            log_message = json.loads(log_message)
+            # Decode log message from payload.
+            payload = message.payload.tobytes().decode('utf-8')
+            log_message = json.loads(payload)
 
             self.handle_message(log_message)
 
@@ -80,8 +72,8 @@ class LogObserver:
         pass
 
 class LogWriter(LogObserver):
-    def __init__(self, host, port, log_format=None):
-        super().__init__(host, port)
+    def __init__(self, broker, log_format=None):
+        super().__init__(broker)
 
         if log_format is None:
             log_format = '{time} - {service_id} - {severity} - {message}'
@@ -128,8 +120,15 @@ class LogWriter(LogObserver):
         if severity.value < self.level.value:
             return
 
+        # Add service_id to log_message for formatting (extract from source).
+        log_message_for_format = log_message.copy()
+        log_message_for_format['service_id'] = log_message['source']['service_id']
+        log_message_for_format['filename'] = log_message['source']['file']
+        log_message_for_format['line'] = log_message['source']['line']
+        log_message_for_format['function'] = log_message['source']['function']
+
         # Format output message.
-        message = self.log_format.format(**log_message)
+        message = self.log_format.format(**log_message_for_format)
 
         # Write log message to file.
         with self.file_lock:
@@ -138,8 +137,8 @@ class LogWriter(LogObserver):
                 self._output_file.flush()
 
 class LogTerminal(LogObserver):
-    def __init__(self, host, port):
-        super().__init__(host, port)
+    def __init__(self, broker):
+        super().__init__(broker)
 
         self.level = Severity.WARNING
         self.colors = {
@@ -152,13 +151,20 @@ class LogTerminal(LogObserver):
 
     def handle_message(self, log_message):
         severity = getattr(Severity, log_message['severity'].upper())
+        service_id = log_message['source']['service_id']
 
-        if log_message['service_id'] != 'experiment':
+        if service_id != 'experiment':
             if severity.value < self.level.value:
                 return
 
-        header = '{time} - {severity: <8} - {service_id} - {filename}:{line}'.format(**log_message)
-        formatted_message = '{message}'.format(**log_message)
+        header = '{time} - {severity: <8} - {service_id} - {file}:{line}'.format(
+            time=log_message['time'],
+            severity=log_message['severity'],
+            service_id=service_id,
+            file=log_message['source']['file'],
+            line=log_message['source']['line']
+        )
+        formatted_message = '{message}'.format(message=log_message['message'])
 
         print(header)
         print(self.colors[severity] + formatted_message + Style.RESET_ALL)

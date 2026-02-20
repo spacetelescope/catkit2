@@ -15,7 +15,6 @@ import numpy as np
 
 from ..catkit_bindings import LogForwarder, Server, ServiceState, DataStream, SharedMemory, LocalMessageBroker, get_timestamp, is_alive_state, Client, get_host_name
 from .logging import *
-from .distributor import ZmqDistributor
 
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
@@ -268,24 +267,14 @@ class Testbed:
 
         self.host_name = get_host_name()
 
-        self.logging_ingress_port = 0
-        self.logging_egress_port = 0
-        self.data_logging_ingress_port = 0
-        self.data_logging_egress_port = 0
-        self.tracing_ingress_port = 0
-        self.tracing_egress_port = 0
-
         self.is_simulated = is_simulated
         self.config = config
 
         self.services = {}
         self.launched_processes = []
 
-        self.log_distributor = None
         self.log_handler = None
         self.log_forwarder = None
-
-        self.tracing_distributor = None
 
         self.log = logging.getLogger(__name__)
 
@@ -402,11 +391,7 @@ class Testbed:
             self.context = zmq.Context()
 
             # Start the logging.
-            self.start_log_distributor()
             self.setup_logging()
-
-            # Start tracing distributor.
-            self.start_tracing_distributor()
 
             heartbeat_thread = threading.Thread(target=self.do_heartbeats)
             heartbeat_thread.start()
@@ -453,12 +438,8 @@ class Testbed:
                 # Shut down the server.
                 self.server.stop()
 
-                # Stop tracing distributor.
-                self.stop_tracing_distributor()
-
                 # Stop the logging.
                 self.destroy_logging()
-                self.stop_log_distributor()
 
                 self.context = None
 
@@ -518,7 +499,7 @@ class Testbed:
         logging.getLogger().setLevel(logging.DEBUG)
 
         self.log_forwarder = LogForwarder()
-        self.log_forwarder.connect('testbed', f'tcp://localhost:{self.logging_ingress_port}')
+        self.log_forwarder.connect('testbed', self.message_broker)
 
     def destroy_logging(self):
         '''Shut down all logging.
@@ -530,40 +511,6 @@ class Testbed:
         if self.log_forwarder:
             del self.log_forwarder
             self.log_forwarder = None
-
-    def start_log_distributor(self):
-        '''Start the log distributor.
-        '''
-        def callback(log_message):
-            log_message = log_message[0].decode('utf-8')
-            log_message = json.loads(log_message)
-
-            print(f'[{log_message["service_id"]}] {log_message["message"]}')
-
-        self.logging_ingress_port, self.logging_egress_port = get_unused_port(num_ports=2)
-
-        self.log_distributor = ZmqDistributor(self.context, self.logging_ingress_port, self.logging_egress_port, callback)
-        self.log_distributor.start()
-
-    def stop_log_distributor(self):
-        '''Stop the log distributor.
-        '''
-        if self.log_distributor:
-            self.log_distributor.stop()
-            self.log_distributor = None
-
-    def start_tracing_distributor(self):
-        '''Start the tracing distributor.
-        '''
-        self.tracing_ingress_port, self.tracing_egress_port = get_unused_port(num_ports=2)
-
-        self.tracing_distributor = ZmqDistributor(self.context, self.tracing_ingress_port, self.tracing_egress_port)
-        self.tracing_distributor.start()
-
-    def stop_tracing_distributor(self):
-        if self.tracing_distributor:
-            self.tracing_distributor.stop()
-            self.tracing_distributor = None
 
     def on_start_service(self, data):
         request = testbed_proto.StartServiceRequest()
@@ -617,12 +564,6 @@ class Testbed:
         reply.config = json.dumps(self.config)
         reply.is_simulated = self.is_simulated
         reply.heartbeat_stream_id = self.heartbeat_stream.stream_id
-        reply.logging_ingress_port = self.logging_ingress_port
-        reply.logging_egress_port = self.logging_egress_port
-        reply.data_logging_ingress_port = self.data_logging_ingress_port
-        reply.data_logging_egress_port = self.data_logging_egress_port
-        reply.tracing_ingress_port = self.tracing_ingress_port
-        reply.tracing_egress_port = self.tracing_egress_port
         reply.message_broker_id = self.message_broker_header.filename
 
         return reply.SerializeToString()
