@@ -1,10 +1,10 @@
 import json
 import threading
-import zmq
 import contextlib
 
 from ..proto import tracing_pb2 as tracing_proto
 from .. import catkit_bindings
+from ..catkit_bindings import MessageSubscriptionMode
 
 
 def write_json(f, data):
@@ -23,18 +23,14 @@ class TraceWriter:
 
     Parameters
     ----------
-    host : str
-        The host which distributes the trace messages.
-    port : int
-        The port on which the host distributes the trace messages.
+    broker : LocalMessageBroker
+        The message broker to subscribe to for trace messages.
     '''
-    def __init__(self, host, port):
+    def __init__(self, broker):
         self.f = None
 
-        self.context = zmq.Context()
-
-        self.host = host
-        self.port = port
+        self.broker = broker
+        self.subscription = None
 
         self.shutdown_flag = threading.Event()
         self.thread = None
@@ -56,6 +52,9 @@ class TraceWriter:
 
         self._filename = filename
 
+        # Subscribe to all trace topics
+        self.subscription = self.broker.subscribe('traces/#', mode=MessageSubscriptionMode.Sequential)
+
         self.thread = threading.Thread(target=self._loop)
         self.thread.start()
 
@@ -70,12 +69,6 @@ class TraceWriter:
             self.thread.join()
 
     def _loop(self):
-        # Set up socket.
-        socket = self.context.socket(zmq.SUB)
-        socket.connect(f'tcp://{self.host}:{self.port}')
-        socket.subscribe('')
-        socket.RCVTIMEO = 50
-
         # Set up cache for process names.
         process_names = {}
         thread_names = {}
@@ -92,17 +85,16 @@ class TraceWriter:
             while not self.shutdown_flag.is_set():
                 # Receive a new trace event.
                 try:
-                    message = socket.recv_multipart()
-                except zmq.ZMQError as e:
-                    if e.errno == zmq.EAGAIN:
-                        # Timed out.
+                    message = self.subscription.get_next_message(timeout_in_sec=0.1)
+                    if message is None:
                         continue
-                    else:
-                        raise RuntimeError('Error during receive.') from e
+                except Exception:
+                    continue
 
-                # Decode event.
+                # Decode event from payload.
+                payload = message.payload.tobytes()
                 proto_event = tracing_proto.TraceEvent()
-                proto_event.ParseFromString(message[0])
+                proto_event.ParseFromString(payload)
 
                 # Convert event to JSON format.
                 # All JSON timestamps are in us, our timestamps are in ns, so
@@ -218,12 +210,10 @@ def trace_interval(name, category=''):
         colored the same in the log viewer. The default is empty.
     '''
     start = catkit_bindings.get_timestamp()
-
     try:
         yield
     finally:
         end = catkit_bindings.get_timestamp()
-
         catkit_bindings.trace_interval(name, category, start, end - start)
 
 def trace_instant(name):
@@ -239,7 +229,6 @@ def trace_instant(name):
         The name of the event.
     '''
     timestamp = catkit_bindings.get_timestamp()
-
     catkit_bindings.trace_instant(name, timestamp)
 
 def trace_counter(name, series, counter):
@@ -259,5 +248,4 @@ def trace_counter(name, series, counter):
         The contents of this event, i.e. what changes over time.
     '''
     timestamp = catkit_bindings.get_timestamp()
-
     catkit_bindings.trace_counter(name, series, timestamp, counter)
