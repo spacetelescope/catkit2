@@ -37,7 +37,7 @@ authors:
   - name: Jules Fowler
     orcid: 0000-0002-0726-9323
     affiliation: 1
-  - name: Marshall Perrin 
+  - name: Marshall Perrin
     orcid: 0000-0002-3191-8151
     affiliation: 3
   - name: Arnaud Sevin
@@ -55,36 +55,36 @@ authors:
     affiliation: 9
   - name: Erin Pougheon
     affiliation: 8
-  
+
 affiliations:
  - name: University of California, Santa Cruz, United States
    index: 1
-   ror: 
+   ror:
  - name: Laboratoire Lagrange, Observatoire de la Cote d'Azur, Université Cote d'Azur, CNRS
    index: 2
-   ror: 
+   ror:
  - name: Space Telescope Science Institute, United States
    index: 3
-   ror: 
+   ror:
  - name: Max Planck Institute for Astrophysics,  Heidelberg, Germany
    index: 4
-   ror: 
+   ror:
  - name: Laboratoire d'Astrophysique de Marseille, Marseille, France
    index: 5
-   ror: 
+   ror:
  - name: Goddard Space Flight Center, Greenbelt, United States
    index: 6
-   ror: 
- - name: self 
+   ror:
+ - name: self
    index: 7
-   ror: 
+   ror:
  - name: LIRA, Observatoire de Paris, France
    index: 8
-   ror: 
- - name: Lowell Center for Space Science and Technology, United States 
+   ror:
+ - name: Lowell Center for Space Science and Technology, United States
    index: 9
-   ror: 
-     
+   ror:
+
 date: 16 February 2026
 bibliography: paper.bib
 ---
@@ -93,7 +93,7 @@ bibliography: paper.bib
 
 CATKit2 (Control and Automation for Testbeds Kit 2) is a high-performance software framework designed for controlling complex laboratory hardware systems. Developed primarily for adaptive optics and high-contrast imaging testbeds in astronomy, it provides a robust infrastructure for hardware synchronization, real-time data streaming, and distributed process management. The framework enables researchers to orchestrate multiple hardware devices—such as cameras, deformable mirrors, motorized stages, light sources, and sensors—into cohesive, synchronized experimental setups.
 
-The software employs a service-oriented architecture where each hardware device or computational task runs as an independent service process. Services communicate through high-speed, low-latency data streams implemented via shared memory, enabling real-time data exchange between components with minimal overhead. A central testbed server manages service lifecycle, configuration distribution, and provides discovery mechanisms for clients. The framework supports both hardware operation and comprehensive simulation modes, allowing researchers to develop and test control algorithms without physical hardware.
+The software employs a service-oriented architecture where each hardware device or computational task runs as an independent service process. Services communicate through high-speed, low-latency data streams implemented via shared memory, enabling real-time data exchange between components with minimal overhead. A central testbed server manages service lifecycle, configuration distribution, and provides service discovery. The framework supports both hardware operation and comprehensive simulation modes, allowing researchers to develop and test control algorithms without physical hardware.
 
 CATKit2 is written in C++ for performance-critical operations with Python bindings for ease of use. It includes over 40 ready-to-use service implementations covering cameras (ZWO, FLIR, Hamamatsu, Allied Vision), deformable mirrors (Boston Micromachines), motion controllers (Newport, Thorlabs), spectrometers (Ocean Optics), and various other laboratory instruments. Each hardware service has a corresponding simulator, enabling full software-in-the-loop testing and algorithm development.
 
@@ -129,12 +129,12 @@ The communication stack employs a hybrid strategy optimized for different use ca
 
 Configuration management is performed by the centralized TestbedServer. This configuration is distributed as JSON to all services and clients, ensuring consistent views of the testbed state. Services receive only their own configuration section, promoting encapsulation and reducing unintended cross-dependencies that can complicate maintenance.
 
-Safety is a primary concern in hardware control systems. CATKit2 includes a safety service mechanism where designated services can monitor testbed conditions and trigger fail-safe states when unsafe conditions are detected. Services can declare safety dependencies, ensuring that they will not be started, or are stopped if a safety condition is triggered. This design provides defense in depth for expensive or delicate hardware components.
+Hardware safety is a primary concern in astronomical instruments that contain expensive or delicate hardware components. CATKit2 includes a safety monitor service which continuously checks testbed conditions. Users can declare certain services to require safety monitoring. When unsafe conditions are detected or when a safe testbed environment cannot be guaranteed, these services will refuse to start and will trigger a fail-safe mode where manual intervention is required to bring them back up online.
 
-![End-to-end latency measurements for a typical adaptive optics control loop: wavefront sensor acquisition, processing, and deformable mirror command output.  Timing shown for Windows OS on the HiCAT testbed. 
+![End-to-end latency measurements for a typical adaptive optics control loop: wavefront sensor acquisition, processing, and deformable mirror command output.  Timing shown for Windows OS on the HiCAT testbed.
 This plot showss the total time from the earliest point in a command when it is emitted to the latest point when the receiver (here the camera) has fully settled to the command.  This total time includes the initial CATKit2 processing before it is sent to the DM API, then the DM Communication and DAC inside the control electonics, the actual mechanical response of the DM surface, the camera integration time, readout time, image transfer to computer, type conversion and copy to Data Stream.  In this example the mid point of the DM surface transition is at 1.7 ms and the DM has fully settled after 2.7 ms. \label{fig:timing}](figure_3_e2e_latency.png)
 
-The server collects custom logging and tracing information from services and makes them available on a dedicated port. In particular, on-demand custom tracing is made available in the form of unified tracing file that can be vizualized by standard tools (e.g. Perfetto).  Tracing is simply implemented by adding a context manager around the section of the code that needs to be analyzed. Traces are available at the nanosecond level and special care has been taken to make sure this contributes negligible delay to code execution.          
+The server collects custom logging and tracing information from services and makes them available on a dedicated port. In particular, on-demand custom tracing is made available in the form of unified tracing file that can be visualized by standard tools (e.g. Perfetto). Tracing is simply implemented by adding a context manager around the section of the code that needs to be analyzed. Traces are available at the nanosecond level and special care has been taken to make sure this contributes negligible delay to code execution.
 
 ![Example from the HiCAT testbed using Perfetto for vizualisation during a wavefront sensing and control experiment. Frames are read on camera and processed in a closed loop to calculate corrections applied on the DM. \label{fig:tracing}](figure_4_tracing.png)
 
@@ -144,7 +144,7 @@ CATKit2 has been in active development since 2022 and has been adopted by five a
 
 By providing a robust simulation environment where hardware services can be replaced with software equivalents, CATKit2 has enabled researchers to validate control strategies before hardware implementation, significantly reducing development time and risk. This capability is particularly valuable for iterative algorithm development where rapid testing cycles are essential.
 
-The package is released under the BSD 3-Clause license and is publicly available on GitHub. Documentation is hosted on GitHub Pages, including API references and configuration guides for bundled services. The modular service architecture has enabled contributions from multiple institutions, with new hardware services contributed by testbed operators at collaborating facilities. This collaborative development model has expanded the hardware support ecosystem while maintaining code quality through peer review and automated testing.
+The modular service architecture has enabled contributions from multiple institutions, with new hardware services contributed by testbed operators at collaborating facilities. This collaborative development model has expanded the hardware support ecosystem while maintaining code quality through peer review and automated testing.
 
 # AI usage disclosure
 
@@ -153,6 +153,6 @@ Generative AI tools (specifically GitHub Copilot, Qwen3 and Kimi K2.5) were used
 # Acknowledgements
 
 The authors thank the broader HiCAT team and the Space Telescope Science Institute for supporting this development. The HiCAT testbed has been developed over the past 10 years and benefitted from the work of an extended collaboration of over 50 people. This work was supported in part by the National Aeronautics and Space Administration under Grant 80NSSC19K0120 issued through the Strategic Astrophysics Technology/Technology Demonstration for Exo-planet Missions Program (SAT-TDEM; PI: R. Soummer), and under Grant 80NSSC22K0372 issued through the Astrophysics Research and Analysis Program (APRA; PI: L. Pueyo).
-E.H.Por. was supported in part by the NASA Hubble Fellowship grant HST-HF2-51467.001-A awarded by the Space Telescope Science Institute, which is operated by the Association of Universities for Research in Astronomy, Incorporated, under NASA contract NAS5-26555. E.H.Por was also supported in part by a 51 Pegasi b Fellowship awarded by the Heising-Simons Foundation. S. Steiger acknowledges support by STScI Postdoctoral Fellowship and I. Laginja acknowledges partial support from a postdoctoral fellowship issued by the Centre National d’Etudes Spatiales (CNES) in France.
+E.H.Por was supported in part by the NASA Hubble Fellowship grant HST-HF2-51467.001-A awarded by the Space Telescope Science Institute, which is operated by the Association of Universities for Research in Astronomy, Incorporated, under NASA contract NAS5-26555. E.H.Por was also supported in part by a 51 Pegasi b Fellowship awarded by the Heising-Simons Foundation. S. Steiger acknowledges support by STScI Postdoctoral Fellowship and I. Laginja acknowledges partial support from a postdoctoral fellowship issued by the Centre National d’Etudes Spatiales (CNES) in France.
 
 # References
