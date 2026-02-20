@@ -2,101 +2,50 @@
 
 #include <nlohmann/json.hpp>
 #include <iostream>
-#include <string> 
-#include <thread>
 
-using namespace zmq;
+#include "LocalMessageBroker.h"
+
 using json = nlohmann::json;
 
 LogForwarder::LogForwarder()
-	: m_ShutDown(false)
+	: m_Broker(nullptr)
 {
 }
 
 LogForwarder::~LogForwarder()
 {
-	ShutDown();
-
-	if (m_MessageLoopThread.joinable())
-		m_MessageLoopThread.join();
 }
 
-void LogForwarder::Connect(std::string service_id, std::string host)
+void LogForwarder::Connect(std::string service_id, std::shared_ptr<MessageBroker> broker)
 {
 	m_ServiceId = service_id;
-	m_Host = host;
-
-	m_MessageLoopThread = std::thread(&LogForwarder::MessageLoop, this);
+	m_Broker = broker;
 }
-
 
 void LogForwarder::AddLogEntry(const LogEntry &entry)
 {
+	if (!m_Broker)
+	{
+		// Broker not connected yet, skip logging
+		return;
+	}
+
 	json message = {
-		{"service_id", m_ServiceId},
-		{"filename", entry.filename},
-		{"line", entry.line},
-		{"function", entry.function},
+		{"timestamp", entry.timestamp},
+		{"time", entry.time},
 		{"severity", ConvertSeverityToString(entry.severity)},
 		{"message", entry.message},
-		{"timestamp", entry.timestamp},
-		{"time", entry.time}
+		{"source", {
+			{"service_id", m_ServiceId},
+			{"file", entry.filename},
+			{"line", entry.line},
+			{"function", entry.function}
+		}}
 	};
 
 	std::string json_message = message.dump();
+	std::string topic = "logs";
 
-	std::unique_lock<std::mutex> lock(m_Mutex);
-	m_LogMessages.push(json_message);
-
-	m_ConditionVariable.notify_all();
-}
-
-void LogForwarder::MessageLoop()
-{
-	context_t context;
-	socket_t socket(context, ZMQ_PUSH);
-
-	socket.set(zmq::sockopt::linger, 0);
-	socket.set(zmq::sockopt::sndtimeo, 10);
-	socket.connect(m_Host);
-
-	std::string log_message;
-
-	while (!m_ShutDown)
-	{
-		// Get next message from the queue.
-		{
-			std::unique_lock<std::mutex> lock(m_Mutex);
-
-			while (m_LogMessages.empty() && !m_ShutDown)
-			{
-				m_ConditionVariable.wait(lock);
-			}
-
-			if (m_ShutDown)
-				break;
-
-			log_message = m_LogMessages.front();
-			m_LogMessages.pop();
-		}
-
-		// Construct and send message.
-		message_t message_zmq(log_message.size());
-		memcpy(message_zmq.data(), log_message.c_str(), log_message.size());
-
-		send_result_t res;
-		do
-		{
-			res = socket.send(message_zmq, zmq::send_flags::none);
-		}
-		while (!res.has_value() && !m_ShutDown);
-	}
-
-	socket.close();
-}
-
-void LogForwarder::ShutDown()
-{
-	m_ShutDown = true;
-	m_ConditionVariable.notify_all();
+	// Publish directly to MessageBroker
+	m_Broker->PublishData(topic, json_message.data(), json_message.size());
 }
