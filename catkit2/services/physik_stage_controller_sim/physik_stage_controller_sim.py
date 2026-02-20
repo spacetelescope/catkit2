@@ -2,13 +2,13 @@
 Simulated Physik Instrumente Stage Controller Service
 
 This simulated service provides the same interface as the real PhysikStageController
-but doesn't require actual hardware. Useful for testing and development.
+but without hardware or motion delays. Moves are instantaneous, making it suitable
+for measuring non-motion overhead and testing logic without Windows timer granularity issues.
 """
 
 import numpy as np
 import threading
 from catkit2.testbed.service import Service
-import time
 
 
 class PhysikStageControllerSim(Service):
@@ -17,21 +17,13 @@ class PhysikStageControllerSim(Service):
     def __init__(self):
         super().__init__('physik_stage_controller_sim')
 
+        self.is_initialized = False
+
         # Create lock for simulated device access
         self.mutex = threading.Lock()
 
-        # Store current and target positions
+        # Store current positions
         self.current_positions = {}
-        self.target_positions = {}
-
-        # Simulation parameters
-        # self.motion_speed = self.config.get('motion_speed', 100.0)  # units per second
-        self.position_tolerance = self.config.get('position_tolerance', 0.001)  # tolerance for "on target"
-        self.update_rate = self.config.get('update_rate', 20000.0)  # Hz for position updates
-
-        # Motion state
-        self.is_moving = False
-        self.motion_start_time = None
 
     def open(self):
         """Initialize the simulated PI device."""
@@ -42,38 +34,35 @@ class PhysikStageControllerSim(Service):
             'y': 2
         })
 
+        # If False, the main loop skips position telemetry for maximum move performance
+        self.enable_position_telemetry = self.config.get('enable_position_telemetry', True)
+
         # Get initial positions from config
         initial_pos = self.config.get('initial_position', None)
 
-        # only initialized positions when asked, otherwise keep last settings
+        # Only initialize positions when asked, otherwise keep last settings
         if initial_pos:
-            # Initialize current positions
             for name, axis_num in self.axis_map.items():
                 self.current_positions[axis_num] = initial_pos.get(name, 0.0)
 
-            self.log.info(f'Initial positions: {self.current_positions}')
-            self.target_positions = self.current_positions
+            self.log.info(f'Initial positions: {initial_pos}')
 
-        # Create data streams for telemetry
+        # Create data streams
         num_axes = len(self.axis_map)
-        self.log.info(f'num_axis={num_axes}, axis_map={self.axis_map}')
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
-        self.target_positions_stream = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
-        self.is_moving_stream = self.make_data_stream('is_moving', 'int8', [1], 20)
-
-        # Create data stream for move_to command
-        self.move_to_stream = self.make_data_stream('move_to_stream', 'float64', [num_axes], 20)
+        self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
 
         # Precompute reverse map for speed
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
 
         # Start the worker thread
-        threading.Thread(target=self._move_to_stream_worker, daemon=True).start()
+        threading.Thread(target=self._target_positions_stream_worker, daemon=True).start()
         self.log.info("Worker started with 250ms timeout")
 
-        # Submit initial state
+        self.is_initialized = True
+
+        # Submit initial positions
         self._submit_positions()
-        self.is_moving_stream.submit_data(np.array([0], dtype='int8'))
 
         # Create properties for each axis
         for name, axis_num in self.axis_map.items():
@@ -97,44 +86,17 @@ class PhysikStageControllerSim(Service):
 
     def _submit_positions(self):
         """Submit current positions to telemetry stream."""
-        pos_array = np.array([self.current_positions[i] for i in sorted(self.current_positions.keys())],
-                             dtype='float64')
+        with self.mutex:
+            pos_array = np.array([self.current_positions[i] for i in sorted(self.current_positions.keys())],
+                                 dtype='float64')
         self.positions.submit_data(pos_array)
 
-        target_array = np.array([self.target_positions[i] for i in sorted(self.target_positions.keys())],
-                                 dtype='float64')
-        self.target_positions_stream.submit_data(target_array)
-
-    def _update_simulated_motion(self):
-        """Update positions using bandwidth-limited first-order dynamics."""
-        with self.mutex:
-            dt = 1.0 / self.update_rate
-
-            # Choose realistic closed-loop bandwidth
-            bandwidth = 400  # Hz (reasonable for S-330 closed-loop)
-            alpha = 1 - np.exp(-2 * np.pi * bandwidth * dt)
-
-            any_moving = False
-
-            for axis_num in self.current_positions.keys():
-                current = self.current_positions[axis_num]
-                target = self.target_positions[axis_num]
-                error = target - current
-
-                if abs(error) > self.position_tolerance:
-                    any_moving = True
-                    self.current_positions[axis_num] = current + alpha * error
-
-            self.is_moving = any_moving
-
-        return any_moving
-
-
-    def _move_to_stream_worker(self):
+    def _target_positions_stream_worker(self):
         while not self.should_shut_down:
             try:
-                frame = self.move_to_stream.get_next_frame(wait_time_in_ms=250)
+                frame = self.target_positions.get_next_frame(wait_time_in_ms=250)
                 data = frame.data
+                self.log.info("_target_positions_stream_worker received data: " + str(data))
 
                 positions = {
                     self.axis_num_to_name[num]: float(data[idx])
@@ -147,21 +109,21 @@ class PhysikStageControllerSim(Service):
                 pass
 
     def main(self):
-        """Main loop - simulate motion and update positions."""
-        sleep_time = 1.0 / self.update_rate
-
+        """Main loop - monitor positions."""
         while not self.should_shut_down:
-            # Update simulated motion
-            is_moving = self._update_simulated_motion()
+            if self.is_initialized and self.enable_position_telemetry:
+                try:
+                    self._submit_positions()
+                except Exception as e:
+                    self.log.error(f"Error reading positions: {e}")
 
-            # Submit telemetry
-            self._submit_positions()
-            self.is_moving_stream.submit_data(np.array([1 if is_moving else 0], dtype='int8'))
-
-            self.sleep(sleep_time)
+                self.sleep(0.1)  # Update at 10 Hz
+            else:
+                self.sleep(0)
 
     def close(self):
         """Close the simulated device connection."""
+        self.is_initialized = False
         self.log.info("Simulated PI device connection closed")
 
     def move_to(self, positions):
@@ -173,18 +135,28 @@ class PhysikStageControllerSim(Service):
         positions : dict
             Dictionary with axis names (e.g., {'x': 10.0, 'y': 20.0})
         """
-        # Convert named axes to axis numbers
-        with self.mutex:
-            for name, value in positions.items():
-                if name in self.axis_map:
-                    axis_num = self.axis_map[name]
-                    self.target_positions[axis_num] = float(value)
-                    self.log.info(f"Moving axis {name} to {value}")
-                else:
-                    self.log.warning(f"Unknown axis name: {name}")
+        if not self.is_initialized:
+            self.log.error("Attempted to move before initialization")
+            raise RuntimeError("Controller not initialized")
 
-            self.is_moving = True
-            self.motion_start_time = time.time()
+        # Convert named axes to axis numbers
+        axis_positions = {}
+        for name, value in positions.items():
+            if name in self.axis_map:
+                axis_num = self.axis_map[name]
+                axis_positions[axis_num] = float(value)
+            else:
+                self.log.warning(f"Unknown axis name: {name}")
+
+        if not axis_positions:
+            self.log.error("No valid axis positions to update")
+            return
+
+        # Moves are instantaneous in sim - just update stored positions
+        with self.mutex:
+            self.current_positions.update(axis_positions)
+        
+        self._submit_positions()
 
     def move_relative(self, deltas):
         """
@@ -195,14 +167,16 @@ class PhysikStageControllerSim(Service):
         deltas : dict
             Dictionary with axis names and relative movements (e.g., {'x': 1.0, 'y': -0.5})
         """
-        # Convert to absolute positions
+        if not self.is_initialized:
+            raise RuntimeError("Controller not initialized")
+
+        # Convert to absolute positions under mutex to avoid racing with move_to
         absolute_positions = {}
         with self.mutex:
             for name, delta in deltas.items():
                 if name in self.axis_map:
                     axis_num = self.axis_map[name]
-                    # Use target position, not current, to avoid drift during motion
-                    absolute_positions[name] = self.target_positions[axis_num] + float(delta)
+                    absolute_positions[name] = self.current_positions[axis_num] + float(delta)
                 else:
                     self.log.warning(f"Unknown axis name: {name}")
 
@@ -219,37 +193,28 @@ class PhysikStageControllerSim(Service):
             Dictionary with axis names and positions
         """
         with self.mutex:
-            positions = {}
-            for name, axis_num in self.axis_map.items():
-                positions[name] = self.current_positions[axis_num]
-        return positions
+            return {name: self.current_positions[axis_num] for name, axis_num in self.axis_map.items()}
 
     def stop_motion(self):
-        """Stop all motion immediately by setting targets to current positions."""
-        with self.mutex:
-            for axis_num in self.current_positions.keys():
-                self.target_positions[axis_num] = self.current_positions[axis_num]
-            self.is_moving = False
-        self.log.info("Motion stopped (simulated)")
+        """No-op in sim - moves are instantaneous so there is nothing to stop."""
+        if not self.is_initialized:
+            return
+
+        self.log.info("Motion stopped (simulated no-op)")
 
     def wait_on_target(self, timeout=None):
         """
         Wait for all axes to reach their target positions.
 
+        In the sim, moves are instantaneous so this always returns immediately.
+
         Parameters
         ----------
         timeout : float, optional
-            Maximum time to wait in seconds
+            Maximum time to wait in seconds (unused in sim)
         """
-        start_time = time.time()
-
-        while self.is_moving:
-            if timeout is not None and (time.time() - start_time) > timeout:
-                self.log.warning("Wait on target timed out")
-                return False
-            time.sleep(0.01)
-
-        return True
+        if not self.is_initialized:
+            return
 
 
 if __name__ == '__main__':

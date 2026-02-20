@@ -33,12 +33,14 @@ class PhysikStageController(Service):
             'y': 2
         })
 
+        # If False, the main loop skips qPOS() queries for maximum move performance
+        self.enable_position_telemetry = self.config.get('enable_position_telemetry', True)
+
         # Get initial positions from config
         initial_pos = self.config.get('initial_position', None)
 
-        # only initialized positions when asked, otherwise keep last settings
+        # Only initialize positions when asked, otherwise keep last settings
         if initial_pos:
-            # Initialize current positions
             for name, axis_num in self.axis_map.items():
                 self.current_positions[axis_num] = initial_pos.get(name, 0.0)
 
@@ -68,12 +70,9 @@ class PhysikStageController(Service):
 
         self.is_initialized = True
 
-        # Create data streams for telemetry
+        # Create data streams
         num_axes = len(self.axis_map)
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
-        self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
-
-        # Create data stream for move_to command
         self.move_to_stream = self.make_data_stream('move_to_stream', 'float64', [num_axes], 20)
 
         # Precompute reverse map for speed
@@ -108,8 +107,9 @@ class PhysikStageController(Service):
 
     def _submit_positions(self):
         """Submit current positions to telemetry stream."""
-        # Get positions in order of axis numbers
-        pos_array = np.array([self.current_positions[i] for i in sorted(self.current_positions.keys())], dtype='float64')
+        with self.mutex:
+            pos_array = np.array([self.current_positions[i] for i in sorted(self.current_positions.keys())],
+                                 dtype='float64')
         self.positions.submit_data(pos_array)
 
     def _move_to_stream_worker(self):
@@ -131,24 +131,22 @@ class PhysikStageController(Service):
     def main(self):
         """Main loop - monitor positions."""
         while not self.should_shut_down:
-            if self.is_initialized:
+            if self.is_initialized and self.enable_position_telemetry:
                 try:
                     with self.mutex:
-                        # Query actual positions from device
                         actual_positions = self.pidevice.qPOS()
-
-                        # Update stored positions
                         for axis_num in self.current_positions.keys():
                             if axis_num in actual_positions:
                                 self.current_positions[axis_num] = actual_positions[axis_num]
 
-                    # Submit telemetry
                     self._submit_positions()
 
                 except Exception as e:
                     self.log.error(f"Error reading positions: {e}")
 
-            self.sleep(0.1)  # Update at 10 Hz
+                self.sleep(0.1)  # Update at 10 Hz
+            else:
+                self.sleep(0)
 
     def close(self):
         """Close the PI device connection."""
@@ -187,17 +185,14 @@ class PhysikStageController(Service):
         if not axis_positions:
             return
 
-        # Command the device
         with self.mutex:
             self.pidevice.MOV(axis_positions)
+            self.current_positions.update(axis_positions)
+        
+        # Wait for stage to physically reach target
+        pitools.waitontarget(self.pidevice)
 
-        # Update stored positions
-        self.current_positions.update(axis_positions)
-
-        # Submit telemetry
-        target_array = np.array([axis_positions.get(i, self.current_positions[i])
-                                for i in sorted(self.current_positions.keys())], dtype='float64')
-        self.target_positions.submit_data(target_array)
+        self._submit_positions()
 
     def move_relative(self, deltas):
         """
@@ -211,14 +206,15 @@ class PhysikStageController(Service):
         if not self.is_initialized:
             raise RuntimeError("Controller not initialized")
 
-        # Convert to absolute positions
+        # Convert to absolute positions under mutex to avoid racing with main loop qPOS() updates
         absolute_positions = {}
-        for name, delta in deltas.items():
-            if name in self.axis_map:
-                axis_num = self.axis_map[name]
-                absolute_positions[name] = self.current_positions[axis_num] + float(delta)
-            else:
-                self.log.warning(f"Unknown axis name: {name}")
+        with self.mutex:
+            for name, delta in deltas.items():
+                if name in self.axis_map:
+                    axis_num = self.axis_map[name]
+                    absolute_positions[name] = self.current_positions[axis_num] + float(delta)
+                else:
+                    self.log.warning(f"Unknown axis name: {name}")
 
         if absolute_positions:
             self.move_to(absolute_positions)
@@ -232,10 +228,8 @@ class PhysikStageController(Service):
         positions : dict
             Dictionary with axis names and positions
         """
-        positions = {}
-        for name, axis_num in self.axis_map.items():
-            positions[name] = self.current_positions[axis_num]
-        return positions
+        with self.mutex:
+            return {name: self.current_positions[axis_num] for name, axis_num in self.axis_map.items()}
 
     def stop_motion(self):
         """Stop all motion immediately."""
