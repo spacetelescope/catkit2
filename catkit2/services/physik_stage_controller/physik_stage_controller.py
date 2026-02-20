@@ -70,7 +70,7 @@ class PhysikStageController(Service):
         # Create data streams
         num_axes = len(self.axis_map)
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
-        self.target_positions = self.make_data_stream('move_to_stream', 'float64', [num_axes], 20)
+        self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
 
         # Precompute reverse map for speed
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
@@ -171,7 +171,7 @@ class PhysikStageController(Service):
         with self.mutex:
             self.pidevice.MOV(axis_positions)
             self.current_positions.update(axis_positions)
-        
+
         # Wait for stage to physically reach target
         self.wait_on_target(timeout=3)
 
@@ -226,9 +226,10 @@ class PhysikStageController(Service):
         except Exception as e:
             self.log.error(f"Error stopping motion: {e}")
 
-    def wait_on_target(self, timeout=None):
+    def wait_on_target(self, timeout=5):
         """
         Wait for all axes to reach their target positions.
+        Default timeout is 5 seconds to prevent hanging indefinitely if something goes wrong.
 
         Parameters
         ----------
@@ -238,12 +239,10 @@ class PhysikStageController(Service):
         if not self.is_initialized:
             return
 
-        with self.mutex:
-            if timeout is not None:
-                pitools.waitontarget(self.pidevice, timeout=timeout)
-            else:
-                pitools.waitontarget(self.pidevice)
-
+        if timeout is not None:
+            pitools.waitontarget(self.pidevice, timeout=timeout)
+        else:
+            pitools.waitontarget(self.pidevice)
 
 if __name__ == '__main__':
     service = PhysikStageController()

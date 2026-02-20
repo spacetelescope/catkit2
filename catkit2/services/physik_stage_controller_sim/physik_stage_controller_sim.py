@@ -56,8 +56,6 @@ class PhysikStageControllerSim(Service):
         threading.Thread(target=self._target_positions_worker, daemon=True).start()
         self.log.info("Worker started with 250ms timeout")
 
-        self.is_initialized = True
-
         # Submit initial positions
         self._submit_positions()
 
@@ -70,6 +68,8 @@ class PhysikStageControllerSim(Service):
         self.make_command('move_relative', self.move_relative)
         self.make_command('get_positions', self.get_positions)
         self.make_command('stop_motion', self.stop_motion)
+
+        self.is_initialized = True
 
     def _make_axis_property(self, name, axis_num):
         """Create a property for an axis."""
@@ -93,7 +93,6 @@ class PhysikStageControllerSim(Service):
             try:
                 frame = self.target_positions.get_next_frame(wait_time_in_ms=250)
                 data = frame.data
-                self.log.info("_target_positions_worker received data: " + str(data))
 
                 positions = {
                     self.axis_num_to_name[num]: float(data[idx])
@@ -106,14 +105,14 @@ class PhysikStageControllerSim(Service):
                 pass
 
     def main(self):
-        """Main loop - monitor positions."""
+        """Main loop - run while service is running."""
         while not self.should_shut_down:
                 self.sleep(0)
 
     def close(self):
         """Close the simulated device connection."""
-        self.is_initialized = False
         self.stop_motion()
+        self.is_initialized = False
         self.log.info("Simulated PI device connection closed")
 
     def move_to(self, positions):
@@ -145,7 +144,7 @@ class PhysikStageControllerSim(Service):
         # Moves are instantaneous in sim - just update stored positions
         with self.mutex:
             self.current_positions.update(axis_positions)
-        
+
         self._submit_positions()
 
     def move_relative(self, deltas):
