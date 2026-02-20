@@ -228,48 +228,6 @@ int TestbedProxy::GetPort()
 	return m_Port;
 }
 
-int TestbedProxy::GetLoggingIngressPort()
-{
-	GetTestbedInfo();
-
-	return m_LoggingIngressPort;
-}
-
-int TestbedProxy::GetLoggingEgressPort()
-{
-	GetTestbedInfo();
-
-	return m_LoggingEgressPort;
-}
-
-int TestbedProxy::GetDataLoggingIngressPort()
-{
-	GetTestbedInfo();
-
-	return m_DataLoggingIngressPort;
-}
-
-int TestbedProxy::GetDataLoggingEgressPort()
-{
-	GetTestbedInfo();
-
-	return m_DataLoggingEgressPort;
-}
-
-int TestbedProxy::GetTracingIngressPort()
-{
-	GetTestbedInfo();
-
-	return m_TracingIngressPort;
-}
-
-int TestbedProxy::GetTracingEgressPort()
-{
-	GetTestbedInfo();
-
-	return m_TracingEgressPort;
-}
-
 std::string TestbedProxy::GetMode()
 {
     GetTestbedInfo();
@@ -384,15 +342,6 @@ void TestbedProxy::GetTestbedInfo()
 	m_MessageBrokerHeader = SharedMemory::Open(reply.message_broker_id());
 	StructStream stream = StructStream(m_MessageBrokerHeader);
 	m_MessageBroker = LocalMessageBroker::Open(stream);
-
-	m_LoggingIngressPort = reply.logging_ingress_port();
-	m_LoggingEgressPort = reply.logging_egress_port();
-
-	m_DataLoggingIngressPort = reply.data_logging_ingress_port();
-	m_DataLoggingEgressPort = reply.data_logging_egress_port();
-
-	m_TracingIngressPort = reply.tracing_ingress_port();
-	m_TracingEgressPort = reply.tracing_egress_port();
 
 	m_HasGottenInfo = true;
 }
