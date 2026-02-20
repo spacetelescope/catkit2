@@ -34,9 +34,6 @@ class PhysikStageControllerSim(Service):
             'y': 2
         })
 
-        # If False, the main loop skips position telemetry for maximum move performance
-        self.enable_position_telemetry = self.config.get('enable_position_telemetry', True)
-
         # Get initial positions from config
         initial_pos = self.config.get('initial_position', None)
 
@@ -56,7 +53,7 @@ class PhysikStageControllerSim(Service):
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
 
         # Start the worker thread
-        threading.Thread(target=self._target_positions_stream_worker, daemon=True).start()
+        threading.Thread(target=self._target_positions_worker, daemon=True).start()
         self.log.info("Worker started with 250ms timeout")
 
         self.is_initialized = True
@@ -91,12 +88,12 @@ class PhysikStageControllerSim(Service):
                                  dtype='float64')
         self.positions.submit_data(pos_array)
 
-    def _target_positions_stream_worker(self):
+    def _target_positions_worker(self):
         while not self.should_shut_down:
             try:
                 frame = self.target_positions.get_next_frame(wait_time_in_ms=250)
                 data = frame.data
-                self.log.info("_target_positions_stream_worker received data: " + str(data))
+                self.log.info("_target_positions_worker received data: " + str(data))
 
                 positions = {
                     self.axis_num_to_name[num]: float(data[idx])
@@ -111,19 +108,12 @@ class PhysikStageControllerSim(Service):
     def main(self):
         """Main loop - monitor positions."""
         while not self.should_shut_down:
-            if self.is_initialized and self.enable_position_telemetry:
-                try:
-                    self._submit_positions()
-                except Exception as e:
-                    self.log.error(f"Error reading positions: {e}")
-
-                self.sleep(0.1)  # Update at 10 Hz
-            else:
                 self.sleep(0)
 
     def close(self):
         """Close the simulated device connection."""
         self.is_initialized = False
+        self.stop_motion()
         self.log.info("Simulated PI device connection closed")
 
     def move_to(self, positions):

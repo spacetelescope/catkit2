@@ -33,9 +33,6 @@ class PhysikStageController(Service):
             'y': 2
         })
 
-        # If False, the main loop skips qPOS() queries for maximum move performance
-        self.enable_position_telemetry = self.config.get('enable_position_telemetry', True)
-
         # Get initial positions from config
         initial_pos = self.config.get('initial_position', None)
 
@@ -73,13 +70,13 @@ class PhysikStageController(Service):
         # Create data streams
         num_axes = len(self.axis_map)
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
-        self.move_to_stream = self.make_data_stream('move_to_stream', 'float64', [num_axes], 20)
+        self.target_positions = self.make_data_stream('move_to_stream', 'float64', [num_axes], 20)
 
         # Precompute reverse map for speed
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
 
         # Start the worker thread
-        threading.Thread(target=self._move_to_stream_worker, daemon=True).start()
+        threading.Thread(target=self._target_positions_worker, daemon=True).start()
         self.log.info("Worker started with 250ms timeout")
 
         # Submit initial positions
@@ -112,10 +109,10 @@ class PhysikStageController(Service):
                                  dtype='float64')
         self.positions.submit_data(pos_array)
 
-    def _move_to_stream_worker(self):
+    def _target_positions_worker(self):
         while not self.should_shut_down:
             try:
-                frame = self.move_to_stream.get_next_frame(wait_time_in_ms=250)
+                frame = self.target_positions.get_next_frame(wait_time_in_ms=250)
                 data = frame.data
 
                 positions = {
@@ -129,24 +126,9 @@ class PhysikStageController(Service):
                 pass
 
     def main(self):
-        """Main loop - monitor positions."""
+        """Main loop - run while service is running."""
         while not self.should_shut_down:
-            if self.is_initialized and self.enable_position_telemetry:
-                try:
-                    with self.mutex:
-                        actual_positions = self.pidevice.qPOS()
-                        for axis_num in self.current_positions.keys():
-                            if axis_num in actual_positions:
-                                self.current_positions[axis_num] = actual_positions[axis_num]
-
-                    self._submit_positions()
-
-                except Exception as e:
-                    self.log.error(f"Error reading positions: {e}")
-
-                self.sleep(0.1)  # Update at 10 Hz
-            else:
-                self.sleep(0)
+            self.sleep(0)
 
     def close(self):
         """Close the PI device connection."""
@@ -190,7 +172,7 @@ class PhysikStageController(Service):
             self.current_positions.update(axis_positions)
         
         # Wait for stage to physically reach target
-        pitools.waitontarget(self.pidevice)
+        self.wait_on_target(timeout=3)
 
         self._submit_positions()
 
