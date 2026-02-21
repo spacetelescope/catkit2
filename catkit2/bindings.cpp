@@ -900,6 +900,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def_property_readonly("filename", &SharedMemory::GetFileName);
 
+	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker");
+
 	py::class_<LocalMemory, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
 		.def_static("create", [](size_t num_bytes)
 		{
@@ -1087,7 +1089,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			return py::none();
 		});
 
-	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
+	py::class_<LocalMessageBroker, Shareable, MessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
 		{
 			auto stream = StructStream(header);
