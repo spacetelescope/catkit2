@@ -377,7 +377,6 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 	// Track which event indices need to be signaled (to avoid duplicates)
 	std::array<bool, EVENT_POOL_SIZE> signaled_events{};
 	signaled_events.fill(false);
-	std::size_t num_signaled = 0;
 
 	// Publish the message to all subtopics.
 	for (const auto &subtopic : SubtopicRange(topic))
@@ -387,11 +386,7 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		DEBUG_PRINT("Publishing to subtopic \"" << subtopic << "\".");
 
 		// Track this subtopic's event for signaling
-		if (!signaled_events[topic_header->event_index])
-		{
-			signaled_events[topic_header->event_index] = true;
-			num_signaled++;
-		}
+		signaled_events[topic_header->event_index] = true;
 
 		std::uint64_t first_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
 
@@ -473,13 +468,10 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 	}
 
 	// Signal all unique events for the subtopics
-	for (std::size_t i = 0; i < EVENT_POOL_SIZE && num_signaled > 0; ++i)
+	for (std::size_t i = 0; i < EVENT_POOL_SIZE; ++i)
 	{
 		if (signaled_events[i])
-		{
 			m_EventPool[i]->Signal();
-			num_signaled--;
-		}
 	}
 
 	// Deallocate the message header and payload.
