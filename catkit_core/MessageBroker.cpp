@@ -174,6 +174,16 @@ std::optional<Message> MessageSubscription::TryGetNextMessage()
 	return message;
 }
 
+std::optional<size_t> MessageBroker::GetCurrentMessageId(std::string_view topic)
+{
+	auto message = GetCurrentMessage(topic);
+
+	if (!message.has_value())
+		return std::nullopt;
+
+	return message.value().GetMessageId();
+}
+
 Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id)
 {
 	Uuid trace_id;

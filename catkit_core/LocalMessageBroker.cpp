@@ -590,34 +590,6 @@ std::shared_ptr<HybridPoolAllocator> LocalMessageBroker::GetAllocator(uint8_t me
 	return m_Allocators[memory_block_id];
 }
 
-bool LocalMessageBroker::IsMessageAvailable(std::string_view topic, size_t frame_id)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->IsMessageAvailable(frame_id);
-}
-
-bool LocalMessageBroker::WillMessageBeAvailable(std::string_view topic, size_t frame_id)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->WillMessageBeAvailable(frame_id);
-}
-
-size_t LocalMessageBroker::GetNewestMessageId(std::string_view topic)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->GetNewestMessageId();
-}
-
-size_t LocalMessageBroker::GetOldestMessageId(std::string_view topic)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->GetOldestMessageId();
-}
-
 double LocalMessageBroker::GetMessageRate(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);

@@ -86,36 +86,22 @@ public:
 	// Get the newest message for a topic.
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) override;
 
-	// Get the next message for a topic.
-	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
-
-	// Try to get the next message for a topic.
-	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
-
 	// Get the message rate for a topic.
 	virtual double GetMessageRate(std::string_view topic) override;
 
 	// Get the message topics for all messages in this broker.
 	virtual std::vector<std::string> GetAllMessageTopics() override;
 
-	// Try to get a message by topic and frame ID.
-	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
-
-	// Check for message availability.
-	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
-
-	// Check if a message will be available in the future.
-	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);
-
-	// Get the newest message ID for a topic.
-	size_t GetNewestMessageId(std::string_view topic);
-
-	// Get the oldest message ID for a topic.
-	size_t GetOldestMessageId(std::string_view topic);
-
 	ShareableType GetType() const override;
 
 	virtual void PrintDebugInfo() const override;
+
+protected:
+	// Get the next message for a topic.
+	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
+
+	// Try to get the next message for a topic.
+	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
 
 private:
 	Message FetchMessage(TopicHeader *topic_header, size_t frame_id);
