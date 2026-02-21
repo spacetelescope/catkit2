@@ -225,14 +225,19 @@ void Server::SendResponse(const std::string& client_identity, const std::string&
     msg.send(*m_Socket);
 }
 
-bool Server::IsRunning()
+bool Server::IsRunning() const
 {
 	return m_IsRunning;
 }
 
-int Server::GetPort()
+int Server::GetPort() const
 {
 	return m_Port;
+}
+
+int Server::GetNumWorkers() const
+{
+    return m_NumWorkers;
 }
 
 void Server::Sleep(double sleep_time_in_sec, void (*error_check)())
