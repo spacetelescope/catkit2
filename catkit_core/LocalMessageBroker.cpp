@@ -145,7 +145,7 @@ LocalMessageBroker::LocalMessageBroker(
 	MessageBrokerHeader *header,
 	std::shared_ptr<HashMap> topic_headers,
 	std::shared_ptr<PoolAllocator> message_header_allocator,
-	std::shared_ptr<Event> event,
+	std::array<std::shared_ptr<Event>, EVENT_POOL_SIZE> event_pool,
 	std::vector<std::shared_ptr<HybridPoolAllocator>> allocators,
 	std::vector<std::shared_ptr<Memory>> memory_blocks,
 	std::shared_ptr<Memory> header_memory
@@ -154,7 +154,7 @@ LocalMessageBroker::LocalMessageBroker(
 	m_Header(header),
 	m_TopicHeaders(std::move(topic_headers)),
 	m_MessageHeaderAllocator(std::move(message_header_allocator)),
-	m_Event(std::move(event)),
+	m_EventPool(std::move(event_pool)),
 	m_Allocators(std::move(allocators)),
 	m_MemoryBlocks(memory_blocks),
 	m_MessageHeaders(header->message_headers)
@@ -184,8 +184,14 @@ std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Create(StructStream &str
 
 	auto message_header_allocator = PoolAllocator::Create(stream, MAX_NUM_MESSAGES);
 
-	std::string id = "catkit2_message_broker_" + std::to_string(header->creator_pid) + "_" + std::to_string(header->time_of_creation);
-	auto event = Event::Create(stream, id);
+	// Create event pool for topic-based notification
+	std::array<std::shared_ptr<Event>, EVENT_POOL_SIZE> event_pool;
+	std::string base_id = "catkit2_message_broker_" + std::to_string(header->creator_pid) + "_" + std::to_string(header->time_of_creation);
+	for (size_t i = 0; i < EVENT_POOL_SIZE; ++i)
+	{
+		std::string event_id = base_id + "_" + std::to_string(i);
+		event_pool[i] = Event::Create(stream, event_id);
+	}
 
 	DEBUG_PRINT("Extracting allocators.");
 
@@ -210,7 +216,7 @@ std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Create(StructStream &str
 		header,
 		std::move(topic_headers),
 		std::move(message_header_allocator),
-		std::move(event),
+		std::move(event_pool),
 		allocators,
 		memory_blocks,
 		stream.GetBuffer()
@@ -225,7 +231,13 @@ std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Open(StructStream &strea
 
 	auto topic_headers = HashMap::Open(stream);
 	auto message_header_allocator = PoolAllocator::Open(stream);
-	auto event = Event::Open(stream);
+
+	// Open event pool
+	std::array<std::shared_ptr<Event>, EVENT_POOL_SIZE> event_pool;
+	for (size_t i = 0; i < EVENT_POOL_SIZE; ++i)
+	{
+		event_pool[i] = Event::Open(stream);
+	}
 
 	std::vector<std::shared_ptr<HybridPoolAllocator>> allocators;
 	std::vector<std::shared_ptr<Memory>> memory_blocks;
@@ -253,7 +265,7 @@ std::shared_ptr<LocalMessageBroker> LocalMessageBroker::Open(StructStream &strea
 		header,
 		std::move(topic_headers),
 		std::move(message_header_allocator),
-		std::move(event),
+		std::move(event_pool),
 		allocators,
 		memory_blocks,
 		stream.GetBuffer()
@@ -362,12 +374,24 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 	auto topic = std::string_view(message.m_Header->topic);
 	auto allocator = GetAllocator(message.m_Header->payload_info.memory_block_id);
 
+	// Track which event indices need to be signaled (to avoid duplicates)
+	std::array<bool, EVENT_POOL_SIZE> signaled_events{};
+	signaled_events.fill(false);
+	std::size_t num_signaled = 0;
+
 	// Publish the message to all subtopics.
 	for (const auto &subtopic : SubtopicRange(topic))
 	{
 		auto topic_header = GetTopicHeader(subtopic);
 
 		DEBUG_PRINT("Publishing to subtopic \"" << subtopic << "\".");
+
+		// Track this subtopic's event for signaling
+		if (!signaled_events[topic_header->event_index])
+		{
+			signaled_events[topic_header->event_index] = true;
+			num_signaled++;
+		}
 
 		std::uint64_t first_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
 
@@ -448,7 +472,15 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 			break;
 	}
 
-	m_Event->Signal();
+	// Signal all unique events for the subtopics
+	for (std::size_t i = 0; i < EVENT_POOL_SIZE && num_signaled > 0; ++i)
+	{
+		if (signaled_events[i])
+		{
+			m_EventPool[i]->Signal();
+			num_signaled--;
+		}
+	}
 
 	// Deallocate the message header and payload.
 	PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
@@ -556,8 +588,8 @@ std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic
 	if (topic_header->IsMessageAvailable(new_frame_id))
 		return FetchMessage(topic_header, new_frame_id);
 
-	// Otherwise, wait for it.
-	m_Event->Wait(timeout_in_seconds, [topic_header, new_frame_id]() { return topic_header->last_frame_id > new_frame_id; }, wait_type, error_check);
+	// Otherwise, wait for it on the specific event for this topic.
+	m_EventPool[topic_header->event_index]->Wait(timeout_in_seconds, [topic_header, new_frame_id]() { return topic_header->last_frame_id > new_frame_id; }, wait_type, error_check);
 
 	return FetchMessage(topic_header, new_frame_id);
 }
@@ -670,6 +702,7 @@ TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 	temp_topic_header.first_frame_id = 0;
 	temp_topic_header.last_frame_id = 0;
 	temp_topic_header.frame_rate = 0.0;
+	temp_topic_header.event_index = murmurhash3(topic) % EVENT_POOL_SIZE;
 
 	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
 
