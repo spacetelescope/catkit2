@@ -448,7 +448,7 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 
 	if (allocator == nullptr)
 	{
-		throw std::runtime_error("Invalid device ID.");
+		throw std::runtime_error("Invalid device ID: " + std::to_string(memory_block_id));
 	}
 
 	DEBUG_PRINT("Gotten allocator.");
@@ -527,8 +527,8 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 {
 	DEBUG_PRINT("Publishing message.");
 
-	if (message.m_HasBeenPublished)
-		throw std::runtime_error("Message has already been published.");
+	if (message.m_Header == nullptr || message.m_Payload == nullptr)
+		throw std::runtime_error("Message is invalid. Use PrepareMessage() to create a valid message.");
 
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
@@ -548,15 +548,15 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		std::uint64_t first_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
 
 		std::uint64_t frame_id;
-		if (message.m_Header->partial_frame_id == 0)
+		if (message.m_Header->partial_message_id == 0)
 		{
 			// Get a frame ID.
-			frame_id = topic_header->next_frame_id.fetch_add(1, std::memory_order_relaxed);
+			frame_id = topic_header->ReserveNextMessageId();
 		}
 		else
 		{
-			frame_id = topic_header->last_frame_id.load(std::memory_order_relaxed) - 1;
-			message.m_Header->partial_frame_id++;
+			frame_id = message.GetFrameId();
+			message.m_Header->partial_message_id++;
 		}
 
 		// Check if we need to remove an old frame from the topic.
@@ -653,7 +653,7 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 
 	if (is_final)
 	{
-		return Message(nullptr, nullptr, 0);
+		return Message(nullptr, nullptr);
 	}
 	else
 	{
