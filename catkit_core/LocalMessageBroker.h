@@ -19,7 +19,7 @@
 const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
 
 const size_t TOPIC_HASH_MAP_SIZE = 16384;
-const size_t TOPIC_MAX_NUM_MESSAGES = 32;
+const size_t TOPIC_MAX_NUM_MESSAGES = 16;
 const size_t MAX_NUM_MESSAGES = 65536;
 const size_t MAX_NUM_BLOCKS = 8192;
 const size_t MEMORY_ALIGNMENT = 32;
@@ -27,18 +27,29 @@ const size_t MIN_SIZE_POOL = 1024;
 
 struct TopicHeader
 {
-	std::atomic_uint64_t next_frame_id;
-	std::atomic_uint64_t first_frame_id;
-	std::atomic_uint64_t last_frame_id;
-
+	std::atomic_uint64_t availability;
 	double frame_rate;
 
 	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
 
-	bool IsMessageAvailable(std::size_t frame_id);
-	bool WillMessageBeAvailable(std::size_t frame_id);
-	std::size_t GetOldestMessageId();
-	std::size_t GetNewestMessageId();
+	bool IsMessageAvailable(std::size_t message_id) const;
+	bool WillMessageBeAvailable(std::size_t message_id) const;
+	std::size_t GetFirstMessageId() const;
+	std::size_t GetLastMessageId() const;
+	std::size_t GetNextMessageId(std::size_t preferred_next_message_id, MessageSubscriptionMode mode) const;
+
+	struct ReserveResult
+	{
+		bool success;
+		bool can_try_again;
+		bool has_old_message_header;
+		std::uint64_t old_message_header;
+		std::size_t message_id;
+	};
+
+	ReserveResult TryReserve(std::size_t message_id);
+	ReserveResult TryReserveNext();
+	bool TryMakeAvailable(std::size_t message_id);
 
 	double GetMessageRate();
 };
