@@ -43,7 +43,7 @@ public:
 
 	ServiceReference GetServiceInfo(const std::string &service_id);
 
-	std::string RegisterService(std::string service_id, std::string service_type, std::string host, int port, int process_id, std::string heartbeat_stream_id);
+	std::string RegisterService(std::string service_id, std::string service_type, std::string host, int port, int process_id);
 
 	bool IsSimulated();
 	bool IsAlive();

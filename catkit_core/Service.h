@@ -91,15 +91,12 @@ private:
 	std::atomic_bool m_FailSafe;
 
 	std::shared_ptr<TestbedProxy> m_Testbed;
+	std::shared_ptr<MessageBroker> m_Broker;
 
 	std::string m_ServiceId;
 	std::string m_ServiceType;
 
 	nlohmann::json m_Config;
-
-	std::shared_ptr<DataStream> m_Heartbeat;
-	std::shared_ptr<DataStream> m_Safety;
-	std::shared_ptr<DataStream> m_State;
 
 	std::map<std::string, std::pair<PropertyGetter, PropertySetter>> m_Properties;
 

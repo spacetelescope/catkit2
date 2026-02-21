@@ -28,8 +28,6 @@ public:
 
 	std::shared_ptr<DataStream> GetDataStream(const std::string &name, void (*error_check)() = nullptr);
 
-	std::shared_ptr<DataStream> GetHeartbeat();
-
 	ServiceState GetState();
 	bool IsRunning();
 	bool IsAlive();
@@ -62,8 +60,6 @@ private:
 
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
 
-	std::shared_ptr<DataStream> m_Heartbeat;
-	std::shared_ptr<DataStream> m_State;
 	std::uint64_t m_TimeLastConnect;
 };
 

@@ -129,20 +129,24 @@ class ServiceReference:
 
         self.host = '127.0.0.1'
         self.port = 0
-        self.heartbeat = None
 
         self.log = logging.getLogger(__name__)
 
     @property
     def state(self):
-        return ServiceState(int(self.state_stream.get()[0]))
+        state = self.broker.get_current_message(f'{self.service_id}/service_state/get').payload[0]
+
+        return ServiceState(int(state))
 
     @state.setter
     def state(self, state):
         new_state = np.array([state.value], dtype='int8')
-        self.state_stream.submit_data(new_state)
 
         self.broker.publish_array(f'{self.service_id}/service_state/get', new_state)
+
+    @property
+    def heartbeat(self):
+        return self.broker.get_current_message(f'{self.service_id}/heartbeat/get').payload[0]
 
     @property
     def is_alive(self):
@@ -491,7 +495,7 @@ class Testbed:
                         service.state = ServiceState.CRASHED
 
                 if service.state == ServiceState.RUNNING:
-                    heartbeat_time = service.heartbeat.get()[0]
+                    heartbeat_time = service.heartbeat
                     time_stamp = get_timestamp()
 
                     if time_stamp - heartbeat_time > SERVICE_LIVELINESS * 1e9:
@@ -501,7 +505,7 @@ class Testbed:
                         service.state = ServiceState.UNRESPONSIVE
 
                 if service.state == ServiceState.UNRESPONSIVE:
-                    heartbeat_time = service.heartbeat.get()[0]
+                    heartbeat_time = service.heartbeat
                     time_stamp = get_timestamp()
 
                     if time_stamp - heartbeat_time < SERVICE_LIVELINESS * 1e9:
@@ -660,11 +664,8 @@ class Testbed:
         service.host = request.host
         service.port = request.port
         service.process_id = request.process_id
-        service.heartbeat = DataStream.open(request.heartbeat_stream_id)
 
         reply = testbed_proto.RegisterServiceReply()
-
-        reply.state_stream_id = service.state_stream.stream_id
 
         return reply.SerializeToString()
 
@@ -715,9 +716,12 @@ class Testbed:
             self.log.debug(f'Service "{service_id}" was already started.')
             return
 
-        service_type = self.services[service_id].service_type
+        # Start the dependencies of this service.
+        for dependency in self.services[service_id].dependencies:
+            self.start_service(dependency)
 
-        # Resolve service type;
+        # Resolve service type.
+        service_type = self.services[service_id].service_type
         path = self.resolve_service_type(service_type)
         dirname = os.path.dirname(path)
 
@@ -806,10 +810,6 @@ class Testbed:
                     self.log.debug(f'with priority {priority}.')
 
         self.log.info(f'Started service "{service_id}" with type "{service_type}".')
-
-        # Start the dependencies. This is not required but will speed things up.
-        for dependency in self.services[service_id].dependencies:
-            self.start_service(dependency)
 
     def stop_service(self, service_id):
         self.log.debug(f'Trying to stop service "{service_id}".')
