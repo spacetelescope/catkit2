@@ -562,8 +562,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("config", &Service::GetConfig)
 		.def("run", [](Service &service)
 		{
-			service.Run(error_check_python);
-		}, py::call_guard<py::gil_scoped_release>())
+			{
+				py::gil_scoped_release release;
+				service.Run(error_check_python);
+			}
+			// CleanupAttributes must be called with GIL held because
+			// m_Properties and m_Commands contain Python callbacks wrapped
+			// in std::function. Destroying them without the GIL causes crashes.
+			service.CleanupAttributes();
+		})
 		.def("open", &Service::Open)
 		.def("main", &Service::Main)
 		.def("close", &Service::Close)
