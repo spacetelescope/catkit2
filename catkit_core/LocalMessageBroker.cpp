@@ -118,49 +118,82 @@ std::tuple<std::size_t, std::uint16_t> unpack_availability(std::uint64_t availab
 	return std::make_tuple(availability >> TOPIC_MAX_NUM_MESSAGES, availability & AVAILABILITY_BITMAP_MASK);
 }
 
-std::uint64_t pack_availability(std::size_t first_id, std::uint16_t bitmap)
+std::uint64_t pack_availability(std::size_t last_id, std::uint16_t bitmap)
 {
-	return (first_id << TOPIC_MAX_NUM_MESSAGES) | bitmap;
+	return (last_id << TOPIC_MAX_NUM_MESSAGES) | bitmap;
 }
 
 bool TopicHeader::IsMessageAvailable(std::size_t frame_id) const
 {
-	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
 
-	auto slot = frame_id % TOPIC_MAX_NUM_MESSAGES;
-	return (frame_id >= first) && (frame_id < (first + TOPIC_MAX_NUM_MESSAGES) && ((bitmap >> slot) & 1));
+	// Compute how many messages back from last this frame_id is.
+	// last-1 is the newest message, so offset 0 is last-1.
+	if (frame_id >= last)
+		return false;
+
+	std::size_t offset = last - 1 - frame_id;
+	if (offset >= TOPIC_MAX_NUM_MESSAGES)
+		return false;
+
+	return (bitmap >> offset) & 1;
 }
 
 bool TopicHeader::WillMessageBeAvailable(std::size_t frame_id) const
 {
-	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
 
-	return frame_id >= first;
+	// A message will be available if it's in the future (>= last) or currently in the buffer.
+	if (frame_id >= last)
+		return true;
+
+	// Check if it's currently in the buffer.
+	std::size_t offset = last - 1 - frame_id;
+	return offset < TOPIC_MAX_NUM_MESSAGES;
 }
 
 std::size_t TopicHeader::GetBegin() const
 {
-	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
 
-	return first + countl_zero((uint16_t) bitmap);
+	// Compute first (oldest message ID) from last and bitmap.
+	// If last < 16, buffer not full, so first = 0.
+	// Otherwise, first = last - 16 + countl_zero(bitmap).
+	if (last < TOPIC_MAX_NUM_MESSAGES)
+		return 0;
+
+	return last - TOPIC_MAX_NUM_MESSAGES + countl_zero((uint16_t) bitmap);
 }
 
 std::size_t TopicHeader::GetEnd() const
 {
-	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
 
-	std::cout << "availability: " << first << ", " << bitmap << " (" << availability << ")" << std::endl;
+	// With relative bitmap:
+	// Bit 0 = last - 1 (newest), bit 1 = last - 2, etc.
+	// countr_zero(bitmap) = number of trailing zeros = how many newest messages are unavailable
+	// end = last - countr_zero(bitmap) = first ID beyond the newest available message
+	// Check for underflow: if countr_zero > last, return 0.
+	auto trailing_zeros = countr_zero((uint16_t) bitmap);
+	if (trailing_zeros > last)
+		return 0;
 
-	return first + TOPIC_MAX_NUM_MESSAGES - countr_zero((uint16_t) bitmap);
+	return last - trailing_zeros;
 }
 
 std::size_t TopicHeader::GetNextMessageId(size_t preferred_next_frame_id, MessageSubscriptionMode mode) const
 {
-	auto [first, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
 
 	size_t frame_id = preferred_next_frame_id;
-	size_t newest_frame_id = first + TOPIC_MAX_NUM_MESSAGES - 1;
-	size_t oldest_frame_id = first;
+
+	// Compute oldest and newest from last and bitmap.
+	size_t newest_frame_id = (last == 0) ? 0 : last - 1;
+	size_t oldest_frame_id;
+	if (last < TOPIC_MAX_NUM_MESSAGES)
+		oldest_frame_id = 0;
+	else
+		oldest_frame_id = last - TOPIC_MAX_NUM_MESSAGES + countl_zero((uint16_t) bitmap);
 
 	switch (mode)
 	{
@@ -191,55 +224,86 @@ TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
 	while (true)
 	{
 		auto current_availability = availability.load(std::memory_order_relaxed);
-		auto [first, bitmap] = unpack_availability(current_availability);
+		auto [last, bitmap] = unpack_availability(current_availability);
 
-		// Check if the message id is in our scope.
-		if (message_id < first)
+		// Check if the message id is too old (already evicted).
+		if (last > TOPIC_MAX_NUM_MESSAGES && message_id < last - TOPIC_MAX_NUM_MESSAGES)
 			return {
 				.success=false, .can_try_again=false,
 				.has_old_message_header=false, .old_message_header=0,
 				.message_id = message_id
 			};
 
-		// Check if we need to advance the first index.
-		if (message_id >= first + TOPIC_MAX_NUM_MESSAGES)
+		// Check if we need to advance last to include this message.
+		if (message_id >= last)
 		{
-			// We need to advance the scope.
-			first++;
+			// We can only advance one step at a time since we can only return one evicted header.
+			// Check if the message is immediately next (message_id == last).
+			if (message_id > last)
+			{
+				// Message is further ahead. We need to advance step by step.
+				// Return failure but indicate caller should retry.
+				return {
+					.success = false, .can_try_again = true,
+					.has_old_message_header = false, .old_message_header = 0,
+					.message_id = message_id
+				};
+			}
 
-			// Get the message header in the evicted slot.
-			auto slot = (first - 1) % TOPIC_MAX_NUM_MESSAGES;
-			auto message_header = message_headers[slot];
+			// message_id == last, we can advance by one.
+			// Check if we need to evict a message.
+			bool was_available = bitmap & (1 << (TOPIC_MAX_NUM_MESSAGES - 1));
+			PoolAllocator::BlockHandle message_header = 0;
+			if (was_available)
+			{
+				// The message at slot (last % 16) is being evicted.
+				std::size_t slot = last % TOPIC_MAX_NUM_MESSAGES;
+				message_header = message_headers[slot];
+			}
 
-			// Mark that slot as unavailable.
-			bool was_available = bitmap & (1 << slot);
-			bitmap &= ~(1 << slot);
+			// Update bitmap and last.
+			bitmap <<= 1;
+			last++;
 
 			// Try to set the new availability.
-			auto new_availability = pack_availability(first, bitmap);
+			auto new_availability = pack_availability(last, bitmap);
 			if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
 			{
 				// We failed, try again.
 				continue;
 			}
 
-			// We succeeded so the frame is marked. But it may not be the one we set out to mark.
-			bool success = (first - 1 + TOPIC_MAX_NUM_MESSAGES) == message_id;
+			// We succeeded. Check if we reached the target message_id.
+			bool success = (last - 1) == message_id;
 			return {
 				.success = success, .can_try_again = true,
-				.has_old_message_header = was_available, .old_message_header = message_header,
-				.message_id = message_id
+				.has_old_message_header = was_available,
+				.old_message_header = message_header,
+				.message_id = last - 1
 			};
 		}
 		else
 		{
-			// We don't need to advance the scope.
-			// Set the slot as available.
-			auto slot = message_id % TOPIC_MAX_NUM_MESSAGES;
-			bitmap &= ~(1 << slot);
+			// Message is in the current window.
+			// Compute the bit position for this message.
+			std::size_t offset = last - 1 - message_id;
+
+			// Check if this message is already marked.
+			if (bitmap & (1 << offset))
+			{
+				// Message already exists.
+				return {
+					.success = false, .can_try_again = false,
+					.has_old_message_header = false, .old_message_header = 0,
+					.message_id = message_id
+				};
+			}
+
+			// Set the bit for this message.
+			bitmap |= (1 << offset);
 
 			// Try to set the new availability.
-			auto new_availability = pack_availability(first, bitmap);
+			auto new_availability = pack_availability(last, bitmap);
 			if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
 			{
 				// We failed, try again.
@@ -261,21 +325,19 @@ TopicHeader::ReserveResult TopicHeader::TryReserveNext()
 	while (true)
 	{
 		auto current_availability = availability.load(std::memory_order_relaxed);
-		auto [first, bitmap] = unpack_availability(current_availability);
+		auto [last, bitmap] = unpack_availability(current_availability);
 
-		// Advance the scope.
-		first++;
+		// Check if the message in the slot that we're about to evict was available.
+		bool was_available = bitmap & (1 << (TOPIC_MAX_NUM_MESSAGES - 1));
+		auto slot = last % TOPIC_MAX_NUM_MESSAGES;
+		PoolAllocator::BlockHandle message_header = message_headers[0];
 
-		// Get the message header in the evicted slot.
-		auto slot = (first - 1) % TOPIC_MAX_NUM_MESSAGES;
-		auto message_header = message_headers[slot];
-
-		// Mark that slot as unavailable.
-		bool was_available = bitmap & (1 << slot);
-		bitmap &= ~(1 << slot);
+		// Increment last and update bitmap.
+		bitmap <<= 1;
+		last++;
 
 		// Try to set the new availability.
-		auto new_availability = pack_availability(first, bitmap);
+		auto new_availability = pack_availability(last, bitmap);
 		if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
 		{
 			// We failed, try again.
@@ -286,7 +348,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserveNext()
 		return {
 			.success = true, .can_try_again = true,
 			.has_old_message_header = was_available, .old_message_header = message_header,
-			.message_id = first + TOPIC_MAX_NUM_MESSAGES - 1
+			.message_id = last - 1
 		};
 	}
 }
@@ -298,19 +360,23 @@ bool TopicHeader::TryMakeAvailable(std::size_t message_id)
 	while (true)
 	{
 		auto current_availability = availability.load(std::memory_order_relaxed);
-		auto [first, bitmap] = unpack_availability(current_availability);
+		auto [last, bitmap] = unpack_availability(current_availability);
 
-		// If the message is outside of scope, we cannot make it available.
-		if ((first > message_id) || ((first + TOPIC_MAX_NUM_MESSAGES) <= message_id))
+		// If the message is in the future or too old, we cannot make it available (it needs to be reserved first).
+		if (message_id >= last)
 			return false;
 
-		// Mark the slot on the bitmap.
-		// We need to do this with a CAS loop because we need to check the first_id too.
-		auto slot = message_id % TOPIC_MAX_NUM_MESSAGES;
-		bitmap |= (1 << slot);
+		std::size_t offset = last - 1 - message_id;
+
+		// If the message is too old, we cannot make it available either.
+		if (offset >= TOPIC_MAX_NUM_MESSAGES)
+			return false;
+
+		// Mark the bit on the bitmap.
+		bitmap |= (1 << offset);
 
 		// Try to set the new availability.
-		auto new_availability = pack_availability(first, bitmap);
+		auto new_availability = pack_availability(last, bitmap);
 		if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
 		{
 			// We failed, try again.

@@ -47,7 +47,7 @@ def test_message_subscription(broker):
     # Same for the third message.
     m = subscription_sequential.get_next_message(0.01)
     assert m is not None
-    assert m.messsage_id == 2
+    assert m.message_id == 2
     assert m.payload[0] == 12
 
     # Getting a next message from this subscription should return None, since there are only three messages.
