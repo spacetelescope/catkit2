@@ -28,7 +28,8 @@ const size_t MIN_SIZE_POOL = 1024;
 struct TopicHeader
 {
 	std::atomic_uint64_t availability;
-	double frame_rate;
+	double message_rate;
+	uint64_t last_update;
 
 	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
 
@@ -54,7 +55,8 @@ struct TopicHeader
 	ReserveResult TryReserveNext();
 	bool TryMakeAvailable(std::size_t message_id);
 
-	double GetMessageRate();
+	void UpdateMessageRate(std::uint64_t timestamp);
+	double GetMessageRate(std::uint64_t current_timetamp) const;
 };
 
 struct MessageBrokerHeader

@@ -253,13 +253,8 @@ TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
 			// message_id == last, we can advance by one.
 			// Check if we need to evict a message.
 			bool was_available = bitmap & (1 << (TOPIC_MAX_NUM_MESSAGES - 1));
-			PoolAllocator::BlockHandle message_header = 0;
-			if (was_available)
-			{
-				// The message at slot (last % 16) is being evicted.
-				std::size_t slot = last % TOPIC_MAX_NUM_MESSAGES;
-				message_header = message_headers[slot];
-			}
+			std::size_t slot = last % TOPIC_MAX_NUM_MESSAGES;
+			PoolAllocator::BlockHandle message_header = message_headers[slot];
 
 			// Update bitmap and last.
 			bitmap <<= 1;
@@ -330,7 +325,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserveNext()
 		// Check if the message in the slot that we're about to evict was available.
 		bool was_available = bitmap & (1 << (TOPIC_MAX_NUM_MESSAGES - 1));
 		auto slot = last % TOPIC_MAX_NUM_MESSAGES;
-		PoolAllocator::BlockHandle message_header = message_headers[0];
+		PoolAllocator::BlockHandle message_header = message_headers[slot];
 
 		// Increment last and update bitmap.
 		bitmap <<= 1;
@@ -385,6 +380,27 @@ bool TopicHeader::TryMakeAvailable(std::size_t message_id)
 
 		return true;
 	}
+}
+
+void TopicHeader::UpdateMessageRate(std::uint64_t timestamp)
+{
+	double time_delta = double(std::int64_t(timestamp) - std::int64_t(last_update)) * 1e-9;
+
+	if (time_delta < 0)
+		time_delta = 0;
+
+	last_update = timestamp;
+	message_rate = message_rate * std::exp(-FRAMERATE_DECAY * time_delta) + FRAMERATE_DECAY;
+}
+
+double TopicHeader::GetMessageRate(std::uint64_t current_timestamp) const
+{
+	double time_delta = double(std::int64_t(current_timestamp) - std::int64_t(last_update)) * 1e-9;
+
+	if (time_delta < 0)
+		time_delta = 0;
+
+	return message_rate * std::exp(-FRAMERATE_DECAY * time_delta);
 }
 
 LocalMessageBroker::LocalMessageBroker(
@@ -602,7 +618,8 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		throw std::runtime_error("Message is invalid. Use PrepareMessage() to create a valid message.");
 
 	// Set the timestamp.
-	message.m_Header->producer_timestamp = GetTimeStamp();
+	auto timestamp = GetTimeStamp();
+	message.m_Header->producer_timestamp = timestamp;
 
 	// Save the message header index for later.
 	PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
@@ -689,22 +706,9 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		}
 
 		// Update framerate on the topic.
-		// This needs at least one message to have been published on this topic to calculate
-		// the framerate.
 		// TODO: put this after the event signaling, since we don't want this in the
 		// critical path.
-		if (false)//message.m_Header->message_ids[i] > 0)
-		{
-			auto prev_message_header_id = topic_header->message_headers[(message.m_Header->message_ids[i] - 1) % TOPIC_MAX_NUM_MESSAGES];
-
-			std::uint64_t last_timestamp = m_MessageHeaders[prev_message_header_id].producer_timestamp;
-			double time_delta = double(std::int64_t(message.m_Header->producer_timestamp) - std::int64_t(last_timestamp)) * 1e-9;
-
-			if (time_delta < 0)
-				time_delta = 0;
-
-			topic_header->frame_rate = topic_header->frame_rate * std::exp(-FRAMERATE_DECAY * time_delta) + FRAMERATE_DECAY;
-		}
+		topic_header->UpdateMessageRate(timestamp);
 
 		// Only publish on the bottom-most topic when it's a partial message.
 		if (!is_final)
@@ -830,21 +834,9 @@ std::shared_ptr<HybridPoolAllocator> LocalMessageBroker::GetAllocator(uint8_t me
 double LocalMessageBroker::GetMessageRate(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
-	auto end = topic_header->GetEnd();
-	if (end == 0)
-		return 0;
-
-	auto last_message_header_id = topic_header->message_headers[(end - 1) % TOPIC_MAX_NUM_MESSAGES];
-	auto last_timestamp = m_MessageHeaders[last_message_header_id].producer_timestamp;
-
 	auto timestamp = GetTimeStamp();
 
-	double time_delta = double(std::int64_t(timestamp) - std::int64_t(last_timestamp)) * 1e-9;
-
-	if (time_delta < 0)
-		time_delta = 0;
-
-	return topic_header->frame_rate * std::exp(-FRAMERATE_DECAY * time_delta);
+	return topic_header->GetMessageRate(timestamp);
 }
 
 std::vector<std::string> LocalMessageBroker::GetAllMessageTopics()
@@ -880,7 +872,8 @@ TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 	TopicHeader temp_topic_header;
 
 	temp_topic_header.availability = pack_availability(0, 0);
-	temp_topic_header.frame_rate = 0.0;
+	temp_topic_header.message_rate = 0.0;
+	temp_topic_header.last_update = 0;
 
 	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
 
