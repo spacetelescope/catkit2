@@ -69,7 +69,7 @@ struct MessageHeader
 	std::uint64_t start_byte;
 	std::uint64_t end_byte;
 
-	std::uint64_t message_ids[TOPIC_MAX_DEPTH];
+	std::array<std::uint64_t, TOPIC_MAX_DEPTH> message_ids;
 	std::uint16_t partial_message_id;
 
 	std::uint8_t num_metadata_entries;

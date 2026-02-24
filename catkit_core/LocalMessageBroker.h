@@ -34,8 +34,11 @@ struct TopicHeader
 
 	bool IsMessageAvailable(std::size_t message_id) const;
 	bool WillMessageBeAvailable(std::size_t message_id) const;
-	std::size_t GetFirstMessageId() const;
-	std::size_t GetLastMessageId() const;
+
+	// Begin and End describe a half-open range: [begin, end)
+	std::size_t GetBegin() const;
+	std::size_t GetEnd() const;
+
 	std::size_t GetNextMessageId(std::size_t preferred_next_message_id, MessageSubscriptionMode mode) const;
 
 	struct ReserveResult
@@ -109,14 +112,13 @@ public:
 
 protected:
 	// Get the next message for a topic.
-	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
+	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
 
 	// Try to get the next message for a topic.
-	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
+	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
 
 private:
-	Message FetchMessage(TopicHeader *topic_header, size_t frame_id);
-	std::uint64_t GetNextMessageId(TopicHeader *topic_header, size_t preferred_next_frame_id, MessageSubscriptionMode mode);
+	Message FetchMessage(TopicHeader *topic_header, size_t message_id);
 
 	std::shared_ptr<HybridPoolAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);

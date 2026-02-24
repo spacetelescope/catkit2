@@ -25,7 +25,7 @@ def test_message_subscription(broker):
     # The first message from a NewestOnly subscription should skip all non-current messages.
     m = subscription_newest.get_next_message(0.01)
     assert m is not None
-    assert m.frame_id == 2
+    assert m.message_id == 2
     assert m.payload[0] == 12
 
     # Getting a next message from this subscription should return None, since there are no more messages.
@@ -35,19 +35,19 @@ def test_message_subscription(broker):
     # The first message from a Sequential subscription should not skip any messages.
     m = subscription_sequential.get_next_message(0.01)
     assert m is not None
-    assert m.frame_id == 0
+    assert m.message_id == 0
     assert m.payload[0] == 10
 
     # Same for the second message.
     m = subscription_sequential.get_next_message(0.01)
     assert m is not None
-    assert m.frame_id == 1
+    assert m.message_id == 1
     assert m.payload[0] == 11
 
     # Same for the third message.
     m = subscription_sequential.get_next_message(0.01)
     assert m is not None
-    assert m.frame_id == 2
+    assert m.messsage_id == 2
     assert m.payload[0] == 12
 
     # Getting a next message from this subscription should return None, since there are only three messages.
@@ -55,14 +55,14 @@ def test_message_subscription(broker):
         subscription_sequential.get_next_message(0.01)
 
     # Creating a NewestOnly subscription starting at ID 1 should return the newest message (ID 2).
-    subscription_newest2 = broker.subscribe(topic, preferred_next_frame_id=1, mode=MessageSubscriptionMode.NewestOnly)
+    subscription_newest2 = broker.subscribe(topic, preferred_next_message_id=1, mode=MessageSubscriptionMode.NewestOnly)
     m = subscription_newest2.get_next_message(0.01)
-    assert m.frame_id == 2
+    assert m.message_id == 2
 
     # A Sequential subscription starting at ID 1 should return the second message (ID 1).
-    subscription_sequential2 = broker.subscribe(topic, preferred_next_frame_id=1, mode=MessageSubscriptionMode.Sequential)
+    subscription_sequential2 = broker.subscribe(topic, preferred_next_message_id=1, mode=MessageSubscriptionMode.Sequential)
     m = subscription_sequential2.get_next_message(0.01)
-    assert m.frame_id == 1
+    assert m.message_id == 1
 
 dtypes = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64', 'complex64', 'complex128']
 shapes = [[10], [10, 10], [10, 10, 10], [10, 10, 10, 10]]
@@ -119,12 +119,17 @@ def test_message_broker_trace_id(broker):
     topic = "test_message_broker_trace_id"
     data = b'hello world'
 
+    print("PUBLISHING FIRST MESSAGE")
     broker.publish_data(topic, data)
+    print("GETTING FIRST MESSAGE")
     message_1 = broker.get_current_message(topic)
 
+    print("PUBLISHING SECOND MESSAGE")
     broker.publish_data(topic, data * 2)
+    print("GETTING SECOND MESSAGE")
     message_2 = broker.get_current_message(topic)
 
+    print("COMPARING TRACE IDs OF FIRST AND SECOND MESSAGES")
     assert str(message_2.trace_id) != str(message_1.trace_id)
 
     broker.publish_data(topic, data * 3, trace_id=message_1.trace_id)
