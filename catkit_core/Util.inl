@@ -76,18 +76,28 @@ inline unsigned countr_zero(T x) noexcept
 	{
 		return _BitScanForward64(&idx, x) ? idx : 64;
 	}
-	else
+	else if constexpr (sizeof(T) == 4)
 	{
 		return _BitScanForward(&idx, static_cast<unsigned long>(x)) ? idx : 32;
+	}
+	else
+	{
+		// For 1-byte and 2-byte integers, use the 4-byte version
+		return _BitScanForward(&idx, static_cast<unsigned long>(x)) ? idx : (sizeof(T) * 8);
 	}
 #elif defined(__GNUC__) || defined(__clang__)
 	if constexpr (sizeof(T) == 8)
 	{
 		return x ? __builtin_ctzll(x) : 64;
 	}
-	else
+	else if constexpr (sizeof(T) == 4)
 	{
 		return x ? __builtin_ctz(x) : 32;
+	}
+	else
+	{
+		// For 1-byte and 2-byte integers, zero-extend to 4 bytes
+		return x ? __builtin_ctz(static_cast<unsigned int>(x)) : (sizeof(T) * 8);
 	}
 #else
 	// Portable fallback
@@ -117,18 +127,35 @@ inline unsigned countl_zero(T x) noexcept
 	{
 		return _BitScanReverse64(&idx, x) ? (63 - idx) : 64;
 	}
-	else
+	else if constexpr (sizeof(T) == 4)
 	{
 		return _BitScanReverse(&idx, static_cast<unsigned long>(x)) ? (31 - idx) : 32;
+	}
+	else
+	{
+		// For 1-byte and 2-byte integers, adjust result from 4-byte scan
+		if (!_BitScanReverse(&idx, static_cast<unsigned long>(x)))
+			return sizeof(T) * 8;
+		// Calculate how many bits the value was shifted left
+		constexpr unsigned shift = (sizeof(unsigned long) - sizeof(T)) * 8;
+		return (31 - idx) - shift;
 	}
 #elif defined(__GNUC__) || defined(__clang__)
 	if constexpr (sizeof(T) == 8)
 	{
 		return x ? __builtin_clzll(x) : 64;
 	}
-	else
+	else if constexpr (sizeof(T) == 4)
 	{
 		return x ? __builtin_clz(x) : 32;
+	}
+	else
+	{
+		// For 1-byte and 2-byte integers, adjust result from 4-byte builtin
+		if (x == 0)
+			return sizeof(T) * 8;
+		constexpr unsigned shift = (sizeof(unsigned int) - sizeof(T)) * 8;
+		return __builtin_clz(static_cast<unsigned int>(x)) - shift;
 	}
 #else
 	// Portable fallback
