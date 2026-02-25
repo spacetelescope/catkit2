@@ -251,7 +251,7 @@ class PhysikStageController(Service):
             actual = self.pidevice.qPOS()
             for axis_num, pos in actual.items():
                 self.current_positions[axis_num] = pos
-                
+
         self._submit_positions()
 
     def move_relative(self, deltas):

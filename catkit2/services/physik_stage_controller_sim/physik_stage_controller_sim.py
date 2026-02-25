@@ -211,7 +211,7 @@ class PhysikStageControllerSim(Service):
         with self.mutex:
             self.current_positions.update(axis_positions)
 
-        self._submit_positions()    
+        self._submit_positions()
 
     def move_relative(self, deltas):
         """
