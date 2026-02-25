@@ -309,7 +309,7 @@ class PhysikStageController(Service):
             return {name: self.current_positions[axis_num] for name, axis_num in self.axis_map.items()}
 
     def stop_motion(self):
-        """Stop all motion immediately."""
+        """Stop all motion immediately. """
         if not self.is_initialized:
             return
 
