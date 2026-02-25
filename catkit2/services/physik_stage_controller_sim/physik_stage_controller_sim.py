@@ -18,6 +18,8 @@ class PhysikStageControllerSim(Service):
         super().__init__('physik_stage_controller_sim')
 
         self.is_initialized = False
+        self.is_moving = False
+        self.move_event = threading.Event()
 
         # Create lock for simulated device access
         self.mutex = threading.Lock()
@@ -48,13 +50,17 @@ class PhysikStageControllerSim(Service):
         num_axes = len(self.axis_map)
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
         self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
+        self.target_positions_wait = self.make_data_stream('target_positions_wait', 'float64', [num_axes], 20)
 
         # Precompute reverse map for speed
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
 
         # Start the worker thread
         threading.Thread(target=self._target_positions_worker, daemon=True).start()
-        self.log.info("Worker started with 250ms timeout")
+        self.log.info("Worker Target Positions started with 250ms timeout")
+
+        threading.Thread(target=self._target_positions_wait_worker, daemon=True).start()
+        self.log.info("Worker Target Positions Wait started with 250ms timeout")
 
         # Submit initial positions
         self._submit_positions()
@@ -65,7 +71,9 @@ class PhysikStageControllerSim(Service):
 
         # Create commands
         self.make_command('move_to', self.move_to)
+        self.make_command('move_and_wait', self.move_and_wait)
         self.make_command('move_relative', self.move_relative)
+        self.make_command('move_relative_and_wait', self.move_relative_and_wait)
         self.make_command('get_positions', self.get_positions)
         self.make_command('stop_motion', self.stop_motion)
 
@@ -104,10 +112,32 @@ class PhysikStageControllerSim(Service):
             except RuntimeError:
                 pass
 
-    def main(self):
-        """Main loop - run while service is running."""
+    def _target_positions_wait_worker(self):
         while not self.should_shut_down:
+            try:
+                frame = self.target_positions_wait.get_next_frame(wait_time_in_ms=250)
+                data = frame.data
+
+                positions = {
+                    self.axis_num_to_name[num]: float(data[idx])
+                    for idx, num in enumerate(sorted(self.axis_map.values()))
+                }
+                self.move_and_wait(positions)
+
                 self.sleep(0)
+            except RuntimeError:
+                pass
+
+    def main(self):
+        while not self.should_shut_down:
+            self.move_event.wait(timeout=0.25)  # block until a move is signaled
+            if self.move_event.is_set():
+                self.move_event.clear()
+                # In real hardware: poll ONT? here until on target
+                # In sim, moves are instantaneous
+                self.is_moving = False
+                self._submit_positions()
+            self.sleep(0)
 
     def close(self):
         """Close the simulated device connection."""
@@ -118,6 +148,42 @@ class PhysikStageControllerSim(Service):
     def move_to(self, positions):
         """
         Move to absolute positions.
+
+        Parameters
+        ----------
+        positions : dict
+            Dictionary with axis names (e.g., {'x': 10.0, 'y': 20.0})
+        """
+        if not self.is_initialized:
+            self.log.error("Attempted to move before initialization")
+            raise RuntimeError("Controller not initialized")
+
+        if self.is_moving:
+            self.log.warning("move_to called while a move is already in progress")
+
+        # Convert named axes to axis numbers
+        axis_positions = {}
+        for name, value in positions.items():
+            if name in self.axis_map:
+                axis_num = self.axis_map[name]
+                axis_positions[axis_num] = float(value)
+            else:
+                self.log.warning(f"Unknown axis name: {name}")
+
+        if not axis_positions:
+            self.log.error("No valid axis positions to update")
+            return
+
+        # Moves are instantaneous in sim - just update stored positions
+        with self.mutex:
+            self.current_positions.update(axis_positions)
+
+        self.is_moving = True
+        self.move_event.set()
+
+    def move_and_wait(self, positions):
+        """
+        Move to absolute positions and wait for completion.
 
         Parameters
         ----------
@@ -145,7 +211,7 @@ class PhysikStageControllerSim(Service):
         with self.mutex:
             self.current_positions.update(axis_positions)
 
-        self._submit_positions()
+        self._submit_positions()    
 
     def move_relative(self, deltas):
         """
@@ -171,6 +237,31 @@ class PhysikStageControllerSim(Service):
 
         if absolute_positions:
             self.move_to(absolute_positions)
+
+    def move_relative_and_wait(self, deltas):
+        """
+        Move relative to current positions and wait for completion.
+
+        Parameters
+        ----------
+        deltas : dict
+            Dictionary with axis names and relative movements (e.g., {'x': 1.0, 'y': -0.5})
+        """
+        if not self.is_initialized:
+            raise RuntimeError("Controller not initialized")
+
+        # Convert to absolute positions under mutex to avoid racing with move_to
+        absolute_positions = {}
+        with self.mutex:
+            for name, delta in deltas.items():
+                if name in self.axis_map:
+                    axis_num = self.axis_map[name]
+                    absolute_positions[name] = self.current_positions[axis_num] + float(delta)
+                else:
+                    self.log.warning(f"Unknown axis name: {name}")
+
+        if absolute_positions:
+            self.move_and_wait(absolute_positions)
 
     def get_positions(self):
         """

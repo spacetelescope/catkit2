@@ -12,6 +12,8 @@ class PhysikStageController(Service):
 
         self.pidevice = None
         self.is_initialized = False
+        self.is_moving = False
+        self.move_event = threading.Event()
 
         # Create lock for device access
         self.mutex = threading.Lock()
@@ -71,13 +73,17 @@ class PhysikStageController(Service):
         num_axes = len(self.axis_map)
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
         self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
+        self.target_positions_wait = self.make_data_stream('target_positions_wait', 'float64', [num_axes], 20)
 
         # Precompute reverse map for speed
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
 
-        # Start the worker thread
+        # Start the worker threads
         threading.Thread(target=self._target_positions_worker, daemon=True).start()
-        self.log.info("Worker started with 250ms timeout")
+        self.log.info("Worker Target Positions started with 250ms timeout")
+
+        threading.Thread(target=self._target_positions_wait_worker, daemon=True).start()
+        self.log.info("Worker Target Positions Wait started with 250ms timeout")
 
         # Submit initial positions
         self._submit_positions()
@@ -88,7 +94,9 @@ class PhysikStageController(Service):
 
         # Create commands
         self.make_command('move_to', self.move_to)
+        self.make_command('move_and_wait', self.move_and_wait)
         self.make_command('move_relative', self.move_relative)
+        self.make_command('move_relative_and_wait', self.move_relative_and_wait)
         self.make_command('get_positions', self.get_positions)
         self.make_command('stop_motion', self.stop_motion)
 
@@ -125,9 +133,35 @@ class PhysikStageController(Service):
             except RuntimeError:
                 pass
 
-    def main(self):
-        """Main loop - run while service is running."""
+    def _target_positions_wait_worker(self):
         while not self.should_shut_down:
+            try:
+                frame = self.target_positions_wait.get_next_frame(wait_time_in_ms=250)
+                data = frame.data
+
+                positions = {
+                    self.axis_num_to_name[num]: float(data[idx])
+                    for idx, num in enumerate(sorted(self.axis_map.values()))
+                }
+                self.move_and_wait(positions)
+
+                self.sleep(0)
+            except RuntimeError:
+                pass
+
+    def main(self):
+        while not self.should_shut_down:
+            if self.is_moving:
+                with self.mutex:
+                    on_target = all(self.pidevice.qONT().values())
+                if on_target:
+                    self.is_moving = False
+                    self.move_event.clear()
+                    with self.mutex:
+                        actual = self.pidevice.qPOS()
+                        for axis_num, pos in actual.items():
+                            self.current_positions[axis_num] = pos
+                    self._submit_positions()
             self.sleep(0)
 
     def close(self):
@@ -146,7 +180,46 @@ class PhysikStageController(Service):
 
     def move_to(self, positions):
         """
-        Move to absolute positions.
+        Move to absolute positions without waiting for completion.
+        Telemetry is updated asynchronously by the main loop once the stage reaches target.
+
+        Note: Do not call while a move is already in progress. Use move_and_wait if
+        synchronous behavior is required.
+
+        Parameters
+        ----------
+        positions : dict
+            Dictionary with axis names (e.g., {'x': 10.0, 'y': 20.0})
+        """
+        if not self.is_initialized:
+            raise RuntimeError("Controller not initialized")
+
+        if self.is_moving:
+            self.log.warning("move_to called while a move is already in progress")
+
+        # Convert named axes to axis numbers
+        axis_positions = {}
+        for name, value in positions.items():
+            if name in self.axis_map:
+                axis_num = self.axis_map[name]
+                axis_positions[axis_num] = float(value)
+            else:
+                self.log.warning(f"Unknown axis name: {name}")
+
+        if not axis_positions:
+            return
+
+        with self.mutex:
+            self.pidevice.MOV(axis_positions)
+            self.current_positions.update(axis_positions)
+
+        self.is_moving = True
+        self.move_event.set()
+
+    def move_and_wait(self, positions):
+        """
+        Move to absolute positions and wait for completion.
+        Telemetry is updated synchronously before returning.
 
         Parameters
         ----------
@@ -172,14 +245,18 @@ class PhysikStageController(Service):
             self.pidevice.MOV(axis_positions)
             self.current_positions.update(axis_positions)
 
-        # Wait for stage to physically reach target
-        self.wait_on_target(timeout=3)
+        self.wait_on_target(timeout=5)
 
+        with self.mutex:
+            actual = self.pidevice.qPOS()
+            for axis_num, pos in actual.items():
+                self.current_positions[axis_num] = pos
+                
         self._submit_positions()
 
     def move_relative(self, deltas):
         """
-        Move relative to current positions.
+        Move relative to current positions without waiting for completion.
 
         Parameters
         ----------
@@ -189,7 +266,6 @@ class PhysikStageController(Service):
         if not self.is_initialized:
             raise RuntimeError("Controller not initialized")
 
-        # Convert to absolute positions under mutex to avoid racing with main loop qPOS() updates
         absolute_positions = {}
         with self.mutex:
             for name, delta in deltas.items():
@@ -201,6 +277,30 @@ class PhysikStageController(Service):
 
         if absolute_positions:
             self.move_to(absolute_positions)
+
+    def move_relative_and_wait(self, deltas):
+        """
+        Move relative to current positions and wait for completion.
+
+        Parameters
+        ----------
+        deltas : dict
+            Dictionary with axis names and relative movements (e.g., {'x': 1.0, 'y': -0.5})
+        """
+        if not self.is_initialized:
+            raise RuntimeError("Controller not initialized")
+
+        absolute_positions = {}
+        with self.mutex:
+            for name, delta in deltas.items():
+                if name in self.axis_map:
+                    axis_num = self.axis_map[name]
+                    absolute_positions[name] = self.current_positions[axis_num] + float(delta)
+                else:
+                    self.log.warning(f"Unknown axis name: {name}")
+
+        if absolute_positions:
+            self.move_and_wait(absolute_positions)
 
     def get_positions(self):
         """
@@ -222,6 +322,8 @@ class PhysikStageController(Service):
         try:
             with self.mutex:
                 self.pidevice.STP()
+            self.is_moving = False
+            self.move_event.clear()
             self.log.info("Motion stopped")
         except Exception as e:
             self.log.error(f"Error stopping motion: {e}")
