@@ -158,9 +158,6 @@ class PhysikStageControllerSim(Service):
             self.log.error("Attempted to move before initialization")
             raise RuntimeError("Controller not initialized")
 
-        if self.is_moving:
-            self.log.warning("move_to called while a move is already in progress")
-
         # Convert named axes to axis numbers
         axis_positions = {}
         for name, value in positions.items():

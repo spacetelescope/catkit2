@@ -183,9 +183,6 @@ class PhysikStageController(Service):
         Move to absolute positions without waiting for completion.
         Telemetry is updated asynchronously by the main loop once the stage reaches target.
 
-        Note: Do not call while a move is already in progress. Use move_and_wait if
-        synchronous behavior is required.
-
         Parameters
         ----------
         positions : dict
@@ -193,9 +190,6 @@ class PhysikStageController(Service):
         """
         if not self.is_initialized:
             raise RuntimeError("Controller not initialized")
-
-        if self.is_moving:
-            self.log.warning("move_to called while a move is already in progress")
 
         # Convert named axes to axis numbers
         axis_positions = {}
