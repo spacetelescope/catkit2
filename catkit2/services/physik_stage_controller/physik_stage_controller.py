@@ -49,13 +49,12 @@ class PhysikStageController(Service):
         # Initialize stages
         pitools.startup(self.pidevice)
 
-        # Get initial positions from config
         initial_pos = self.config.get('initial_position', None)
 
         # Move to initial positions (if provided)
         if initial_pos:
             axis_positions = {
-                self.axis_map[name]: float(value)
+                str(self.axis_map[name]): float(value)
                 for name, value in initial_pos.items()
                 if name in self.axis_map
             }
@@ -104,7 +103,8 @@ class PhysikStageController(Service):
         """Create a property for an axis."""
         def getter():
             with self.mutex:
-                return self.pidevice.qPOS()[axis_num]
+                # PI device returns string keys
+                return self.pidevice.qPOS()[str(axis_num)]
 
         def setter(value):
             self.move_to({name: float(value)})
@@ -115,8 +115,16 @@ class PhysikStageController(Service):
         """Submit current hardware positions to telemetry stream."""
         with self.mutex:
             actual = self.pidevice.qPOS()
+        
+        # PI device returns string keys, so convert axis numbers to strings
+        sorted_axes = sorted(self.axis_map.values())
+        missing_axes = [num for num in sorted_axes if str(num) not in actual]
+        if missing_axes:
+            self.log.error(f"Missing axes in qPOS() response: {missing_axes}. Available axes: {list(actual.keys())}")
+            raise KeyError(f"Axis {missing_axes[0]} not found in device response. Available: {list(actual.keys())}")
+        
         pos_array = np.array(
-            [actual[num] for num in sorted(self.axis_map.values())],
+            [actual[str(num)] for num in sorted_axes],
             dtype='float64'
         )
         self.positions.submit_data(pos_array)
@@ -205,7 +213,8 @@ class PhysikStageController(Service):
         for name, value in positions.items():
             if name in self.axis_map:
                 axis_num = self.axis_map[name]
-                axis_positions[axis_num] = float(value)
+                # PI device expects string keys
+                axis_positions[str(axis_num)] = float(value)
             else:
                 self.log.warning(f"Unknown axis name: {name}")
 
@@ -240,7 +249,8 @@ class PhysikStageController(Service):
         for name, value in positions.items():
             if name in self.axis_map:
                 axis_num = self.axis_map[name]
-                axis_positions[axis_num] = float(value)
+                # PI device expects string keys
+                axis_positions[str(axis_num)] = float(value)
             else:
                 self.log.warning(f"Unknown axis name: {name}")
 
@@ -277,7 +287,8 @@ class PhysikStageController(Service):
         for name, delta in deltas.items():
             if name in self.axis_map:
                 axis_num = self.axis_map[name]
-                absolute_positions[name] = actual_positions[axis_num] + float(delta)
+                # PI device returns string keys
+                absolute_positions[name] = actual_positions[str(axis_num)] + float(delta)
             else:
                 self.log.warning(f"Unknown axis name: {name}")
 
@@ -306,7 +317,8 @@ class PhysikStageController(Service):
         for name, delta in deltas.items():
             if name in self.axis_map:
                 axis_num = self.axis_map[name]
-                absolute_positions[name] = actual_positions[axis_num] + float(delta)
+                # PI device returns string keys
+                absolute_positions[name] = actual_positions[str(axis_num)] + float(delta)
             else:
                 self.log.warning(f"Unknown axis name: {name}")
 
@@ -328,8 +340,9 @@ class PhysikStageController(Service):
         with self.mutex:
             actual = self.pidevice.qPOS()
 
+        # PI device returns string keys
         return {
-            name: actual[axis_num]
+            name: actual[str(axis_num)]
             for name, axis_num in self.axis_map.items()
         }
 
