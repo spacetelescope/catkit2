@@ -1456,7 +1456,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return py::none();
 			}
 		})
-		.def("set", [](SlotProxy &proxy, py::object value)
+		.def("set", [](SlotProxy &proxy, py::object value, double timeout)
 		{
 			if (proxy.IsReadOnly())
 			{
@@ -1466,12 +1466,12 @@ PYBIND11_MODULE(catkit_bindings, m)
 			switch (proxy.GetDataType())
 			{
 				case SlotDataType::Json:
-					proxy.Set(py::cast<nlohmann::json>(value));
+					proxy.Set(py::cast<nlohmann::json>(value), timeout);
 					break;
 				case SlotDataType::Raw:
 				{
 					py::bytes data = py::cast<py::bytes>(value);
-					proxy.Set(std::string_view(PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr())));
+					proxy.Set(std::string_view(PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr())), timeout);
 					break;
 				}
 				case SlotDataType::Array:
@@ -1498,8 +1498,54 @@ PYBIND11_MODULE(catkit_bindings, m)
 						throw std::runtime_error("Array has to be either C or F contiguous.");
 
 					const ArrayView array_view{info, array.mutable_data()};
-					proxy.Set(array_view);
+					proxy.Set(array_view, timeout);
 					break;
+				}
+				default:
+					throw std::runtime_error("Unknown slot data type");
+			}
+		}, py::arg("value"), py::arg("timeout") = 5.0)
+		.def("set_async", [](SlotProxy &proxy, py::object value) -> Uuid
+		{
+			if (proxy.IsReadOnly())
+			{
+				throw std::runtime_error("Cannot set read-only slot");
+			}
+
+			switch (proxy.GetDataType())
+			{
+				case SlotDataType::Json:
+					return proxy.SetAsync(py::cast<nlohmann::json>(value));
+				case SlotDataType::Raw:
+				{
+					py::bytes data = py::cast<py::bytes>(value);
+					return proxy.SetAsync(std::string_view(PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr())));
+				}
+				case SlotDataType::Array:
+				{
+					py::array array = py::cast<py::array>(value);
+					ArrayInfo info;
+					auto dtype = array.dtype();
+					info.data_type = dtype.kind();
+					info.item_size = dtype.itemsize();
+					info.byte_order = dtype.byteorder();
+
+					if (array.ndim() > MAX_NUM_DIMENSIONS)
+						throw std::runtime_error("Array dimension is too large.");
+
+					info.ndim = array.ndim();
+
+					for (size_t i = 0; i < info.ndim; ++i)
+					{
+						info.shape[i] = array.shape()[i];
+						info.strides[i] = array.strides()[i];
+					}
+
+					if (!info.IsCContiguous() && !info.IsFContiguous())
+						throw std::runtime_error("Array has to be either C or F contiguous.");
+
+					const ArrayView array_view{info, array.mutable_data()};
+					return proxy.SetAsync(array_view);
 				}
 				default:
 					throw std::runtime_error("Unknown slot data type");
