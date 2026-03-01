@@ -83,7 +83,7 @@ and are in the same conda environment:
 
 .. code-block:: shell
 
-   cd my_testbed 
+   cd my_testbed
    pip install -e .
 
 You are now ready to fire up your very own testbed server. To do so without having to have prepared any hardware,
@@ -157,7 +157,8 @@ hardware camera model instead of the simulated version. For this, you need to up
 Once you have made the necessary changes, you can start the server without the ``--simulated`` flag to run it in hardware mode:
 
 .. code-block:: shell
-   my_testbed start server 
+
+   my_testbed start server
 
 It is recommended to add and calibrate hardware services one by one, testing each service by running the server without
 the ``--simulated`` flag to ensure that it is functioning correctly with the real hardware. You might also want to debug
