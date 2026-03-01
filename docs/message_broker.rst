@@ -317,6 +317,7 @@ Entry Structure
 Each entry in the HashMap consists of three fields packed into a contiguous memory region:
 
 * **Flags** (1 byte): An atomic state variable with three possible values:
+
   * **UNOCCUPIED** (0): The entry is available for insertion
   * **INITIALIZING** (1): A thread is currently inserting into this entry
   * **OCCUPIED** (2): The entry contains valid data and is ready for access
