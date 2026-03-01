@@ -51,12 +51,42 @@ Before designing your system, be aware of these limitations:
     The LocalMessageBroker operates only on a single machine. Cross-machine messaging requires additional infrastructure.
 
 **Metadata Limits**
-    Each message can carry up to 12 metadata entries with keys up to 7 characters and string values up to 8 characters.
+    Each message can carry up to 12 metadata entries. Each entry has a key (up to 7 characters) and a value that can be an integer, float, or string (up to 8 characters).
 
 Overview
 ~~~~~~~~
 
 The Message Broker enables communication between different processes using a topic-based publish-subscribe model. Services can publish messages to named topics, and other services can subscribe to those topics to receive the data. This decouples producers from consumers, allowing them to operate independently.
+
+Creating the Broker
+~~~~~~~~~~~~~~~~~~~
+
+To create a Message Broker, you need to provide two memory blocks:
+
+**Header Memory**
+    Stores message headers, topic headers, and allocator metadata. The size depends on the expected number of concurrent messages and topics. As a rule of thumb:
+
+    * Minimum: 1 MB (suitable for testing with few topics)
+    * Typical: 10-50 MB (for production systems with many topics)
+    * Each message header requires approximately 256 bytes
+    * Each topic requires approximately 512 bytes plus the topic header
+
+**Payload Memory**
+    Stores the actual message data. Size this based on your data throughput and message sizes:
+
+    * Calculate: (max_message_size × max_concurrent_messages × safety_factor)
+    * For camera images: (width × height × bytes_per_pixel × 32 messages) per camera
+    * Include overhead for fragmentation (buddy allocator overhead ~50% worst case)
+    * Multiple payload memory blocks can be used for different memory types (e.g., GPU memory)
+
+**Example Sizing**
+
+For a system with 10 cameras producing 1 MP images (4 MB each) at 30 Hz:
+
+* Header memory: ~10 MB (handles ~1000 concurrent messages across all topics)
+* Payload memory: ~1.25 GB (10 cameras × 4 MB × 32 messages)
+
+You can create multiple brokers if you need to isolate different subsystems, though typically one broker is shared across all services.
 
 Key Concepts
 ~~~~~~~~~~~~
@@ -64,7 +94,13 @@ Key Concepts
 Topics
 ^^^^^^
 
-Messages are organized into topics, which are identified by hierarchical names using forward slashes as separators. For example, ``camera1/images/get`` represents a topic for raw images from camera 1. The hierarchical structure allows for flexible subscription patterns.
+Messages are organized into topics, which are identified by hierarchical names using forward slashes as separators. For example, ``camera1/images/get`` represents a topic for raw images from camera 1.
+
+**Hierarchical Publishing**
+    When a message is published to a topic, it is automatically published to all parent topics in the hierarchy. A message published to ``camera1/images/get`` will also be visible on ``camera1/images`` and ``camera1``. This allows consumers to subscribe to broad categories or specific subtopics.
+
+**Exact Match Subscriptions**
+    Subscriptions use exact topic matching. To receive messages from ``camera1/images/get``, you must subscribe to exactly that topic. Wildcards or pattern matching are not supported. Use the hierarchical publishing feature to aggregate messages at parent topic levels instead.
 
 Messages
 ^^^^^^^^
@@ -104,6 +140,9 @@ The MessageBroker Interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The MessageBroker class defines the abstract interface for all message broker implementations. It provides methods for publishing data and creating subscriptions.
+
+**Concrete Implementation**
+    In practice, you will use ``LocalMessageBroker``, the concrete implementation that operates within shared memory on a single machine. All code examples in this documentation use ``LocalMessageBroker.create()`` to instantiate the broker. The abstract interface is documented to clarify the separation between the user-facing API and the implementation details covered in Part 2.
 
 Publishing Data
 ^^^^^^^^^^^^^^^
@@ -215,7 +254,9 @@ Advanced Message Handling
 Part 2: Implementation Details
 ------------------------------
 
-This section describes the internal implementation of the LocalMessageBroker. It is intended for developers who want to understand how the Message Broker achieves high performance and thread safety.
+This section describes the internal implementation of the LocalMessageBroker. It is intended for developers who want to understand how the concepts from Part 1 are implemented to achieve high performance and thread safety.
+
+The implementation centers around four key data structures: the HashMap for topic lookup, the PoolAllocator for message headers, the BuddyAllocator for large memory blocks, and the HybridPoolAllocator for message payloads. These components work together using lock-free algorithms to enable efficient concurrent access.
 
 Architecture Overview
 ~~~~~~~~~~~~~~~~~~~~~
@@ -302,6 +343,15 @@ The PoolAllocator manages fixed-size blocks of memory using a lock-free concurre
 
 The allocator maintains a linked list of free blocks accessed atomically via compare-and-swap operations. Each block has a reference count to ensure memory is only reclaimed when all references are released. This provides O(1) allocation and deallocation performance.
 
+The PoolAllocator is designed with the following characteristics:
+
+* **Fixed block size**: All blocks are the same size (message headers are fixed at ~512 bytes)
+* **No splitting or coalescing**: Blocks are never subdivided or merged
+* **O(1) operations**: Both allocation and deallocation are constant time
+* **Lock-free**: Uses compare-and-swap on a shared stack head
+* **Reference counting**: Each block tracks how many users hold references
+* **LIFO reuse**: Freed blocks are pushed onto the stack for immediate reuse
+
 The BuddyAllocator
 ~~~~~~~~~~~~~~~~~~
 
@@ -309,12 +359,32 @@ The BuddyAllocator implements the buddy system memory allocation algorithm with 
 
 Memory is represented as a binary tree where each node tracks occupation state and reference counts in a packed 16-bit atomic integer. Allocation uses a rotating search pattern to distribute memory evenly and reduce contention. Deallocation employs a three-phase coalescing protocol to safely merge adjacent free blocks while preventing race conditions.
 
+The BuddyAllocator is designed with the following characteristics:
+
+* **Variable block sizes**: Supports allocations from minimum size up to total capacity, all powers of two
+* **Binary tree structure**: Memory is organized as a binary tree for efficient splitting and coalescing
+* **Bounded fragmentation**: Internal fragmentation is at most 50% (worst case: request just over power of two)
+* **O(log n) operations**: Tree depth determines allocation/deallocation time
+* **Lock-free tree updates**: Uses atomic operations on packed 16-bit state words
+* **Rotating search**: Distributes allocations across memory to reduce contention
+* **Three-phase coalescing**: Safely merges adjacent free blocks without locks
+
 The HybridPoolAllocator
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 The HybridPoolAllocator combines a bitmap allocator and a buddy allocator to optimize for frequent allocations of a similar size by the same thread.
 
 Small allocations (below a configurable threshold) are served from thread-local pools, while larger allocations are delegated to the BuddyAllocator. Each pool contains 64 slots tracked by a bitmap. Thread-local buckets minimize contention by allowing threads to allocate from their own pools without synchronization.
+
+The HybridPoolAllocator is designed with the following characteristics:
+
+* **Two-tier allocation**: Small allocations use thread-local pools; large allocations use BuddyAllocator
+* **Configurable threshold**: The split between small and large is configurable at creation time
+* **Bitmap tracking**: Each 64-slot pool uses a 64-bit bitmap for O(1) slot lookup
+* **Thread-local buckets**: Each thread maintains its own pools to eliminate contention
+* **Composite handles**: Unified handle space for both pooled and buddy allocations
+* **Lazy pool deallocation**: Empty pools are returned to the BuddyAllocator only when all slots are freed
+* **Pool reuse**: Freed slots return their pool to the thread-local bucket for immediate reuse
 
 Thread Safety
 ~~~~~~~~~~~~~
