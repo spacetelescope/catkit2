@@ -39,7 +39,6 @@ class PhysikStageControllerSim(Service):
         num_axes = len(self.axis_map)
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
         self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
-        self.target_positions_wait = self.make_data_stream('target_positions_wait', 'float64', [num_axes], 20)
 
         # Precompute reverse map
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
@@ -47,8 +46,6 @@ class PhysikStageControllerSim(Service):
         # Start worker threads
         threading.Thread(target=self._target_positions_worker, daemon=True).start()
         self.log.info("Worker Target Positions started")
-        threading.Thread(target=self._target_positions_wait_worker, daemon=True).start()
-        self.log.info("Worker Target Positions Wait started")
 
         # Submit initial positions
         self._submit_positions()
@@ -59,7 +56,7 @@ class PhysikStageControllerSim(Service):
 
         # Create commands
         self.make_command('move_to', self.move_to_wrapper)
-        self.make_command('move_and_wait', self.move_and_wait_wrapper)
+        self.make_command('move_and_wait', self.move_and_wait)
         self.make_command('move_relative', self.move_relative)
         self.make_command('move_relative_and_wait', self.move_relative_and_wait)
         self.make_command('get_positions', self.get_positions)
@@ -101,21 +98,6 @@ class PhysikStageControllerSim(Service):
             except RuntimeError:
                 pass
 
-    def _target_positions_wait_worker(self):
-        """Worker thread for move_and_wait data stream."""
-        while not self.should_shut_down:
-            try:
-                frame = self.target_positions_wait.get_next_frame(wait_time_in_ms=250)
-                data = frame.data
-                positions = {
-                    self.axis_num_to_name[num]: float(data[idx])
-                    for idx, num in enumerate(sorted(self.axis_map.values()))
-                }
-                self.move_and_wait(positions)
-                self.sleep(0)
-            except RuntimeError:
-                pass
-
     def main(self):
         """Main loop - in sim moves are instantaneous so is_moving is always immediately false."""
         while not self.should_shut_down:
@@ -148,11 +130,6 @@ class PhysikStageControllerSim(Service):
             self.is_moving = True
             self.move_event.set()
 
-    def move_and_wait_wrapper(self, positions):
-        """Wrapper for move_and_wait command to submit target positions to the data stream."""
-        target_move = np.array([positions[name] for name in sorted(self.axis_map.keys())], dtype=np.float64)
-        self.target_positions_wait.submit_data(target_move)
-
     def move_and_wait(self, positions):
         """Move to absolute positions and wait (instantaneous)."""
         self.move_to(positions)
@@ -168,7 +145,7 @@ class PhysikStageControllerSim(Service):
                 for name, delta in deltas.items() if name in self.axis_map
             }
         if absolute_positions:
-            self.move_to(absolute_positions)
+            self.move_to_wrapper(absolute_positions)
 
     def move_relative_and_wait(self, deltas):
         """Move relative to current positions and wait (instantaneous)."""

@@ -49,12 +49,13 @@ class PhysikStageController(Service):
         # Initialize stages
         pitools.startup(self.pidevice)
 
+        # Get initial positions from config
         initial_pos = self.config.get('initial_position', None)
 
         # Move to initial positions (if provided)
         if initial_pos:
             axis_positions = {
-                str(self.axis_map[name]): float(value)
+                self.axis_map[name]: float(value)
                 for name, value in initial_pos.items()
                 if name in self.axis_map
             }
@@ -70,7 +71,7 @@ class PhysikStageController(Service):
         num_axes = len(self.axis_map)
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
         self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
-        self.target_positions_wait = self.make_data_stream('target_positions_wait', 'float64', [num_axes], 20)
+        # self.target_positions_wait = self.make_data_stream('target_positions_wait', 'float64', [num_axes], 20)
 
         # Precompute reverse map for speed
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
@@ -78,9 +79,6 @@ class PhysikStageController(Service):
         # Start the worker threads
         threading.Thread(target=self._target_positions_worker, daemon=True).start()
         self.log.info("Worker Target Positions started with 250ms timeout")
-
-        threading.Thread(target=self._target_positions_wait_worker, daemon=True).start()
-        self.log.info("Worker Target Positions Wait started with 250ms timeout")
 
         # Submit initial positions
         self._submit_positions()
@@ -91,7 +89,7 @@ class PhysikStageController(Service):
 
         # Create commands
         self.make_command('move_to', self.move_to_wrapper)
-        self.make_command('move_and_wait', self.move_and_wait_wrapper)
+        self.make_command('move_and_wait', self.move_and_wait)
         self.make_command('move_relative', self.move_relative)
         self.make_command('move_relative_and_wait', self.move_relative_and_wait)
         self.make_command('get_positions', self.get_positions)
@@ -103,8 +101,7 @@ class PhysikStageController(Service):
         """Create a property for an axis."""
         def getter():
             with self.mutex:
-                # PI device returns string keys
-                return self.pidevice.qPOS()[str(axis_num)]
+                return self.pidevice.qPOS()[axis_num]
 
         def setter(value):
             self.move_to({name: float(value)})
@@ -115,16 +112,8 @@ class PhysikStageController(Service):
         """Submit current hardware positions to telemetry stream."""
         with self.mutex:
             actual = self.pidevice.qPOS()
-        
-        # PI device returns string keys, so convert axis numbers to strings
-        sorted_axes = sorted(self.axis_map.values())
-        missing_axes = [num for num in sorted_axes if str(num) not in actual]
-        if missing_axes:
-            self.log.error(f"Missing axes in qPOS() response: {missing_axes}. Available axes: {list(actual.keys())}")
-            raise KeyError(f"Axis {missing_axes[0]} not found in device response. Available: {list(actual.keys())}")
-        
         pos_array = np.array(
-            [actual[str(num)] for num in sorted_axes],
+            [actual[num] for num in sorted(self.axis_map.values())],
             dtype='float64'
         )
         self.positions.submit_data(pos_array)
@@ -141,23 +130,6 @@ class PhysikStageController(Service):
                     for idx, num in enumerate(sorted(self.axis_map.values()))
                 }
                 self.move_to(positions)
-
-                self.sleep(0)
-            except RuntimeError:
-                pass
-
-    def _target_positions_wait_worker(self):
-        """Worker thread to handle move_and_wait commands from the target_positions_wait data stream."""
-        while not self.should_shut_down:
-            try:
-                frame = self.target_positions_wait.get_next_frame(wait_time_in_ms=250)
-                data = frame.data
-
-                positions = {
-                    self.axis_num_to_name[num]: float(data[idx])
-                    for idx, num in enumerate(sorted(self.axis_map.values()))
-                }
-                self.move_and_wait(positions)
 
                 self.sleep(0)
             except RuntimeError:
@@ -191,7 +163,7 @@ class PhysikStageController(Service):
 
     def move_to_wrapper(self, positions):
         """Wrapper for move_to command to submit target positions to the data stream."""
-        target_move = np.array([positions['x'], positions['y']], dtype=np.float64)
+        target_move = np.array([positions[name] for name in sorted(self.axis_map.keys())], dtype=np.float64)
         self.target_positions.submit_data(target_move)
 
     def move_to(self, positions):
@@ -213,8 +185,7 @@ class PhysikStageController(Service):
         for name, value in positions.items():
             if name in self.axis_map:
                 axis_num = self.axis_map[name]
-                # PI device expects string keys
-                axis_positions[str(axis_num)] = float(value)
+                axis_positions[axis_num] = float(value)
             else:
                 self.log.warning(f"Unknown axis name: {name}")
 
@@ -227,10 +198,6 @@ class PhysikStageController(Service):
         self.is_moving = True
         self.move_event.set()
 
-    def move_and_wait_wrapper(self, positions):
-        """Wrapper for move_and_wait command to submit target positions to the data stream."""
-        target_move = np.array([positions['x'], positions['y']], dtype=np.float64)
-        self.target_positions_wait.submit_data(target_move)
 
     def move_and_wait(self, positions):
         """
@@ -249,8 +216,7 @@ class PhysikStageController(Service):
         for name, value in positions.items():
             if name in self.axis_map:
                 axis_num = self.axis_map[name]
-                # PI device expects string keys
-                axis_positions[str(axis_num)] = float(value)
+                axis_positions[axis_num] = float(value)
             else:
                 self.log.warning(f"Unknown axis name: {name}")
 
@@ -287,13 +253,13 @@ class PhysikStageController(Service):
         for name, delta in deltas.items():
             if name in self.axis_map:
                 axis_num = self.axis_map[name]
-                # PI device returns string keys
-                absolute_positions[name] = actual_positions[str(axis_num)] + float(delta)
+                absolute_positions[name] = actual_positions[axis_num] + float(delta)
             else:
                 self.log.warning(f"Unknown axis name: {name}")
 
         if absolute_positions:
-            self.move_to(absolute_positions)
+            target_move = np.array([absolute_positions[name] for name in sorted(self.axis_map.keys())], dtype=np.float64)
+            self.target_positions.submit_data(target_move)
 
     def move_relative_and_wait(self, deltas):
         """
@@ -317,8 +283,7 @@ class PhysikStageController(Service):
         for name, delta in deltas.items():
             if name in self.axis_map:
                 axis_num = self.axis_map[name]
-                # PI device returns string keys
-                absolute_positions[name] = actual_positions[str(axis_num)] + float(delta)
+                absolute_positions[name] = actual_positions[axis_num] + float(delta)
             else:
                 self.log.warning(f"Unknown axis name: {name}")
 
@@ -340,9 +305,8 @@ class PhysikStageController(Service):
         with self.mutex:
             actual = self.pidevice.qPOS()
 
-        # PI device returns string keys
         return {
-            name: actual[str(axis_num)]
+            name: actual[axis_num]
             for name, axis_num in self.axis_map.items()
         }
 
