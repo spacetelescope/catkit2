@@ -2,6 +2,7 @@ import threading
 import time
 import os
 import numpy as np
+import logging
 
 from catkit2.testbed.service import Service
 from catkit2.testbed.tracing import trace_interval
@@ -57,6 +58,7 @@ class ZwoCamera(Service):
     def open(self):
         # Attempt to find USB camera.
         num_cameras = zwoasi.get_num_cameras()
+        self.log.debug('number of detected cameras: %s', num_cameras)
         if num_cameras == 0:
             raise RuntimeError("Not a single ZWO camera is connected.")
 
@@ -65,6 +67,7 @@ class ZwoCamera(Service):
 
         for i in range(num_cameras):
             device_name = zwoasi._get_camera_property(i)['Name']
+            self.log.debug('device_name: %s', device_name)
 
             if not device_name.startswith(expected_device_name):
                 continue
