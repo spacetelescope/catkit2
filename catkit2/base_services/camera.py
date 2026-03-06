@@ -181,10 +181,10 @@ class CameraService(Service):
             The transformed x and y coordinates for their location in camera array coordinates. If there is no rotation
             or flip in x or y, then this returns the same x, y values that are input.
         """
-        # Define the translation matrix T_center to get to the center of the ROI.
+        # Define the translation matrix T_center to get to the center of the sensor.
         T_center = np.zeros((3, 3))
         np.fill_diagonal(T_center, 1)
-        if inverse and self.rot90:
+        if not inverse and self.rot90:
             T_center[0][-1] = -self.sensor_height / 2
             T_center[1][-1] = -self.sensor_width / 2
         else:
@@ -221,7 +221,7 @@ class CameraService(Service):
         T_back = np.eye(3, 3)
 
         # If forward with rotation, or if inverse without rotation.
-        if (self.rot90 and not inverse) or (not self.rot90 and inverse):
+        if inverse and self.rot90:
             # Want to come back to new origin for which the height/width dimensions will be flipped if rotated.
             T_back[0][-1] = self.sensor_height / 2
             T_back[1][-1] = self.sensor_width / 2
@@ -233,10 +233,10 @@ class CameraService(Service):
         # Translate to ROI center, rotate, flip in x then in y,
         # and finally translate back to origin.
         coords = [x, y, 1]
-        new_coords = np.linalg.multi_dot([T_back, Y, X, R, T_center, coords])
-
         if inverse:
             new_coords = np.linalg.multi_dot([T_back, R.T, Y, X, T_center, coords])
+        else:
+            new_coords = np.linalg.multi_dot([T_back, Y, X, R, T_center, coords])
 
         return int(np.round(new_coords[0])), int(np.round(new_coords[1]))
 
