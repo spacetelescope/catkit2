@@ -55,8 +55,12 @@ class CameraService(Service):
         self.height = self.config.get('height', self.sensor_height)
         self.log.info('Configured ROI width: {}, height: {}'.format(self.width, self.height))
 
-        self.offset_x = self.config.get('offset_x', 0)
-        self.offset_y = self.config.get('offset_y', 0)
+        self._offset_x = self.config.get('offset_x', 0)
+        self._offset_y = self.config.get('offset_y', 0)
+
+        self.offset_x = self._offset_x
+        self.offset_y = self._offset_y
+
         self.log.info('Configured offsets x: {}, y: {}'.format(self.offset_x, self.offset_y))
 
         # Note that transform_offset() must be called before updating the values of self.width and self.height.
@@ -288,29 +292,29 @@ class CameraService(Service):
     def offset_x(self):
         camera_offset_x = self.get_roi_offset_x()
         camera_offset_y = self.get_roi_offset_y()
-
         offset_x, _ = self.transform_offset(camera_offset_x, camera_offset_y, inverse=True)
-
-        return int(offset_x)
+        return offset_x
 
     @offset_x.setter
     def offset_x(self, offset_x):
-        camera_offset_x, _ = self.transform_offset(offset_x, self.offset_y)
+        self._offset_x = offset_x
+        camera_offset_x, camera_offset_y = self.transform_offset(self._offset_x, self._offset_y)
         self.set_roi_offset_x(camera_offset_x)
+        self.set_roi_offset_y(camera_offset_y)
 
     @property
     def offset_y(self):
         camera_offset_x = self.get_roi_offset_x()
         camera_offset_y = self.get_roi_offset_y()
-
         _, offset_y = self.transform_offset(camera_offset_x, camera_offset_y, inverse=True)
-
-        return int(offset_y)
+        return offset_y
 
     @offset_y.setter
     def offset_y(self, offset_y):
-        _, camera_offset_y = self.transform_offset(self.offset_x, offset_y)
+        self._offset_y = offset_y
+        camera_offset_x, camera_offset_y = self.transform_offset(self._offset_x, self._offset_y)
         self.set_roi_offset_y(camera_offset_y)
+        self.set_roi_offset_x(camera_offset_x)
 
     @property
     def sensor_width(self):
