@@ -76,6 +76,10 @@ class CameraService(Service):
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
+        x, y = self.transform_offset(self._offset_x, self._offset_y)
+        x_back, y_back = self.transform_offset(x, y, inverse=True)
+        assert x_back == self._offset_x and y_back == self._offset_y, f"Inverse transform test returned {(x_back, y_back)}, was expecting {(self._offset_x, self._offset_y)}"
+
         def make_property_helper(property_name, read_only=False, requires_stopped_acquisition=False, dtype=None):
             if dtype is None:
                 dtype = ''
