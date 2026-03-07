@@ -41,6 +41,7 @@ Catkit2
    services/nkt_superk_fianium
    services/oceanoptics_spectrometer
    services/omega_ithx_w3
+   services/optical_fiber_switch
    services/phasics_cam
    services/physik_stage_controller
    services/safety_manual_check
@@ -49,6 +50,7 @@ Catkit2
    services/thorlabs_cld101x
    services/thorlabs_cube_motor_kinesis
    services/thorlabs_fw102c
+   services/thorlabs_mcls1
    services/thorlabs_mff101
    services/thorlabs_pm
    services/thorlabs_tsp01

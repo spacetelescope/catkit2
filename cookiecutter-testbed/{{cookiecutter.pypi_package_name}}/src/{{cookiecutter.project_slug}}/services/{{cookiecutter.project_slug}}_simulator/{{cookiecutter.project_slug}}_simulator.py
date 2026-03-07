@@ -24,8 +24,8 @@ class {{cookiecutter.project_slug.capitalize()}}Simulator(Simulator):
         image = image.astype('float32')
 
         try:
-            self.testbed.detector.images.update_parameters('float32', image.shape, 20)
-            self.testbed.detector.images.submit_data(image)
+            self.testbed.sample_camera.images.update_parameters('float32', image.shape, 20)
+            self.testbed.sample_camera.images.submit_data(image)
         except Exception as e:
             self.log.error(str(e))
 

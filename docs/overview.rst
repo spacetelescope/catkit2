@@ -4,32 +4,72 @@ Overview
 Architecture
 ------------
 
-Catkit2 uses a service-oriented architecture to operate the testbed. A Service can operate a hardware device, or perform more complex operations with other services such as control loops or safety mechanisms. Each service runs on a separate process to promote concurrent high-speed operations, and exposes an API to the outside world using either a slow server-client protocol, used for setting and getting parameters or execute methods, or a high-speed low-latency data stream, for example used for sharing camera images or deformable mirror commands. Services are managed by the Testbed. The Testbed can start and stop services, manages configuration files and provides service discovery to allow scripts and other services to find services.
+Catkit2 uses a service-oriented architecture to operate testbeds. A Service can operate a hardware device or perform complex operations using other services, such as control loops or safety mechanisms. Each service runs in a separate process to enable high-speed concurrent operations and exposes an API for external communication. This API supports setting and getting parameters, executing methods (such as setting camera exposure time or starting acquisition), and high-speed, low-latency data sharing (such as camera images or deformable mirror commands).
 
-Communication with the Testbed and Services are handled using proxy objects, available from both C++ and Python. These seamlessly proxy any setting and getting of properties, executing methods or accessing data streams to the required process. All explicit communication is hidden from the user.
+Services are managed by a Testbed object, which can start and stop services, manage configuration files, and provide service discovery. This allows scripts and other services to locate and interact with each other.
 
-Service API specification
+Communication with the Testbed and Services is handled using proxy objects, available in both C++ and Python. These proxies seamlessly handle property access, method execution, and data stream operations across processes, hiding all communication details from the user.
+
+Service API Specification
 -------------------------
 
-The API of a Service consists of three different types of objects, accessed via their name (a string). The three different types are described below:
+Each Service API consists of three types of objects, accessed by name (a string):
 
-Property
-~~~~~~~~
-
-This object provides (optionally) a setter and a getter. The data type can be either a None, an integer, a floating point number, a string, a boolean or an N-dimensional array, or any nested list or dictionary combination of these. An example of a property is the exposure time or the region of interest of a camera. In C++ accessing properties is done via `service->GetProperty("exposure_time")` and `service->SetProperty("exposure_time", 100)`. In Python, properties are converted into Python properties and can be accessed as an attribute as `service.exposure_time = 100`.
-
-Command
-~~~~~~~
-
-Commands can be called with named arguments (keyword arguments in Python). Again, these arguments can be either None, an integer, a floating point number, a string, a boolean or an N-dimensional array, or any nested list or dictionary combination of these. An example of a command is to start acquisition of a certain camera, or to blink the LED of a device on the testbed.
-
-DataStream
+Properties
 ~~~~~~~~~~
 
-This object is a rolling buffer of fixed-size arrays. These arrays (or "DataFrame"s as they are called in catkit2) can be submitted to the data stream, at which point they are given a unique ID and appended to the end of the rolling buffer. DataStreams are located in shared memory, and are designed to be extremely fast. Data frames can be accessed directly as the underlying memory is shared between processes. No information is exchanged with the server during this. DataStreams provide the backbone of high-speed communication between services and clients in catkit2.
+Properties provide optional getter and setter functionality. Supported data types include:
 
-Data streams provide simultaneous access to data published by services. This allows for, for example, a camera to publish images on a data stream, which is then accessed by the main adaptive optics process, a process that performs some long-term post-processing on the data, a process that logs the taken images to disk and the graphical user interface, all running concurrently with little communication overhead.
+* None
+* Integers
+* Floating-point numbers
+* Strings
+* Booleans
+* N-dimensional arrays
+* Nested combinations of the above types
 
-Testbed clients can both read and write to a data stream. This allows for, for example, the adaptive optics process to write its deformable mirror (DM) commands to a data stream, which is the accessed by both the DM service to apply the shape on the DM, and a graphical user interface to provide feedback to the user.
+Examples of properties include camera exposure time and region of interest.
 
-Benchmarks for data streams can be found :ref:`here<benchmarks_data_streams>`.
+**C++:**
+
+.. code-block:: cpp
+
+    service->GetProperty("exposure_time")
+    service->SetProperty("exposure_time", 100)
+
+**Python:**
+
+Properties are mapped to Python attributes for intuitive access:
+
+.. code-block:: python
+
+    service.exposure_time = 100
+
+Commands
+~~~~~~~~
+
+Commands are callable methods that accept named arguments. Like properties, command arguments support the same data types (integers, floats, strings, booleans, arrays, and nested structures).
+
+Examples include starting camera acquisition or blinking a device LED.
+
+Data Streams
+~~~~~~~~~~~~
+
+Data Streams are rolling buffers of fixed-size arrays called DataFrames. When data is submitted to a stream, it receives a unique ID and is appended to the buffer. Data Streams reside in shared memory and are designed for extremely fast access, achieving single-digit microsecond latencies.
+
+Since Data Streams use shared memory, data can be accessed directly across processes without involving the Testbed server, enabling efficient high-speed communication between services and their proxies.
+
+Key features of Data Streams:
+
+* **Simultaneous access:** Multiple processes can read from a single Data Stream concurrently. For example, a camera can publish images that are simultaneously consumed by:
+  
+  * An adaptive optics process
+  * A long-term post-processing pipeline
+  * A logging process for disk storage
+  * A graphical user interface
+
+* **Concurrent read/write:** Any number of readers and writers can access a Data Stream simultaneously. For instance, an adaptive optics process can write deformable mirror (DM) commands to a stream, which are then read by both the DM service (to apply the shape) and a GUI (to provide user feedback).
+
+All processes run concurrently with minimal communication overhead.
+
+See :ref:`benchmarks_data_streams` for performance measurements.

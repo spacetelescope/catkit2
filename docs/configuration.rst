@@ -4,48 +4,67 @@ Configuration
 Overview
 --------
 
-All configuration files are read in by the testbed server upon startup. The testbed state is the authorative representation of a configuration and all systems refer to this authorative copy to receive their relevant portion of the configuration. The configuration is a nested key-value pairs and arrays, similar to JSON. This is no coincidence as JSON is used as the underlying format for distribution of the configuration from the server to services or clients.
+Configuration files are read by the testbed server upon startup. The testbed state serves as the authoritative representation of the configuration, and all systems reference this authoritative copy to receive their relevant portions. The configuration consists of nested key-value pairs and lists, similar to JSON. This similarity is not surprising because JSON serves as the underlying format for distributing the configuration from the server to services and clients.
 
-The configuration files themselves live as YAML files spread out over a number of directories. These directories are given as an ordered list on server startup, with directories later in the list overwriting individual settings earlier on the list. This allows the user to locally overwrite configurations made by earlier configuration directories. This behaviour is akin to configuration layering.
+Configuration files are stored as YAML files across multiple directories. These directories are provided as an ordered list during server startup, with directories later in the list overriding settings from earlier directories. This enables local customization of configurations through a layering mechanism.
 
-Each individual configuration YAML file gets its own section in the final configuration dictionary, named after the filename of the YAML file. Section names can be any arbitrary string (as allowed within YAML/JSON). Several section names are special and are used for testbed server operation.
+Each YAML configuration file becomes a section in the final configuration dictionary, named after the filename. Section names can be any valid YAML/JSON string. Several section names have special significance for testbed server operation.
 
-Comments are allowed in YAML files, and start with ``#``. Comments are not available from services or clients, and only appear in the original YAML files.
+YAML files support comments starting with ``#``. Comments exist only in the YAML files and are not available to services or clients.
 
-Path names can be both relative or absolute paths. You can prepend relative paths with a ``!path`` directive to resolve the path relative to the directory of the YAML configuration file. An example:
+Path Handling
+-------------
 
-.. code-block:: YAML
+Paths can be either relative or absolute. Relative paths may be prefixed with ``!path`` to resolve them relative to the YAML file's directory:
+
+.. code-block:: yaml
 
     gain_map_fname: !path ../data/boston/gain_map_140V_2020-03-02T16-29-41.fits
     ffmpeg_path: "C:/ffmpeg/bin/ffmpeg.exe"
 
-Of course, relative paths are prefered due to their compatibility on the computers of other users of the testbed.
+Relative paths are preferred for cross-platform compatibility.
 
-Special sections
------------------
+Special Sections
+----------------
 
-Several sections are used internally by the testbed service and simulator. These are:
+Several sections are reserved for internal use by the testbed service and simulator:
 
-- ``services.yml``. This section describes all information and accompanying configuration for all services, so that the server can start them. This information may include ip addresses, motor names, default camera subarrays, serial numbers, etc... Anything that can be kept in a JSON format can be put in the configuration.
+services.yml
+~~~~~~~~~~~~
 
-- ``testbed.yaml``. This section defines all parameters for operation of the testbed server. This includes, among other things, the default port number, the paths where service types can be found, and directory paths for output of experiment data. Additionally, this is used to signify the service types of the simulator and the testbed safety services.
+Contains information and configuration for all services, enabling the server to start them. This includes IP addresses, motor names, default camera subarrays, serial numbers, and any other JSON-serializable data.
 
-- ``simulator.yml``. This special directory is used by the simulator and typically contains all parameters used to match testbed hardware with the simulator (eg. optical magnifications, coronagraph mask parameters, inclinations of optical elements, camera pixel sizes and focal lengths of mirrors and lenses). This provides a clear separation between hardware and simulator.
+testbed.yaml
+~~~~~~~~~~~~
+
+Defines parameters for testbed server operation, including:
+
+* Default port number
+* Service type search paths
+* Output directory paths for experiment data
+* Service types for the simulator and testbed safety services
+
+simulator.yml
+~~~~~~~~~~~~~
+
+Contains simulator-specific parameters used to align the simulator with testbed hardware (optical magnifications, coronagraph mask parameters, optical element inclinations, camera pixel sizes, focal lengths of mirrors and lenses). This maintains a clear separation between hardware and simulator configurations.
 
 Distribution
 ------------
 
-The full configuration, including all sections, is available from any testbed client.
+The full configuration is available through any testbed proxy:
 
-.. code-block:: Python
+.. code-block:: python
 
     testbed = TestbedProxy('127.0.0.1', 8080)
     print(testbed.configuration)
     # Prints {'services': ['boston_dm': ....]}
 
-Whenever a service starts, it receives its own configuration from the server as part of the connection handshake. It therefore has no access to any configuration values from other services. This is an intentional decision to make it harder to use configuration values defined outside of your own service. If access to those is required (again, not recommended), a service can create its own testbed client to obtain it.
+When a service starts, it receives its configuration from the server during the connection handshake. The configuration is accessible within the service via ``self.config``. Services have direct access only to their own configuration values. This design prevents accidental dependencies on other services' configurations.
 
-.. code-block:: Python
+If access to other services' configurations is necessary (not recommended), use the testbed proxy:
+
+.. code-block:: python
 
     class OwnService(Service):
         def __init__(self, ...):
@@ -55,8 +74,7 @@ Whenever a service starts, it receives its own configuration from the server as 
             print(self.config)
             # Prints only the configuration for our service
 
-            testbed = TestbedProxy('127.0.0.1', self.server_port)
-            print(testbed.config)
+            print(self.testbed.config)
             # Prints the whole configuration.
 
-As the configuration files are distributed over a number of directories, it is strongly recommended that no process obtains the testbed configuration directly from those files, rather than from the testbed server.
+Since configuration files are distributed across multiple directories, use testbed proxies rather than reading configuration files directly.
