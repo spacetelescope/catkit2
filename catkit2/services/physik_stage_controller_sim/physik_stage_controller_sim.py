@@ -70,7 +70,10 @@ class PhysikStageControllerSim(Service):
             return self.hardware_positions[axis_num]
 
         def setter(value):
-            self.move_to({name: float(value)})
+            with self.mutex:
+                positions = {n: self.hardware_positions[num] for n, num in self.axis_map.items()}
+            positions[name] = float(value)
+            self.move_to_wrapper(positions)
 
         self.make_property(f'position_{name}', getter, setter)
 

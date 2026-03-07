@@ -106,7 +106,11 @@ class PhysikStageController(Service):
                 return self.pidevice.qPOS()[str(axis_num)]
 
         def setter(value):
-            self.move_to({name: float(value)})
+            with self.mutex:
+                actual = self.pidevice.qPOS()
+            positions = {n: actual[str(num)] for n, num in self.axis_map.items()}
+            positions[name] = float(value)
+            self.move_to_wrapper(positions)
 
         self.make_property(f'position_{name}', getter, setter)
 
