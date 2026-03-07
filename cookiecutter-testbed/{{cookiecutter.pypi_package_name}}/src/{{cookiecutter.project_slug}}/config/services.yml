@@ -1,4 +1,4 @@
-detector:
+sample_camera:
   service_type: allied_vision_camera
   simulated_service_type: camera_sim
   interface: camera
@@ -11,8 +11,8 @@ detector:
   offset_y: 600
   width: 400
   height: 400
-  sensor_width: 2592
-  sensor_height: 1944
+  sensor_width: 3000
+  sensor_height: 2000
   exposure_time: 200
   gain: 0
 

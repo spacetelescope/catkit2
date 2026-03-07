@@ -4,34 +4,6 @@ import "core.proto";
 
 package catkit_proto.service;
 
-message GetInfoRequest
-{
-}
-
-message GetInfoReply
-{
-    string service_id = 1;
-    string service_type = 2;
-    string config = 3;
-
-    repeated string property_names = 4;
-    repeated string command_names = 5;
-    map<string, string> datastream_ids = 6;
-
-    string heartbeat_stream_id = 7;
-}
-
-message ExecuteCommandRequest
-{
-    string command_name = 1;
-    Dict arguments = 2;
-}
-
-message ExecuteCommandReply
-{
-    Value result = 1;
-}
-
 message ShutDownRequest
 {
 }

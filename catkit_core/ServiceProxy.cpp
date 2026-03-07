@@ -11,9 +11,11 @@
 #include <stdexcept>
 
 using namespace std::string_literals;
+using json = nlohmann::json;
 
 const double TIMEOUT_TO_START = 120;  // seconds
 const double TIMEOUT_SET_PROPERTY = 120;  // seconds
+const double TIMEOUT_EXECUTE_COMMAND = 120;  // seconds
 
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
 	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr), m_State(nullptr),
@@ -140,19 +142,59 @@ Value ServiceProxy::ExecuteCommand(const std::string &name, const Dict &argument
 	if (std::find(m_CommandNames.begin(), m_CommandNames.end(), name) == m_CommandNames.end())
 		throw std::runtime_error("This is not a valid command name.");
 
-	catkit_proto::service::ExecuteCommandRequest request;
-	request.set_command_name(name);
-	ToProto(arguments, request.mutable_arguments());
+	std::string execute_topic = m_ServiceId + "/"s + name + "/execute"s;
+	std::string error_topic = m_ServiceId + "/"s + name + "/error";
 
-	std::string reply_string = m_Client->MakeRequest("execute_command", Serialize(request));
+	catkit_proto::Dict args;
+	ToProto(arguments, &args);
 
-	catkit_proto::service::ExecuteCommandReply reply;
-	reply.ParseFromString(reply_string);
+	// Subscribe to reply messages.
+	auto subscription = m_Testbed->GetMessageBroker()->Subscribe(m_ServiceId + "/"s + name, MessageSubscriptionMode::Sequential);
 
-	Value res;
-	FromProto(&reply.result(), res);
+	// Send the execute message.
+	auto message_data = Serialize(args);
+	auto message = m_Testbed->GetMessageBroker()->PublishData(execute_topic, message_data.data(), message_data.size());
+	Uuid trace_id = message.GetTraceId();
 
-	return res;
+	// Wait for the response.
+	Timer timer;
+
+	while (true)
+	{
+		double time_remaining = TIMEOUT_EXECUTE_COMMAND - timer.GetTime();
+
+		if (time_remaining < 0)
+			throw std::runtime_error("Timeout waiting for return value.");
+
+		// Get the response message.
+		auto reply_message_optional = subscription.GetNextMessage(time_remaining, EventWaitMethod::Default, error_check);
+
+		if (!reply_message_optional.has_value())
+			continue;
+
+		auto reply_message = reply_message_optional.value();
+
+		// Check if the message is a response to our execute message.
+		if (reply_message.GetTraceId() != trace_id)
+			continue;
+
+		// Ignore the message we just sent.
+		if (reply_message.GetTopic() == execute_topic)
+			continue;
+
+		// If it's an error topic, relay the error to the caller as an exception.
+		if (reply_message.GetTopic() == error_topic)
+			throw std::runtime_error("Error while executing command: "s + std::string((char *) reply_message.GetPayload().data, reply_message.GetPayloadSize()));
+
+		// Parse the response message and return the retrieved value.
+		catkit_proto::Value reply;
+		reply.ParseFromString(std::string((char *) reply_message.GetPayload().data, reply_message.GetPayloadSize()));
+
+		Value res;
+		FromProto(&reply, res);
+
+		return res;
+	}
 }
 
 std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name, void (*error_check)())
@@ -320,22 +362,24 @@ void ServiceProxy::Connect()
 	// Connect to the service.
 	m_Client = std::make_unique<Client>(service_info.host, service_info.port);
 
-	// Get property, command and datastream names.
-	std::string reply_string = m_Client->MakeRequest("get_info", "");
+	auto info_message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/info"s);
 
-	catkit_proto::service::GetInfoReply reply;
-	reply.ParseFromString(reply_string);
+	if (!info_message.has_value())
+		throw std::runtime_error("The service did not publish its info.");
 
-	for (auto &i : reply.property_names())
-		m_PropertyNames.push_back(i);
+	auto info_payload = info_message.value().GetPayload();
+	auto info = json::parse((char *) info_payload.data, (char *) info_payload.data + info_payload.info.GetSizeInBytes());
 
-	for (auto &i : reply.command_names())
-		m_CommandNames.push_back(i);
+	for (auto it : info["property_names"])
+		m_PropertyNames.push_back(it);
 
-	for (auto& [key, value] : reply.datastream_ids())
+	for (auto it : info["command_names"])
+		m_CommandNames.push_back(it);
+
+	for (auto& [key, value] : info["datastream_ids"].items())
 		m_DataStreamIds[key] = value;
 
-	m_Heartbeat = DataStream::Open(reply.heartbeat_stream_id());
+	m_Heartbeat = DataStream::Open(info["heartbeat_stream_id"].get<std::string>());
 
 	m_TimeLastConnect = frame.m_TimeStamp;
 	LOG_DEBUG("Connected to \"" + m_ServiceId + "\".");
