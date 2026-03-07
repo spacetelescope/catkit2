@@ -39,7 +39,11 @@ Commands
 --------
 ``move_to(positions)``: Move to absolute positions. ``positions`` is a dict mapping axis names to target positions (e.g., ``{'x': 1350.0, 'y': 1685.0}``).
 
+``move_and_wait(positions)``: Move to absolute positions and wait until motion is complete. ``positions`` is a dict mapping axis names to target positions.
+
 ``move_relative(deltas)``: Move relative to current positions. ``deltas`` is a dict mapping axis names to relative movements (e.g., ``{'x': 10.0, 'y': -5.0}``).
+
+``move_relative_and_wait(deltas)``: Move relative to current positions and wait until motion is complete. ``deltas`` is a dict mapping axis names to relative movements.
 
 ``get_positions()``: Get current positions of all axes as a dict.
 
@@ -47,8 +51,8 @@ Commands
 
 Datastreams
 -----------
-``positions``: Current positions of all axes (float64 array, updated at 10 Hz).
+``positions``: Current positions of all axes (float64 array, updated when motion is complete).
 
-``target_positions``: Target positions when moves are commanded (float64 array).
+``target_positions``: Target positions when moves are commanded (float64 array). You can insert move commands into this datastream to command moves.
 
 ``is_moving`` (sim only): Whether any axis is currently in motion (int8).
