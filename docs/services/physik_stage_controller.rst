@@ -95,7 +95,7 @@ Commands
 
 .. code-block:: python
 
-  # Example of using get_positions by a command call
+  # Example of using stop_motion by a command call
   # stage is the service instance for the Physik stage controller
   stage.stop_motion()
   # Server Log:[physik_stage_controller] Motion stopped

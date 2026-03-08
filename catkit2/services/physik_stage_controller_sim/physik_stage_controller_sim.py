@@ -38,7 +38,7 @@ class PhysikStageControllerSim(Service):
         # Create data streams
         num_axes = len(self.axis_map)
         self.positions = self.make_data_stream('positions', 'float64', [num_axes], 20)
-        self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 20)
+        self.target_positions = self.make_data_stream('target_positions', 'float64', [num_axes], 1)
 
         # Precompute reverse map
         self.axis_num_to_name = {num: name for name, num in self.axis_map.items()}
@@ -126,6 +126,7 @@ class PhysikStageControllerSim(Service):
         """Move to absolute positions (instantaneous)."""
         if not self.is_initialized:
             raise RuntimeError("Controller not initialized")
+        self.log.info(f"Moving to positions: {positions}")
         axis_positions = {self.axis_map[name]: float(value) for name, value in positions.items() if name in self.axis_map}
         if axis_positions:
             with self.mutex:

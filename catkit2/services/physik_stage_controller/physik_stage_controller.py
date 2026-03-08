@@ -1,6 +1,5 @@
 import numpy as np
 import threading
-import time
 from catkit2.testbed.service import Service
 from pipython import GCSDevice, pitools
 
@@ -126,88 +125,18 @@ class PhysikStageController(Service):
 
     def _target_positions_worker(self):
         """Worker thread to handle move_to commands from the target_positions data stream."""
-        # Benchmarking variables
-        iteration_count = 0
-        benchmark_start = time.perf_counter()
-        total_mov_time = 0.0
-        # total_mutex_wait_time = 0.0
-        last_frame_time = None
-        frame_intervals = []
-
         while not self.should_shut_down:
             try:
                 frame = self.target_positions.get_next_frame(wait_time_in_ms=250)
-                loop_start = time.perf_counter()
-
-                # Track time between frames
-                if last_frame_time is not None:
-                    frame_intervals.append(loop_start - last_frame_time)
-                last_frame_time = loop_start
-
                 data = frame.data
-
                 positions = {
                     self.axis_num_to_name[num]: float(data[idx])
                     for idx, num in enumerate(sorted(self.axis_map.values()))
                 }
-
-                # Benchmark move_to (includes mutex acquisition and MOV command)
-                mov_start = time.perf_counter()
-                self._move_to_internal(positions, benchmark_times=True)
-                mov_end = time.perf_counter()
-                total_mov_time += (mov_end - mov_start)
-
-                iteration_count += 1
-
-                # Log benchmark every 500 iterations
-                if iteration_count % 500 == 0:
-                    elapsed = time.perf_counter() - benchmark_start
-                    avg_rate = iteration_count / elapsed
-                    avg_mov_time = (total_mov_time / iteration_count) * 1000  # ms
-
-                    if frame_intervals:
-                        avg_interval = (sum(frame_intervals) / len(frame_intervals)) * 1000  # ms
-                        min_interval = min(frame_intervals) * 1000
-                        max_interval = max(frame_intervals) * 1000
-                    else:
-                        avg_interval = min_interval = max_interval = 0
-
-                    self.log.info(
-                        f'[BENCHMARK] iterations={iteration_count}, '
-                        f'avg_rate={avg_rate:.1f} Hz, '
-                        f'avg_MOV={avg_mov_time:.2f}ms, '
-                        f'frame_interval: avg={avg_interval:.2f}ms min={min_interval:.2f}ms max={max_interval:.2f}ms'
-                    )
-
-                    # Reset for next window
-                    frame_intervals = []
-                    iteration_count = 0
-                    benchmark_start = time.perf_counter()
-                    total_mov_time = 0.0
-
+                self.move_to(positions)
                 self.sleep(0)
             except RuntimeError:
                 pass
-
-    def _move_to_internal(self, positions, benchmark_times=False):
-        """
-        Internal move_to used by worker thread with optional benchmarking.
-        Bypasses initialization check since worker only runs after init.
-        """
-        axis_positions = {}
-        for name, value in positions.items():
-            if name in self.axis_map:
-                axis_num = self.axis_map[name]
-                axis_positions[axis_num] = float(value)
-
-        if not axis_positions:
-            return
-
-        with self.mutex:
-            self.pidevice.MOV(axis_positions)
-
-        self.is_moving = True
-        self.move_event.set()
 
     def main(self):
         """Main loop - polls for move completion and updates telemetry when motion stops."""
