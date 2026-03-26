@@ -71,7 +71,7 @@ class LogObserver:
                     raise RuntimeError('Error during receive.') from e
 
             # Decode log message.
-            log_message = log_message[0].decode('ascii')
+            log_message = log_message[0].decode('utf8')
             log_message = json.loads(log_message)
 
             self.handle_message(log_message)

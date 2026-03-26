@@ -80,12 +80,20 @@ class ThorlabsCubeMotorKinesis(Service):
         self.command = None
         self.current_position = None
 
+    def _get_position(self):
+        current_position = self.lib.CC_GetPosition(self.serial_number)
+        real_unit = c_double()
+        self.lib.CC_GetRealValueFromDeviceUnit(self.serial_number, current_position, byref(real_unit), 0)
+        return real_unit.value
+
     def open(self):
         """
         Open connection to the motor.
 
         This will also check if the configured characteristics are matching the one the cube has.
         """
+        self.make_property('position', self._get_position, self.set_current_position)
+
         # Build the device list and verify that the requested device is connected.
         if self.lib.TLI_BuildDeviceList() == 0:
             # The serial_number_list_size is the size of a list that holds the cubes' serial numbers of one motor type.

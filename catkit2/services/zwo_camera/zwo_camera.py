@@ -2,11 +2,13 @@ import threading
 import time
 import os
 import numpy as np
-
+import re
+import difflib
 from catkit2.testbed.service import Service
 from catkit2.testbed.tracing import trace_interval
 
 import zwoasi
+
 
 try:
     __ZWO_ASI_LIB = 'ZWO_ASI_LIB'
@@ -60,44 +62,52 @@ class ZwoCamera(Service):
         if num_cameras == 0:
             raise RuntimeError("Not a single ZWO camera is connected.")
 
-        expected_device_name = self.config['device_name']
+        expected_device_name = self.config.get('device_name')
+        self.device_name = expected_device_name
         expected_device_id = self.config.get('device_id', None)
 
         best_match_index = None
-        best_match_score = 0
-        best_match_length_diff = float('inf')
+        best_match_score = 0.0  # Will now be a float between 0.0 and 1.0
 
         for i in range(num_cameras):
             device_name = zwoasi._get_camera_property(i)['Name']
             self.log.info(device_name)
 
-            # Calculate matching score (number of matching characters, case insensitive)
-            match_score = sum(1 for a, b in zip(expected_device_name.lower(), device_name.lower()) if a == b)
-            length_diff = abs(len(device_name) - len(expected_device_name))
+            # Use SequenceMatcher for intelligent fuzzy matching
+            match_score = difflib.SequenceMatcher(
+                None, 
+                expected_device_name.lower(), 
+                device_name.lower()
+            ).ratio()
+
+            # Add a heavy penalty if the numbers in the camera name don't match
+            # (e.g. you don't want a 174 to ever match a 2600, regardless of the text around it)
+            expected_numbers = set(re.findall(r'\d+', expected_device_name))
+            actual_numbers = set(re.findall(r'\d+', device_name))
+            if expected_numbers and not expected_numbers.intersection(actual_numbers):
+                match_score *= 0.5  # Cut score in half if core model numbers don't match
 
             # Check if this is a better match
-            is_better_match = (match_score > best_match_score or
-                             (match_score == best_match_score and length_diff < best_match_length_diff))
+            is_better_match = match_score > best_match_score
 
             if is_better_match:
                 if expected_device_id is None:
-                        best_match_index = i
-                        best_match_score = match_score
-                        best_match_length_diff = length_diff
+                    best_match_index = i
+                    best_match_score = match_score
                 else:
                     zwoasi._open_camera(i)
                     try:
                         device_id = zwoasi._get_id(i)
                         if device_id == str(expected_device_id):
-                                best_match_index = i
-                                best_match_score = match_score
-                                best_match_length_diff = length_diff
+                            best_match_index = i
+                            best_match_score = match_score
                     except Exception as e:
                         raise RuntimeError(f'Impossible to read camera id for camera {expected_device_name}. It probably doesn\'t support an id.') from e
                     finally:
                         zwoasi._close_camera(i)
 
-        if best_match_index is None:
+        # Require a minimum similarity threshold (e.g., 50%) to avoid wildly wrong matches
+        if best_match_index is None or best_match_score < 0.5:
             raise RuntimeError(f'Camera {expected_device_name} with id {expected_device_id} not found.')
 
         camera_index = best_match_index
@@ -115,6 +125,7 @@ class ZwoCamera(Service):
             # Some control values such as Temperature and CoolerPowerPerc are not writable for zwo cool models
             if ('IsWritable' in controls[c]) and controls[c]['IsWritable']:
                 self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
+                self.log.info(f"{c} -> {controls[c]['DefaultValue']}")
 
         print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
 
