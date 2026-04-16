@@ -15,7 +15,7 @@ class {{cookiecutter.project_slug.capitalize()}}Simulator(Simulator):
         self.model = {{cookiecutter.project_slug.capitalize()}}OpticalModel(self.testbed.config['simulator'])
         wavefronts = [hcipy.Wavefront(self.model.pupil_grid.ones() * 1e5)]
         self.model.set_wavefronts('light_source', wavefronts)
-        self.images = self.make_data_stream('images', 'float64', self.model.detector_grid.shape, 20)
+        self.images = self.make_data_stream('images', 'float64', self.model.sample_camera_grid.shape, 20)
 
     def camera_readout(self, camera_name, power):
         image = power.shaped
