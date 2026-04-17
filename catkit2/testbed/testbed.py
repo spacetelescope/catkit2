@@ -715,6 +715,64 @@ class Testbed:
             self.log.debug(f'Service "{service_id}" was already started.')
             return
 
+        # Check if this service requires safety before launching it.
+        service_config = self.config['services'][service_id]
+        if service_config.get('requires_safety', True):
+
+            safety_service_id = self.config['testbed']['safety']['service_id']
+            safety_service = self.services[safety_service_id]
+
+            # If the safety service is not running yet, start it first and
+            # wait for it to reach RUNNING state.
+            if safety_service.state != ServiceState.RUNNING:
+                self.log.info(
+                    f'Safety service is not running yet. '
+                    f'Starting it before "{service_id}".'
+                )
+                self.start_service(safety_service_id)
+
+                # Wait for the safety service to reach RUNNING state,
+                timeout = 3
+                interval = 0.1
+                elapsed = 0
+
+                while safety_service.state != ServiceState.RUNNING:
+                    time.sleep(interval)
+                    elapsed += interval
+
+                    if elapsed >= timeout:
+                        self.log.error(
+                            f'Safety service did not start within {timeout} seconds. '
+                            f'Refusing to start service "{service_id}".'
+                        )
+                        self.services[service_id].state = ServiceState.FAIL_SAFE
+                        return
+
+            # Safety service is now guaranteed to be running.
+            # Read the is_safe data stream directly from shared memory via the message broker. 
+            message = self.message_broker.get_current_message(
+                f'{safety_service_id}/is_safe/get'
+            )
+
+            # If no message exists yet despite the service running, stop
+            if message is None:
+                self.log.error(
+                    f'Safety service is running but has not published any '
+                    f'safety data yet. Refusing to start service "{service_id}".'
+                )
+                self.services[service_id].state = ServiceState.FAIL_SAFE
+                return
+
+            # All inputs should return safe (array of 1s) if not stop
+            is_safe = message.payload
+            if not is_safe.all():
+                self.log.error(
+                    f'Testbed is not safe. '
+                    f'Refusing to start service "{service_id}".'
+                )
+                self.services[service_id].state = ServiceState.FAIL_SAFE
+                return
+
         service_type = self.services[service_id].service_type
 
         # Resolve service type;
