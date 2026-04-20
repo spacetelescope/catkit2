@@ -21,6 +21,7 @@
 #include "ServiceState.h"
 #include "ProcessStats.h"
 #include "Types.h"
+#include "MessageBroker.h"
 
 const double SERVICE_LIVELINESS = 5;
 
@@ -64,12 +65,10 @@ public:
 	void CleanupAttributes();
 
 private:
+	std::string GetInfo();
+
 	std::string GetProperty(std::string property_name);
 	void SetProperty(std::string property_name, std::string_view value);
-
-	std::string HandleGetInfo(const std::string &data);
-
-	std::string HandleExecuteCommand(const std::string &data);
 
 	std::string HandleShutDown(const std::string &data);
 
@@ -78,7 +77,10 @@ private:
 	bool RequiresSafety();
 
 	void MonitorHeartbeats();
-	void MonitorProperties();
+	void MonitorPropertiesAndCommands();
+
+	void HandleSetPropertyMessage(std::shared_ptr<MessageBroker> broker, const Message &message);
+	void HandleExecuteCommandMessage(std::shared_ptr<MessageBroker> broker, const Message &message);
 
 	void UpdateState(ServiceState state);
 
