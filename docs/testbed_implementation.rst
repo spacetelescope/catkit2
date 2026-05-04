@@ -12,7 +12,7 @@ Generating a Testbed Repository
 
 You can generate a testbed either directly from GitHub or from a local clone of the ``catkit2`` repository.
 
-Run Cookiecutter from the directory containing the repository:
+Run Cookiecutter from the directory containing the `catkit2` repository:
 
 .. code-block:: shell
 
@@ -73,7 +73,8 @@ Key fields:
    ``pypi_package_name`` (and typically ``project_slug``), not on
    ``project_name``.
 
-When the prompts are complete, Cookiecutter creates a new project directory using the selected package name.
+When the prompts are complete, Cookiecutter creates a new project directory using the selected package name and places
+it in the current working directory. You can easily move it to a different location, e.g. into your preferred repository.
 
 Starting the Testbed Server
 ---------------------------
