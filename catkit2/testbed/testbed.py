@@ -381,6 +381,7 @@ class Testbed:
         self.server.register_request_handler('get_service_info', self.on_get_service_info)
         self.server.register_request_handler('register_service', self.on_register_service)
         self.server.register_request_handler('shut_down', self.on_shut_down)
+        self.server.register_request_handler('reload_config', self.on_reload_config)
 
         self.is_running = False
         self.shutdown_requested = threading.Event()
@@ -668,6 +669,16 @@ class Testbed:
 
         return reply.SerializeToString()
 
+    def on_reload_config(self, data):
+        request = testbed_proto.ReloadConfigRequest()
+        request.ParseFromString(data)
+
+        new_config = json.loads(request.config)
+        self.reload_config(new_config)
+
+        reply = testbed_proto.ReloadConfigReply()
+        return reply.SerializeToString()
+
     def on_shut_down(self, data):
         self.shutdown_requested.set()
 
@@ -685,6 +696,67 @@ class Testbed:
             The path to the Python file to run for this service.
         '''
         self.service_type_paths[service_type] = path
+
+    def reload_config(self, new_config):
+        '''Reload the testbed configuration.
+
+        This updates the configuration without restarting the testbed.
+        Services must be restarted to pick up their new configuration.
+
+        Parameters
+        ----------
+        new_config : dict
+            The new configuration dictionary.
+        '''
+        self.log.info('Reloading configuration...')
+
+        # Update the config
+        old_config = self.config
+        self.config = new_config
+
+        # Update simulation mode if it changed
+        if 'testbed' in new_config and 'simulated' in new_config['testbed']:
+            self.is_simulated = new_config['testbed']['simulated']
+
+        # Check for added/removed services
+        old_services = set(old_config.get('services', {}).keys())
+        new_services = set(new_config.get('services', {}).keys())
+
+        added = new_services - old_services
+        removed = old_services - new_services
+
+        if added:
+            self.log.info(f'New services in config: {list(added)}')
+            # Add new service references
+            for service_id in added:
+                service_info = new_config['services'][service_id]
+                service_type = service_info['service_type']
+
+                if self.is_simulated and 'simulated_service_type' in service_info:
+                    service_type = service_info['simulated_service_type']
+
+                dependencies = service_info.get('depends_on', [])
+                self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED, dependencies, self.message_broker)
+
+        if removed:
+            self.log.warning(f'Services removed from config: {list(removed)}')
+            # Check if any removed services are running
+            for service_id in removed:
+                if service_id in self.services and self.services[service_id].is_alive:
+                    self.log.warning(f'Service "{service_id}" is running but removed from config. Consider stopping it.')
+
+        # Update startup services list
+        self.startup_services = []
+        if 'safety' in self.config.get('testbed', {}):
+            self.startup_services.append(self.config['testbed']['safety']['service_id'])
+
+        if 'startup_services' in self.config.get('testbed', {}):
+            self.startup_services.extend(self.config['testbed']['startup_services'])
+
+        if self.is_simulated and 'simulator' not in self.startup_services:
+            self.startup_services.append('simulator')
+
+        self.log.info('Configuration reloaded successfully.')
 
     def start_service(self, service_id):
         '''Start a service.

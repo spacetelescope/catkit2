@@ -120,3 +120,12 @@ message ShutDownRequest
 message ShutDownReply
 {
 }
+
+message ReloadConfigRequest
+{
+    string config = 1;
+}
+
+message ReloadConfigReply
+{
+}
