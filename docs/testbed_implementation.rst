@@ -141,6 +141,7 @@ To access camera image through the camera service proxy, you can run the followi
 .. code-block:: python
 
    from catkit2 import TestbedProxy
+   import numpy as np
 
    testbed = TestbedProxy('127.0.0.1', 1234)
    cam = testbed.sample_camera
