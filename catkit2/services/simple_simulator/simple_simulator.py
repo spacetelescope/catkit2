@@ -58,7 +58,6 @@ class SimpleSimulator(Simulator):
 
             camera.images.submit_data(image)
         except Exception as e:
-        except Exception as e:
             self.log.error(str(e))
 
 if __name__ == '__main__':
