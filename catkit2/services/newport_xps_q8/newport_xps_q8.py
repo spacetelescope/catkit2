@@ -14,7 +14,7 @@ sys.path.append(library_path)
 try:
     import XPS_Q8_drivers
 except ModuleNotFoundError:
-    raise ModuleNotFoundError("To use the Newport XPS-Q8, you need to set the CATKIT_NEWPORT_LIB_PATH environment variable.")
+    raise ModuleNotFoundError(f"Could not import XPS_Q8_drivers from CATKIT_NEWPORT_LIB_PATH={library_path!r}.")
 
 
 class NewportXpsQ8(Service):
