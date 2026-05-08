@@ -24,6 +24,7 @@ Configuration
         requires_safety: false
 
         # Used by the Windows UART-library backend to find the device in the VCP list.
+        # Can be omitted if not on Windows.
         vcp_port: 'VCP3'
 
         # Optional for non-Windows serial backend.

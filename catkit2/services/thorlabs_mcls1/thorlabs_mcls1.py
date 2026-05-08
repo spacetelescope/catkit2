@@ -106,9 +106,9 @@ class ThorlabsMcls1(Service):
         self.serial_handle = None
         self.UART_lib = None
 
-        self.vcp_port = self.config.get('vcp_port', 'VCP0')
-        self.serial_port = self.config.get('serial_port', '/dev/ttyUSB0')
-        self.serial_timeout = float(self.config.get('serial_timeout', 1.0))
+        self.vcp_port = self.config.get('vcp_port', None)
+        self.serial_port = self.config.get('serial_port', None)
+        self.serial_timeout = self.config.get('serial_timeout', None)
         self.baud_rate = MCLS1_COM.BAUD_RATE.value
 
         self.backend = self._select_backend()
