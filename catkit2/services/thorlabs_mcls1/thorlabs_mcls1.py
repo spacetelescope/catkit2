@@ -2,6 +2,7 @@ from catkit2.testbed.service import Service
 
 import os
 import ctypes
+import platform
 
 import numpy as np
 import threading
@@ -105,7 +106,6 @@ class ThorlabsMcls1(Service):
         self.serial_handle = None
         self.UART_lib = None
 
-        self.transport = self.config.get('transport', 'auto').lower()
         self.vcp_port = self.config.get('vcp_port', 'VCP0')
         self.serial_port = self.config.get('serial_port', self.config.get('port'))
         self.serial_timeout = float(self.config.get('serial_timeout', 1.0))
@@ -123,14 +123,10 @@ class ThorlabsMcls1(Service):
             self.UART_lib = ctypes.cdll.LoadLibrary(uart_lib_path)
 
     def _select_backend(self):
-        if self.transport in ('uart_lib', 'serial'):
-            return self.transport
+        if platform.system().lower().startswith('win'):
+            return 'uart_lib'
 
-        if self.serial_port:
-            return 'serial'
-
-        # Default to UART library for backward compatibility with existing Windows configs.
-        return 'uart_lib'
+        return 'serial'
 
     def _connect(self):
         if self.backend == 'uart_lib':
