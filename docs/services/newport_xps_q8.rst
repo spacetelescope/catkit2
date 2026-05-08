@@ -7,6 +7,9 @@ names are defined in the configuration file and have to follow the naming given 
 Each motor can define an arbitrary number of named positions. These named positions can can also call each other in a chain. This
 is useful for being able to save motor positions associated with different experiment modes.
 
+This service requires the setup of the environment variable ``CATKIT_NEWPORT_LIB_PATH`` to point to the directory containing
+the python drivers for the Newport XPS controller.
+
 Configuration
 -------------
 
