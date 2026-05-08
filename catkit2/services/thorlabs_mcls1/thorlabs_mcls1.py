@@ -149,16 +149,26 @@ class ThorlabsMcls1(Service):
         self.UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
         devices = response_buffer.value.decode(errors='ignore')
         split = [item.strip() for item in devices.split(',') if item.strip()]
+        print(split)
 
         selected_port = None
         for i, thing in enumerate(split):
             if self.vcp_port in thing and i > 0:
+                # The list has a format of "Port, Device, Port, Device". Once we find device named VCP11, minus 1 in the
+                # list index to get the corresponding port.
+                # It seems that the VCP port can change occasionally for reasons we do not understand.
+                # Last time this happened we identified the COM port in the device manager by unplugging / replugging
+                # and then figuring the corresponding VCP port from the above debugging message.
+
+                # Another way to figure out the COM port is to go to the MCLS1 Application and disconnect the source.
+                # When you reconnect the source, COM port it is connected to will be displayed.
                 selected_port = split[i - 1]
+                print(f'port number from thing ={selected_port}')
                 break
 
         if selected_port is None:
             raise RuntimeError(
-                f'Device {self.vcp_port} not found - MCLS1 may have switched COM/VCP port after a reboot'
+                f'Device {self.vcp_port} not found - The MCLS1 may have switched COM/VCP port after a reboot'
             )
 
         self.port = selected_port
