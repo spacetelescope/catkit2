@@ -119,7 +119,7 @@ class ThorlabsMcls1(Service):
         if self.backend == 'uart_lib':
             uart_lib_path = os.environ.get('CATKIT_THORLABS_UART_LIB_PATH')
             if not uart_lib_path:
-                raise RuntimeError('CATKIT_THORLABS_UART_LIB_PATH is not set for UART-library transport')
+                raise RuntimeError('CATKIT_THORLABS_UART_LIB_PATH is not set for the Windows UART-library backend')
             self.UART_lib = ctypes.cdll.LoadLibrary(uart_lib_path)
 
     def _select_backend(self):
@@ -134,7 +134,7 @@ class ThorlabsMcls1(Service):
         elif self.backend == 'serial':
             self._connect_serial()
         else:
-            raise RuntimeError(f'Unsupported transport backend: {self.backend}')
+            raise RuntimeError(f'Unsupported backend: {self.backend}')
 
     def _disconnect(self):
         if self.backend == 'uart_lib' and self.instrument_handle is not None:
@@ -196,7 +196,7 @@ class ThorlabsMcls1(Service):
             import serial as serial_module
             from serial.tools import list_ports as list_ports_module
         except ImportError as exc:
-            raise RuntimeError('pyserial is required for serial transport but is not installed') from exc
+            raise RuntimeError('pyserial is required for the serial backend but is not installed') from exc
 
         return serial_module, list_ports_module
 
