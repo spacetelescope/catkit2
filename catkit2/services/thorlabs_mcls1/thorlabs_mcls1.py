@@ -198,10 +198,9 @@ class ThorlabsMcls1(Service):
         payload = command_str.encode()
         if self.backend == 'uart_lib':
             self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, payload, len(payload))
-            return
-
-        self.serial_handle.write(payload)
-        self.serial_handle.flush()
+        elif self.backend == 'serial':
+            self.serial_handle.write(payload)
+            self.serial_handle.flush()
 
     def _get_command(self, command_str):
         payload = command_str.encode()
@@ -209,11 +208,11 @@ class ThorlabsMcls1(Service):
             response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
             self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, payload, response_buffer)
             return response_buffer.value
-
-        self.serial_handle.reset_input_buffer()
-        self.serial_handle.write(payload)
-        self.serial_handle.flush()
-        return self.serial_handle.read_until(b'>')
+        elif self.backend == 'serial':
+            self.serial_handle.reset_input_buffer()
+            self.serial_handle.write(payload)
+            self.serial_handle.flush()
+            return self.serial_handle.read_until(b'>')
 
     @staticmethod
     def _parse_response_value(response, command):
