@@ -26,10 +26,8 @@ Configuration
         # Used by the Windows UART-library backend to find the device in the VCP list.
         vcp_port: 'VCP3'
 
-        # Optional for non-Windows serial backend; if omitted, the service tries to
-        # discover the port using vcp_port in the serial description/device name.
+        # Optional for non-Windows serial backend.
         # serial_port: '/dev/ttyUSB0'
-        # baud_rate: 115200
         # serial_timeout: 1.0
 
         emission: 1

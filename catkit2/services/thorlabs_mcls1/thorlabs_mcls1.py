@@ -107,9 +107,9 @@ class ThorlabsMcls1(Service):
         self.UART_lib = None
 
         self.vcp_port = self.config.get('vcp_port', 'VCP0')
-        self.serial_port = self.config.get('serial_port', self.config.get('port'))
+        self.serial_port = self.config.get('serial_port', '/dev/ttyUSB0')
         self.serial_timeout = float(self.config.get('serial_timeout', 1.0))
-        self.baud_rate = int(self.config.get('baud_rate', MCLS1_COM.BAUD_RATE.value))
+        self.baud_rate = MCLS1_COM.BAUD_RATE.value
 
         self.backend = self._select_backend()
 
@@ -164,25 +164,10 @@ class ThorlabsMcls1(Service):
         self.port = selected_port
         self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), self.baud_rate, 3)
 
-    def _resolve_serial_port(self):
-        _, list_ports_module = self._require_pyserial()
-
-        if self.serial_port:
-            return self.serial_port
-
-        ports = list_ports_module.comports()
-        for port in ports:
-            description = port.description or ''
-            if self.vcp_port in description or self.vcp_port in port.device:
-                return port.device
-
-        raise RuntimeError(f'Unable to find serial port matching {self.vcp_port}')
-
     def _connect_serial(self):
-        serial_module, _ = self._require_pyserial()
-        self.port = self._resolve_serial_port()
+        serial_module = self._require_pyserial()
         self.serial_handle = serial_module.Serial(
-            port=self.port,
+            port=self.serial_port,
             baudrate=self.baud_rate,
             timeout=self.serial_timeout,
             write_timeout=self.serial_timeout,
@@ -194,11 +179,10 @@ class ThorlabsMcls1(Service):
     def _require_pyserial():
         try:
             import serial as serial_module
-            from serial.tools import list_ports as list_ports_module
         except ImportError as exc:
             raise RuntimeError('pyserial is required for the serial backend but is not installed') from exc
 
-        return serial_module, list_ports_module
+        return serial_module
 
     def _set_command(self, command_str):
         payload = command_str.encode()
