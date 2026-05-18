@@ -1,86 +1,8 @@
 from catkit2.testbed.service import Service
 
-import os
-import ctypes
-
 import numpy as np
 import threading
-from enum import Enum
-
-
-class MCLS1_COM(Enum):
-    BUFFER_SIZE = 255
-    BAUD_RATE = 115200
-
-    TERM_CHAR = "\r"
-    GET_CURRENT = "current?"  # float (mA)
-    SET_CURRENT = "current="
-    GET_ENABLE = "enable?"  # bool/int
-    SET_ENABLE = "enable="
-    SET_SYSTEM = "system="
-    GET_CHANNEL = "channel?"  # int
-    SET_CHANNEL = "channel="
-    GET_TARGET_TEMP = "target?"  # float (C)
-    SET_TARGET_TEMP = "target="
-    GET_TEMP = "temp?"  # float (C)
-    GET_POWER = "power?"  # float (mW)
-    GET_SYSTEM = "system?"  # bool
-
-    # The following are untested.
-    GET_COMMANDS = "?"
-    GET_ID = "id?"
-    GET_SPECS = "specs?"
-    GET_STEP = "step?"
-    SET_STEP = "step="
-    SAVE = "save"
-    GET_STATUS = "statword"
-
-
-def make_setter(command):
-    command_prefix = f"{command.value}"
-
-    def setter(self, value):
-        command_str = command_prefix + f"{value}{MCLS1_COM.TERM_CHAR.value}"
-
-        # Lock first to ensure the next two statements are uninterrupted.
-        with self.lock:
-            # Set the channel.
-            if command not in [MCLS1_COM.SET_CHANNEL, MCLS1_COM.SET_SYSTEM]:
-                self.set_active_channel(self.channel)
-
-            # Execute command.
-            self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
-
-    return setter
-
-
-def make_getter(command, stream_name):
-    def getter(self):
-        # Form command.
-        command_str = command.value + MCLS1_COM.TERM_CHAR.value
-        response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-
-        # Lock first to ensure the next two statements are uninterrupted.
-        with self.lock:
-            # Set the channel.
-            if command not in [MCLS1_COM.GET_CHANNEL]:
-                self.set_active_channel(self.channel)
-
-            # Execute command.
-            self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
-
-        # Decode result.
-        response_buffer = response_buffer.value
-        value = response_buffer.rstrip(b"\x00").decode().lstrip(command.value).strip('\r').rstrip('\r> ')
-
-        # Submit retrieved value to stream.
-        stream = getattr(self, stream_name)
-        print(f"value= {value}")
-        stream.submit_data(np.array([value]).astype(stream.dtype))
-
-        return value
-
-    return getter
+from catkit2.services.thorlabs_mcls1.mcls1 import MCLS1
 
 
 def make_monitor_func(stream, setter):
@@ -105,45 +27,38 @@ class ThorlabsMcls1(Service):
         # Use a reentrant lock to avoid deadlock when setting the channel.
         self.lock = threading.RLock()
 
-        try:
-            uart_lib_path = os.environ.get('CATKIT_THORLABS_UART_LIB_PATH')
-            self.UART_lib = ctypes.cdll.LoadLibrary(uart_lib_path)
-        except ImportError as error:
-            raise error
-
     def open(self):
         # Make datastreams
-        self.current_setpoint = self.make_data_stream('current_setpoint', 'float32', [1], 20)
-        self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
-        self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
-        self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
-        self.power = self.make_data_stream('power', 'float32', [1], 20)
+        self.current_setpoint_stream = self.make_data_stream('current_setpoint', 'float32', [1], 20)
+        self.emission_stream = self.make_data_stream('emission', 'uint8', [1], 20)
+        self.target_temperature_stream = self.make_data_stream('target_temperature', 'float32', [1], 20)
+        self.temperature_stream = self.make_data_stream('temperature', 'float32', [1], 20)
+        self.power_stream = self.make_data_stream('power', 'float32', [1], 20)
 
         # Open connection to device
-        response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-        self.UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
-        response_buffer = response_buffer.value.decode()
-        split = response_buffer.split(",")
-        print(split)
-        for i, thing in enumerate(split):
-            # The list has a format of "Port, Device, Port, Device". Once we find device named VCP11, minus 1 for port.
-            # It seems that the VCP port can change occasionally for reasons we do not understand.
-            # Last time this happened we identified the COM port in the device manager by unplugging / replugging
-            # and then figuring the corresponding VCP port from the above debugging message.
+        self.port = self.config['port']
+        self.instrument = MCLS1(self.port)
+        self.instrument.open()
 
-            if 'VCP0' in thing:
-                self.port = split[i - 1]
-                print(f'port number from thing ={self.port}')
-                break
-        else:
-            raise Exception('Device VCP0 not found - The MCLS1 probably switched port after a reboot')
+        def make_property_helper(name, read_only=False):
+            if read_only:
+                self.make_property(name, lambda: getattr(self, name))
+            else:
+                def setter(val):
+                    setattr(self, name, val)
+                self.make_property(name, lambda: getattr(self, name), setter)
 
-        self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
+        make_property_helper('channel')
+        make_property_helper('emission')
+        make_property_helper('current_setpoint')
+        make_property_helper('target_temperature')
+        make_property_helper('temperature', read_only=True)
+        make_property_helper('power', read_only=True)
 
         self.setters = {
-            'emission': self.set_emission,
-            'current_setpoint': self.set_current_setpoint,
-            'target_temperature': self.set_target_temperature
+            'emission': self._set_emission,
+            'current_setpoint': self._set_current_setpoint,
+            'target_temperature': self._set_target_temperature
         }
 
         self.getters = [
@@ -153,56 +68,108 @@ class ThorlabsMcls1(Service):
 
         # Start all monitoring threads.
         for key, setter in self.setters.items():
-            func = make_monitor_func(getattr(self, key), setter)
+            func = make_monitor_func(getattr(self, key + '_stream'), setter)
 
             thread = threading.Thread(target=func, args=(self,))
             thread.start()
 
             self.threads[key] = thread
 
-        thread = threading.Thread(target=self.update_status)
-        thread.start()
+        #thread = threading.Thread(target=self.update_status)
+        #thread.start()
 
         self.threads['status'] = thread
 
         # Submit initial values
-        self.emission.submit_data(np.array([int(self.config['emission'])], dtype='uint8'))
-        self.current_setpoint.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
-        self.target_temperature.submit_data(np.array([self.config['target_temperature']], dtype='float32'))
+        self.emission_stream.submit_data(np.array([int(self.config['emission'])], dtype='uint8'))
+        self.current_setpoint_stream.submit_data(np.array([self.config['current_setpoint']], dtype='float32'))
+        self.target_temperature_stream.submit_data(np.array([self.config['target_temperature']], dtype='float32'))
 
     def main(self):
         while not self.should_shut_down:
-            self.sleep(1)
+            self.sleep(.1)
 
     def close(self):
-        # Turn off the source.
-        self.set_emission(0)
-
         # Join all threads.
         for thread in self.threads.values():
             thread.join()
 
         # Close the instrument.
-        self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
+        self.instrument.close()
 
     def update_status(self):
         while not self.should_shut_down:
             for getter in self.getters:
                 getter()
 
-            self.sleep(1)
+            self.sleep(.5)
 
     @property
     def channel(self):
         return self.config['channel']
 
-    set_emission = make_setter(MCLS1_COM.SET_ENABLE)
-    set_current_setpoint = make_setter(MCLS1_COM.SET_CURRENT)
-    set_target_temperature = make_setter(MCLS1_COM.SET_TARGET_TEMP)
-    set_active_channel = make_setter(MCLS1_COM.SET_CHANNEL)
+    @property
+    def emission(self):
+        with self.lock:
+            return self.instrument.get_enable(self.channel)
 
-    get_temperature = make_getter(MCLS1_COM.GET_TEMP, 'temperature')
-    get_power = make_getter(MCLS1_COM.GET_POWER, 'power')
+    @emission.setter
+    def emission(self, value):
+        self._set_emission(value)
+
+    def _set_emission(self, value):
+        with self.lock:
+            self.instrument.set_enable(self.channel, bool(value))
+            if bool(value):
+                self.instrument.system_enable(True)
+
+    @property
+    def current_setpoint(self):
+        with self.lock:
+            return self.instrument.get_current(self.channel)
+
+    @current_setpoint.setter
+    def current_setpoint(self, value):
+        self._set_current_setpoint(value)
+
+    def _set_current_setpoint(self, value):
+        with self.lock:
+            self.instrument.set_current(self.channel, float(value))
+
+    @property
+    def target_temperature(self):
+        with self.lock:
+            return self.instrument.get_target(self.channel)
+
+    @target_temperature.setter
+    def target_temperature(self, value):
+        self._set_target_temperature(value)
+
+    def _set_target_temperature(self, value):
+        with self.lock:
+            self.instrument.set_target(self.channel, float(value))
+
+    def get_temperature(self):
+        with self.lock:
+            value = self.instrument.temperature(self.channel)
+        print(f"temperature = {value}")
+        self.temperature_stream.submit_data(np.array([value]).astype(self.temperature_stream.dtype))
+        return value
+
+    @property
+    def temperature(self):
+        return self.get_temperature()
+
+    def get_power(self):
+        with self.lock:
+            value = self.instrument.power(self.channel)
+        print(f"power = {value}")
+        self.power_stream.submit_data(np.array([value]).astype(self.power_stream.dtype))
+        return value
+
+    @property
+    def power(self):
+        return self.get_power()
 
 
 if __name__ == '__main__':
