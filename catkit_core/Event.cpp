@@ -22,6 +22,9 @@ void Event::Wait(double timeout_in_sec, std::function<bool()> condition, EventWa
 		case EventWaitMethod::SpinLock:
 			m_SpinLock->Wait(timeout_in_sec, condition, error_check);
 			break;
+		case EventWaitMethod::SpinLockSleep:
+			m_SpinLockSleep->Wait(timeout_in_sec, condition, error_check);
+			break;
 		default:
 			throw std::runtime_error("Unknown wait method.");
 	}
@@ -31,6 +34,7 @@ void Event::Signal()
 {
 	// Signal all event types.
 	m_SpinLock->Signal();
+	m_SpinLockSleep->Signal();
 	m_Futex->Signal();
 	m_Semaphore->Signal();
 	m_ConditionVariable->Signal();
@@ -50,6 +54,7 @@ std::shared_ptr<Event> Event::Create(StructStream &stream, std::string_view id)
 	event->m_Futex = EventFutex::Create(id, &header->m_Futex);
 	event->m_Semaphore = EventSemaphore::Create(id, &header->m_Semaphore);
 	event->m_SpinLock = EventSpinLock::Create(id, &header->m_SpinLock);
+	event->m_SpinLockSleep = EventSpinLockSleep::Create(id, &header->m_SpinLockSleep);
 
 	return event;
 }
@@ -67,6 +72,7 @@ std::shared_ptr<Event> Event::Open(StructStream &stream)
 	event->m_Futex = EventFutex::Open(id, &header->m_Futex);
 	event->m_Semaphore = EventSemaphore::Open(id, &header->m_Semaphore);
 	event->m_SpinLock = EventSpinLock::Open(id, &header->m_SpinLock);
+	event->m_SpinLockSleep = EventSpinLockSleep::Open(id, &header->m_SpinLockSleep);
 
 	return event;
 }

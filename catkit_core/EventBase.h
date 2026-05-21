@@ -11,7 +11,8 @@ enum class EventImplementationType
 	ConditionVariable,
 	Futex,
 	Semaphore,
-	SpinLock
+	SpinLock,
+	SpinLockSleep
 };
 
 template<EventImplementationType Type>
@@ -65,5 +66,6 @@ struct is_event_implemented : std::false_type
 #include "EventFutex.inl"
 #include "EventSemaphore.inl"
 #include "EventSpinLock.inl"
+#include "EventSpinLockSleep.inl"
 
 #endif // EVENT_BASE_H

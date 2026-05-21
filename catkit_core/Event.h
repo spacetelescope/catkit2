@@ -14,12 +14,13 @@ enum class EventWaitMethod
 	Futex,
 	Semaphore,
 	SpinLock,
+	SpinLockSleep,
 #ifdef _WIN32
 	Default = Semaphore
 #elif defined(__linux__)
 	Default = Futex
 #elif defined(__APPLE__)
-	Default = ConditionVariable
+	Default = SpinLockSleep
 #endif
 };
 
@@ -38,6 +39,7 @@ private:
 		EventFutex::SharedState m_Futex;
 		EventSemaphore::SharedState m_Semaphore;
 		EventSpinLock::SharedState m_SpinLock;
+		EventSpinLockSleep::SharedState m_SpinLockSleep;
 	};
 
 public:
@@ -59,6 +61,7 @@ private:
 	std::shared_ptr<EventFutex> m_Futex;
 	std::shared_ptr<EventSemaphore> m_Semaphore;
 	std::shared_ptr<EventSpinLock> m_SpinLock;
+	std::shared_ptr<EventSpinLockSleep> m_SpinLockSleep;
 };
 
 #endif // EVENT_H

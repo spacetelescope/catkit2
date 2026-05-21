@@ -32,6 +32,7 @@
 #include "BuddyAllocator.h"
 #include "PoolAllocator.h"
 #include "HybridPoolAllocator.h"
+#include "TestHelpers.h"
 #include "Event.h"
 #include "Uuid.h"
 #include "ArrayView.h"
@@ -1035,7 +1036,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.value("ConditionVariable", EventWaitMethod::ConditionVariable)
 		.value("Futex", EventWaitMethod::Futex)
 		.value("Semaphore", EventWaitMethod::Semaphore)
-		.value("SpinLock", EventWaitMethod::SpinLock);
+		.value("SpinLock", EventWaitMethod::SpinLock)
+		.value("SpinLockSleep", EventWaitMethod::SpinLockSleep);
 
 	py::class_<Event, std::shared_ptr<Event>>(m, "Event")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::string id)
@@ -1071,6 +1073,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 			return is_event_implemented<EventImplementationType::Futex>::value;
 		case EventWaitMethod::SpinLock:
 			return is_event_implemented<EventImplementationType::SpinLock>::value;
+		case EventWaitMethod::SpinLockSleep:
+			return is_event_implemented<EventImplementationType::SpinLockSleep>::value;
 		default:
 			throw std::runtime_error("Unknown event wait method.");
 		}

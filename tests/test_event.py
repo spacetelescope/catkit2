@@ -15,7 +15,8 @@ def event_wait(event, signaled, waiting, condition):
     EventWaitMethod.Semaphore,
     EventWaitMethod.ConditionVariable,
     EventWaitMethod.Futex,
-    EventWaitMethod.SpinLock])
+    EventWaitMethod.SpinLock,
+    EventWaitMethod.SpinLockSleep])
 def test_event(wait_method):
     if not is_wait_method_implemented(wait_method):
         pytest.skip(f"Wait method {wait_method} is not implemented.")
