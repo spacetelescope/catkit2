@@ -36,6 +36,7 @@
 #include "Uuid.h"
 #include "ArrayView.h"
 #include "ProcessStats.h"
+#include "TestHelpers.h"
 
 #include "testbed.pb.h"
 
