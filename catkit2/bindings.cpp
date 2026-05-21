@@ -1293,6 +1293,67 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("acquire", &HybridPoolAllocator::Acquire)
 		.def("release", &HybridPoolAllocator::Release);
 
+	// Stress test helpers for concurrency testing.
+	// Python creates threads and calls run_thread() on each context with GIL released.
+	py::module_ test_helpers = m.def_submodule("test_helpers", "Concurrency stress test helpers");
+
+	py::class_<TestHelpers::StressTestParams>(test_helpers, "StressTestParams")
+		.def(py::init<>())
+		.def_readwrite("num_threads", &TestHelpers::StressTestParams::num_threads)
+		.def_readwrite("iterations", &TestHelpers::StressTestParams::iterations)
+		.def_readwrite("max_item_shift", &TestHelpers::StressTestParams::max_item_shift)
+		.def_readwrite("max_retained_shift", &TestHelpers::StressTestParams::max_retained_shift)
+		.def_readwrite("alloc_probability", &TestHelpers::StressTestParams::alloc_probability)
+		.def_readwrite("retain_probability", &TestHelpers::StressTestParams::retain_probability)
+		.def_readwrite("free_probability", &TestHelpers::StressTestParams::free_probability)
+		.def_readwrite("transfer_probability", &TestHelpers::StressTestParams::transfer_probability)
+		.def_readwrite("transfer_buffer_size", &TestHelpers::StressTestParams::transfer_buffer_size)
+		.def_readwrite("data_buffer_size", &TestHelpers::StressTestParams::data_buffer_size);
+
+	py::class_<TestHelpers::PoolAllocatorStressContext>(test_helpers, "PoolAllocatorStressContext")
+		.def(py::init<std::shared_ptr<PoolAllocator>, const TestHelpers::StressTestParams&>())
+		.def("run_thread", [](TestHelpers::PoolAllocatorStressContext& self, intptr_t tid)
+		{
+			py::gil_scoped_release release;
+			self.RunThread(tid);
+		})
+		.def_property_readonly("total_allocations", &TestHelpers::PoolAllocatorStressContext::GetTotalAllocations)
+		.def_property_readonly("total_releases", &TestHelpers::PoolAllocatorStressContext::GetTotalReleases)
+		.def_property_readonly("failed_allocations", &TestHelpers::PoolAllocatorStressContext::GetFailedAllocations)
+		.def_property_readonly("failed_releases", &TestHelpers::PoolAllocatorStressContext::GetFailedReleases)
+		.def_property_readonly("double_free_detected", &TestHelpers::PoolAllocatorStressContext::GetDoubleFreeDetected)
+		.def_property_readonly("success", &TestHelpers::PoolAllocatorStressContext::GetSuccess);
+
+	py::class_<TestHelpers::BuddyAllocatorStressContext>(test_helpers, "BuddyAllocatorStressContext")
+		.def(py::init<std::shared_ptr<BuddyAllocator>, const TestHelpers::StressTestParams&>())
+		.def("run_thread", [](TestHelpers::BuddyAllocatorStressContext& self, intptr_t tid)
+		{
+			py::gil_scoped_release release;
+			self.RunThread(tid);
+		})
+		.def_property_readonly("total_allocations", &TestHelpers::BuddyAllocatorStressContext::GetTotalAllocations)
+		.def_property_readonly("total_releases", &TestHelpers::BuddyAllocatorStressContext::GetTotalReleases)
+		.def_property_readonly("failed_allocations", &TestHelpers::BuddyAllocatorStressContext::GetFailedAllocations)
+		.def_property_readonly("failed_releases", &TestHelpers::BuddyAllocatorStressContext::GetFailedReleases)
+		.def_property_readonly("double_free_detected", &TestHelpers::BuddyAllocatorStressContext::GetDoubleFreeDetected)
+		.def_property_readonly("success", &TestHelpers::BuddyAllocatorStressContext::GetSuccess);
+
+	py::class_<TestHelpers::HybridPoolAllocatorStressContext>(test_helpers, "HybridPoolAllocatorStressContext")
+		.def(py::init<std::shared_ptr<HybridPoolAllocator>, const TestHelpers::StressTestParams&>())
+		.def("run_thread", [](TestHelpers::HybridPoolAllocatorStressContext& self, intptr_t tid)
+		{
+			py::gil_scoped_release release;
+			self.RunThread(tid);
+		})
+		.def_property_readonly("total_allocations", &TestHelpers::HybridPoolAllocatorStressContext::GetTotalAllocations)
+		.def_property_readonly("total_releases", &TestHelpers::HybridPoolAllocatorStressContext::GetTotalReleases)
+		.def_property_readonly("failed_allocations", &TestHelpers::HybridPoolAllocatorStressContext::GetFailedAllocations)
+		.def_property_readonly("failed_releases", &TestHelpers::HybridPoolAllocatorStressContext::GetFailedReleases)
+		.def_property_readonly("double_free_detected", &TestHelpers::HybridPoolAllocatorStressContext::GetDoubleFreeDetected)
+		.def_property_readonly("success", &TestHelpers::HybridPoolAllocatorStressContext::GetSuccess);
+
+	test_helpers.def("default_stress_params", &TestHelpers::DefaultStressParams);
+
 	py::class_<ProcessStats>(m, "ProcessStats")
 		.def(py::init<>())
 		.def("update", &ProcessStats::Update)
