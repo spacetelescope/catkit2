@@ -53,7 +53,7 @@ class NewportPicomotor(Service):
 
     def add_axis(self, axis_name):
         self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower() + '_command', 'int32', [1], 20)
-        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int32', [1], 20)
+        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int64', [1], 20)
 
     def set_current_position(self, axis_name, position):
         axis = self.axes[axis_name]
@@ -81,7 +81,7 @@ class NewportPicomotor(Service):
 
         # Update current position data stream.
         stream = self.axis_current_positions[axis_name]
-        stream.submit_data(np.array([current_position], dtype=np.int32))
+        stream.submit_data(np.array([current_position], dtype=np.int64))
 
         return current_position
 
