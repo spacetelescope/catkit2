@@ -70,7 +70,7 @@ def make_getter(command, stream_name):
             response = self._get_command(command_str)
 
         # Decode result.
-        value = self._parse_response_value(response, command.value)
+        value = self._parse_response_value(response)
 
         # Submit retrieved value to stream.
         stream = getattr(self, stream_name)
@@ -215,20 +215,19 @@ class ThorlabsMcls1(Service):
             return self.serial_handle.read_until(b'>')
 
     @staticmethod
-    def _parse_response_value(response, command):
-        text = response.rstrip(b"\x00").decode(errors='ignore').strip('\r\n\t >')
-        candidates = [
-            command,
-            command.rstrip('?'),
-            f"{command.rstrip('?')}=",
+    def _parse_response_value(response):
+        text = response.rstrip(b"\x00").decode(errors="ignore")
+
+        lines = [
+            line.strip(" \r\n\t> <")
+            for line in text.splitlines()
+            if line.strip(" \r\n\t> <")
         ]
 
-        for candidate in candidates:
-            if candidate and text.startswith(candidate):
-                text = text[len(candidate):].lstrip('= ')
-                break
+        if not lines:
+            raise ValueError(f"Empty serial response: {text!r}")
 
-        return text.strip('\r\n\t >')
+        return lines[-1]
 
     def open(self):
         # Make datastreams
