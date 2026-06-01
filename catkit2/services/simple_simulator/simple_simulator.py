@@ -1,5 +1,6 @@
 from catkit2.simulator import SimpleOpticalModel, Simulator
 import hcipy
+import numpy as np
 
 
 class SimpleSimulator(Simulator):
@@ -17,8 +18,6 @@ class SimpleSimulator(Simulator):
         self.model = SimpleOpticalModel()
         wavefronts = [hcipy.Wavefront(self.model.pupil_grid.ones() * 1e6)]
         self.model.set_wavefronts('pre_pupil', wavefronts)
-
-        self.images = self.make_data_stream('images', 'float64', self.model.focal_grid.shape, 20)
 
         self.update_atmosphere()
 
@@ -41,13 +40,23 @@ class SimpleSimulator(Simulator):
 
     def camera_readout(self, camera_name, power):
         image = power.shaped
+
+        # Add semi-realistic noise for this camera.
         image = hcipy.large_poisson(image)
         image[image > 2**16] = 2**16
         image = image.astype('float32')
 
+        # Put the image on the images datastream for this camera.
         try:
-            self.testbed.science_camera.images.update_parameters('float32', image.shape, 20)
-            self.testbed.science_camera.images.submit_data(image)
+            camera = self.testbed.get_service(camera_name)
+
+            if not camera.is_running:
+                return
+
+            if not np.allclose(camera.images.shape, image.shape):
+                camera.images.update_parameters('float32', image.shape, 20)
+
+            camera.images.submit_data(image)
         except Exception as e:
             self.log.error(str(e))
 
