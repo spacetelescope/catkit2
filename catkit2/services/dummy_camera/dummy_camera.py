@@ -1,7 +1,6 @@
 from catkit2.testbed.service import Service
 
 import time
-from hcipy import *
 import numpy as np
 import threading
 
@@ -19,14 +18,13 @@ class DummyCamera(Service):
         self.flux = self.config['flux']
         self.sensor_width = self.config['sensor_width']
         self.sensor_height = self.config['sensor_height']
+        
+        # Create a dummy image that simulates a PSF with a sincar function. 
+        # The image is scaled to have a maximum value of 100 at the center, and the flux is applied later.
+        self.img = np.fromfunction(lambda y, x: 100 * np.sinc(np.sqrt((x - self.sensor_width / 2) ** 2 + (y - self.sensor_height / 2) ** 2) / 20), (self.sensor_height, self.sensor_width))
 
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
-
-        self.pupil_grid = make_pupil_grid(128)
-        self.aperture = evaluate_supersampled(make_hicat_aperture(True), self.pupil_grid, 4)
-        self.wf = Wavefront(self.aperture)
-        self.wf.total_power = 1
 
         self.images = self.make_data_stream('images', 'uint16', [self.sensor_height, self.sensor_width], 20)
         self.temperature = self.make_data_stream('temperature', 'float64', [1], 20)
@@ -64,22 +62,19 @@ class DummyCamera(Service):
 
     def get_image(self):
         try:
-            focal_grid = make_focal_grid(8, np.array([self.sensor_width, self.sensor_height]) / 16)
-            # focal_grid = focal_grid.shifted([-self._offset_x / 8, -self._offset_y / 8])
-
-            prop = FraunhoferPropagator(self.pupil_grid, focal_grid)
-            img = prop(self.wf).power.shaped
-
-            img = img[self._offset_y:self._offset_y + self._height, self._offset_x:self._offset_x + self._width]
+            img = self.img[self._offset_y:self._offset_y + self._height, 
+                           self._offset_x:self._offset_x + self._width].copy()
 
             img = img * self.flux * self.exposure_time / 1e6
 
-            img = large_poisson(img)
+            # Add Poisson noise to the image. 
+            # The noise is applied to the original image, not the scaled one, to simulate the effect of the flux and exposure time on the noise.
+            img += np.random.poisson(size=img.shape)  # Add noise to the noise to simulate the effect of the flux and exposure time on the noise.
+
             img = np.clip(img, 0, 2**16 - 1).astype('uint16')
+            return img
         except Exception as e:
             print(e)
-
-        return img
 
     def main(self):
         while not self.should_shut_down:
