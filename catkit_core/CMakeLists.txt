@@ -25,9 +25,10 @@ if (MSVC)
 endif()
 
 # Link ZeroMQ
-find_package(ZeroMQ REQUIRED)
-target_include_directories(catkit_core PUBLIC ${ZeroMQ_INCLUDE_DIR})
-target_link_libraries(catkit_core PUBLIC libzmq)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(ZeroMQ REQUIRED libzmq)
+target_include_directories(catkit_core PUBLIC ${ZeroMQ_INCLUDE_DIRS})
+target_link_libraries(catkit_core PUBLIC ${ZeroMQ_LIBRARIES})
 if (WIN32)
   target_link_libraries(catkit_core PUBLIC wsock32 ws2_32 Iphlpapi)
 else()
@@ -38,8 +39,8 @@ else()
 endif (WIN32)
 
 # Add includes for cppzmq
-find_package(cppzmq REQUIRED)
-target_include_directories(catkit_core PUBLIC ${CPPZMQ_INCLUDE_DIR})
+pkg_check_modules(CPPZMQ REQUIRED libzmq)
+target_include_directories(catkit_core PUBLIC ${CPPZMQ_INCLUDE_DIRS})
 
 # Link Eigen
 find_package(Eigen3 REQUIRED NO_MODULE)

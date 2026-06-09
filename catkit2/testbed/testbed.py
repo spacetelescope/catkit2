@@ -354,7 +354,7 @@ class Testbed:
 
         # Read in service types.
         self.service_type_paths = {}
-        for entry_point in importlib_metadata.entry_points().get("catkit2.services", []):
+        for entry_point in importlib_metadata.entry_points().select(group="catkit2.services"):
             try:
                 # grab the module
                 module = entry_point.module

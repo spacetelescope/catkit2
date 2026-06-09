@@ -7,11 +7,14 @@ def get_version():
 		The version of the catkit2 package.
 	'''
 	if get_version._version is None:
-		from pkg_resources import get_distribution, DistributionNotFound
+		try:
+			import importlib.metadata as importlib_metadata
+		except ImportError:
+			import importlib_metadata
 
 		try:
-			get_version._version = get_distribution('catkit2').version
-		except DistributionNotFound:
+			get_version._version = importlib_metadata.version('catkit2')
+		except importlib_metadata.PackageNotFoundError:
 			# package is not installed
 			pass
 
