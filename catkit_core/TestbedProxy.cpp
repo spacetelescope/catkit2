@@ -213,7 +213,11 @@ void TestbedProxy::ReloadConfig(const json &new_config)
 		throw std::runtime_error("Unable to reload config.");
 	}
 
-	// Invalidate cached config so it gets refetched on next access
+	// Invalidate this proxy's cached config so it is refetched from the server on the
+	// next access. Note: this only affects *this* TestbedProxy instance. Other
+	// TestbedProxy objects (in this or other processes) keep their cached config until
+	// they are recreated, which matches the feature's "restart the service to apply"
+	// semantics. Broadcasting the invalidation to all live proxies would be a follow-up.
 	m_HasGottenInfo = false;
 }
 
@@ -386,8 +390,9 @@ std::string TestbedProxy::GetLongTermMonitoringPath()
 
 void TestbedProxy::GetTestbedInfo()
 {
-	// Do not communicate with the server unnecessarily.
-	// The server info will not change over its lifetime.
+	// Do not communicate with the server unnecessarily. The server info is treated as
+	// stable over the proxy's lifetime; the one exception is ReloadConfig(), which clears
+	// m_HasGottenInfo on this instance so the next access refetches the updated config.
 	if (m_HasGottenInfo)
 		return;
 
