@@ -55,15 +55,10 @@ class CameraService(Service):
         self.height = self.config.get('height', self.sensor_height)
         self.log.info('Configured ROI width: {}, height: {}'.format(self.width, self.height))
 
-        self._offset_x = self.config.get('offset_x', 0)
-        self._offset_y = self.config.get('offset_y', 0)
-
-        self.offset_x = self._offset_x
-        self.offset_y = self._offset_y
+        self.offset_x = self.config.get('offset_x', 0)
+        self.offset_y = self.config.get('offset_y', 0)
 
         self.log.info('Configured offsets x: {}, y: {}'.format(self.offset_x, self.offset_y))
-
-        # Note that transform_offset() must be called before updating the values of self.width and self.height.
 
         self.gain = self.config.get('gain', 0)
         self.exposure_time = self.config.get('exposure_time', 1000)
@@ -75,10 +70,6 @@ class CameraService(Service):
 
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
-
-        x, y = self.transform_offset(self._offset_x, self._offset_y)
-        x_back, y_back = self.transform_offset(x, y, inverse=True)
-        assert x_back == self._offset_x and y_back == self._offset_y, f"Inverse transform test returned {(x_back, y_back)}, was expecting {(self._offset_x, self._offset_y)}"
 
         def make_property_helper(property_name, read_only=False, requires_stopped_acquisition=False, dtype=None):
             if dtype is None:
@@ -155,91 +146,6 @@ class CameraService(Service):
             self.end_acquisition()
             self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
-    def transform_offset(self, x, y, inverse=False):
-        """Convert relative camera offsets given by the user to absolute offsets in camera coordinates.
-
-        The forward transformation is done by performing the following procedure:
-        1.) Translate the origin to the center of the ROI.
-        2.) If rot90 is True, rotate 90 degrees counter-clockwise about the center of the ROI.
-        3.) If flip_x is True, reflect in x.
-        4.) If flip_y is True, reflect in y.
-        5.) Translate the origin back to the upper left fo the ROI.
-
-        Parameters
-        ----------
-        x: float
-            The x-offset coordinate in the user coordinate system.
-        y: float
-            The y-offset coordinate in the user coordinate system.
-        inverse: bool, optional
-            If True, the transformation is performed in reverse, i.e. from camera coordinates to user coordinates.
-            Defaults to False.
-
-        Returns
-        -------
-        new_x, new_y: float, float
-            The transformed x and y coordinates for their location in camera array coordinates. If there is no rotation
-            or flip in x or y, then this returns the same x, y values that are input.
-        """
-        # Define the translation matrix T_center to get to the center of the sensor.
-        T_center = np.zeros((3, 3))
-        np.fill_diagonal(T_center, 1)
-        if not inverse and self.rot90:
-            T_center[0][-1] = -self.sensor_height / 2
-            T_center[1][-1] = -self.sensor_width / 2
-        else:
-            T_center[0][-1] = -self.sensor_width / 2
-            T_center[1][-1] = -self.sensor_height / 2
-
-        # Initialize rotation matrix R.
-        R = np.zeros((3, 3))
-
-        # Initialize x reflection matrix, X. Defaults to unity matrix.
-        X = np.eye(3, 3)
-
-        # Initialize y reflection matrix, Y. Defaults to unity matrix.
-        Y = np.eye(3, 3)
-
-        if self.rot90:
-            # Define rotation matrix.
-            R[0][1] = -1
-            R[1][0] = 1
-            R[2][2] = 1
-        else:
-            # Default to unity matrix.
-            np.fill_diagonal(R, 1)
-
-        if self.flip_x:
-            # Define x reflection matrix.
-            X[0][0] = -1
-
-        if self.flip_y:
-            # Define y reflection matrix.
-            Y[1][1] = -1
-
-        # Define translation matrix back so that the origin is in the upper left as expected.
-        T_back = np.eye(3, 3)
-
-        # If forward with rotation, or if inverse without rotation.
-        if inverse and self.rot90:
-            # Want to come back to new origin for which the height/width dimensions will be flipped if rotated.
-            T_back[0][-1] = self.sensor_height / 2
-            T_back[1][-1] = self.sensor_width / 2
-        else:
-            T_back[0][-1] = self.sensor_width / 2
-            T_back[1][-1] = self.sensor_height / 2
-
-        # Perform the dot product.
-        # Translate to ROI center, rotate, flip in x then in y,
-        # and finally translate back to origin.
-        coords = [x, y, 1]
-        if inverse:
-            new_coords = np.linalg.multi_dot([T_back, R.T, Y, X, T_center, coords])
-        else:
-            new_coords = np.linalg.multi_dot([T_back, Y, X, R, T_center, coords])
-
-        return int(np.round(new_coords[0])), int(np.round(new_coords[1]))
-
     def rot_flip_image(self, img):
         # rotation needs to happen first
         if self.rot90:
@@ -294,31 +200,27 @@ class CameraService(Service):
 
     @property
     def offset_x(self):
-        camera_offset_x = self.get_roi_offset_x()
-        camera_offset_y = self.get_roi_offset_y()
-        offset_x, _ = self.transform_offset(camera_offset_x, camera_offset_y, inverse=True)
-        return offset_x
+        return self.get_roi_offset_x()
 
     @offset_x.setter
     def offset_x(self, offset_x):
-        self._offset_x = offset_x
-        camera_offset_x, camera_offset_y = self.transform_offset(self._offset_x, self._offset_y)
-        self.set_roi_offset_x(camera_offset_x)
-        self.set_roi_offset_y(camera_offset_y)
+        self.set_roi_offset_x(offset_x)
 
     @property
     def offset_y(self):
-        camera_offset_x = self.get_roi_offset_x()
-        camera_offset_y = self.get_roi_offset_y()
-        _, offset_y = self.transform_offset(camera_offset_x, camera_offset_y, inverse=True)
-        return offset_y
+        return self.get_roi_offset_y()
 
     @offset_y.setter
     def offset_y(self, offset_y):
-        self._offset_y = offset_y
-        camera_offset_x, camera_offset_y = self.transform_offset(self._offset_x, self._offset_y)
-        self.set_roi_offset_y(camera_offset_y)
-        self.set_roi_offset_x(camera_offset_x)
+        self.set_roi_offset_y(offset_y)
+
+    @property
+    def gain(self):
+        return self.get_gain()
+
+    @gain.setter
+    def gain(self, gain):
+        self.set_gain(gain)
 
     @property
     def sensor_width(self):
