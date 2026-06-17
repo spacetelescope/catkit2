@@ -10,12 +10,7 @@ import contextlib
 
 from catkit2.base_services.camera import CameraService
 
-from vmbpy import (AllocationMode,
-                   Camera, Frame, Stream,
-                   FrameStatus,
-                   PixelFormat,
-                   VmbSystem,
-                   VmbCameraError)
+from vmbpy import PixelFormat
 
 
 class AlliedVisionCamera(CameraService):
