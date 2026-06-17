@@ -3,7 +3,6 @@ from PySpin import PySpin
 from contextlib import nullcontext
 
 from catkit2.base_services.camera import CameraService, StoppedAcquisition
-from catkit2.testbed.tracing import trace_interval
 
 
 def make_getter(flir_property_name):
