@@ -982,15 +982,33 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 	py::class_<Message>(m, "Message")
 		.def_property_readonly("topic", &Message::GetTopic)
+		.def_property_readonly("topic_depth", &Message::GetTopicDepth)
 		.def_property_readonly("trace_id", &Message::GetTraceId)
-		.def_property_readonly("message_id", &Message::GetMessageId)
+		.def_property_readonly("message_id", [](const Message& m)
+		{
+			// GetMessageId() is an overloaded function so cannot use function pointer.
+			return m.GetMessageId();
+		})
+		.def_property_readonly("message_ids", [](const Message& m)
+		{
+			size_t depth = m.GetTopicDepth();
+			py::tuple result(depth + 1);
+
+			for (size_t i = 0; i <= depth; ++i)
+			{
+				result[i] = m.GetMessageId(i);
+			}
+
+			return result;
+		})
 		.def_property_readonly("partial_message_id", &Message::GetPartialMessageId)
 		.def_property_readonly("payload_id", &Message::GetPayloadId)
 		.def_property_readonly("producer_hostname", &Message::GetProducerHostname)
 		.def_property_readonly("producer_pid", &Message::GetProducerPid)
 		.def_property_readonly("producer_timestamp", &Message::GetProducerTimestamp)
 		.def_property("array_info", &Message::GetArrayInfo, &Message::SetArrayInfo)
-		.def_property("payload", [](const Message& m) {
+		.def_property("payload", [](const Message& m)
+		{
 			return ToPython(m.GetPayload());
 		},
 		[](Message &m, py::buffer data)
@@ -1117,7 +1135,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
 		.def("publish_message", [](std::shared_ptr<LocalMessageBroker> broker, Message& message, bool is_final)
 		{
-			broker->PublishMessage(message, is_final);
+			return broker->PublishMessage(message, is_final);
 		}, py::arg("message"), py::arg("is_final") = true)
 		.def("publish_data", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
 		{
