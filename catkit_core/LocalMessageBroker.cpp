@@ -350,7 +350,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserveNext()
 
 bool TopicHeader::TryMakeAvailable(std::size_t message_id)
 {
-	std::cout << "TryMakeAvailable " << message_id << std::endl;
+	DEBUG_PRINT("TryMakeAvailable " << message_id);
 
 	while (true)
 	{
@@ -651,12 +651,12 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 				reserve_result = topic_header->TryReserve(message.m_Header->message_ids[i]);
 			}
 
-			std::cout << "ReserveResult: " << std::endl;
-			std::cout << "  success: " << reserve_result.success << std::endl;
-			std::cout << "  has_old_message_header: " << reserve_result.has_old_message_header << std::endl;
-			std::cout << "  can_try_again: " << reserve_result.can_try_again << std::endl;
-			std::cout << "  old_message_header: " << reserve_result.old_message_header << std::endl;
-			std::cout << "  message_id: " << reserve_result.message_id << std::endl;
+			DEBUG_PRINT("ReserveResult: ");
+			DEBUG_PRINT("  success: " << reserve_result.success);
+			DEBUG_PRINT("  has_old_message_header: " << reserve_result.has_old_message_header);
+			DEBUG_PRINT("  can_try_again: " << reserve_result.can_try_again);
+			DEBUG_PRINT("  old_message_header: " << reserve_result.old_message_header);
+			DEBUG_PRINT("  message_id: " << reserve_result.message_id);
 
 			// Check if we were given a message header to deallocate.
 			if (reserve_result.has_old_message_header)
@@ -767,14 +767,14 @@ Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t messa
 
 std::optional<Message> LocalMessageBroker::GetCurrentMessage(std::string_view topic)
 {
-	std::cout << "getting current message for " << topic << std::endl;
+	DEBUG_PRINT("getting current message for " << topic);
 
 	auto topic_header = GetTopicHeader(topic);
 
-	std::cout << "topic header: " << topic_header << std::endl;
+	DEBUG_PRINT("topic header: " << topic_header);
 
 	auto last_message_id = topic_header->GetEnd();
-	std::cout << "last message id: " << last_message_id << std::endl;
+	DEBUG_PRINT("last message id: " << last_message_id);
 
 	if (last_message_id == 0)
 		return std::nullopt;
@@ -788,7 +788,7 @@ std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic
 
 	std::uint64_t new_message_id = topic_header->GetNextMessageId(preferred_next_message_id, mode);
 
-	std::cout << "GetNextMessageId: " << new_message_id << std::endl;
+	DEBUG_PRINT("GetNextMessageId: " << new_message_id);
 
 	// Check if the frame is available.
 	if (topic_header->IsMessageAvailable(new_message_id))
