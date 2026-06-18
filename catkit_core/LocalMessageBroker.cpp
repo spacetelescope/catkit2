@@ -629,7 +629,8 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 	auto topic = std::string_view(message.m_Header->topic);
 	auto allocator = GetAllocator(message.m_Header->payload_info.memory_block_id);
 
-	size_t i = 0;
+	size_t topic_depth = message.GetTopicDepth();
+	size_t i = topic_depth;
 
 	// Reserve a message ID for all subtopics.
 	for (const auto &subtopic : SubtopicRange(topic))
@@ -713,6 +714,8 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		// Only publish on the bottom-most topic when it's a partial message.
 		if (!is_final)
 			break;
+
+		i--;
 	}
 
 	m_Event->Signal();

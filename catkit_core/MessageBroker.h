@@ -76,6 +76,8 @@ struct MessageHeader
 	MetadataEntry metadata_entries[MAX_NUM_METADATA_ENTRIES];
 };
 
+size_t GetTopicDepth(std::string_view topic);
+
 class MessageBroker;
 class LocalMessageBroker;
 
@@ -89,9 +91,11 @@ private:
 
 public:
 	std::string_view GetTopic() const;
+	std::size_t GetTopicDepth() const;
 
 	const Uuid &GetPayloadId() const;
 	std::uint64_t GetMessageId() const;
+	std::uint64_t GetMessageId(std::size_t depth) const;
 	std::uint16_t GetPartialMessageId() const;
 
 	const Uuid &GetTraceId() const;
@@ -146,6 +150,7 @@ private:
 	std::shared_ptr<MessageBroker> m_MessageBroker;
 
 	std::string m_Topic;
+	std::size_t m_TopicDepth;
 	std::uint64_t m_PreferredNextMessageId;
 	MessageSubscriptionMode m_SubscriptionMode;
 };

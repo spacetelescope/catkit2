@@ -4,6 +4,11 @@
 
 #include "LocalMessageBroker.h"
 
+size_t GetTopicDepth(std::string_view topic)
+{
+	return std::count(topic.begin(), topic.end(), '/');
+}
+
 Message::Message(MessageHeader *header, void *payload)
 	: m_Header(header), m_Payload(payload)
 {
@@ -14,6 +19,11 @@ std::string_view Message::GetTopic() const
 	return m_Header->topic;
 }
 
+size_t Message::GetTopicDepth() const
+{
+	return ::GetTopicDepth(GetTopic());
+}
+
 const Uuid &Message::GetPayloadId() const
 {
 	return m_Header->payload_id;
@@ -21,7 +31,12 @@ const Uuid &Message::GetPayloadId() const
 
 std::uint64_t Message::GetMessageId() const
 {
-	return m_Header->message_ids[0];
+	return m_Header->message_ids[GetTopicDepth()];
+}
+
+std::uint64_t Message::GetMessageId(size_t depth) const
+{
+	return m_Header->message_ids[depth];
 }
 
 std::uint16_t Message::GetPartialMessageId() const
@@ -144,7 +159,7 @@ void Message::SetEndByte(std::uint64_t end_byte)
 }
 
 MessageSubscription::MessageSubscription(std::shared_ptr<MessageBroker> message_broker, std::string_view topic, std::uint64_t preferred_next_message_id, MessageSubscriptionMode mode)
-	: m_MessageBroker(message_broker), m_Topic(topic), m_PreferredNextMessageId(preferred_next_message_id), m_SubscriptionMode(mode)
+	: m_MessageBroker(message_broker), m_Topic(topic), m_PreferredNextMessageId(preferred_next_message_id), m_SubscriptionMode(mode), m_TopicDepth(GetTopicDepth(topic))
 {
 }
 
@@ -156,7 +171,7 @@ std::optional<Message> MessageSubscription::GetNextMessage(double timeout_in_sec
 		return message;
 
 	// We are going to return a message. Update our message id for the next call.
-	m_PreferredNextMessageId = message->GetMessageId() + 1;
+	m_PreferredNextMessageId = message->GetMessageId(m_TopicDepth) + 1;
 
 	return message;
 }
