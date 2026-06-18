@@ -358,7 +358,7 @@ void Service::MonitorHeartbeats()
 void Service::MonitorPropertiesAndCommands()
 {
 	auto broker = m_Testbed->GetMessageBroker();
-	auto subscription = broker->Subscribe(m_ServiceId);
+	auto subscription = broker->Subscribe(m_ServiceId, MessageSubscriptionMode::Sequential);
 
 	while (!ShouldShutDown())
 	{
