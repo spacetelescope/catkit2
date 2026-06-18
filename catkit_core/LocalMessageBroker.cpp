@@ -12,8 +12,8 @@
 // Decay rate for the frame rate estimate in 1/sec.
 const double FRAMERATE_DECAY = 2.5;
 
-//#define DEBUG_PRINT(a) std::cout << a << std::endl
-#define DEBUG_PRINT(a)
+#define DEBUG_PRINT(a) std::cout << a << std::endl
+//#define DEBUG_PRINT(a)
 
 template<typename T>
 T fetch_max(std::atomic<T> &atom, T value)
@@ -228,11 +228,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
 
 		// Check if the message id is too old (already evicted).
 		if (last > TOPIC_MAX_NUM_MESSAGES && message_id < last - TOPIC_MAX_NUM_MESSAGES)
-			return {
-				.success=false, .can_try_again=false,
-				.has_old_message_header=false, .old_message_header=0,
-				.message_id = message_id
-			};
+			return TopicHeader::ReserveResult{false, false, false, 0, message_id};
 
 		// Check if we need to advance last to include this message.
 		if (message_id >= last)
@@ -243,11 +239,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
 			{
 				// Message is further ahead. We need to advance step by step.
 				// Return failure but indicate caller should retry.
-				return {
-					.success = false, .can_try_again = true,
-					.has_old_message_header = false, .old_message_header = 0,
-					.message_id = message_id
-				};
+				return TopicHeader::ReserveResult{false, true, false, 0, message_id};
 			}
 
 			// message_id == last, we can advance by one.
@@ -270,12 +262,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
 
 			// We succeeded. Check if we reached the target message_id.
 			bool success = (last - 1) == message_id;
-			return {
-				.success = success, .can_try_again = true,
-				.has_old_message_header = was_available,
-				.old_message_header = message_header,
-				.message_id = last - 1
-			};
+			return TopicHeader::ReserveResult{success, true, was_available, message_header, last - 1};
 		}
 		else
 		{
@@ -287,11 +274,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
 			if (bitmap & (1 << offset))
 			{
 				// Message already exists.
-				return {
-					.success = false, .can_try_again = false,
-					.has_old_message_header = false, .old_message_header = 0,
-					.message_id = message_id
-				};
+				return TopicHeader::ReserveResult{false, false, false, 0, message_id};
 			}
 
 			// Set the bit for this message.
@@ -306,11 +289,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
 			}
 
 			// We succeeded so the frame is marked.
-			return {
-				.success = true, .can_try_again = false,
-				.has_old_message_header = false, .old_message_header = 0,
-				.message_id = message_id
-			};
+			return TopicHeader::ReserveResult{true, false, false, 0, message_id};
 		}
 	}
 }
@@ -340,11 +319,7 @@ TopicHeader::ReserveResult TopicHeader::TryReserveNext()
 		}
 
 		// We succeeded so the frame is marked.
-		return {
-			.success = true, .can_try_again = true,
-			.has_old_message_header = was_available, .old_message_header = message_header,
-			.message_id = last - 1
-		};
+		return TopicHeader::ReserveResult{true, true, was_available, message_header, last - 1};
 	}
 }
 
