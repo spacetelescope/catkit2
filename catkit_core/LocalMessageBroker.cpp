@@ -529,6 +529,17 @@ std::size_t LocalMessageBroker::CalculateBufferSize()
 
 Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
 {
+	// Validate topic.
+	if (topic.size() > TOPIC_MAX_KEY_SIZE)
+	{
+		throw std::runtime_error("Invalid topic: topic is too long.");
+	}
+
+	if (GetTopicDepth(topic) > TOPIC_MAX_DEPTH)
+	{
+		throw std::runtime_error("Invalid topic: topic is too deep.");
+	}
+
 	// Allocate a payload.
 	auto allocator = GetAllocator(memory_block_id);
 
