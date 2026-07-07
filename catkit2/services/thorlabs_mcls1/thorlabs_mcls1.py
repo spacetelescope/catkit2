@@ -2,6 +2,7 @@ from catkit2.testbed.service import Service
 
 import os
 import ctypes
+import platform
 
 import numpy as np
 import threading
@@ -49,7 +50,7 @@ def make_setter(command):
                 self.set_active_channel(self.channel)
 
             # Execute command.
-            self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, command_str.encode(), 32)
+            self._set_command(command_str)
 
     return setter
 
@@ -58,7 +59,6 @@ def make_getter(command, stream_name):
     def getter(self):
         # Form command.
         command_str = command.value + MCLS1_COM.TERM_CHAR.value
-        response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
 
         # Lock first to ensure the next two statements are uninterrupted.
         with self.lock:
@@ -67,15 +67,13 @@ def make_getter(command, stream_name):
                 self.set_active_channel(self.channel)
 
             # Execute command.
-            self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, command_str.encode(), response_buffer)
+            response = self._get_command(command_str)
 
         # Decode result.
-        response_buffer = response_buffer.value
-        value = response_buffer.rstrip(b"\x00").decode().lstrip(command.value).strip('\r').rstrip('\r> ')
+        value = self._parse_response_value(response)
 
         # Submit retrieved value to stream.
         stream = getattr(self, stream_name)
-        print(f"value= {value}")
         try:
             stream.submit_data(np.array([value]).astype(stream.dtype))
         except ValueError:
@@ -104,16 +102,132 @@ class ThorlabsMcls1(Service):
         super().__init__('thorlabs_mcls1')
 
         self.threads = {}
+        self.instrument_handle = None
+        self.serial_handle = None
+        self.UART_lib = None
 
-        self.vcp_port = self.config.get('vcp_port', 'VCP0')
+        self.vcp_port = self.config.get('vcp_port', None)
+        self.serial_port = self.config.get('serial_port', None)
+        self.serial_timeout = self.config.get('serial_timeout', None)
+        self.baud_rate = MCLS1_COM.BAUD_RATE.value
+
+        self.backend = self._select_backend()
+
         # Use a reentrant lock to avoid deadlock when setting the channel.
         self.lock = threading.RLock()
 
-        try:
+        if self.backend == 'uart_lib':
             uart_lib_path = os.environ.get('CATKIT_THORLABS_UART_LIB_PATH')
+            if not uart_lib_path:
+                raise RuntimeError('CATKIT_THORLABS_UART_LIB_PATH is not set for the Windows UART-library backend')
             self.UART_lib = ctypes.cdll.LoadLibrary(uart_lib_path)
-        except ImportError as error:
-            raise error
+
+    def _select_backend(self):
+        if platform.system().lower().startswith('win'):
+            return 'uart_lib'
+
+        return 'serial'
+
+    def _connect(self):
+        if self.backend == 'uart_lib':
+            self._connect_uart_lib()
+        elif self.backend == 'serial':
+            self._connect_serial()
+        else:
+            raise RuntimeError(f'Unsupported backend: {self.backend}')
+
+    def _disconnect(self):
+        if self.backend == 'uart_lib' and self.instrument_handle is not None:
+            self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
+            self.instrument_handle = None
+        elif self.backend == 'serial' and self.serial_handle is not None:
+            self.serial_handle.close()
+            self.serial_handle = None
+
+    def _connect_uart_lib(self):
+        response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
+        self.UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
+        devices = response_buffer.value.decode(errors='ignore')
+        split = [item.strip() for item in devices.split(',') if item.strip()]
+        print(split)
+
+        selected_port = None
+        for i, thing in enumerate(split):
+            if self.vcp_port in thing and i > 0:
+                # The list has a format of "Port, Device, Port, Device". Once we find device named VCP11, minus 1 in the
+                # list index to get the corresponding port.
+                # It seems that the VCP port can change occasionally for reasons we do not understand.
+                # Last time this happened we identified the COM port in the device manager by unplugging / replugging
+                # and then figuring the corresponding VCP port from the above debugging message.
+
+                # Another way to figure out the COM port is to go to the MCLS1 Application and disconnect the source.
+                # When you reconnect the source, COM port it is connected to will be displayed.
+                selected_port = split[i - 1]
+                print(f'port number from thing ={selected_port}')
+                break
+
+        if selected_port is None:
+            raise RuntimeError(
+                f'Device {self.vcp_port} not found - The MCLS1 may have switched COM/VCP port after a reboot'
+            )
+
+        self.port = selected_port
+        self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), self.baud_rate, 3)
+
+    def _connect_serial(self):
+        serial_module = self._require_pyserial()
+        self.serial_handle = serial_module.Serial(
+            port=self.serial_port,
+            baudrate=self.baud_rate,
+            timeout=self.serial_timeout,
+            write_timeout=self.serial_timeout,
+        )
+        self.serial_handle.reset_input_buffer()
+        self.serial_handle.reset_output_buffer()
+
+    @staticmethod
+    def _require_pyserial():
+        try:
+            import serial as serial_module
+        except ImportError as exc:
+            raise RuntimeError('pyserial is required for the serial backend but is not installed') from exc
+
+        return serial_module
+
+    def _set_command(self, command_str):
+        payload = command_str.encode()
+        if self.backend == 'uart_lib':
+            self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, payload, len(payload))
+        elif self.backend == 'serial':
+            self.serial_handle.write(payload)
+            self.serial_handle.flush()
+
+    def _get_command(self, command_str):
+        payload = command_str.encode()
+        if self.backend == 'uart_lib':
+            response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
+            self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, payload, response_buffer)
+            return response_buffer.value
+        elif self.backend == 'serial':
+            self.serial_handle.reset_input_buffer()
+            self.serial_handle.write(payload)
+            self.serial_handle.flush()
+            return self.serial_handle.read_until(b'>')
+
+    @staticmethod
+    def _parse_response_value(response):
+        text = response.rstrip(b"\x00").decode(errors="ignore")
+
+        lines = [
+            line.strip(" \r\n\t> <")
+            for line in text.splitlines()
+            if line.strip(" \r\n\t> <")
+        ]
+
+        if not lines:
+            raise ValueError(f"Empty serial response: {text!r}")
+
+        return lines[-1]
 
     def open(self):
         # Make datastreams
@@ -123,29 +237,8 @@ class ThorlabsMcls1(Service):
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
         self.power = self.make_data_stream('power', 'float32', [1], 20)
 
-        # Open connection to device
-        response_buffer = ctypes.create_string_buffer(MCLS1_COM.BUFFER_SIZE.value)
-        self.UART_lib.fnUART_LIBRARY_list(response_buffer, MCLS1_COM.BUFFER_SIZE.value)
-        response_buffer = response_buffer.value.decode()
-        split = response_buffer.split(",")
-        print(split)
-        for i, thing in enumerate(split):
-            # The list has a format of "Port, Device, Port, Device". Once we find device named VCP11, minus 1 for port.
-            # It seems that the VCP port can change occasionally for reasons we do not understand.
-            # Last time this happened we identified the COM port in the device manager by unplugging / replugging
-            # and then figuring the corresponding VCP port from the above debugging message.
-
-            # Another way to figure out the COM port is to go to the MCLS1 Application and dicsonnect the source.
-            # When you reconnect the source, COM port it is connected to will be displayed.
-
-            if self.vcp_port in thing:
-                self.port = split[i - 1]
-                print(f'port number from thing ={self.port}')
-                break
-        else:
-            raise Exception(f'Device {self.vcp_port} not found - The MCLS1 probably switched COM port after a reboot')
-
-        self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(self.port.encode(), MCLS1_COM.BAUD_RATE.value, 3)
+        # Open connection to device.
+        self._connect()
 
         self.setters = {
             'emission': self.set_emission,
@@ -190,7 +283,7 @@ class ThorlabsMcls1(Service):
             thread.join()
 
         # Close the instrument.
-        self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
+        self._disconnect()
 
     def update_status(self):
         while not self.should_shut_down:

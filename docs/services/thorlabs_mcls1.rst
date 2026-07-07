@@ -1,7 +1,13 @@
 Thorlabs MCLS1
 ==============
 Thorlabs MCLS1 service contains software for controlling the `Thorlabs MCLS1` laser source.
-The communication is done through serial communication. 
+Backend selection is automatic at runtime:
+
+- On Windows, the service uses the Thorlabs UART library backend.
+- On non-Windows platforms (Linux/macOS), the service communicates directly over serial (pyserial).
+
+On Windows, the environment variable ``CATKIT_THORLABS_UART_LIB_PATH`` must point to the Thorlabs UART library file used by this service.
+
 Thorlabs software suite is publicly available at https://www.thorlabs.com/software-pages/mcls1/
 
 
@@ -16,7 +22,14 @@ Configuration
         simulated_service_type: thorlabs_mcls1_sim
         interface: thorlabs_mcls1
         requires_safety: false
+
+        # Used by the Windows UART-library backend to find the device in the VCP list.
+        # Can be omitted if not on Windows.
         vcp_port: 'VCP3'
+
+        # Optional for non-Windows serial backend.
+        # serial_port: '/dev/ttyUSB0'
+        # serial_timeout: 1.0
 
         emission: 1
         current_setpoint: 100

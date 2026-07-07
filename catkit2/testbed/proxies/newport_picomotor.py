@@ -16,7 +16,7 @@ class NewportPicomotorProxy(ServiceProxy):
         stream = getattr(self, axis_name.lower() + '_current_position')
         current_position = stream.get()[0]
 
-        new_position = np.int32(current_position + distance)
+        new_position = np.int64(current_position + distance)
 
         self.move_absolute(axis_name, new_position, timeout=timeout)
 
