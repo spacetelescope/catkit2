@@ -23,11 +23,11 @@ class NewportPicomotorSim(Service):
 
     def add_axis(self, axis_name):
         self.axis_commands[axis_name] = self.make_data_stream(axis_name.lower() + '_command', 'int32', [1], 20)
-        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int32', [1], 20)
+        self.axis_current_positions[axis_name] = self.make_data_stream(axis_name.lower() + '_current_position', 'int64', [1], 20)
         self.axis_positions[axis_name] = 0
 
         self.axis_commands[axis_name].submit_data(np.zeros(1, dtype='int32'))
-        self.axis_current_positions[axis_name].submit_data(np.zeros(1, dtype='int32'))
+        self.axis_current_positions[axis_name].submit_data(np.zeros(1, dtype='int64'))
 
     def set_current_position(self, axis_name, position):
         position_before = self.get_current_position(axis_name)
