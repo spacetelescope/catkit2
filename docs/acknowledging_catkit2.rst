@@ -6,34 +6,43 @@ presentations, and other materials.
 
 For presentations, we ask you to mention at least:
 
-    *catkit2 (Por et al. 2024)*
+    *catkit2 (Por et al. 2026)*
 
-For written publications, we ask you to cite the `Zenodo DOI <https://zenodo.org/records/11395554>`__. If there is no appropriate place in the
+For written publications, we ask you to cite the `Zenodo DOI <https://zenodo.org/records/20843325>`__. If there is no appropriate place in the
 body text to cite it, you can include something along the lines of the following in your acknowledgements:
 
-    *This research made use of catkit2, an open-source package for controlling testbed hardware* (`Por et al. 2024 <https://zenodo.org/records/11395554>`__).
+    *This research made use of catkit2, an open-source package for controlling testbed hardware* (`Por et al. 2026 <https://zenodo.org/records/20843325>`__).
 
 The Zenodo citation can be found below:
 
 .. code-block:: bib
 
-    @software{por_2024_11395554,
-    author       = {Por, Emiel, H. and
-                    Laginja, Iva and
-                    Pourcelot, Raphaël and
-                    Soummer, Rémi and
-                    Sevin, Arnaud and
-                    Sahoo, Ananya and
-                    Nguyen, Meiji and
-                    Fowler, Jules and
-                    Egger, Léo and
-                    Pougheon, Erin and
-                    Demagny, Augustin},
-    title        = {spacetelescope/catkit2},
-    month        = may,
-    year         = 2024,
-    publisher    = {Zenodo},
-    version      = {v0.6.1},
-    doi          = {10.5281/zenodo.11395554},
-    url          = {https://doi.org/10.5281/zenodo.11395554},
+    @software{Por2026,
+      author       = {Emiel H. Por and
+                      Iva Laginja and
+                      Sarah Steiger and
+                      Rémi Soummer and
+                      Lane Meier and
+                      Erin Pougheon and
+                      Raphaël Pourcelot and
+                      Michael Paul Philbin and
+                      Johan Mazoyer and
+                      Arnaud Sevin and
+                      Meiji Nguyen and
+                      Ananya Sahoo and
+                      Alexis Lau and
+                      Corentin Paviot and
+                      Léo Egger and
+                      Lukas Delaye and
+                      Alex Meredith and
+                      P. L. Lim and
+                      linarphy and
+                      Jules Fowler},
+      title        = {spacetelescope/catkit2: v0.7.0},
+      month        = jun,
+      year         = 2026,
+      publisher    = {Zenodo},
+      version      = {v0.7.0},
+      doi          = {10.5281/zenodo.20843325},
+      url          = {https://doi.org/10.5281/zenodo.20843325},
     }
