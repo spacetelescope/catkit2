@@ -1,8 +1,7 @@
 from catkit2.catkit_bindings import Server, Client
-import threading
 import time
 import pytest
-import socket
+import weakref
 
 class OurServer(Server):
     def __init__(self, port):
@@ -47,3 +46,37 @@ def test_server_client_communication(unused_port):
         client.baz()
 
     server.stop()
+
+def test_server_cleanup(unused_port):
+    port = unused_port()
+    server = OurServer(port)
+
+    # Use a weak reference to the server, to check if actually gets deleted.
+    server_ref = weakref.ref(server)
+    assert server_ref() is not None
+
+    # Run the server.
+    server.start()
+    time.sleep(0.5)
+    server.stop()
+
+    # Delete the server.
+    del server
+
+    # The server should now have been deleted.
+    assert server_ref() is None
+
+def test_server_cleanup_manual(unused_port):
+    port = unused_port()
+    server = OurServer(port)
+
+    # Use a weak reference to the server, to check if actually gets deleted.
+    server_ref = weakref.ref(server)
+    assert server_ref() is not None
+
+    # Cleanup the request handlers and delete the server.
+    server.cleanup_request_handlers()
+    del server
+
+    # This should have deleted the server object itself.
+    assert server_ref() is None

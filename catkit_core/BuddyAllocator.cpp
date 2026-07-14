@@ -58,8 +58,8 @@ constexpr inline bool IsFree(std::uint16_t val)
 	return ~(val & BUSY);
 }
 
-BuddyAllocator::BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success)
-	: m_Capacity(capacity), m_MinSize(min_size), m_Depth(bit_width(capacity / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
+BuddyAllocator::BuddyAllocator(std::size_t capacity, std::size_t min_size, std::atomic_uint16_t *tree, std::atomic_size_t *last_success, std::shared_ptr<Memory> memory_block)
+	: Shareable(memory_block), m_Capacity(capacity), m_MinSize(min_size), m_Depth(bit_width(capacity / min_size) - 1), m_Tree(tree), m_LastSuccessfulAllocation(last_success)
 {
 	// Check that min_size and capacity are powers of two.
 	if ((min_size & (min_size - 1)) != 0)
@@ -95,7 +95,7 @@ std::shared_ptr<BuddyAllocator> BuddyAllocator::Create(StructStream &stream, std
 		last_success[i].store((1 << (depth - 1)) - 1);
 	}
 
-	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
+	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success, stream.GetBuffer()));
 }
 
 std::shared_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
@@ -110,7 +110,7 @@ std::shared_ptr<BuddyAllocator> BuddyAllocator::Open(StructStream &stream)
 	auto tree = stream.Extract<std::atomic_uint16_t>(1 << (depth + 1));
 	auto last_success = stream.Extract<std::atomic_size_t>(depth + 1);
 
-	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success));
+	return std::shared_ptr<BuddyAllocator>(new BuddyAllocator(capacity, min_size, tree, last_success, stream.GetBuffer()));
 }
 
 std::size_t BuddyAllocator::GetSharedStateSize(std::size_t capacity, std::size_t min_size)
@@ -171,7 +171,8 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 
 			if (failed_at == INVALID_HANDLE)
 			{
-				DEBUG_PRINT("Sucessful at node " << i);
+				DEBUG_PRINT("Successful at node " << i);
+				DEBUG_PRINT("Ref count = " << (m_Tree[i].load(std::memory_order_relaxed) & REF_MASK));
 
 				m_LastSuccessfulAllocation[level].store(i, std::memory_order_relaxed);
 				return i;
@@ -193,16 +194,23 @@ BuddyAllocator::Handle BuddyAllocator::Allocate(std::size_t size)
 
 bool BuddyAllocator::Acquire(Handle handle)
 {
+	DEBUG_PRINT("Acquiring handle " << handle);
+
+	DEBUG_PRINT("Ref count = " << ((m_Tree[handle].load(std::memory_order_relaxed) & REF_MASK) + 1));
+
 	// Increment the reference counter, but check for zero reference bit.
 	return (m_Tree[handle].fetch_add(1, std::memory_order_relaxed) & REF_ZERO) == 0;
 }
 
 bool BuddyAllocator::Release(Handle handle)
 {
-	DEBUG_PRINT("Deallocating handle " << handle);
+	DEBUG_PRINT("Releasing handle " << handle);
 
 	// Decrement the ref counter.
 	auto old_val = m_Tree[handle].fetch_sub(1, std::memory_order_relaxed);
+
+	DEBUG_PRINT("Decremented ref counter");
+	DEBUG_PRINT("Ref count = " << (m_Tree[handle].load(std::memory_order_relaxed) & REF_MASK));
 
 	if ((old_val & REF_MASK) == 1)
 	{
@@ -413,4 +421,32 @@ void BuddyAllocator::PrintState() const
 			std::cout << std::endl;
 		}
 	}
+}
+
+size_t BuddyAllocator::GetUsage() const
+{
+	size_t used = 0;
+
+	for (size_t level = 1; level < m_Depth; ++level)
+	{
+		Handle begin = 1 << (level - 1);
+		Handle end = 1 << level;
+
+		size_t size = GetSize(begin);
+
+		for (Handle i = begin; i < end; ++i)
+		{
+			auto val = m_Tree[i].load(std::memory_order_relaxed);
+
+			if (val & OCC)
+				used += size;
+		}
+	}
+
+	return used;
+}
+
+size_t BuddyAllocator::GetCapacity() const
+{
+	return m_Capacity;
 }

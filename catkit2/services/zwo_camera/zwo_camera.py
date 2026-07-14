@@ -149,6 +149,8 @@ class ZwoCamera(Service):
             # Catch and hide exceptions that get thrown if the camera was already stopped.
             pass
 
+        self.device_name = device_name
+
         # Set image format to be RAW16, although camera is only 12-bit.
         self.camera.set_image_type(zwoasi.ASI_IMG_RAW16)
 

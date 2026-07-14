@@ -8,37 +8,26 @@
 #include <memory>
 #include <array>
 
-template <typename Event>
-class EventLockGuard
-{
-public:
-	inline EventLockGuard(Event &event)
-		: m_Event(event)
-	{
-		m_Event->Lock();
-	}
-
-	inline ~EventLockGuard()
-	{
-		m_Event->Unlock();
-	}
-
-private:
-	Event &m_Event;
-};
-
 enum class EventWaitMethod
 {
-	Default,
 	ConditionVariable,
 	Futex,
 	Semaphore,
-	SpinLock
+	SpinLock,
+#ifdef _WIN32
+	Default = Semaphore
+#elif defined(__linux__)
+	Default = Futex
+#elif defined(__APPLE__)
+	Default = ConditionVariable
+#endif
 };
 
 class Event : public Shareable
 {
 private:
+	Event(std::shared_ptr<Memory> memory_block);
+
 	static const int EVENT_ID_MAX_SIZE = 256;
 
 	struct Header
@@ -54,9 +43,6 @@ private:
 public:
 	void Wait(double timeout_in_sec, std::function<bool()> condition, EventWaitMethod wait_method = EventWaitMethod::Default, void (*error_check)() = nullptr);
 	void Signal();
-
-	void Lock();
-	void Unlock();
 
 	static std::shared_ptr<Event> Create(StructStream &stream, std::string_view id);
 	static std::shared_ptr<Event> Open(StructStream &stream);

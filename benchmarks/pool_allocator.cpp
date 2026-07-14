@@ -1,6 +1,7 @@
 #include "PoolAllocator.h"
 #include "Timing.h"
 #include "StructStream.h"
+#include "LocalMemory.h"
 #include <iostream>
 
 void benchmark_linux_scalability()
@@ -8,7 +9,7 @@ void benchmark_linux_scalability()
 	const size_t N = 10000000;
 	const size_t CAPACITY = 2 * N;
 
-	char *buffer = new char[PoolAllocator::GetSharedStateSize(CAPACITY)];
+	auto buffer = LocalMemory::Create(PoolAllocator::GetSharedStateSize(CAPACITY));
 	auto stream = StructStream(buffer);
 
 	auto allocator = PoolAllocator::Create(stream, CAPACITY);
@@ -35,7 +36,6 @@ void benchmark_linux_scalability()
 	std::cout << "Time per operation: " << (end - start) / (2 * N) << " ns" << std::endl;
 
 	delete[] handles;
-	delete[] buffer;
 }
 
 int main(int argc, char **argv)

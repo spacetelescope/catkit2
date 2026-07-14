@@ -2,10 +2,16 @@
 
 #include <atomic>
 #include <cstddef>
+#include <thread>
 
 using EventSpinLock = EventImpl<EventImplementationType::SpinLock>;
 
 const std::size_t NUM_ITERATIONS_BETWEEN_CHECKS = 16;
+
+template<>
+struct is_event_implemented<EventImplementationType::SpinLock> : std::true_type
+{
+};
 
 template<>
 struct EventSharedState<EventImplementationType::SpinLock>
@@ -18,15 +24,20 @@ inline void EventSpinLock::Wait(double timeout_in_sec, std::function<bool()> con
 {
 	Timer timer;
 
-	std::size_t current_counter = m_SharedState->m_Counter.load(std::memory_order_relaxed);
+	std::size_t current_counter = m_SharedState->m_Counter.load(std::memory_order_acquire);
 	std::size_t i = 0;
 
 	while (!condition())
 	{
 		while (true)
 		{
-			if (m_SharedState->m_Counter.load(std::memory_order_relaxed) == current_counter)
+			std::size_t new_counter = m_SharedState->m_Counter.load(std::memory_order_acquire);
+
+			if (new_counter != current_counter)
+			{
+				current_counter = new_counter;
 				break;
+			}
 
 			if (++i == NUM_ITERATIONS_BETWEEN_CHECKS)
 			{
@@ -38,6 +49,9 @@ inline void EventSpinLock::Wait(double timeout_in_sec, std::function<bool()> con
 					throw std::runtime_error("Waiting time has expired.");
 
 				i = 0;
+
+				// Yield the thread to allow other threads to run.
+				std::this_thread::yield();
 			}
 		}
 	}
@@ -46,7 +60,7 @@ inline void EventSpinLock::Wait(double timeout_in_sec, std::function<bool()> con
 template<>
 inline void EventSpinLock::Signal()
 {
-	m_SharedState->m_Counter.fetch_add(1, std::memory_order_relaxed);
+	m_SharedState->m_Counter.fetch_add(1, std::memory_order_release);
 }
 
 template<>

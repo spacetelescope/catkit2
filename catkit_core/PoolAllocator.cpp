@@ -5,8 +5,8 @@
 
 const std::array<std::uint8_t, 4> VERSION = {0, 0, 0, 0};
 
-PoolAllocator::PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next, std::atomic_size_t *ref_count)
-	: m_Capacity(capacity), m_Head(head), m_Next(next), m_RefCount(ref_count)
+PoolAllocator::PoolAllocator(std::uint32_t capacity, std::atomic<BlockHandle> *head, std::atomic<BlockHandle> *next, std::atomic_size_t *ref_count, std::shared_ptr<Memory> memory_block)
+	: Shareable(memory_block), m_Capacity(capacity), m_Head(head), m_Next(next), m_RefCount(ref_count)
 {
 }
 
@@ -46,7 +46,7 @@ std::shared_ptr<PoolAllocator> PoolAllocator::Create(StructStream &stream, std::
 	}
 	next[capacity - 1].store(INVALID_HANDLE, std::memory_order_relaxed);
 
-	return std::shared_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count));
+	return std::shared_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count, stream.GetBuffer()));
 }
 
 std::shared_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
@@ -58,7 +58,7 @@ std::shared_ptr<PoolAllocator> PoolAllocator::Open(StructStream &stream)
 	auto next = stream.Extract<std::atomic<BlockHandle>>(capacity);
 	auto *ref_count = stream.Extract<std::atomic_size_t>(capacity);
 
-	return std::shared_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count));
+	return std::shared_ptr<PoolAllocator>(new PoolAllocator(capacity, head, next, ref_count, stream.GetBuffer()));
 }
 
 PoolAllocator::BlockHandle PoolAllocator::Allocate()
@@ -141,4 +141,22 @@ bool PoolAllocator::Release(BlockHandle index)
 ShareableType PoolAllocator::GetType() const
 {
 	return ShareableType::PoolAllocator;
+}
+
+size_t PoolAllocator::GetNumUsedBlocks() const
+{
+	size_t count = 0;
+
+	for (size_t i = 0; i < m_Capacity; ++i)
+	{
+		if (m_RefCount[i].load(std::memory_order_relaxed) > 0)
+			count++;
+	}
+
+	return count;
+}
+
+size_t PoolAllocator::GetCapacity() const
+{
+	return m_Capacity;
 }

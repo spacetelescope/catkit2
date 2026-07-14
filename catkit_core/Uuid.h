@@ -3,13 +3,18 @@
 
 #include <random>
 #include <string>
+#include <array>
 
-struct Uuid {
-    unsigned char data[16];
+struct Uuid
+{
+	std::array<unsigned char, 16> data;
 
 	static void Generate(Uuid *uuid);
 
-    std::string to_string() const;
+	bool operator==(const Uuid &other) const;
+	bool operator!=(const Uuid &other) const;
+
+	std::string to_string() const;
 };
 
 #endif // UUID_GENERATOR_H

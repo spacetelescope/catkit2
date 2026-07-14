@@ -2,6 +2,7 @@
 
 #include "Timing.h"
 #include "HostName.h"
+#include "LocalMessageBroker.h"
 #include "testbed.pb.h"
 
 #include <memory>
@@ -223,6 +224,13 @@ std::shared_ptr<DataStream> TestbedProxy::GetHeartbeat()
 	return m_HeartbeatStream;
 }
 
+std::shared_ptr<MessageBroker> TestbedProxy::GetMessageBroker()
+{
+	GetTestbedInfo();
+
+	return m_MessageBroker;
+}
+
 json TestbedProxy::GetConfig()
 {
 	GetTestbedInfo();
@@ -378,8 +386,9 @@ std::string TestbedProxy::GetLongTermMonitoringPath()
 
 void TestbedProxy::GetTestbedInfo()
 {
-	// Do not communicate with the server unnecessarily.
-	// The server info will not change over its lifetime.
+	// Do not communicate with the server unnecessarily. The server info is treated as
+	// stable over the proxy's lifetime; the one exception is ReloadConfig(), which clears
+	// m_HasGottenInfo on this instance so the next access refetches the updated config.
 	if (m_HasGottenInfo)
 		return;
 
@@ -392,6 +401,10 @@ void TestbedProxy::GetTestbedInfo()
 	m_IsSimulated = reply.is_simulated();
 
 	m_HeartbeatStream = DataStream::Open(reply.heartbeat_stream_id());
+
+	m_MessageBrokerHeader = SharedMemory::Open(reply.message_broker_id());
+	StructStream stream = StructStream(m_MessageBrokerHeader);
+	m_MessageBroker = LocalMessageBroker::Open(stream);
 
 	m_LoggingIngressPort = reply.logging_ingress_port();
 	m_LoggingEgressPort = reply.logging_egress_port();

@@ -15,7 +15,7 @@ enum class ShareableType
 	PoolAllocator,
 	SharedMemory,
 	HashMap,
-	MessageBroker,
+	LocalMessageBroker,
 	BuddyAllocator,
 	HybridPoolAllocator
 };
@@ -31,7 +31,9 @@ enum class ShareableType
 class Shareable
 {
 protected:
-	Shareable() = default;
+	// Constructor. This stores a reference to the memory block,
+	// ensuring it stays alive at least until this object gets deallocated.
+	Shareable(std::shared_ptr<Memory> memory_block);
 
 public:
 	virtual ~Shareable() = default;
@@ -45,6 +47,10 @@ public:
 	static std::shared_ptr<Shareable> Open(StructStream &stream);
 
 	virtual ShareableType GetType() const = 0;
+
+private:
+	// The memory object containing our shared state.
+	std::shared_ptr<Memory> m_MemoryBlock;
 };
 
 template <typename T, std::size_t N>

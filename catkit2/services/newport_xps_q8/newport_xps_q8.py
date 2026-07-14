@@ -6,14 +6,15 @@ import threading
 import numpy as np
 import traceback
 
+library_path = os.environ.get('CATKIT_NEWPORT_LIB_PATH')
+if not library_path:
+    raise RuntimeError("To use the Newport XPS-Q8, you need to set the CATKIT_NEWPORT_LIB_PATH environment variable.")
+sys.path.append(library_path)
+
 try:
-    library_path = os.environ.get('CATKIT_NEWPORT_LIB_PATH')
-    if library_path:
-        sys.path.append(library_path)
     import XPS_Q8_drivers
-except ImportError:
-    print("To use the Newport XPS-Q8, you need to set the CATKIT_NEWPORT_LIB_PATH environment variable.")
-    raise
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(f"Could not import XPS_Q8_drivers from CATKIT_NEWPORT_LIB_PATH={library_path!r}.")
 
 
 class NewportXpsQ8(Service):

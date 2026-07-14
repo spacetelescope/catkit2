@@ -23,6 +23,16 @@ class ThorlabsMcls1(Service):
         super().__init__('thorlabs_mcls1')
 
         self.threads = {}
+        self.instrument_handle = None
+        self.serial_handle = None
+        self.UART_lib = None
+
+        self.vcp_port = self.config.get('vcp_port', None)
+        self.serial_port = self.config.get('serial_port', None)
+        self.serial_timeout = self.config.get('serial_timeout', None)
+        self.baud_rate = MCLS1_COM.BAUD_RATE.value
+
+        self.backend = self._select_backend()
 
         # Use a reentrant lock to avoid deadlock when setting the channel.
         self.lock = threading.RLock()

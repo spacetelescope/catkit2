@@ -1,8 +1,12 @@
 # flake8: noqa
 
+# Setting to ensure CTRL-C commands are caught, which allows services to exit properly.
 import os
+os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 
+# Enable printing of stacktrace upon segfault.
 import faulthandler
+faulthandler.enable()
 
 from . import testbed
 from . import simulator
@@ -18,9 +22,3 @@ __version__ = get_version()
 __all__ = []
 __all__.extend(testbed.__all__)
 __all__.extend(simulator.__all__)
-
-# Setting to ensure CTRL-C commands are caught, which allows services to exit properly.
-os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
-
-# Enable printing of stacktrace upon segfault.
-faulthandler.enable()

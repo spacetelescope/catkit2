@@ -24,7 +24,7 @@
 
 const int SHARED_MEMORY_FNAME_SIZE = 256;
 
-class SharedMemory : public Memory
+class SharedMemory : public Memory, public Shareable
 {
 public:
 	#ifdef _WIN32
@@ -55,11 +55,17 @@ public:
 	static std::shared_ptr<SharedMemory> Open(StructStream &stream);
 	static std::shared_ptr<SharedMemory> Open(std::string_view fname);
 
+	// Destroy the shared memory object, even if we are not the owner.
+	void Destroy();
+
 	virtual void *GetAddress(std::size_t offset = 0) override;
 	virtual std::size_t GetCapacity() const override;
-	virtual void WriteReference(StructStream &stream) override;
+	virtual void WriteReference(StructStream *stream) override;
 
-	ShareableType GetType() const override;
+	std::string GetFileName();
+
+	virtual ShareableType GetType() const override;
+	virtual MemoryType GetMemoryType() const override;
 
 private:
 	std::string m_FileName;

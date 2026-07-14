@@ -9,7 +9,11 @@ This service operates a ZWO camera. The following are the different types of ZWO
 - `ZWO ASI1600MM <https://agenaastro.com/zwo-asi1600mm-p-cmos-monochrome-astronomy-imaging-camera-pro.html>`_
 
 For camera specs, see the website links above.
-Note that using ZWO cameras requires a manual installation of drivers from `zwoastro.com <https://astronomy-imaging-camera.com/software-drivers>`_ 
+
+Note that using ZWO cameras requires a manual installation of the ZWO SDK from `zwoastro.com <https://www.zwoastro.com/layouts/download-others/>`_
+It also requires the setup of the environment variable ``ZWO_ASI_LIB`` to point to the right file from the SDK depending
+on your operating system. For example, on Windows, you would set ``ZWO_ASI_LIB`` to the path of the ``ASICamera2.dll``
+file from the SDK; for Linux, you would set it to the path of the ``libASICamera2.so`` file from the SDK.
 
 Configuration
 -------------
@@ -50,6 +54,8 @@ Properties
 ``sensor_height``: The height of the sensor.
 
 ``device_name``: The name of the camera.
+
+``max_bandwidth``: The camera USB bandwidth setting. True uses (default) max USB bandwidth setting. False sets minimum USB bandwidth which can be more reliable in some situations.
 
 Commands
 --------

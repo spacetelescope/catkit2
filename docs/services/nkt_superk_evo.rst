@@ -1,10 +1,13 @@
-NKT Super K Compact Tunable Laser
-=================================
+NKT Super K EVO Compact Tunable Laser
+=====================================
 The NKT Super K service contains software for controlling both the `NKT SuperK EVO Supercontinuum White Light Laser <https://contentnktphotonics.s3.eu-central-1.amazonaws.com/SuperK-EVO/SuperK%20EVO%20and%20EVO%20HP%20Product%20Guide-%2020231010%20R1.4.pdf>`_
 and the `NKT SuperK VARIA Variable Bandpass Filter <https://contentnktphotonics.s3.eu-central-1.amazonaws.com/SuperK-VARIA/SuperK%20VARIA%20Product%20Guide-%2020231016%20R1.3.pdf>`_.
 This is done because a single open port to the device is needed that cannot be shared between multiple services.
 
 Associated drivers for both the EVO and VARIA (found in the linked manuals) also need to be installed.
+
+.. note::
+   There is a separate service for the NKT SuperK FIANIUM.
 
 Configuration
 -------------
@@ -12,9 +15,9 @@ Configuration
 .. code-block:: YAML
 
     nkt_superk:
-        service_type: nkt_superk
-        simulated_service_type: nkt_superk_sim
-        interface: nkt_superk
+        service_type: nkt_superk_evo
+        simulated_service_type: nkt_superk_evo_sim
+        interface: nkt_superk_evo
         requires_safety: false
 
         port: COM4

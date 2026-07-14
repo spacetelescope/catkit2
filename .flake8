@@ -43,3 +43,4 @@ exclude =
     proto
     extern
     NKTP_DLL.py
+    cookiecutter-testbed

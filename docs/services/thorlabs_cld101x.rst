@@ -24,6 +24,8 @@ Configuration
 
       visa_id: USB::0x1313::0x804F::M00441199::INSTR
       wavelength: 640
+      function_mode: current
+      max_current: 0.255
 
 Properties
 ----------

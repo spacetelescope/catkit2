@@ -13,7 +13,6 @@
 #include "Timing.h"
 #include "Service.h"
 #include "Command.h"
-#include "Property.h"
 #include "Log.h"
 #include "LogConsole.h"
 #include "LogForwarder.h"
@@ -24,7 +23,7 @@
 #include "Client.h"
 #include "HostName.h"
 #include "Tracing.h"
-#include "MessageBroker.h"
+#include "LocalMessageBroker.h"
 #include "LocalMemory.h"
 #include "SharedMemory.h"
 #include "Shareable.h"
@@ -35,6 +34,8 @@
 #include "HybridPoolAllocator.h"
 #include "Event.h"
 #include "Uuid.h"
+#include "ArrayView.h"
+#include "ProcessStats.h"
 
 #include "testbed.pb.h"
 
@@ -289,24 +290,24 @@ py::dtype DtypeToPython(const ArrayInfo *array_info)
 	return py::dtype(dtype_buf);
 }
 
-py::array ToPython(void *payload, const ArrayInfo *array_info)
+py::array ToPython(const ArrayView &array)
 {
-	auto dtype = DtypeToPython(array_info);
+	auto dtype = DtypeToPython(&array.info);
 
-	std::vector<py::ssize_t> shape(array_info->ndim);
-	std::vector<py::ssize_t> strides(array_info->ndim);
+	std::vector<py::ssize_t> shape(array.info.ndim);
+	std::vector<py::ssize_t> strides(array.info.ndim);
 
-	for (size_t i = 0; i < array_info->ndim; ++i)
+	for (size_t i = 0; i < array.info.ndim; ++i)
 	{
-		shape[i] = array_info->shape[i];
-		strides[i] = array_info->strides[i];
+		shape[i] = array.info.shape[i];
+		strides[i] = array.info.strides[i];
 	}
 
 	return py::array(
 		dtype,
 		shape,
 		strides,
-		payload
+		array.data
 	);
 }
 
@@ -530,7 +531,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("sleep", [](Server &server, double sleep_time_in_sec)
 		{
 			server.Sleep(sleep_time_in_sec, error_check_python);
-		}, py::call_guard<py::gil_scoped_release>());
+		}, py::call_guard<py::gil_scoped_release>())
+		.def("cleanup_request_handlers", &Server::CleanupRequestHandlers);
 
 	py::class_<Client>(m, "Client")
 		.def(py::init<std::string, int>())
@@ -560,8 +562,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("config", &Service::GetConfig)
 		.def("run", [](Service &service)
 		{
-			service.Run(error_check_python);
-		}, py::call_guard<py::gil_scoped_release>())
+			{
+				py::gil_scoped_release release;
+				service.Run(error_check_python);
+			}
+			// CleanupAttributes must be called with GIL held because
+			// m_Properties and m_Commands contain Python callbacks wrapped
+			// in std::function. Destroying them without the GIL causes crashes.
+			service.CleanupAttributes();
+		})
 		.def("open", &Service::Open)
 		.def("main", &Service::Main)
 		.def("close", &Service::Close)
@@ -574,7 +583,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 		}, py::call_guard<py::gil_scoped_release>())
 		.def("make_property", [](Service &service, std::string name, py::object getter, py::object setter, std::string type)
 		{
-			DataType dtype = GetDataTypeFromString(type);
 			service.MakeProperty(name,
 			[getter]()
 			{
@@ -587,8 +595,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 				py::gil_scoped_acquire acquire;
 
 				setter(ToPython(value));
-			},
-			dtype);
+			});
 		}, py::arg("name"), py::arg("getter") = nullptr, py::arg("setter") = nullptr, py::arg("type") = "")
 		.def("make_command", [](Service &service, std::string name, py::object command)
 		{
@@ -606,7 +613,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 			DataType dtype = GetDataTypeFromString(type);
 			return service.MakeDataStream(stream_name, dtype, dimensions, num_frames_in_buffer);
 		})
-		.def("reuse_data_stream", &Service::ReuseDataStream);
+		.def("reuse_data_stream", &Service::ReuseDataStream)
+		.def("cleanup_attributes", &Service::CleanupAttributes);
 
 	py::enum_<ServiceState>(m, "ServiceState")
 		.value("CLOSED", ServiceState::CLOSED)
@@ -677,6 +685,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def("terminate_service", &TestbedProxy::TerminateService)
 		.def("shut_down", &TestbedProxy::ShutDown)
 		.def("reload_config", &TestbedProxy::ReloadConfig)
+		.def_property_readonly("message_broker", &TestbedProxy::GetMessageBroker)
 		.def_property_readonly("is_simulated", &TestbedProxy::IsSimulated)
 		.def_property_readonly("is_alive", &TestbedProxy::IsAlive)
 		.def_property_readonly("heartbeat", &TestbedProxy::GetHeartbeat)
@@ -889,13 +898,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 			auto mem = SharedMemory::Open(name);
 			return std::shared_ptr<SharedMemory>(std::move(mem));
 		})
+		.def("destroy", &SharedMemory::Destroy)
 		.def("get_memory", [](std::shared_ptr<SharedMemory> memory)
 		{
 			auto address = memory->GetAddress();
 			size_t capacity = memory->GetCapacity();
 
 			return py::memoryview::from_memory(address, capacity);
-		});
+		})
+		.def_property_readonly("filename", &SharedMemory::GetFileName);
 
 	py::class_<LocalMemory, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
 		.def_static("create", [](size_t num_bytes)
@@ -936,10 +947,23 @@ PYBIND11_MODULE(catkit_bindings, m)
 			info.item_size = dtype.itemsize();
 			info.byte_order = dtype.byteorder();
 		})
-		.def_property("item_size", [](ArrayInfo &info) { return info.item_size; }, [](ArrayInfo &info, uint8_t value) { info.item_size = value; })
-		.def_property("ndim", [](ArrayInfo &info) { return info.ndim; }, [](ArrayInfo &info, uint8_t value) { info.ndim = value; })
-		.def_property("shape", [](const ArrayInfo& ai) {
-			return std::vector<uint32_t>(ai.shape, ai.shape + ai.ndim);
+		.def_property("item_size", [](ArrayInfo &info)
+		{
+			return info.item_size;
+		}, [](ArrayInfo &info, uint8_t value)
+		{
+			info.item_size = value;
+		})
+		.def_property("ndim", [](ArrayInfo &info)
+		{
+			return info.ndim;
+		}, [](ArrayInfo &info, uint8_t value)
+		{
+			info.ndim = value;
+		})
+		.def_property("shape", [](const ArrayInfo& ai)
+		{
+			return std::vector<uint32_t>(ai.shape.begin(), ai.shape.begin() + ai.ndim);
 		}, [](ArrayInfo &info, const py::list &value)
 		{
 			info.ndim = static_cast<uint8_t>(value.size());
@@ -950,7 +974,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def_property("strides", [](const ArrayInfo& ai)
 		{
-			return std::vector<uint32_t>(ai.strides, ai.strides + ai.ndim);
+			return std::vector<uint32_t>(ai.strides.begin(), ai.strides.begin() + ai.ndim);
 		}, [](ArrayInfo &info, const py::list &value)
 		{
 			info.ndim = static_cast<uint8_t>(value.size());
@@ -959,19 +983,21 @@ PYBIND11_MODULE(catkit_bindings, m)
 				info.strides[i] = static_cast<uint32_t>(py::cast<int64_t>(value[i]));
 			}
 		})
-		.def_property_readonly("num_items", &ArrayInfo::GetNumItems)
-		.def_property_readonly("num_bytes", &ArrayInfo::GetNumBytes);
+		.def_property_readonly("size", &ArrayInfo::GetSize)
+		.def_property_readonly("num_bytes", &ArrayInfo::GetSizeInBytes);
 
 	py::class_<Message>(m, "Message")
 		.def_property_readonly("topic", &Message::GetTopic)
 		.def_property_readonly("trace_id", &Message::GetTraceId)
+		.def_property_readonly("frame_id", &Message::GetFrameId)
+		.def_property_readonly("partial_frame_id", &Message::GetPartialFrameId)
 		.def_property_readonly("payload_id", &Message::GetPayloadId)
 		.def_property_readonly("producer_hostname", &Message::GetProducerHostname)
 		.def_property_readonly("producer_pid", &Message::GetProducerPid)
 		.def_property_readonly("producer_timestamp", &Message::GetProducerTimestamp)
 		.def_property("array_info", &Message::GetArrayInfo, &Message::SetArrayInfo)
 		.def_property("payload", [](const Message& m) {
-			return ToPython(m.GetPayload(), &m.GetArrayInfo());
+			return ToPython(m.GetPayload());
 		},
 		[](Message &m, py::buffer data)
 		{
@@ -986,15 +1012,15 @@ PYBIND11_MODULE(catkit_bindings, m)
 				throw std::runtime_error("The array is too high-dimensional.");
 
 			// Copy over the shape and strides.
-			std::transform(buffer_info.shape.begin(), buffer_info.shape.end(), array_info.shape, [](const auto& val) { return static_cast<uint32_t>(val); });
-			std::transform(buffer_info.strides.begin(), buffer_info.strides.end(), array_info.strides, [](const auto& val) { return static_cast<uint32_t>(val); });
+			std::transform(buffer_info.shape.begin(), buffer_info.shape.end(), array_info.shape.begin(), [](const auto& val) { return static_cast<uint32_t>(val); });
+			std::transform(buffer_info.strides.begin(), buffer_info.strides.end(), array_info.strides.begin(), [](const auto& val) { return static_cast<uint32_t>(val); });
 
 			// Make sure our buffer is large enough.
-			if (array_info.GetNumBytes() > m.GetPayloadSize())
+			if (array_info.GetSizeInBytes() > m.GetPayloadSize())
 				throw std::runtime_error("The buffer is too small.");
 
 			// All checks are complete. Let's copy the raw data.
-			std::memcpy(m.GetPayload(), buffer_info.ptr, array_info.GetNumBytes());
+			std::memcpy(m.GetPayload().data, buffer_info.ptr, array_info.GetSizeInBytes());
 			m.SetArrayInfo(array_info);
 		})
 		.def_property_readonly("payload_size", &Message::GetPayloadSize)
@@ -1015,12 +1041,12 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<Event, std::shared_ptr<Event>>(m, "Event")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::string id)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			return Event::Create(stream, id);
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			return Event::Open(stream);
 		})
 		.def("wait", [](std::shared_ptr<Event> event, py::object condition, double timeout_in_seconds, EventWaitMethod wait_method)
@@ -1032,16 +1058,24 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return py::cast<bool>(condition());
 			}, wait_method, error_check_python);
 		}, py::arg("condition"), py::arg("timeout_in_sec") = -1, py::arg("wait_method") = EventWaitMethod::Default, py::call_guard<py::gil_scoped_release>())
-		.def("signal", &Event::Signal, py::call_guard<py::gil_scoped_release>())
-		.def("__enter__", [](std::shared_ptr<Event> event)
+		.def("signal", &Event::Signal, py::call_guard<py::gil_scoped_release>());
+
+	m.def("is_wait_method_implemented", [](EventWaitMethod wait_method)
+	{
+		switch (wait_method)
 		{
-			event->Lock();
-			return event;
-		}, py::call_guard<py::gil_scoped_release>())
-		.def("__exit__", [] (std::shared_ptr<Event> event, const std::optional<pybind11::type> &exc_type, const std::optional<pybind11::object> &exc_value, const std::optional<pybind11::object> &traceback)
-		{
-			event->Unlock();
-		}, py::call_guard<py::gil_scoped_release>());
+		case EventWaitMethod::Semaphore:
+			return is_event_implemented<EventImplementationType::Semaphore>::value;
+		case EventWaitMethod::ConditionVariable:
+			return is_event_implemented<EventImplementationType::ConditionVariable>::value;
+		case EventWaitMethod::Futex:
+			return is_event_implemented<EventImplementationType::Futex>::value;
+		case EventWaitMethod::SpinLock:
+			return is_event_implemented<EventImplementationType::SpinLock>::value;
+		default:
+			throw std::runtime_error("Unknown event wait method.");
+		}
+	});
 
 	py::enum_<MessageSubscriptionMode>(m, "MessageSubscriptionMode")
 		.value("NewestOnly", MessageSubscriptionMode::NewestOnly)
@@ -1059,31 +1093,30 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return py::cast(res.value());
 
 			return py::none();
-		})
-		.def_property_readonly("next_message_id", &MessageSubscription::GetNextMessageId);
+		});
 
-	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker")
+	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
 		{
-			auto stream = StructStream(header->GetAddress());
-			auto broker = MessageBroker::Create(stream, memory_blocks);
+			auto stream = StructStream(header);
+			auto broker = LocalMessageBroker::Create(stream, memory_blocks);
 
-			return std::shared_ptr<MessageBroker>(std::move(broker));
+			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
-			auto broker = MessageBroker::Open(stream);
+			auto stream = StructStream(memory);
+			auto broker = LocalMessageBroker::Open(stream);
 
-			return std::shared_ptr<MessageBroker>(std::move(broker));
+			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
-		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string& topic, std::size_t payload_size, std::uint8_t memory_block_id)
+		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, std::uint8_t memory_block_id)
 		{
 			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
 
 			return message;
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("memory_block_id") = 0)
-		.def("prepare_message", [](std::shared_ptr<MessageBroker> broker, const std::string& topic, std::size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
+		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
 			{
@@ -1094,11 +1127,11 @@ PYBIND11_MODULE(catkit_bindings, m)
 				return broker->PrepareMessage(topic, payload_size, py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("publish_message", [](std::shared_ptr<MessageBroker> broker, Message& message, bool is_final)
+		.def("publish_message", [](std::shared_ptr<LocalMessageBroker> broker, Message& message, bool is_final)
 		{
 			broker->PublishMessage(message, is_final);
 		}, py::arg("message"), py::arg("is_final") = true)
-		.def("publish_data", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
+		.def("publish_data", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
 			{
@@ -1109,7 +1142,41 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishData(topic, PyBytes_AsString(data.ptr()), PyBytes_Size(data.ptr()), py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("data"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("try_get_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
+		.def("publish_array", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::array array, py::object trace_id, std::uint8_t memory_block_id)
+		{
+			ArrayInfo info;
+
+			auto dtype = array.dtype();
+			info.data_type = dtype.kind();
+			info.item_size = dtype.itemsize();
+			info.byte_order = dtype.byteorder();
+
+			if (array.ndim() > MAX_NUM_DIMENSIONS)
+				throw std::runtime_error("Array dimension is too large.");
+
+			info.ndim = array.ndim();
+
+			for (size_t i = 0; i < info.ndim; ++i)
+			{
+				info.shape[i] = array.shape()[i];
+				info.strides[i] = array.strides()[i];
+			}
+
+			if (!info.IsCContiguous() && !info.IsFContiguous())
+				throw std::runtime_error("Array has to be either C or F contiguous.");
+
+			// All checks are complete. Let's copy/submit the raw data.
+			const ArrayView array_view{info, array.mutable_data()};
+			if (trace_id.is_none())
+			{
+				broker->PublishArray(topic, array_view, memory_block_id);
+			}
+			else
+			{
+				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
+			}
+		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
+		.def("try_get_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
 		{
 			auto res = broker->TryGetMessage(topic, frame_id);
 			if (res)
@@ -1117,44 +1184,45 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return py::none();
 		}, py::arg("topic"), py::arg("frame_id"))
-		.def("get_newest_message", [](std::shared_ptr<MessageBroker> broker, std::string_view topic) -> py::object
+		.def("get_current_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
 		{
-			auto res = broker->GetNewestMessage(topic);
+			auto res = broker->GetCurrentMessage(topic);
 			if (res)
 				return py::cast(res.value());
 
 			return py::none();
 		}, py::arg("topic"))
-		.def("is_message_available", &MessageBroker::IsMessageAvailable)
-		.def("will_message_be_available", &MessageBroker::WillMessageBeAvailable)
-		.def("get_newest_message_id", &MessageBroker::GetNewestMessageId)
-		.def("get_oldest_message_id", &MessageBroker::GetOldestMessageId)
-		.def("get_message_rate", &MessageBroker::GetMessageRate)
-		.def("get_all_message_topics", &MessageBroker::GetAllMessageTopics)
-		.def("subscribe", [](std::shared_ptr<MessageBroker> broker, std::string topic, py::object starting_frame_id, MessageSubscriptionMode mode)
+		.def("is_message_available", &LocalMessageBroker::IsMessageAvailable)
+		.def("will_message_be_available", &LocalMessageBroker::WillMessageBeAvailable)
+		.def("get_newest_message_id", &LocalMessageBroker::GetNewestMessageId)
+		.def("get_oldest_message_id", &LocalMessageBroker::GetOldestMessageId)
+		.def("get_message_rate", &LocalMessageBroker::GetMessageRate)
+		.def("get_all_message_topics", &LocalMessageBroker::GetAllMessageTopics)
+		.def("print_debug_info", &LocalMessageBroker::PrintDebugInfo)
+		.def("subscribe", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::object preferred_next_frame_id, MessageSubscriptionMode mode)
 		{
 			// Check if the starting frame ID is a number or None.
-			if (starting_frame_id.is_none())
+			if (preferred_next_frame_id.is_none())
 			{
 				return broker->Subscribe(topic, mode);
 			}
 			else
 			{
-				return broker->Subscribe(topic, py::cast<std::uint64_t>(starting_frame_id), mode);
+				return broker->Subscribe(topic, py::cast<std::uint64_t>(preferred_next_frame_id), mode);
 			}
-		}, py::arg("topic"), py::arg("starting_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
+		}, py::arg("topic"), py::arg("preferred_next_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
 
 	py::class_<PoolAllocator, std::shared_ptr<PoolAllocator>>(m, "PoolAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t capacity)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = PoolAllocator::Create(stream, capacity);
 
 			return std::shared_ptr<PoolAllocator>(std::move(allocator));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = PoolAllocator::Open(stream);
 
 			return std::shared_ptr<PoolAllocator>(std::move(allocator));
@@ -1174,14 +1242,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<BuddyAllocator, std::shared_ptr<BuddyAllocator>>(m, "BuddyAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = BuddyAllocator::Create(stream, max_size, min_size);
 
 			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = BuddyAllocator::Open(stream);
 
 			return std::shared_ptr<BuddyAllocator>(std::move(allocator));
@@ -1202,14 +1270,14 @@ PYBIND11_MODULE(catkit_bindings, m)
 	py::class_<HybridPoolAllocator, std::shared_ptr<HybridPoolAllocator>>(m, "HybridPoolAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::size_t max_size, std::size_t min_size, std::size_t min_size_pool)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = HybridPoolAllocator::Create(stream, max_size, min_size, min_size_pool);
 
 			return std::shared_ptr<HybridPoolAllocator>(std::move(allocator));
 		})
 		.def_static("open", [](std::shared_ptr<Memory> memory)
 		{
-			auto stream = StructStream(memory->GetAddress());
+			auto stream = StructStream(memory);
 			auto allocator = HybridPoolAllocator::Open(stream);
 
 			return std::shared_ptr<HybridPoolAllocator>(std::move(allocator));
@@ -1225,6 +1293,12 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def("acquire", &HybridPoolAllocator::Acquire)
 		.def("release", &HybridPoolAllocator::Release);
+
+	py::class_<ProcessStats>(m, "ProcessStats")
+		.def(py::init<>())
+		.def("update", &ProcessStats::Update)
+		.def_property_readonly("memory_usage", &ProcessStats::GetMemoryUsage)
+		.def_property_readonly("cpu_usage", &ProcessStats::GetCpuUsage);
 
 #ifdef VERSION_INFO
 	m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

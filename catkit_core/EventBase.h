@@ -45,9 +45,6 @@ public:
 	inline void Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)());
 	inline void Signal();
 
-	inline void Lock();
-	inline void Unlock();
-
 protected:
 	inline void CreateImpl(std::string_view id, SharedState *shared_state);
 	inline void OpenImpl(std::string_view id, SharedState *shared_state);
@@ -56,6 +53,11 @@ protected:
 
 	SharedState *m_SharedState;
 	LocalState m_LocalState;
+};
+
+template<enum EventImplementationType Type>
+struct is_event_implemented : std::false_type
+{
 };
 
 #include "EventBase.inl"

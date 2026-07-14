@@ -4,7 +4,7 @@ import time
 from ..service_proxy import ServiceProxy
 
 
-class NktSuperkProxy(ServiceProxy):
+class NktSuperkEvoProxy(ServiceProxy):
     @property
     def center_wavelength(self):
         return (self.swp_setpoint.get()[0] + self.lwp_setpoint.get()[0]) / 2

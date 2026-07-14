@@ -6,14 +6,20 @@ Catkit2
    :caption: Getting Started
 
    installation
-   contribution
    overview
-   safety
-   services
+   acknowledging_catkit2
+   contribution
+   testbed_implementation
+
+.. toctree::
+   :maxdepth: 1
+   :caption: User Guide
+
    configuration
-   benchmarks
    protocol
-   team
+   services
+   benchmarks
+   safety
 
 .. toctree::
    :maxdepth: 1
@@ -31,18 +37,24 @@ Catkit2
    services/newport_picomotor
    services/newport_xps_q8
    services/ni_daq
-   services/nkt_superk
+   services/nkt_superk_evo
+   services/nkt_superk_fianium
    services/oceanoptics_spectrometer
    services/omega_ithx_w3
+   services/optical_fiber_switch
+   services/phasics_cam
+   services/physik_stage_controller
    services/safety_manual_check
    services/safety_monitor
    services/snmp_ups
    services/thorlabs_cld101x
    services/thorlabs_cube_motor_kinesis
    services/thorlabs_fw102c
+   services/thorlabs_mcls1
    services/thorlabs_mff101
    services/thorlabs_pm
    services/thorlabs_tsp01
+   services/watchdog
    services/web_power_switch
    services/zwo_camera
 
