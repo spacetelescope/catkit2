@@ -21,7 +21,11 @@ except ImportError:
 
 class Fianium(Enum):
     """Registers for the NKT SuperK FIANIUM device."""
+    # Bus address is discovered at runtime by module type (see MODULE_TYPE);
+    # this value is only a fallback default if discovery is disabled.
     DEVICE_ID = 15
+    # Module type reported by register 0x61 (SuperK FIANIUM main board).
+    MODULE_TYPE = 0x88
     REG_EMISSION = 0x30
     REG_SETUP_BITS = 0x31
     REG_INTERLOCK = 0x32
@@ -36,7 +40,12 @@ class Fianium(Enum):
 
 
 class Varia(Enum):
+    # Bus address is discovered at runtime by module type (see MODULE_TYPE);
+    # this value is only a fallback default if discovery is disabled. The VARIA
+    # enumerates by daisy-chain position, so its address is not fixed.
     DEVICE_ID = 16
+    # Module type reported by register 0x61 (SuperK VARIA, A301).
+    MODULE_TYPE = 0x68
 
     # SuperK VARIA registers
     REG_MONITOR_INPUT = 0x13
@@ -50,9 +59,9 @@ class Varia(Enum):
 
 def read_register(read_func, register, *, ratio=1, index=-1):
     def getter(self):
-        device_id = register.__class__.DEVICE_ID
+        device_id = self.device_address(register.__class__)
 
-        future = self.pool.submit(read_func, self.port, device_id.value, register.value, index)
+        future = self.pool.submit(read_func, self.port, device_id, register.value, index)
         result, value = future.result()
 
         self.check_result(result)
@@ -64,14 +73,14 @@ def read_register(read_func, register, *, ratio=1, index=-1):
 
 def write_register(write_func, register, *, ratio=1, index=-1):
     def setter(self, value):
-        device_id = register.__class__.DEVICE_ID
+        device_id = self.device_address(register.__class__)
 
         # Convert the value to the register value. This assumes integer types.
         register_value = int(value / ratio)
 
         self.log.debug(f'Writing value {register_value} to {register}.')
 
-        future = self.pool.submit(write_func, self.port, device_id.value, register.value, register_value, index)
+        future = self.pool.submit(write_func, self.port, device_id, register.value, register_value, index)
         result = future.result()
 
         self.check_result(result)
@@ -91,7 +100,26 @@ class NktSuperkFianium(Service):
 
         self.threads = {}
         self.port = self.config['port']
+
+        # Bus addresses are discovered at runtime by module type (see
+        # discover_devices), because NKT modules enumerate by daisy-chain
+        # position and are not at fixed addresses. Falls back to each enum's
+        # DEVICE_ID until discovery runs.
+        self.device_addresses = {device: device.DEVICE_ID.value for device in (Fianium, Varia)}
+
+        # This is a safety-critical guard against burning the VARIA fibers on
+        # bandwidth increases, so a missing value must fail loudly here rather
+        # than silently become None and crash a monitor thread later on.
         self.pulse_picker_safety = self.config.get('pulse_picker_safety')
+        if self.pulse_picker_safety is None:
+            raise KeyError("Missing required config key 'pulse_picker_safety' for the nkt_superk service.")
+
+        # In live mode the kernel enumerates the bus in the background, so give
+        # the address sweep a few retries before treating a module as absent.
+        self.device_scan_retries = self.config.get('device_scan_retries', 10)
+        self.device_scan_retry_interval = self.config.get('device_scan_retry_interval', 0.2)
+        # Highest bus address to probe when discovering module addresses.
+        self.device_scan_max_address = self.config.get('device_scan_max_address', 25)
 
     def open(self):
         # Make datastreams.
@@ -113,7 +141,14 @@ class NktSuperkFianium(Service):
         # once the monitor threads have started.
         self.emission.submit_data(np.array([self.config['emission']], dtype='uint8'))
         self.power_setpoint.submit_data(np.array([self.config['power_setpoint']], dtype='float32'))
-        self.pulse_picker_ratio.submit_data(np.array([100], dtype='uint16'))  # Setting a safe default value of 100.
+
+        # Start at the brightest fiber-safe pulse-picker ratio for the configured
+        # bandwidth: max(int(bandwidth / pulse_picker_safety), 1). A higher ratio
+        # passes fewer pulses (less power); going below this risks burning the
+        # VARIA fibers, so this is the safety floor, not an arbitrary default.
+        startup_bandwidth = self.config['swp_setpoint'] - self.config['lwp_setpoint']
+        safe_pulse_picker_ratio = max(int(startup_bandwidth / self.pulse_picker_safety), 1)
+        self.pulse_picker_ratio.submit_data(np.array([safe_pulse_picker_ratio], dtype='uint16'))
 
         self.nd_setpoint.submit_data(np.array([self.config['nd_setpoint']], dtype='float32'))
         self.swp_setpoint.submit_data(np.array([self.config['swp_setpoint']], dtype='float32'))
@@ -134,10 +169,16 @@ class NktSuperkFianium(Service):
         self.pool = ThreadPoolExecutor(max_workers=1)
 
         # Open port.
-        # Make sure that the device is available (ie. not being used by someone else).
-        # This is not strictly necessary according to the SDK, but speeds up reading/writing.
-        future = self.pool.submit(openPorts, self.port, autoMode=0, liveMode=0)
+        # liveMode=1 makes the kernel actively scan and register every module on
+        # the bus. Without it (liveMode=0) the FIANIUM main board (device 15) still
+        # answers, but the VARIA (device 16) is never enumerated and NACKs every
+        # read/write. autoMode=0 keeps us pinned to the explicitly configured port.
+        future = self.pool.submit(openPorts, self.port, autoMode=0, liveMode=1)
         self.check_result(future.result())
+
+        # Discover the bus address of each module by its module type. This must
+        # run before any monitor thread starts reading/writing setpoints.
+        self.discover_devices()
 
         # Start all threads.
         for key, func in funcs.items():
@@ -171,6 +212,53 @@ class NktSuperkFianium(Service):
         if result != 0:
             self.log.error('NKT error: ' + RegisterResultTypes(result))
             raise RuntimeError(RegisterResultTypes(result))
+
+    def device_address(self, device):
+        '''Return the discovered bus address for a device enum (Fianium or Varia).'''
+        return self.device_addresses[device]
+
+    def discover_devices(self):
+        '''Find the bus address of each module by reading its module-type register.
+
+        NKT modules enumerate by daisy-chain position, so their bus addresses
+        are not fixed (e.g. the VARIA may sit at 16, 20, ...). We sweep the bus,
+        read the module-type register (0x61) at each address, and match against
+        the MODULE_TYPE each device enum declares. Every module we depend on
+        must be found or we fail here with a clear message, rather than letting
+        the monitor threads die one by one on NACKs.
+
+        With live mode the kernel scans the bus in the background, so a module
+        may not answer on the very first sweep right after openPorts. We retry
+        the whole sweep briefly to absorb that latency.
+        '''
+        wanted = {device.MODULE_TYPE.value: device for device in (Fianium, Varia)}
+        module_type_register = 0x61
+
+        found = {}
+        for _ in range(self.device_scan_retries):
+            for address in range(self.device_scan_max_address + 1):
+                future = self.pool.submit(registerReadU8, self.port, address, module_type_register, -1)
+                result, module_type = future.result()
+
+                if result == 0 and module_type in wanted:
+                    device = wanted[module_type]
+                    found[device] = address
+
+            if all(device in found for device in wanted.values()):
+                break
+
+            self.sleep(self.device_scan_retry_interval)
+
+        missing = [device for device in wanted.values() if device not in found]
+        if missing:
+            names = ', '.join(f'{d.__name__} (type 0x{d.MODULE_TYPE.value:02x})' for d in missing)
+            raise RuntimeError(
+                f'Could not find NKT module(s) {names} on port {self.port}. Check that the '
+                f'module is powered on and connected to the bus.')
+
+        self.device_addresses.update(found)
+        for device, address in found.items():
+            self.log.info(f'Found NKT {device.__name__} at bus address {address}.')
 
     def update_varia_status(self):
         status = self.get_varia_status_bits()
