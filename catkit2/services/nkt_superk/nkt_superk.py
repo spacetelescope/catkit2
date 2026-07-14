@@ -20,9 +20,6 @@ except ImportError:
 
 
 # SuperK EVO registers.
-# Note: DEVICE_ID is the default internal bus address for the EVO mainboard.
-# It varies between SuperK units, so it can be overridden via the
-# 'evo_device_id' config key. Scan the bus with deviceGetAllTypes() to find it.
 class Evo(Enum):
     DEVICE_ID = 15
 
@@ -64,9 +61,9 @@ class Varia(Enum):
 
 def read_register(read_func, register, *, ratio=1, index=-1):
     def getter(self):
-        device_id = self.device_id_for(register.__class__)
+        device_id = register.__class__.DEVICE_ID
 
-        future = self.pool.submit(read_func, self.port, device_id, register.value, index)
+        future = self.pool.submit(read_func, self.port, device_id.value, register.value, index)
         result, value = future.result()
 
         self.check_result(result)
@@ -77,14 +74,14 @@ def read_register(read_func, register, *, ratio=1, index=-1):
 
 def write_register(write_func, register, *, ratio=1, index=-1):
     def setter(self, value):
-        device_id = self.device_id_for(register.__class__)
+        device_id = register.__class__.DEVICE_ID
 
         # Convert the value to the register value. This assumes integer types.
         register_value = int(value / ratio)
 
         self.log.debug(f'Writing value {register_value} to {register}.')
 
-        future = self.pool.submit(write_func, self.port, device_id, register.value, register_value, index)
+        future = self.pool.submit(write_func, self.port, device_id.value, register.value, register_value, index)
         result = future.result()
 
         self.check_result(result)
@@ -103,21 +100,6 @@ class NktSuperk(Service):
 
         self.threads = {}
         self.port = self.config['port']
-
-        # Internal bus addresses of the EVO mainboard and VARIA module. These
-        # differ between SuperK units, so allow overriding the enum defaults
-        # from config. Find the correct values by scanning the bus with the
-        # NKT SDK's deviceGetAllTypes().
-        self.evo_device_id = self.config.get('evo_device_id', Evo.DEVICE_ID.value)
-        self.varia_device_id = self.config.get('varia_device_id', Varia.DEVICE_ID.value)
-
-    def device_id_for(self, register_class):
-        '''Return the configured bus address for the given register class.'''
-        if register_class is Evo:
-            return self.evo_device_id
-        elif register_class is Varia:
-            return self.varia_device_id
-        raise ValueError(f'Unknown register class: {register_class!r}')
 
     def open(self):
         # Make datastreams.
