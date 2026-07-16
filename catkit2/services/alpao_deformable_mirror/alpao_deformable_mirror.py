@@ -33,7 +33,7 @@ class AlpaoDeformableMirror(DeformableMirrorService):
         self.device = DM(self.serial_name)
         if not self.device.Check():
             raise RuntimeError(f'Could not connect to DM {self.serial_name}')
-        
+
         self.device_command_length = int(self.device.Get('NBOfActuator'))
 
         with fits.open(self.flat_map_fname) as f:
