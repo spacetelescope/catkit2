@@ -39,6 +39,7 @@ accufiz_interferometer_sim = "catkit2.services.accufiz_interferometer_sim.accufi
 aimtti_plp_device = "catkit2.services.aimtti_plp_device.aimtti_plp_device"
 aimtti_plp_device_sim = "catkit2.services.aimtti_plp_device_sim.aimtti_plp_device_sim"
 allied_vision_camera = "catkit2.services.allied_vision_camera.allied_vision_camera"
+alpao_deformable_mirror = "catkit2.services.alpao_deformable_mirror.alpao_deformable_mirror"
 bmc_deformable_mirror_hardware = "catkit2.services.bmc_deformable_mirror_hardware.bmc_deformable_mirror_hardware"
 bmc_deformable_mirror_sim = "catkit2.services.bmc_deformable_mirror_sim.bmc_deformable_mirror_sim"
 camera_sim = "catkit2.services.camera_sim.camera_sim"
