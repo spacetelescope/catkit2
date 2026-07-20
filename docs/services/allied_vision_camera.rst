@@ -28,20 +28,23 @@ In addition to the base camera configuration, the following Allied Vision-specif
 .. code-block:: YAML
 
     camera1:
-      service_type: allied_vision_camera
-      simulated_service_type: camera_sim
-      requires_safety: false
+        service_type: allied_vision_camera
+        simulated_service_type: camera_sim
+        requires_safety: false
 
-      camera_id: "DEV_1AB22C011222"
-      device_name: AV Alvium 1800 U-158m
+        camera_id: "DEV_1AB22C011222"
+        device_name: AV Alvium 1800 U-158m
 
-      # Base camera configuration
-      offset_x: 0
-      offset_y: 0
-      width: 32
-      height: 32
-      exposure_time: 200
-      gain: 0
+        # Base camera configuration
+        width: 32
+        height: 32
+        offset_x: 0
+        offset_y: 0
+        exposure_time: 200
+        gain: 0
+        rot90: false
+        flip_x: false
+        flip_y: false
 
 Properties
 ----------

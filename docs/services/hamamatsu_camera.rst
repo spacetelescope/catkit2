@@ -21,24 +21,27 @@ In addition to the base camera configuration, the following Hamamatsu-specific o
 .. code-block:: YAML
 
     camera1:
-      service_type: hamamatsu_camera
-      simulated_service_type: camera_sim
-      requires_safety: false
+        service_type: hamamatsu_camera
+        simulated_service_type: camera_sim
+        requires_safety: false
 
-      camera_id: 0
-      cooling_mode: 'on'
-      fan_status: 'off'
-      camera_mode: 'ultraquiet'
-      pixel_format: Mono16
-      binning: 1
-      critical_temperature: 28
+        camera_id: 0
+        cooling_mode: 'on'
+        fan_status: 'off'
+        camera_mode: 'ultraquiet'
+        pixel_format: Mono16
+        binning: 1
+        critical_temperature: 28
 
-      # Base camera configuration
-      offset_x: 0
-      offset_y: 0
-      width: 400
-      height: 400
-      exposure_time: 8317.5
+        # Base camera configuration
+        width: 400
+        height: 400
+        offset_x: 0
+        offset_y: 0
+        exposure_time: 8317.5
+        rot90: false
+        flip_x: false
+        flip_y: false
 
 Properties
 ----------

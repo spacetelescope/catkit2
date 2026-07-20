@@ -36,6 +36,9 @@ In addition to the base camera configuration, the following FLIR-specific option
         offset_y: 134
         exposure_time: 1000
         gain: 0
+        rot90: false
+        flip_x: false
+        flip_y: false
 
 Properties
 ----------

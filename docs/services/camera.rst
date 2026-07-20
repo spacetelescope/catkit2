@@ -3,10 +3,9 @@ Camera (Base class)
 
 This is the camera base class. It abstracts away image acquisition, ROI management, and exposure/gain control
 for different camera hardware. It is meant to be subclassed by the specific camera implementation, both for
-hardware and software devices.
+hardware and simulated devices (see :doc:`camera_sim` for the latter).
 
-Frame Orientation
------------------
+**Frame Orientation**
 
 The base camera class supports frame transformations via rotation and flipping. These transformations are applied
 after image capture and before the image is submitted to the datastream. The transformations are applied in the
@@ -16,8 +15,7 @@ following order:
 2. Flip X (vertical flip, ``np.flipud``)
 3. Flip Y (horizontal flip, ``np.fliplr``)
 
-Region of Interest (ROI)
-------------------------
+**Region of Interest (ROI)**
 
 All cameras support configurable regions of interest (ROI) defined by:
 
@@ -29,8 +27,9 @@ All cameras support configurable regions of interest (ROI) defined by:
 If width and height are not specified, they default to the full sensor size.
 If offset_x and offset_y are not specified, they default to (0, 0).
 
-All ROI coordinates are expressed in the **user coordinate system** (i.e., the coordinate system after
-frame transformations). The camera abstraction handles the conversion to camera coordinates internally.
+All ROI coordinates are expressed in the **camera coordinate system**. With issue #449, we wand to change this
+to make all ROI coordinates in the user coordinate system (i.e., the coordinate system after
+frame transformations). The camera base class abstraction would handle the conversion to camera coordinates internally.
 
 Configuration
 -------------

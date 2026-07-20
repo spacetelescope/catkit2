@@ -30,12 +30,15 @@ In addition to the base camera configuration, the following ZWO-specific options
         device_name: ZWO ASI533MM
 
         # Base camera configuration
-        offset_x: 1038
-        offset_y: 1282
         width: 192
         height: 192
+        offset_x: 1038
+        offset_y: 1282
         exposure_time: 1000
         gain: 100
+        rot90: false
+        flip_x: false
+        flip_y: false
 
 Properties
 ----------
