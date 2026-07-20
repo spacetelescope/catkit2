@@ -1,4 +1,4 @@
- Allied Vision Camera
+Allied Vision Camera
 ====================
 
 This service controls an Allied Vision camera. It is a wrapper around the Vimba SDK, which requires its installation.

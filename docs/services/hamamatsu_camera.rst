@@ -1,5 +1,5 @@
 Hamamatsu Camera
-====================
+================
 
 This service controls a Hamamatsu camera. It is a wrapper around the DCAM SDK, which is distributed on the manufacturer
 website together with their Python API ``dcam``:
