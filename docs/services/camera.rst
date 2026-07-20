@@ -19,17 +19,19 @@ following order:
 
 All cameras support configurable regions of interest (ROI) defined by:
 
-- ``width``: The width of the ROI in pixels
-- ``height``: The height of the ROI in pixels
-- ``offset_x``: The x-offset of the top-left corner of the ROI on the sensor
-- ``offset_y``: The y-offset of the top-left corner of the ROI on the sensor
+- ``width``: The width of the ROI in pixels in **user coordinate system**
+- ``height``: The height of the ROI in pixels in **user coordinate system**
+- ``offset_x``: The x-offset of the top-left corner of the ROI on the sensor in **camera coordinate system**
+- ``offset_y``: The y-offset of the top-left corner of the ROI on the sensor in **camera coordinate system**
 
 If width and height are not specified, they default to the full sensor size.
 If offset_x and offset_y are not specified, they default to (0, 0).
 
-All ROI coordinates are expressed in the **camera coordinate system**. With issue #449, we wand to change this
-to make all ROI coordinates in the user coordinate system (i.e., the coordinate system after
-frame transformations). The camera base class abstraction would handle the conversion to camera coordinates internally.
+.. note::
+    The camera base class aims to treat everything in the user coordinate system, which is most often defined with respect
+    to the optical axis of the system. However, he offset coordinates are still expressed in the **camera coordinate system**.
+    With issue #449, we plan to change this to make **all** ROI coordinates in the user coordinate system (i.e., the
+    coordinate system after frame transformations). The camera base class abstraction would handle the conversion to camera coordinates internally.
 
 Configuration
 -------------
@@ -65,9 +67,9 @@ Properties
 
 ``height``: The height of the ROI in the user coordinate system (in pixels). Requires stopped acquisition to change on most cameras.
 
-``offset_x``: The x-offset of the ROI in the user coordinate system (in pixels). Requires stopped acquisition to change on most cameras.
+``offset_x``: The x-offset of the ROI in the camera coordinate system (in pixels). Requires stopped acquisition to change on most cameras.
 
-``offset_y``: The y-offset of the ROI in the user coordinate system (in pixels). Requires stopped acquisition to change on most cameras.
+``offset_y``: The y-offset of the ROI in the camera coordinate system (in pixels). Requires stopped acquisition to change on most cameras.
 
 **Exposure and Gain Properties:**
 
