@@ -29,6 +29,7 @@ Catkit2
    services/aimtti_plp
    services/allied_vision_camera
    services/bmc_deformable_mirror
+   services/camera
    services/camera_sim
    services/deformable_mirror
    services/empty_service
