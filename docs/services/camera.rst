@@ -55,8 +55,8 @@ Configuration
 
       # Frame transformation configuration (all optional)
       rot90: false                      # Rotate image by 90 degrees. Defaults to false
-      flip_x: false                     # Flip image horizontally (vertical flip). Defaults to false
-      flip_y: false                     # Flip image vertically (horizontal flip). Defaults to false
+      flip_x: false                     # Flip image vertically. Defaults to false
+      flip_y: false                     # Flip image horizontally. Defaults to false
 
 Properties
 ----------
