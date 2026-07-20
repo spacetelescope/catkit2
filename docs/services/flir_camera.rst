@@ -2,7 +2,7 @@ FLIR Camera
 ===========
 
 .. note::
-    This service inherits from the base :doc:`camera` base class.
+    This service inherits from the :doc:`camera` base class.
 
 This service operates an FLIR camera. The following are the different types of FLIR cameras that have been tested and used with catkit2 so far:
 
