@@ -28,8 +28,8 @@ If width and height are not specified, they default to the full sensor size.
 If offset_x and offset_y are not specified, they default to (0, 0).
 
 .. note::
-    The camera base class aims to treat everything in the user coordinate system, which is most often defined with respect
-    to the optical axis of the system. However, he offset coordinates are still expressed in the **camera coordinate system**.
+    The camera base class aims to treat all ROI settings in the user coordinate system, which is most often defined with respect
+    to the optical axis of the system. However, the offset coordinates are still expressed in the **camera coordinate system**.
     With issue #449, we plan to change this to make **all** ROI coordinates in the user coordinate system (i.e., the
     coordinate system after frame transformations). The camera base class abstraction would handle the conversion to camera coordinates internally.
 
