@@ -1,6 +1,9 @@
 ZWO Camera
 ==========
 
+.. note::
+    This service inherits from the base :doc:`camera` base class.
+
 This service operates a ZWO camera. The following are the different types of ZWO cameras that have been tested and used with catkit2 so far:
 
 - `ZWO ASI533MM <https://www.zwoastro.com/product/asi533mm-mc/>`_

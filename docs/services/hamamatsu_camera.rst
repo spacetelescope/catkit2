@@ -1,6 +1,9 @@
 Hamamatsu Camera
 ================
 
+.. note::
+    This service inherits from the base :doc:`camera` base class.
+
 This service controls a Hamamatsu camera. It is a wrapper around the DCAM SDK, which is distributed on the manufacturer
 website together with their Python API ``dcam``:
 `https://www.hamamatsu.com/eu/en/product/cameras/software/driver-software.html <https://www.hamamatsu.com/eu/en/product/cameras/software/driver-software.html>`_

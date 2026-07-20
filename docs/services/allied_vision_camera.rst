@@ -1,6 +1,9 @@
 Allied Vision Camera
 ====================
 
+.. note::
+    This service inherits from the base :doc:`camera` base class.
+
 This service controls an Allied Vision camera. It is a wrapper around the Vimba SDK, which requires its installation.
 The service uses the Python API for Vimba X SDK, called ``VmbPy``.
 In order to be able to run this service, the camera needs to be set up with the right Allied Vision USB driver.

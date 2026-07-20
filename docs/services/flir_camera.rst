@@ -1,5 +1,9 @@
 FLIR Camera
 ===========
+
+.. note::
+    This service inherits from the base :doc:`camera` base class.
+
 This service operates an FLIR camera. The following are the different types of FLIR cameras that have been tested and used with catkit2 so far:
 
 - `Teledyne FLIR BFS-U3-63S4M-C <https://wilcoimaging.com/products/teledyne-flir-bfs-u3-63s4m-c?_pos=1&_sid=ff2b850d4&_ss=r>`_
