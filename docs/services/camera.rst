@@ -11,7 +11,7 @@ The base camera class supports frame transformations via rotation and flipping. 
 after image capture and before the image is submitted to the datastream. The transformations are applied in the
 following order:
 
-1. Rotation (rot90)
+1. Rotation (rotation by 90 degrees, ``np.rot90``)
 2. Flip X (vertical flip, ``np.flipud``)
 3. Flip Y (horizontal flip, ``np.fliplr``)
 
@@ -77,9 +77,9 @@ Properties
 
 **Sensor Properties (read-only):**
 
-``sensor_width``: The width of the camera sensor in pixels (in the user coordinate system after rot90 transformations).
+``sensor_width``: The width of the camera sensor in pixels (in the user coordinate system, after potential rot90 transformations).
 
-``sensor_height``: The height of the camera sensor in pixels (in the user coordinate system after rot90 transformations).
+``sensor_height``: The height of the camera sensor in pixels (in the user coordinate system, after potential rot90 transformations).
 
 Commands
 --------
