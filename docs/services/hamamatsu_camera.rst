@@ -39,6 +39,7 @@ In addition to the base camera configuration, the following Hamamatsu-specific o
         offset_x: 0
         offset_y: 0
         exposure_time: 8317.5
+        gain: 0
         rot90: false
         flip_x: false
         flip_y: false
@@ -47,6 +48,8 @@ Properties
 ----------
 
 **Hamamatsu-specific properties:**
+
+``brightness``: Brightness of the camera.
 
 ``cooler_mode``: Cooler mode (only in water cooling): 'off', 'on' or 'max'.
 

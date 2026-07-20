@@ -33,7 +33,7 @@ In addition to the base camera configuration, the following Allied Vision-specif
         requires_safety: false
 
         camera_id: "DEV_1AB22C011222"
-        device_name: AV Alvium 1800 U-158m
+        device_name: AV Alvium 1800 U-158m   # Unused in code
 
         # Base camera configuration
         width: 32
@@ -53,7 +53,7 @@ Properties
 
 ``brightness``: Brightness of the camera.
 
-``device_name``: The name of the camera.
+``device_name``: The name of the camera - just for user reference, not used in code.
 
 See the base :doc:`camera` class for additional properties.
 
