@@ -16,6 +16,8 @@ The service has been successfully tested with the following camera models:
 Configuration
 -------------
 
+In addition to the base camera configuration, the following Hamamatsu-specific options are available:
+
 .. code-block:: YAML
 
     camera1:
@@ -31,6 +33,7 @@ Configuration
       binning: 1
       critical_temperature: 28
 
+      # Base camera configuration
       offset_x: 0
       offset_y: 0
       width: 400
@@ -39,34 +42,22 @@ Configuration
 
 Properties
 ----------
-``exposure_time``: Exposure time of the camera in microseconds.
 
-``width``: The width of the camera frames (integer factor of 4).
+**Hamamatsu-specific properties:**
 
-``height``: The height of the camera frames (integer factor of 4).
-
-``offset_x``: The x offset of the camera frames on the sensor (integer factor of 4).
-
-``offset_y``: The y offset of the camera frames on the sensor (integer factor of 4).
-
-``sensor_width``: The width of the sensor.
-
-``sensor_height``: The height of the sensor.
-
-``cooler_mode``: Cooler mode (only in water cooling): 'off', 'on' or 'max' .
+``cooler_mode``: Cooler mode (only in water cooling): 'off', 'on' or 'max'.
 
 ``fan_status``: Current camera fan status: 'off', 'on'.
 
+See the base :doc:`camera` class for additional properties.
+
 Commands
 --------
-``start_acquisition()``: This starts the acquisition of images from the camera.
 
-``end_acquisition()``: This ends the acquisition of images from the camera.
+See the base :doc:`camera` class documentation.
 
 Datastreams
 -----------
-``temperature``: The temperature (in Celsius) as measured by the camera.
 
-``images``: The images acquired by the camera.
+See the base :doc:`camera` class documentation.
 
-``is_acquiring``: Whether the camera is currently acquiring images.

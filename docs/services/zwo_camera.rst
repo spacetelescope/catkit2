@@ -18,6 +18,8 @@ file from the SDK; for Linux, you would set it to the path of the ``libASICamera
 Configuration
 -------------
 
+In addition to the base camera configuration, the following ZWO-specific options are available:
+
 .. code-block:: YAML
 
     camera1:
@@ -26,6 +28,8 @@ Configuration
         requires_safety: false
 
         device_name: ZWO ASI533MM
+
+        # Base camera configuration
         offset_x: 1038
         offset_y: 1282
         width: 192
@@ -35,38 +39,24 @@ Configuration
 
 Properties
 ----------
-``exposure_time``: Exposure time (in microseconds) of the camera.
 
-``gain``: Gain of the camera.
+**ZWO-specific properties:**
 
 ``brightness``: Brightness of the camera.
-
-``width``: The width of the camera frames.
-
-``height``: The height of the camera frames.
-
-``offset_x``: The x offset of the camera frames on the sensor.
-
-``offset_y``: The y offset of the camera frames on the sensor.
-
-``sensor_width``: The width of the sensor.
-
-``sensor_height``: The height of the sensor.
 
 ``device_name``: The name of the camera.
 
 ``max_bandwidth``: The camera USB bandwidth setting. True uses (default) max USB bandwidth setting. False sets minimum USB bandwidth which can be more reliable in some situations.
 
+See the base :doc:`camera` class for additional properties.
+
 Commands
 --------
-``start_acquisition()``: This starts the acquisition of images from the camera.
 
-``end_acquisition()``: This ends the acquisition of images from the camera.
+See the base :doc:`camera` class documentation.
 
 Datastreams
 -----------
-``temperature``: The temperature (in Celsius) as measured by the camera.
 
-``images``: The images acquired by the camera.
+See the base :doc:`camera` class documentation.
 
-``is_acquiring``: Whether the camera is currently acquiring images.
