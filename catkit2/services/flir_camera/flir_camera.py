@@ -7,6 +7,7 @@ import numpy as np
 from catkit2.testbed.service import Service
 from catkit2.testbed.tracing import trace_interval
 
+
 def _create_property(flir_property_name, read_only=False, stopped_acquisition=True):
     def getter(self):
         with self.mutex:
@@ -31,6 +32,7 @@ def _create_property(flir_property_name, read_only=False, stopped_acquisition=Tr
                 self.start_acquisition()
 
     return property(getter, setter)
+
 
 def _create_enum_property(flir_property_name, enum_name, stopped_acquisition=True):
     def getter(self):
@@ -62,6 +64,7 @@ def _create_enum_property(flir_property_name, enum_name, stopped_acquisition=Tru
             self.start_acquisition()
 
     return property(getter, setter)
+
 
 class FlirCamera(Service):
     NUM_FRAMES_IN_BUFFER = 20

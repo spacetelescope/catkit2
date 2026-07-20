@@ -1,6 +1,9 @@
 Allied Vision Camera
 ====================
 
+.. note::
+    This service inherits from the base :doc:`camera` base class.
+
 This service controls an Allied Vision camera. It is a wrapper around the Vimba SDK, which requires its installation.
 The service uses the Python API for Vimba X SDK, called ``VmbPy``.
 In order to be able to run this service, the camera needs to be set up with the right Allied Vision USB driver.
@@ -23,56 +26,47 @@ The service has been successfully tested with the following camera models:
 Configuration
 -------------
 
+In addition to the base camera configuration, the following Allied Vision-specific options are available:
+
 .. code-block:: YAML
 
     camera1:
-      service_type: allied_vision_camera
-      simulated_service_type: camera_sim
-      requires_safety: false
+        service_type: allied_vision_camera
+        simulated_service_type: camera_sim
+        requires_safety: false
 
-      camera_id: "DEV_1AB22C011222"
-      device_name: AV Alvium 1800 U-158m
+        camera_id: "DEV_1AB22C011222"
+        device_name: AV Alvium 1800 U-158m   # Unused in code
 
-      offset_x: 0
-      offset_y: 0
-      width: 32
-      height: 32
-      sensor_width: 1456
-      sensor_height: 1088
-
-      exposure_time: 200
-      gain: 0
+        # Base camera configuration
+        width: 32
+        height: 32
+        offset_x: 0
+        offset_y: 0
+        exposure_time: 200
+        gain: 0
+        rot90: false
+        flip_x: false
+        flip_y: false
 
 Properties
 ----------
-``exposure_time``: Exposure time of the camera in microseconds.
 
-``gain``: Gain of the camera.
+**Allied Vision-specific properties:**
 
 ``brightness``: Brightness of the camera.
 
-``width``: The width of the camera frames.
+``device_name``: The name of the camera - just for user reference, not used in code.
 
-``height``: The height of the camera frames.
-
-``offset_x``: The x offset of the camera frames on the sensor.
-
-``offset_y``: The y offset of the camera frames on the sensor.
-
-``sensor_width``: The width of the sensor.
-
-``sensor_height``: The height of the sensor.
+See the base :doc:`camera` class for additional properties.
 
 Commands
 --------
-``start_acquisition()``: This starts the acquisition of images from the camera.
 
-``end_acquisition()``: This ends the acquisition of images from the camera.
+See the base :doc:`camera` class documentation.
 
 Datastreams
 -----------
-``temperature``: The temperature (in Celsius) as measured by the camera.
 
-``images``: The images acquired by the camera.
+See the base :doc:`camera` class documentation.
 
-``is_acquiring``: Whether the camera is currently acquiring images.

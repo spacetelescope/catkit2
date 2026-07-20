@@ -1,5 +1,9 @@
 FLIR Camera
 ===========
+
+.. note::
+    This service inherits from the :doc:`camera` base class.
+
 This service operates an FLIR camera. The following are the different types of FLIR cameras that have been tested and used with catkit2 so far:
 
 - `Teledyne FLIR BFS-U3-63S4M-C <https://wilcoimaging.com/products/teledyne-flir-bfs-u3-63s4m-c?_pos=1&_sid=ff2b850d4&_ss=r>`_
@@ -12,6 +16,9 @@ Note that using FLIR cameras requires a manual installation of drivers from `fli
 
 Configuration
 -------------
+
+In addition to the base camera configuration, the following FLIR-specific options are available:
+
 .. code-block:: YAML
 
     camera1:
@@ -20,35 +27,27 @@ Configuration
         requires_safety: false
 
         serial_number: 000000
+        adc_bit_depth: 12bit
+        pixel_format: mono12p
+        well_depth_percentage_target: 0.65
+        env:
+            KMP_DUPLICATE_LIB_OK: TRUE
+
+        # Base camera configuration
         width: 312
         height: 312
         offset_x: 100
         offset_y: 134
-        adc_bit_depth: 12bit
-        pixel_format: mono12p
-        well_depth_percentage_target: 0.65
         exposure_time: 1000
         gain: 0
-        env:
-            KMP_DUPLICATE_LIB_OK: TRUE
+        rot90: false
+        flip_x: false
+        flip_y: false
 
 Properties
 ----------
-``exposure_time``: Exposure time (in microseconds) of the camera.
 
-``gain``: Gain of the camera.
-
-``width``: The width of the camera frames.
-
-``height``: The height of the camera frames.
-
-``offset_x``: The x offset of the camera frames on the sensor.
-
-``offset_y``: The y offset of the camera frames on the sensor.
-
-``sensor_width``: The width of the sensor.
-
-``sensor_height``: The height of the sensor.
+**FLIR-specific properties:**
 
 ``pixel_format``: Format of the pixel provided by the camera.
 
@@ -60,18 +59,15 @@ Properties
 
 ``device_name``: The name of the camera.
 
+See the base :doc:`camera` class for additional properties.
+
 Commands
 --------
-``start_acquisition()``: This starts the acquisition of images from the camera.
 
-``end_acquisition()``: This ends the acquisition of images from the camera.
-
+See the base :doc:`camera` class documentation.
 
 Datastreams
 -----------
-``temperature``: The temperature (in Celsius) as measured by the camera.
 
-``images``: The images acquired by the camera.
-
-``is_acquiring``: Whether the camera is currently acquiring images.
+See the base :doc:`camera` class documentation.
 

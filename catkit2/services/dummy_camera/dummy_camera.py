@@ -1,9 +1,10 @@
 from catkit2.testbed.service import Service
 
 import time
-from hcipy import *
+import hcipy
 import numpy as np
 import threading
+
 
 class DummyCamera(Service):
     def __init__(self):
@@ -16,16 +17,16 @@ class DummyCamera(Service):
         self._offset_x = self.config['offset_x']
         self._offset_y = self.config['offset_y']
 
-        self.flux = self.config['flux']
+
         self.sensor_width = self.config['sensor_width']
         self.sensor_height = self.config['sensor_height']
 
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
-        self.pupil_grid = make_pupil_grid(128)
-        self.aperture = evaluate_supersampled(make_hicat_aperture(True), self.pupil_grid, 4)
-        self.wf = Wavefront(self.aperture)
+        self.pupil_grid = hcipy.make_pupil_grid(128)
+        self.aperture = hcipy.evaluate_supersampled(hcipy.make_hicat_aperture(True), self.pupil_grid, 4)
+        self.wf = hcipy.Wavefront(self.aperture)
         self.wf.total_power = 1
 
         self.images = self.make_data_stream('images', 'uint16', [self.sensor_height, self.sensor_width], 20)
@@ -64,17 +65,17 @@ class DummyCamera(Service):
 
     def get_image(self):
         try:
-            focal_grid = make_focal_grid(8, np.array([self.sensor_width, self.sensor_height]) / 16)
+            focal_grid = hcipy.make_focal_grid(8, np.array([self.sensor_width, self.sensor_height]) / 16)
             # focal_grid = focal_grid.shifted([-self._offset_x / 8, -self._offset_y / 8])
 
-            prop = FraunhoferPropagator(self.pupil_grid, focal_grid)
+            prop = hcipy.FraunhoferPropagator(self.pupil_grid, focal_grid)
             img = prop(self.wf).power.shaped
 
             img = img[self._offset_y:self._offset_y + self._height, self._offset_x:self._offset_x + self._width]
 
             img = img * self.flux * self.exposure_time / 1e6
 
-            img = large_poisson(img)
+            img = hcipy.large_poisson(img)
             img = np.clip(img, 0, 2**16 - 1).astype('uint16')
         except Exception as e:
             print(e)

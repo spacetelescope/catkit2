@@ -51,9 +51,6 @@ class ZwoCamera(Service):
         self.should_be_acquiring = threading.Event()
         self.should_be_acquiring.set()
 
-        # Create lock for camera access
-        self.mutex = threading.Lock()
-
     def open(self):
         # Attempt to find USB camera.
         num_cameras = zwoasi.get_num_cameras()
@@ -100,7 +97,6 @@ class ZwoCamera(Service):
                 self.camera.set_control_value(controls[c]['ControlType'], controls[c]['DefaultValue'])
 
         print('Bandwidth defaults', self.camera.get_controls()['BandWidth'])
-
         print('Bandwidth before:', self.camera.get_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD))
 
         self._max_bandwidth = self.config.get('max_bandwidth', True)
@@ -345,6 +341,7 @@ class ZwoCamera(Service):
             self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MaxValue'])
         else:
             self.camera.set_control_value(zwoasi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
+
 
 if __name__ == '__main__':
     service = ZwoCamera()
