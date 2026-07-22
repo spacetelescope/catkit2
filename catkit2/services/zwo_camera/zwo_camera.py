@@ -210,11 +210,7 @@ class ZwoCamera(Service):
                 img = self.camera.capture_video_frame(timeout=timeout)
 
                 with trace_interval('processing frame'):
-                    # 2023-10-26 Temporary fix for HiCAT
-                    if self.id == 'science_camera':
-                        self.images.submit_data(np.ascontiguousarray(np.flip(img.astype('float32'))))
-                    else:
-                        self.images.submit_data(img.astype('float32'))
+                    self.images.submit_data(img.astype('float32'))
         finally:
             # Stop acquisition.
             self.camera.stop_video_capture()
