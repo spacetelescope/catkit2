@@ -686,7 +686,8 @@ class Testbed:
 
         return service_type
 
-    def _get_safety_service_id(self, config):
+    @staticmethod
+    def _get_safety_service_id(config):
         '''Return the safety service id from a configuration, or None if there is none.
 
         Parameters
@@ -706,7 +707,8 @@ class Testbed:
 
         return None
 
-    def _compute_reverse_dependencies(self, nodes, safety_service_id):
+    @staticmethod
+    def _compute_reverse_dependencies(nodes, safety_service_id):
         '''Compute the reverse-dependency graph for a set of services and verify it.
 
         This does not modify any testbed state, so it can also be used to validate a
@@ -739,7 +741,7 @@ class Testbed:
                 if dependency in depended_on_by:
                     depended_on_by[dependency].append(service_id)
                 else:
-                    self.log.warning(f'Service "{service_id}" depends on unknown service "{dependency}". Ignoring this dependency.')
+                    logging.getLogger(__name__).warning(f'Service "{service_id}" depends on unknown service "{dependency}". Ignoring this dependency.')
 
             if requires_safety:
                 if safety_service_id is None:
