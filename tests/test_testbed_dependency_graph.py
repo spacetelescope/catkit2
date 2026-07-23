@@ -1,17 +1,10 @@
-import logging
-
 import pytest
 
 from catkit2.testbed.testbed import Testbed
 
 
-class DummyTestbed:
-    '''A stand-in for a Testbed instance to call _compute_reverse_dependencies() on.'''
-    log = logging.getLogger(__name__)
-
-
 def compute(nodes, safety_service_id=None):
-    return Testbed._compute_reverse_dependencies(DummyTestbed(), nodes, safety_service_id)
+    return Testbed._compute_reverse_dependencies(nodes, safety_service_id)
 
 
 def test_simple_graph():
