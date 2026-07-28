@@ -79,6 +79,7 @@ private:
 	void MonitorHeartbeats();
 	void MonitorPropertiesAndCommands();
 
+	void HandleGetPropertyMessage(std::shared_ptr<MessageBroker> broker, const Message &message);
 	void HandleSetPropertyMessage(std::shared_ptr<MessageBroker> broker, const Message &message);
 	void HandleExecuteCommandMessage(std::shared_ptr<MessageBroker> broker, const Message &message);
 

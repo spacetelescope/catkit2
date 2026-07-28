@@ -372,6 +372,13 @@ void Service::MonitorPropertiesAndCommands()
 			auto message = message_optional.value();
 			auto topic = message.GetTopic();
 
+			// Trigger on get requests.
+			if (topic.size() >= 12 && topic.substr(topic.size() - 12) == "/get_request")
+			{
+				HandleGetPropertyMessage(broker, message);
+				continue;
+			}
+
 			// Trigger on set messages.
 			if (topic.size() >= 4 && topic.substr(topic.size() - 4) == "/set")
 			{
@@ -390,6 +397,43 @@ void Service::MonitorPropertiesAndCommands()
 		{
 			continue;
 		}
+	}
+}
+
+void Service::HandleGetPropertyMessage(std::shared_ptr<MessageBroker> broker, const Message &message)
+{
+	auto topic = message.GetTopic();
+
+	// The topic is "<service_id>/<property_name>/get_request", so the property name is
+	// everything between the service id and the "/get_request" suffix.
+	if (topic.size() <= m_ServiceId.size() + 13)
+		return;
+
+	std::string get_topic = std::string(topic.substr(0, topic.size() - 12)) + "/get"s;
+	std::string error_topic = std::string(topic.substr(0, topic.size() - 12)) + "/error"s;
+
+	std::string property_name = std::string(topic.substr(m_ServiceId.size() + 1, topic.size() - m_ServiceId.size() - 13));
+
+	// Find the property. If a property by that name doesn't exist, ignore the message.
+	auto property = m_Properties.find(property_name);
+	if (property == m_Properties.end())
+		return;
+
+	try
+	{
+		// Read out the property and publish its current value. This also refreshes the
+		// retained message on the get topic, so clients that do not send a get request
+		// benefit from this read as well.
+		auto property_value = GetProperty(property_name);
+
+		broker->PublishData(get_topic, property_value.data(), property_value.size(), message.GetTraceId());
+	}
+	catch (const std::exception& e)
+	{
+		std::string error_message = "Failed to get property: "s + e.what();
+		LOG_ERROR(error_message);
+
+		broker->PublishData(error_topic, error_message.data(), error_message.size(), message.GetTraceId());
 	}
 }
 

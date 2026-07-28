@@ -4,6 +4,7 @@
 #include "Timing.h"
 #include "Service.h"
 #include "Util.h"
+#include "Log.h"
 #include "service.pb.h"
 
 #include <iostream>
@@ -16,6 +17,27 @@ using json = nlohmann::json;
 const double TIMEOUT_TO_START = 120;  // seconds
 const double TIMEOUT_SET_PROPERTY = 120;  // seconds
 const double TIMEOUT_EXECUTE_COMMAND = 120;  // seconds
+
+// Getting a property only requires the service to call its getter, which should always be
+// fast. This timeout is therefore much shorter than the one for setting a property or
+// executing a command. On timeout we do not throw, but fall back to the last value that was
+// published by the service, so a busy service degrades to a stale reading rather than an error.
+const double TIMEOUT_GET_PROPERTY = 5;  // seconds
+
+namespace
+{
+	// Decode a property value out of a message published on a "<service_id>/<property_name>/get" topic.
+	Value DecodePropertyValue(const Message &message)
+	{
+		catkit_proto::Value proto_value;
+		proto_value.ParseFromArray(message.GetPayload().data, message.GetPayloadSize());
+
+		Value res;
+		FromProto(&proto_value, res);
+
+		return res;
+	}
+}
 
 ServiceProxy::ServiceProxy(std::shared_ptr<TestbedProxy> testbed, std::string service_id)
 	: m_Testbed(testbed), m_ServiceId(service_id), m_Client(nullptr), m_State(nullptr),
@@ -49,21 +71,63 @@ Value ServiceProxy::GetProperty(const std::string &name, void (*error_check)())
 	if (std::find(m_PropertyNames.begin(), m_PropertyNames.end(), name) == m_PropertyNames.end())
 		throw std::runtime_error("This is not a valid property name.");
 
-	// Get the value data.
-	auto message = m_Testbed->GetMessageBroker()->GetCurrentMessage(m_ServiceId + "/"s + name + "/get"s);
+	std::string get_topic = m_ServiceId + "/"s + name + "/get"s;
+	std::string request_topic = m_ServiceId + "/"s + name + "/get_request"s;
+	std::string error_topic = m_ServiceId + "/"s + name + "/error"s;
 
-	if (!message.has_value())
+	// Subscribe to get messages. This is done before publishing the request, so that we
+	// cannot miss the reply.
+	auto subscription = m_Testbed->GetMessageBroker()->Subscribe(m_ServiceId + "/"s + name, MessageSubscriptionMode::Sequential);
+
+	// Ask the service to read out the property and publish its current value.
+	auto message = m_Testbed->GetMessageBroker()->PublishData(request_topic, name.c_str(), name.size());
+	Uuid trace_id = message.GetTraceId();
+
+	// Wait for the response.
+	Timer timer;
+
+	while (true)
+	{
+		double time_remaining = TIMEOUT_GET_PROPERTY - timer.GetTime();
+
+		if (time_remaining < 0)
+		{
+			LOG_WARNING("Timeout waiting for property \""s + name + "\" of service \""s + m_ServiceId + "\". Falling back to its last published value."s);
+			break;
+		}
+
+		// Get the response message.
+		auto reply_message_optional = subscription.GetNextMessage(time_remaining, EventWaitMethod::Default, error_check);
+
+		if (!reply_message_optional.has_value())
+			continue;
+
+		auto reply_message = reply_message_optional.value();
+
+		// Check if the message is a response to our request.
+		if (reply_message.GetTraceId() != trace_id)
+			continue;
+
+		// Ignore the request we just sent.
+		if (reply_message.GetTopic() == request_topic)
+			continue;
+
+		// If it's an error topic, relay the error to the caller as an exception.
+		if (reply_message.GetTopic() == error_topic)
+			throw std::runtime_error("Error while getting property: "s + std::string((char *) reply_message.GetPayload().data, reply_message.GetPayloadSize()));
+
+		// Parse the response message and return the retrieved value.
+		return DecodePropertyValue(reply_message);
+	}
+
+	// The service did not answer our request in time. Fall back to the last value that it
+	// published, which is at least correct as of the last time the property was set.
+	auto last_message = m_Testbed->GetMessageBroker()->GetCurrentMessage(get_topic);
+
+	if (!last_message.has_value())
 		throw std::runtime_error("Could not get the property.");
 
-	// Decode the data.
-	catkit_proto::Value proto_value;
-	std::string proto_string((char *) message.value().GetPayload().data, message.value().GetPayloadSize());
-	proto_value.ParseFromString(proto_string);
-
-	Value res;
-	FromProto(&proto_value, res);
-
-	return res;
+	return DecodePropertyValue(last_message.value());
 }
 
 Value ServiceProxy::SetProperty(const std::string &name, const Value &value, void (*error_check)())
