@@ -205,16 +205,26 @@ class ZwoCamera(CameraService):
         return cam_info['MaxHeight']
 
     def get_exposure_time(self):
-        exposure_time, auto = self.camera.get_control_value(zwoasi.ASI_EXPOSURE)
-        return exposure_time - self.exposure_time_offset_correction
+        # Report the calibrated wall-clock exposure time. The commanded (integer us) value
+        # is mapped onto the camera's true hardware staircase and the wall-clock offset is
+        # removed, so that counts are proportional to the reported time through zero. With
+        # the default params (step_size=1, base_step=1, offset_correction=0) this reduces to
+        # the identity, leaving uncalibrated cameras unaffected.
+        commanded, auto = self.camera.get_control_value(zwoasi.ASI_EXPOSURE)
+
+        stair = (self.exposure_time_step_size
+                 * np.round((commanded - self.exposure_time_base_step) / self.exposure_time_step_size)
+                 + self.exposure_time_base_step)
+
+        return float(stair - self.exposure_time_offset_correction)
 
     def set_exposure_time(self, exposure_time):
-        exposure_time += self.exposure_time_offset_correction
-        exposure_time = np.round((exposure_time - self.exposure_time_base_step) / self.exposure_time_step_size)
-        exposure_time = np.maximum(exposure_time, 0)
-        exposure_time = exposure_time * self.exposure_time_step_size + self.exposure_time_base_step
+        # Command the raw requested exposure time without re-quantizing onto a modeled
+        # staircase; the hardware applies its own native discretization. Re-quantizing here
+        # would double-quantize against the camera's real stairs and cause beating artifacts.
+        exposure_time = max(int(round(exposure_time)), 0)
 
-        self.camera.set_control_value(zwoasi.ASI_EXPOSURE, int(exposure_time))
+        self.camera.set_control_value(zwoasi.ASI_EXPOSURE, exposure_time)
 
     def get_gain(self):
         gain, _ = self.camera.get_control_value(zwoasi.ASI_GAIN)
