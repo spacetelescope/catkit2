@@ -106,7 +106,7 @@ class ZwoCamera(CameraService):
         # Get exposure discretization parameters.
         self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
         self.exposure_time_offset_correction = self.config.get('exposure_time_offset_correction', 0)
-        self.exposure_time_base_step = self.config.get('exposure_time_base_step', 1)
+        self.exposure_time_base_step = self.config.get('exposure_time_base_step', 0)
 
         def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
             if read_only:
@@ -208,18 +208,20 @@ class ZwoCamera(CameraService):
         # Report the calibrated wall-clock exposure time. The commanded (integer us) value
         # falls into one of the camera's hardware stairs, whose rising edges sit at
         # base_step + k * step_size. The representative wall-clock for that stair is its
-        # center (floor(...) + 0.5, since base_step is an edge, not a center), from which the
+        # center (stair_index + 0.5, since base_step is an edge, not a center), from which the
         # wall-clock offset is removed so that counts are proportional to the reported time
-        # through zero. With the default params (step_size=1) no staircase is known, so the
-        # commanded value is reported directly, leaving uncalibrated cameras unaffected.
+        # through zero.
+        #
+        # step_size <= 1 is the "uncalibrated" sentinel (the raw default 1/0/0): no staircase is
+        # known, so the commanded value is reported directly, leaving uncalibrated cameras
+        # unaffected. A real hardware step is many microseconds (~8.6 us for the ASI678MM).
         commanded, auto = self.camera.get_control_value(zwoasi.ASI_EXPOSURE)
 
         if self.exposure_time_step_size <= 1:
             return float(commanded - self.exposure_time_offset_correction)
 
-        stair_center = (self.exposure_time_step_size
-                        * (np.floor((commanded - self.exposure_time_base_step) / self.exposure_time_step_size) + 0.5)
-                        + self.exposure_time_base_step)
+        stair_index = np.floor((commanded - self.exposure_time_base_step) / self.exposure_time_step_size)
+        stair_center = self.exposure_time_base_step + self.exposure_time_step_size * (stair_index + 0.5)
 
         return float(stair_center - self.exposure_time_offset_correction)
 
@@ -229,6 +231,13 @@ class ZwoCamera(CameraService):
         # do NOT re-quantize onto the modeled staircase: the hardware applies its own native
         # discretization, and re-quantizing here would beat against the real stairs. With the
         # default offset_correction=0 this reduces to commanding the requested time.
+        #
+        # Notes on quantization/clamping:
+        #   * Exposure is quantized to integer microseconds here (int(round(...))); sub-microsecond
+        #     precision in the request is intentionally discarded (below our cameras' resolution).
+        #   * We clamp the command at 0, but the hardware additionally enforces its own minimum
+        #     exposure (~30 us on the ASI678MM), so any request below ~|offset_correction| collapses
+        #     to that minimum (the flat "clamped" floor seen in the staircase runs).
         exposure_time = max(int(round(exposure_time + self.exposure_time_offset_correction)), 0)
 
         self.camera.set_control_value(zwoasi.ASI_EXPOSURE, exposure_time)
