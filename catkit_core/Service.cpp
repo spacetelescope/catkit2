@@ -358,7 +358,12 @@ void Service::MonitorHeartbeats()
 void Service::MonitorPropertiesAndCommands()
 {
 	auto broker = m_Testbed->GetMessageBroker();
-	auto subscription = broker->Subscribe(m_ServiceId);
+
+	// Subscribe in Sequential mode so that every get/set/execute request is processed in
+	// order. The default NewestOnly mode skips to the newest message, which silently drops
+	// requests whenever more than one message lands on the service's (busy) topic between
+	// handler iterations. The client side subscribes Sequential to match.
+	auto subscription = broker->Subscribe(m_ServiceId, MessageSubscriptionMode::Sequential);
 
 	while (!ShouldShutDown())
 	{

@@ -56,6 +56,11 @@ class ZwoCamera(Service):
         # Create lock for camera access
         self.mutex = threading.Lock()
 
+        # Cache of property values, served on the get path so property reads never make a
+        # live SDK call that would contend with the ongoing capture_video_frame. Controls
+        # only change through this service's setters, so the cache stays authoritative.
+        self._property_cache = {}
+
     def open(self):
         # Attempt to find USB camera.
         num_cameras = zwoasi.get_num_cameras()
@@ -177,20 +182,32 @@ class ZwoCamera(Service):
         self.is_acquiring = self.make_data_stream('is_acquiring', 'int8', [1], self.NUM_FRAMES_IN_BUFFER)
         self.is_acquiring.submit_data(np.array([0], dtype='int8'))
 
-        # Create properties
+        # Create properties.
+        # The registered getter returns a cached value rather than reading the camera SDK,
+        # so property gets never contend with the running acquisition loop. The cache is
+        # seeded here (acquisition has not started yet, so the SDK is idle) and refreshed by
+        # each setter after it writes the new value to the camera.
         def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
+            def getter():
+                return self._property_cache[name]
+
             if read_only:
-                self.make_property(name, lambda: getattr(self, name))
+                self.make_property(name, getter)
             else:
                 if requires_stopped_acquisition:
                     def setter(val):
                         with StoppedAcquisition(self):
                             setattr(self, name, val)
+                            self._property_cache[name] = getattr(self, name)
                 else:
                     def setter(val):
                         setattr(self, name, val)
+                        self._property_cache[name] = getattr(self, name)
 
-                self.make_property(name, lambda: getattr(self, name), setter)
+                self.make_property(name, getter, setter)
+
+            # Seed the cache with the current hardware value.
+            self._property_cache[name] = getattr(self, name)
 
         make_property_helper('exposure_time')
         make_property_helper('gain')
