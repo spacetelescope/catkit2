@@ -2,6 +2,9 @@
 
 #include "Timing.h"
 
+#include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <string>
 
 #if defined(__linux__) || defined(__APPLE__)
@@ -42,6 +45,13 @@ private:
 	pthread_mutex_t *m_Mutex;
 };
 
+// Note on macOS: Apple's libpthread stores the address of the mutex used by the first waiter
+// inside the condition variable ("cond->busy") and returns EINVAL, without releasing the mutex,
+// to any subsequent waiter that passes the same mutex mapped at a different virtual address.
+// Since every process maps the shared memory at a different address, this implementation
+// cannot be used for cross-process synchronization on macOS and is therefore not the default
+// there (see Event.h). The error is reported as an exception rather than silently retried, as
+// retrying would spin while holding the mutex and block all signaling processes.
 template<>
 inline void EventConditionVariable::Wait(double timeout_in_sec, std::function<bool()> condition, void (*error_check)())
 {
@@ -51,13 +61,26 @@ inline void EventConditionVariable::Wait(double timeout_in_sec, std::function<bo
 	while (!condition())
 	{
 		// Wait for a maximum of 20ms to perform periodic error checking.
-		double timeout_wait = std::min(0.020, timeout_in_sec);
+		double time_remaining = timeout_in_sec - timer.GetTime();
+		double timeout_wait = std::min(0.020, time_remaining);
+
+		if (timeout_wait <= 0)
+		{
+			// The timeout expired.
+			throw std::runtime_error("Waiting time has expired.");
+		}
 
 #ifdef __APPLE__
 		// Relative timespec.
 		timespec timeout;
 		timeout.tv_sec = static_cast<time_t>(timeout_wait);
 		timeout.tv_nsec = 1'000'000'000 * (timeout_wait - static_cast<time_t>(timeout_wait));
+
+		if (timeout.tv_nsec >= 1'000'000'000)
+		{
+			timeout.tv_sec += 1;
+			timeout.tv_nsec -= 1'000'000'000;
+		}
 
 		int res = pthread_cond_timedwait_relative_np(&(m_SharedState->m_Condition), &(m_SharedState->m_Mutex), &timeout);
 #else
@@ -67,11 +90,20 @@ inline void EventConditionVariable::Wait(double timeout_in_sec, std::function<bo
 		timeout.tv_sec += static_cast<time_t>(timeout_wait);
 		timeout.tv_nsec += 1'000'000'000 * (timeout_wait - static_cast<time_t>(timeout_wait));
 
+		if (timeout.tv_nsec >= 1'000'000'000)
+		{
+			timeout.tv_sec += 1;
+			timeout.tv_nsec -= 1'000'000'000;
+		}
+
 		int res = pthread_cond_timedwait(&(m_SharedState->m_Condition), &(m_SharedState->m_Mutex), &timeout);
 #endif // __APPLE__
-		if (res == ETIMEDOUT && timer.GetTime() > timeout_in_sec)
+
+		// Both a wakeup (spurious or not) and a timeout lead to re-checking the condition.
+		// Anything else is a genuine error; the lock guard releases the mutex when throwing.
+		if (res != 0 && res != ETIMEDOUT)
 		{
-			throw std::runtime_error("Waiting time has expired.");
+			throw std::runtime_error("Condition variable wait failed: " + std::string(std::strerror(res)));
 		}
 
 		if (error_check != nullptr)
