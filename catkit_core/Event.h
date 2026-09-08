@@ -19,7 +19,9 @@ enum class EventWaitMethod
 #elif defined(__linux__)
 	Default = Futex
 #elif defined(__APPLE__)
-	Default = ConditionVariable
+	// Process-shared pthread condition variables are not usable across processes on macOS
+	// (see EventConditionVariable.inl), so we use the ulock-based futex implementation.
+	Default = Futex
 #endif
 };
 
