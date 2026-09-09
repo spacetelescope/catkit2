@@ -12,7 +12,19 @@ ROOT = Path(__file__).resolve().parents[1]
 ATLAS = ROOT / 'docs' / 'agent' / 'REPO_ATLAS.md'
 INDEX = ATLAS.with_name('repo_index.json')
 FIELD_NAMES = ('Summary', 'Owner', 'Status', 'Docs', 'Tests', 'Related')
-HEADER_NAMES = ('repo', 'visibility', 'source_commit', 'derived_from', 'authority')
+METADATA_NAMES = ('Repository', 'Visibility', 'Full-audit source commit')
+AUTHORITY = ('Source/docs/history -> evidence -> Markdown atlas -> this derived '
+             'index. Read section caveats and current source before implementing.')
+
+
+def parse_metadata(text):
+    """Read repository metadata from explicit atlas fields."""
+    pattern = r'^- (' + '|'.join(METADATA_NAMES) + r'): `([^`]+)`$'
+    metadata = dict(re.findall(pattern, text, re.MULTILINE))
+    missing = [name for name in METADATA_NAMES if name not in metadata]
+    if missing:
+        raise ValueError('Atlas metadata is missing: {}'.format(', '.join(missing)))
+    return metadata
 
 
 def parse_atlas(text):
@@ -27,7 +39,8 @@ def parse_atlas(text):
             fields.setdefault(label, []).append(value)
 
         read_first = re.findall(
-            r'^- \*\*Read first:\*\* `([^`]+)` in `([^`]+)` — (.+)$',
+            r'^- \*\*Read first(?: \(([a-z0-9][a-z0-9_-]*)\))?:\*\* '
+            r'`([^`]+)` in `([^`]+)` — (.+)$',
             body,
             re.MULTILINE,
         )
@@ -38,15 +51,19 @@ def parse_atlas(text):
             raise ValueError('{} is missing: {}'.format(key, ', '.join(missing)))
 
         tests = re.findall(r'`([^`]+)`', fields['Tests'][0])
+        examples = []
+        for repository, symbol, path, why in read_first:
+            example = {'path': path, 'symbol': symbol, 'why': why}
+            if repository:
+                example['repository'] = repository
+            examples.append(example)
+
         concept = {
             'summary': fields['Summary'][0],
             'owner': fields['Owner'][0],
             'status': fields['Status'][0],
             'atlas_section': 'concept-' + key,
-            'canonical_examples': [
-                {'path': path, 'symbol': symbol, 'why': why}
-                for symbol, path, why in read_first
-            ],
+            'canonical_examples': examples,
             'docs': re.findall(r'`([^`]+)`', fields['Docs'][0]),
             'tests': tests,
         }
@@ -63,17 +80,16 @@ def parse_atlas(text):
 
 
 def build_index(atlas_text):
-    """Build a new index while preserving reviewed repository metadata."""
-    if not INDEX.is_file():
-        raise ValueError('repo_index.json is required for repository metadata.')
-    previous = json.loads(INDEX.read_text(encoding='utf-8'))
-    missing = [name for name in HEADER_NAMES if name not in previous]
-    if missing:
-        raise ValueError('Index metadata is missing: {}'.format(', '.join(missing)))
-
-    result = {name: previous[name] for name in HEADER_NAMES[:4]}
+    """Build the complete derived index from the atlas."""
+    metadata = parse_metadata(atlas_text)
+    result = {
+        'repo': metadata['Repository'],
+        'visibility': metadata['Visibility'],
+        'source_commit': metadata['Full-audit source commit'],
+        'derived_from': 'docs/agent/REPO_ATLAS.md',
+    }
     result['atlas_sha256'] = hashlib.sha256(ATLAS.read_bytes()).hexdigest()
-    result['authority'] = previous['authority']
+    result['authority'] = AUTHORITY
     result['concepts'] = parse_atlas(atlas_text)
     return result
 
@@ -97,9 +113,10 @@ def render_index(index):
     return '\n'.join(lines) + '\n'
 
 
-def validate(atlas_text, expected_text, concepts):
+def validate(atlas_text, expected_text, index):
     """Check concept links, referenced files, Markdown links and generated JSON."""
     errors = []
+    concepts = index['concepts']
     for key, concept in concepts.items():
         unknown = set(concept['related_concepts']) - set(concepts)
         if unknown:
@@ -107,11 +124,13 @@ def validate(atlas_text, expected_text, concepts):
         anchor = '<a id="{}"></a>'.format(concept['atlas_section'])
         if anchor not in atlas_text:
             errors.append('{} is missing its section anchor'.format(key))
-        paths = concept['docs'] + concept['tests']
-        paths += [item['path'] for item in concept['canonical_examples']]
-        for relative_path in paths:
+        for relative_path in concept['docs'] + concept['tests']:
             if not (ROOT / relative_path).is_file():
                 errors.append('{} references missing {}'.format(key, relative_path))
+        for example in concept['canonical_examples']:
+            repository = example.get('repository', index['repo'])
+            if repository == index['repo'] and not (ROOT / example['path']).is_file():
+                errors.append('{} references missing {}'.format(key, example['path']))
 
     for target in re.findall(r'\[[^\]]+\]\(([^)]+)\)', atlas_text):
         if '://' not in target and not target.startswith('#'):
@@ -134,7 +153,7 @@ def main():
     expected_text = render_index(index)
     if args.command == 'generate':
         INDEX.write_text(expected_text, encoding='utf-8')
-    validate(atlas_text, expected_text, index['concepts'])
+    validate(atlas_text, expected_text, index)
     print('{}: {} concepts; {} passed'.format(index['repo'], len(index['concepts']), args.command))
 
 

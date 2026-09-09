@@ -1,6 +1,10 @@
 # CATKit2 repository atlas
 
-Visibility: PUBLIC. Source snapshot: `19023206433b14a2f0a1428129d954c5dc6433b2` (develop). All implementation evidence in this atlas comes from this repository. Paths are repository-relative; symbols, rather than line numbers, are the primary retrieval keys. See [AGENTS](../../AGENTS.md) for operating defaults and `repo_index.json` for a derived concept lookup.
+- Repository: `catkit2`
+- Visibility: `PUBLIC`
+- Full-audit source commit: `19023206433b14a2f0a1428129d954c5dc6433b2`
+
+The full forensic scan used the commit above on develop. All implementation evidence in this atlas comes from this repository. Paths are repository-relative; symbols, rather than line numbers, are the primary retrieval keys. See [AGENTS](../../AGENTS.md) for operating defaults and `repo_index.json` for a derived concept lookup.
 
 Canonical means the best first reference for a concern, not flawless code. Source/configuration win. **ENFORCED** denotes executable contracts; **DOCUMENTED** explicit docs; **ESTABLISHED** repeated practice; **LEGACY / EXCEPTION** transitional/specialized behavior; **PROPOSED** new agent preferences.
 
