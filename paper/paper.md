@@ -105,7 +105,7 @@ Existing general-purpose laboratory automation tools often prioritize flexibilit
 
 
 
-CATKit2 addresses this need by combining a high-performance C++ core optimized for shared-memory data streaming with Python service implementations that enable rapid prototyping and integration with the scientific Python ecosystem. The framework's design prioritizes concurrent operation, allowing multiple processes to access streaming data simultaneously with minimal overhead. This architecture is particularly valuable for high-contrast imaging experiments where wavefront sensors must provide real-time feedback to deformable mirrors while data is simultaneously logged and visualized.
+CATKit2 addresses this need by combining a high-performance C++ core optimized for shared-memory data streaming with Python service implementations that enable rapid prototyping and integration with the scientific Python ecosystem. The framework's design prioritizes concurrent operation, allowing multiple processes to access streaming data simultaneously with minimal overhead. This architecture is particularly valuable for high-contrast imaging experiments where wavefront sensors must provide real-time feedback to DMs while data is simultaneously logged and visualized.
 
 # State of the field
 
@@ -133,7 +133,7 @@ Configuration management is performed by the centralized TestbedServer, ensuring
 
 Hardware safety is a primary concern in astronomical instruments that contain expensive or delicate hardware components. CATKit2 includes a safety monitor service which continuously checks testbed conditions. Users can declare certain services to require a safe testbed to operate. When unsafe conditions are detected or when a safe testbed environment cannot be guaranteed (i.e. when a safety sensor stops updating), these services will trigger a fail-safe mode and be shut down. After a fail-safe trigger, manual intervention is required to bring these services back up online.
 
-![End-to-end latency measurements for a typical adaptive optics control loop: wavefront sensor acquisition, processing, and deformable mirror command output. Shown is how much subsequent frames on the camera change, a proxy for the DM movement, vs. the time since issuing a DM command. Time is folded and shows many repeated experiments. This shows a 1.7ms DM to camera latency, or about 1.7 frames, typical of machine-vision cameras that are used on HiCAT.\label{fig:timing}](figure_3_e2e_latency.png)
+![End-to-end latency measurements for a typical adaptive optics control loop: wavefront sensor acquisition, processing, and DM command output. Shown is how much subsequent frames on the camera change, a proxy for the DM movement, vs. the time since issuing a DM command. Time is folded and shows many repeated experiments. This shows a 1.7ms DM to camera latency, or about 1.7 frames, typical of machine-vision cameras that are used on HiCAT.\label{fig:timing}](figure_3_e2e_latency.png)
 
 The server collects custom logging and tracing information from services and forwards them on a dedicated port. In particular, on-demand custom tracing is made available in the form of unified tracing file that can be visualized by standard tools (e.g. Perfetto). Tracing of specific sections is implemented by adding a context manager around the section of the code that needs to be analyzed. Trace timing is measured at the nanosecond level and special care has been taken to make sure this contributes negligible delay to code execution.
 
