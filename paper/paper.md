@@ -59,31 +59,22 @@ authors:
 affiliations:
  - name: University of California, Santa Cruz (CA), USA
    index: 1
-   ror:
  - name: Université Côte d'Azur, Observatoire de la Côte d'Azur, CNRS, Laboratoire Lagrange, Nice, France
    index: 2
-   ror:
  - name: Space Telescope Science Institute, Baltimore (MD), USA
    index: 3
-   ror:
  - name: Max Planck Institute for Astronomy, Heidelberg, Germany
    index: 4
-   ror:
  - name: Aix Marseille Université, CNRS, CNES, LAM, Marseille, France
    index: 5
-   ror:
  - name: NASA Goddard Space Flight Center, Greenbelt (MD), USA
    index: 6
-   ror:
  - name: self
    index: 7
-   ror:
  - name: LIRA, Observatoire de Paris, Université PSL, Sorbonne Université, Université Paris Cité, CY Cergy Paris Université, CNRS, Meudon, France
    index: 8
-   ror:
  - name: Lowell Center for Space Science and Technology, University of Massachusetts, Lowell (MA), USA
    index: 9
-   ror:
 
 date: 16 February 2026
 bibliography: paper.bib
@@ -102,8 +93,6 @@ CATKit2 is written in C++ for performance-critical operations with Python bindin
 Modern astronomical instrumentation relies increasingly on sophisticated laboratory testbeds to develop and validate technologies before deployment to observatories. These testbeds, such as the High-contrast Imager for Complex Apertures Telescopes (HiCAT) [@hicat] testbed at the Space Telescope Science Institute, require precise coordination of numerous hardware components operating at high speeds with strict timing requirements. Control frameworks must handle diverse hardware interfaces while maintaining microsecond-level synchronization and gigabyte-per-second data throughput.
 
 Existing general-purpose laboratory automation tools often prioritize flexibility over performance, resulting in latency and jitter that are unacceptable for adaptive optics and wavefront sensing applications. Conversely, specialized control systems developed for specific instruments or testbeds typically lack the modularity and extensibility needed for multi-purpose testbeds. There is a need for a framework that bridges this gap: providing both the performance required for real-time control loops and the flexibility to accommodate diverse hardware configurations.
-
-
 
 CATKit2 addresses this need by combining a high-performance C++ core optimized for shared-memory data streaming with Python service implementations that enable rapid prototyping and integration with the scientific Python ecosystem. The framework's design prioritizes concurrent operation, allowing multiple processes to access streaming data simultaneously with minimal overhead. This architecture is particularly valuable for high-contrast imaging experiments where wavefront sensors must provide real-time feedback to DMs while data is simultaneously logged and visualized.
 
