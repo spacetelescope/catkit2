@@ -57,13 +57,13 @@ authors:
     affiliation: 8
 
 affiliations:
- - name: University of California, Santa Cruz, United States
+ - name: University of California, Santa Cruz (CA), USA
    index: 1
    ror:
  - name: Université Côte d'Azur, Observatoire de la Côte d'Azur, CNRS, Laboratoire Lagrange, Nice, France
    index: 2
    ror:
- - name: Space Telescope Science Institute, United States
+ - name: Space Telescope Science Institute, Baltimore (MD), USA
    index: 3
    ror:
  - name: Max Planck Institute for Astronomy, Heidelberg, Germany
@@ -72,16 +72,16 @@ affiliations:
  - name: Aix Marseille Université, CNRS, CNES, LAM, Marseille, France
    index: 5
    ror:
- - name: Goddard Space Flight Center, Greenbelt, United States
+ - name: NASA Goddard Space Flight Center, Greenbelt (MD), USA
    index: 6
    ror:
  - name: self
    index: 7
    ror:
- - name: LIRA, Observatoire de Paris, France
+ - name: LIRA, Observatoire de Paris, Université PSL, Sorbonne Université, Université Paris Cité, CY Cergy Paris Université, CNRS, Meudon, France
    index: 8
    ror:
- - name: Lowell Center for Space Science and Technology, United States
+ - name: Lowell Center for Space Science and Technology, University of Massachusetts, Lowell (MA), USA
    index: 9
    ror:
 
