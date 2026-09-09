@@ -11,6 +11,35 @@ This is an open-source package, but it is not actively supported.  Use at your o
 For installation instructions, see the official documentation:  
 https://spacetelescope.github.io/catkit2/
 
+## Agent coding support
+
+Start with [AGENTS.md](AGENTS.md) for working conventions. Use the [repository atlas](docs/agent/REPO_ATLAS.md) to find implementations, interfaces, documentation and tests; the [derived index](docs/agent/repo_index.json) provides compact concept lookup. Read only the sections relevant to the task, then verify against current source.
+
+Paste this prompt into your coding agent from the repository checkout:
+
+```text
+Task: [Describe the change, question or bug and the expected outcome.]
+Constraints: [State any task-specific limits, such as analysis only.]
+
+Read AGENTS.md first. Use docs/agent/repo_index.json or the relevant
+sections of docs/agent/REPO_ATLAS.md to locate the owning implementation,
+callers and tests. Read that source before making changes; expand your
+search when a specific unresolved question requires it.
+
+If a reference is missing, search current symbols and imports and, when
+needed, git history and authorized dependency repositories to find its
+new location. Verify the current interface before using it.
+
+Follow the repository's conventions and keep work focused on the task.
+Run relevant checks within the stated constraints. Update the affected
+atlas entries and derived index if canonical locations or important
+interfaces change. Report the result, checks and remaining limitations.
+Leave changes uncommitted; suggest a concise commit message when ready.
+Commit or push only if explicitly requested.
+```
+
+Replace the bracketed text before use. For a question or analysis-only task, the result is an explanation or findings; code changes are unnecessary.
+
 Python permissions
 ------------------
 
