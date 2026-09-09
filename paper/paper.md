@@ -148,7 +148,7 @@ The modular service architecture has enabled contributions from multiple institu
 
 # AI usage disclosure
 
-Generative AI tools (specifically GitHub Copilot, Qwen3 and Kimi K2.5) were used for code autocompletion and code generation during the development of this software, and drafting of this manuscript. All AI-generated code was subject to the same code review process as handwritten code, including stringent peer review via pull requests and validation through automated continuous integration tests.
+Generative AI tools (GitHub Copilot, Qwen3, and Kimi K2.5) were used for code autocompletion and code generation during software development, and for drafting sections of this manuscript. All AI-assisted outputs were reviewed, edited, and validated by the human authors, who made all core design decisions. All AI-generated code underwent the same peer review process as handwritten code, including pull request reviews and validation through automated continuous integration tests.
 
 # Acknowledgements
 
