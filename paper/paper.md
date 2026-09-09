@@ -69,7 +69,7 @@ affiliations:
  - name: Max Planck Institute for Astronomy, Heidelberg, Germany
    index: 4
    ror:
- - name: Laboratoire d'Astrophysique de Marseille, Marseille, France
+ - name: Aix Marseille Université, CNRS, CNES, LAM, Marseille, France
    index: 5
    ror:
  - name: Goddard Space Flight Center, Greenbelt, United States
