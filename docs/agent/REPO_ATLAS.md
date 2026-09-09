@@ -298,6 +298,36 @@ Update an entry when a canonical implementation moves, its ownership changes, or
 
 For public CATKit2, use only evidence available in this repository and its public documentation/history. Describe generic laboratory infrastructure without importing knowledge or terminology from private downstream projects.
 
+### Required atlas schema
+
+`tools/agent_context.py` treats part of this Markdown as a data format. Preserve the exact spelling, capitalization, bolding, backticks, `in`, and em dash shown below. Keep these three metadata fields near the top of the atlas:
+
+```text
+- Repository: `repository-name`
+- Visibility: `PUBLIC-or-PRIVATE`
+- Full-audit source commit: `full-commit-hash`
+```
+
+Every concept must use this complete template:
+
+```text
+<a id="concept-concept_id"></a>
+
+## concept_id — Human-readable title
+
+- Summary: One compact summary.
+- Owner: repository-or-layer
+- Status: current-status
+- **Read first:** `SymbolName` in `path/to/file.py` — Why this is canonical.
+- Docs: `path/to/doc`; `another/doc`
+- Tests: `path/to/test`; `another/test`
+- Related: other_concept, another_concept
+```
+
+Use a lowercase `snake_case` concept ID and make the anchor exactly `concept-<concept_id>`. Include at least one exact `**Read first:**` line; repeat that line for additional canonical examples. For an external implementation use `**Read first (repository-name):**` in the same form. Every backticked value under `Docs` and `Tests` is interpreted as a repository-relative path and checked. When no test exists, write a plain-text coverage note without backticks. Every comma-separated `Related` value must name another concept ID in this atlas. Explanatory paragraphs after these fields remain human guidance and are not copied into JSON.
+
+Use the field names above without synonyms: `Summary`, `Owner`, `Status`, `Read first`, `Docs`, `Tests`, and `Related` are required. The generator fails if a parsed concept omits one, and `check` also validates anchors, related IDs, local paths, links, and whether the JSON exactly matches the Markdown.
+
 Use this prompt when asking an agent to refresh the map:
 
 ```text
@@ -305,6 +335,8 @@ Update the CATKit2 agent context for [change, PR, commit or commit range].
 Read AGENTS.md and docs/agent/REPO_ATLAS.md. Inspect the specified diff,
 current source, callers, documentation and tests. Update only concepts whose
 canonical paths, ownership, interfaces or important caveats changed. Preserve
+the exact required metadata, concept template and field labels, including at
+least one **Read first:** entry per concept. Preserve
 the ENFORCED, DOCUMENTED, ESTABLISHED, LEGACY / EXCEPTION and PROPOSED
 distinctions. Use public CATKit2 evidence only.
 

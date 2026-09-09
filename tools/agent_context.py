@@ -15,6 +15,13 @@ FIELD_NAMES = ('Summary', 'Owner', 'Status', 'Docs', 'Tests', 'Related')
 METADATA_NAMES = ('Repository', 'Visibility', 'Full-audit source commit')
 AUTHORITY = ('Source/docs/history -> evidence -> Markdown atlas -> this derived '
              'index. Read section caveats and current source before implementing.')
+FENCED_CODE = re.compile(r'^```[^\n]*\n.*?^```[ \t]*$',
+                         re.MULTILINE | re.DOTALL)
+
+
+def remove_fenced_code(text):
+    """Exclude examples from the machine-readable atlas records."""
+    return FENCED_CODE.sub('', text)
 
 
 def parse_metadata(text):
@@ -81,7 +88,8 @@ def parse_atlas(text):
 
 def build_index(atlas_text):
     """Build the complete derived index from the atlas."""
-    metadata = parse_metadata(atlas_text)
+    structured_text = remove_fenced_code(atlas_text)
+    metadata = parse_metadata(structured_text)
     result = {
         'repo': metadata['Repository'],
         'visibility': metadata['Visibility'],
@@ -90,7 +98,7 @@ def build_index(atlas_text):
     }
     result['atlas_sha256'] = hashlib.sha256(ATLAS.read_bytes()).hexdigest()
     result['authority'] = AUTHORITY
-    result['concepts'] = parse_atlas(atlas_text)
+    result['concepts'] = parse_atlas(structured_text)
     return result
 
 
@@ -117,12 +125,23 @@ def validate(atlas_text, expected_text, index):
     """Check concept links, referenced files, Markdown links and generated JSON."""
     errors = []
     concepts = index['concepts']
+    structured_text = remove_fenced_code(atlas_text)
+    anchor_keys = re.findall(
+        r'^<a id="concept-([a-z][a-z_]+)"></a>$',
+        structured_text,
+        re.MULTILINE,
+    )
+    if len(anchor_keys) != len(set(anchor_keys)):
+        errors.append('Atlas contains duplicate concept anchors.')
+    unparsed = set(anchor_keys) - set(concepts)
+    if unparsed:
+        errors.append('Concept anchors lack valid concept sections: {}'.format(unparsed))
     for key, concept in concepts.items():
         unknown = set(concept['related_concepts']) - set(concepts)
         if unknown:
             errors.append('{} has unknown related concepts: {}'.format(key, unknown))
         anchor = '<a id="{}"></a>'.format(concept['atlas_section'])
-        if anchor not in atlas_text:
+        if anchor not in structured_text:
             errors.append('{} is missing its section anchor'.format(key))
         for relative_path in concept['docs'] + concept['tests']:
             if not (ROOT / relative_path).is_file():
