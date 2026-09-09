@@ -37,9 +37,9 @@ Use this map for everyday implementation, debugging, testing and review: find th
 - Summary: Native Service runtime owns state transitions and monitoring; Python subclasses implement device-specific lifecycle hooks.
 - Owner: catkit2
 - Status: current
-- First: `catkit2/testbed/service.py` :: `Service` :: Python wrapper, argument parsing, logger and extended testbed proxy.
-- First: `catkit_core/Service.cpp` :: `Service::Run` :: Authoritative lifecycle, state, safety, thread and error behavior.
-- First: `catkit2/services/empty_service/empty_service.py` :: `EmptyService` :: Minimal executable service shape and cooperative main loop.
+- **Read first:** `Service` in `catkit2/testbed/service.py` — Python wrapper, argument parsing, logger and extended testbed proxy.
+- **Read first:** `Service::Run` in `catkit_core/Service.cpp` — Authoritative lifecycle, state, safety, thread and error behavior.
+- **Read first:** `EmptyService` in `catkit2/services/empty_service/empty_service.py` — Minimal executable service shape and cooperative main loop.
 - Docs: `docs/services.rst`; `docs/services/empty_service.rst`; `docs/safety.rst`
 - Tests: `tests/test_service.py`; `tests/services/dummy_service/dummy_service.py`; `tests/conftest.py`
 - Related: orchestration, configuration, logging, camera_service
@@ -57,9 +57,9 @@ EmptyService establishes shape only; inspect a real device and TrampolineService
 - Summary: Testbed manages service definitions, discovery, dependency ordering, processes, startup and shutdown.
 - Owner: catkit2
 - Status: current
-- First: `catkit2/testbed/testbed.py` :: `Testbed` :: Configuration intake, entry-point discovery, service process coordination and request handlers.
-- First: `catkit2/testbed/testbed.py` :: `ServiceReference` :: State/process bookkeeping and stop/interrupt/terminate behavior.
-- First: `catkit2/testbed/testbed_proxy.py` :: `TestbedProxy` :: Python access to service instances and testbed information.
+- **Read first:** `Testbed` in `catkit2/testbed/testbed.py` — Configuration intake, entry-point discovery, service process coordination and request handlers.
+- **Read first:** `ServiceReference` in `catkit2/testbed/testbed.py` — State/process bookkeeping and stop/interrupt/terminate behavior.
+- **Read first:** `TestbedProxy` in `catkit2/testbed/testbed_proxy.py` — Python access to service instances and testbed information.
 - Docs: `docs/overview.rst`; `docs/services.rst`; `docs/testbed_implementation.rst`
 - Tests: `tests/conftest.py`; `tests/test_service.py`
 - Related: service_lifecycle, configuration, public_api, native_transport
@@ -77,9 +77,9 @@ Read `start_service`, `resolve_service_type`, `shut_down_all_services` when chan
 - Summary: Ordered YAML files become named configuration sections; service/module and proxy/class entry points provide extension discovery.
 - Owner: catkit2
 - Status: current
-- First: `catkit2/config.py` :: `read_config_files` :: Small complete example of ordered merge, NumPy-style docs and filename sections.
-- First: `catkit2/config.py` :: `_get_yaml_loader` :: SafeLoader extension for config-relative !path values.
-- First: `pyproject.toml` :: `catkit2.services / catkit2.proxies` :: Current service-module and proxy-class registration forms.
+- **Read first:** `read_config_files` in `catkit2/config.py` — Small complete example of ordered merge, NumPy-style docs and filename sections.
+- **Read first:** `_get_yaml_loader` in `catkit2/config.py` — SafeLoader extension for config-relative !path values.
+- **Read first:** `catkit2.services / catkit2.proxies` in `pyproject.toml` — Current service-module and proxy-class registration forms.
 - Docs: `docs/configuration.rst`; `docs/services.rst`; `docs/testbed_implementation.rst`
 - Tests: `tests/config/services.yml`; `tests/config/testbed.yml`; `tests/conftest.py`
 - Related: orchestration, public_api, service_lifecycle
@@ -97,9 +97,9 @@ Service ID identifies an instance; service_type/simulated_service_type select ex
 - Summary: DataStreams expose bounded arrays with frame IDs; binding validation and copy/lifetime semantics define safe interoperability.
 - Owner: catkit2
 - Status: current
-- First: `tests/test_datastream.py` :: `test_data_stream` :: Compact behavioral specification across dtype/shape and invalid submission cases.
-- First: `catkit2/bindings.cpp` :: `DataStream` :: Python validation, GIL handling, argument names and array conversion.
-- First: `catkit_core/DataStream.h` :: `DataStream` :: Frame metadata, buffer modes and native API definitions.
+- **Read first:** `test_data_stream` in `tests/test_datastream.py` — Compact behavioral specification across dtype/shape and invalid submission cases.
+- **Read first:** `DataStream` in `catkit2/bindings.cpp` — Python validation, GIL handling, argument names and array conversion.
+- **Read first:** `DataStream` in `catkit_core/DataStream.h` — Frame metadata, buffer modes and native API definitions.
 - Docs: `docs/overview.rst`; `docs/benchmarks.rst`; `docs/catkit_core.rst`
 - Tests: `tests/test_datastream.py`; `tests/test_shared_memory.py`
 - Related: camera_service, deformable_mirrors, native_transport, testing
@@ -117,9 +117,9 @@ Distinguish `get_latest_frame`, `get_next_frame`, `get_frame(id, wait_time_in_ms
 - Summary: CameraService factors acquisition/ROI/orientation/streams; current concrete v2 drivers provide vendor hooks.
 - Owner: catkit2
 - Status: current-transition
-- First: `catkit2/base_services/camera.py` :: `CameraService` :: Shared acquisition loop, exposed properties, orientation and temperature stream.
-- First: `catkit2/base_services/camera.py` :: `StoppedAcquisition` :: Temporary stop/restart around properties requiring acquisition pause.
-- First: `catkit2/services/zwo_camera_v2/zwo_camera_v2.py` :: `ZwoCamera` :: Concrete initialized hardware, stopped-acquisition flags and base hook implementation.
+- **Read first:** `CameraService` in `catkit2/base_services/camera.py` — Shared acquisition loop, exposed properties, orientation and temperature stream.
+- **Read first:** `StoppedAcquisition` in `catkit2/base_services/camera.py` — Temporary stop/restart around properties requiring acquisition pause.
+- **Read first:** `ZwoCamera` in `catkit2/services/zwo_camera_v2/zwo_camera_v2.py` — Concrete initialized hardware, stopped-acquisition flags and base hook implementation.
 - Docs: `docs/services/camera.rst`; `docs/services/zwo_camera.rst`; `docs/services/camera_sim.rst`
 - Tests: None dedicated to the camera base or v2 driver in default tests; DataStream tests cover only the stream substrate.
 - Related: service_lifecycle, datastream, configuration, public_api, simulation
@@ -137,9 +137,9 @@ For a new camera read those three symbols before any legacy driver. Concrete hoo
 - Summary: Generic DM base owns channel aggregation; BMC factors voltage conversion; proxies convert commands/maps and apply shapes.
 - Owner: catkit2
 - Status: current
-- First: `catkit2/base_services/deformable_mirror.py` :: `DeformableMirrorService` :: Shared channel creation, monitoring, lock and send_surface hook.
-- First: `catkit2/base_services/bmc_deformable_mirror.py` :: `BmcDeformableMirror` :: Shared calibration, clipping/discretization and send_to_device seam.
-- First: `catkit2/testbed/proxies/deformable_mirror.py` :: `DeformableMirrorProxy` :: Shape conversion, channels, apply_shape and persistence helpers.
+- **Read first:** `DeformableMirrorService` in `catkit2/base_services/deformable_mirror.py` — Shared channel creation, monitoring, lock and send_surface hook.
+- **Read first:** `BmcDeformableMirror` in `catkit2/base_services/bmc_deformable_mirror.py` — Shared calibration, clipping/discretization and send_to_device seam.
+- **Read first:** `DeformableMirrorProxy` in `catkit2/testbed/proxies/deformable_mirror.py` — Shape conversion, channels, apply_shape and persistence helpers.
 - Docs: `docs/services/deformable_mirror.rst`; `docs/services/bmc_deformable_mirror.rst`
 - Tests: `tests/test_dm_commands.py`; `tests/services/dummy_dm_service/dummy_dm_service.py`; `tests/data/dm_mask.fits`
 - Related: datastream, service_lifecycle, simulation, configuration
@@ -157,8 +157,8 @@ The base initializes channels/startup maps, monitors each stream and co-adds cha
 - Summary: PI stage driver/simulator show command, property and stream interfaces around configured axes.
 - Owner: catkit2
 - Status: specialized-current
-- First: `catkit2/services/physik_stage_controller/physik_stage_controller.py` :: `PhysikStageController` :: Explicitly recommended by services documentation; current axis/telemetry/worker example.
-- First: `catkit2/services/physik_stage_controller_sim/physik_stage_controller_sim.py` :: `PhysikStageControllerSim` :: Interface counterpart with instantaneous simulated moves.
+- **Read first:** `PhysikStageController` in `catkit2/services/physik_stage_controller/physik_stage_controller.py` — Explicitly recommended by services documentation; current axis/telemetry/worker example.
+- **Read first:** `PhysikStageControllerSim` in `catkit2/services/physik_stage_controller_sim/physik_stage_controller_sim.py` — Interface counterpart with instantaneous simulated moves.
 - Docs: `docs/services.rst`; `docs/services/physik_stage_controller.rst`; `docs/services/newport_xps_q8.rst`
 - Tests: None dedicated to this driver in root tests.
 - Related: service_lifecycle, configuration, datastream, simulation
@@ -174,9 +174,9 @@ This is a current/documented example even though blame credits Lane Meier and Mi
 - Summary: Simulator schedules time-dependent actions; OpticalModel registers/caches optical planes and invalidates dependent propagation.
 - Owner: catkit2
 - Status: current
-- First: `catkit2/simulator/simulator.py` :: `Simulator` :: Callback, camera integration/readout and device action extension contracts.
-- First: `catkit2/simulator/optical_model.py` :: `OpticalModel` :: register_plane, set/get_wavefronts, purge_plane and temporary propagation cache.
-- First: `catkit2/simulator/simple_optical_model.py` :: `SimpleOpticalModel` :: Concrete small model paired with an automated propagation test.
+- **Read first:** `Simulator` in `catkit2/simulator/simulator.py` — Callback, camera integration/readout and device action extension contracts.
+- **Read first:** `OpticalModel` in `catkit2/simulator/optical_model.py` — register_plane, set/get_wavefronts, purge_plane and temporary propagation cache.
+- **Read first:** `SimpleOpticalModel` in `catkit2/simulator/simple_optical_model.py` — Concrete small model paired with an automated propagation test.
 - Docs: `docs/testbed_implementation.rst`; `docs/services/camera_sim.rst`; `docs/overview.rst`
 - Tests: `tests/test_optical_model.py`
 - Related: camera_service, deformable_mirrors, configuration, datastream
@@ -194,7 +194,7 @@ This is a current/documented example even though blame credits Lane Meier and Mi
 - Summary: Experiment handles nested run directories, metadata/config snapshots and logging around three execution hooks.
 - Owner: catkit2
 - Status: current
-- First: `catkit2/testbed/experiment.py` :: `Experiment` :: run lifecycle, output path templates and nested experiment bookkeeping.
+- **Read first:** `Experiment` in `catkit2/testbed/experiment.py` — run lifecycle, output path templates and nested experiment bookkeeping.
 - Docs: `docs/overview.rst`; `docs/configuration.rst`
 - Tests: None direct in root tests at this snapshot.
 - Related: logging, configuration, orchestration
@@ -212,9 +212,9 @@ Reuse generic output/logging bookkeeping; keep local alignment/reset/scientific 
 - Summary: Existing handlers bridge Python logging into CATKit2; observers distribute/write/display logs and tracing captures intervals.
 - Owner: catkit2
 - Status: current
-- First: `catkit2/testbed/logging.py` :: `CatkitLogHandler` :: Python LogRecord to native log entry conversion.
-- First: `catkit2/testbed/logging.py` :: `LogWriter` :: Context-managed output target, file lock and incremental writing.
-- First: `catkit2/testbed/tracing.py` :: `trace_interval` :: Existing timing instrumentation used by device bases.
+- **Read first:** `CatkitLogHandler` in `catkit2/testbed/logging.py` — Python LogRecord to native log entry conversion.
+- **Read first:** `LogWriter` in `catkit2/testbed/logging.py` — Context-managed output target, file lock and incremental writing.
+- **Read first:** `trace_interval` in `catkit2/testbed/tracing.py` — Existing timing instrumentation used by device bases.
 - Docs: `docs/overview.rst`; `docs/benchmarks.rst`
 - Tests: `tests/test_tracing.py`
 - Related: service_lifecycle, experiment, native_transport
@@ -230,9 +230,9 @@ Service/Experiment provide loggers; Testbed distributes them. LogObserver receiv
 - Summary: Native core/bindings own local broker and server paths, buffer lifetime and Python/native interoperability.
 - Owner: catkit2
 - Status: current-transition
-- First: `catkit_core/ServiceProxy.cpp` :: `ServiceProxy` :: Actual current property/command communication.
-- First: `catkit_core/LocalMessageBroker.cpp` :: `LocalMessageBroker` :: Shared-memory broker implementation used by the runtime.
-- First: `catkit2/bindings.cpp` :: `TrampolineService` :: Python override dispatch and GIL-sensitive run/cleanup bridge.
+- **Read first:** `ServiceProxy` in `catkit_core/ServiceProxy.cpp` — Actual current property/command communication.
+- **Read first:** `LocalMessageBroker` in `catkit_core/LocalMessageBroker.cpp` — Shared-memory broker implementation used by the runtime.
+- **Read first:** `TrampolineService` in `catkit2/bindings.cpp` — Python override dispatch and GIL-sensitive run/cleanup bridge.
 - Docs: `docs/protocol.rst`; `docs/catkit_core.rst`; `docs/installation.rst`
 - Tests: `tests/test_message_broker.py`; `tests/test_server_client.py`; `tests/test_shared_memory.py`
 - Related: datastream, orchestration, service_lifecycle, testing
@@ -250,9 +250,9 @@ The proto directory defines serialization contracts. Avoid changing a Python-fac
 - Summary: Root pytest covers primitives/proxy behavior with arrays and dummy services; CI supplies a native conda build on three OSes.
 - Owner: catkit2
 - Status: current
-- First: `tests/conftest.py` :: `testbed` :: Session process fixture, explicit dummy service registration and teardown.
-- First: `.github/workflows/testing.yml` :: `pytest job` :: Actual install/test command and OS matrix.
-- First: `.flake8` :: `flake8 configuration` :: Selective static checks and exclusions.
+- **Read first:** `testbed` in `tests/conftest.py` — Session process fixture, explicit dummy service registration and teardown.
+- **Read first:** `pytest job` in `.github/workflows/testing.yml` — Actual install/test command and OS matrix.
+- **Read first:** `flake8 configuration` in `.flake8` — Selective static checks and exclusions.
 - Docs: `docs/contribution.rst`; `docs/installation.rst`
 - Tests: `tests/test_datastream.py`; `tests/test_service.py`; `tests/test_dm_commands.py`; `tests/test_optical_model.py`
 - Related: datastream, service_lifecycle, native_transport
@@ -270,8 +270,8 @@ Lint excludes tests/docs/proto/extern/cookiecutter and build/cache directories. 
 - Summary: Python proxies turn named service properties, commands and streams into attributes while allowing specialized interfaces.
 - Owner: catkit2
 - Status: current
-- First: `catkit2/testbed/service_proxy.py` :: `ServiceProxy` :: Dynamic get/set dispatch and installed proxy-interface lookup.
-- First: `catkit2/testbed/proxies/camera.py` :: `CameraProxy` :: Small specialized client with copied-frame generator and compatibility wrapper.
+- **Read first:** `ServiceProxy` in `catkit2/testbed/service_proxy.py` — Dynamic get/set dispatch and installed proxy-interface lookup.
+- **Read first:** `CameraProxy` in `catkit2/testbed/proxies/camera.py` — Small specialized client with copied-frame generator and compatibility wrapper.
 - Docs: `docs/services.rst`; `docs/overview.rst`
 - Tests: `tests/test_service.py`
 - Related: configuration, orchestration, datastream, camera_service
