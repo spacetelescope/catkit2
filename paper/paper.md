@@ -60,7 +60,7 @@ affiliations:
  - name: University of California, Santa Cruz, United States
    index: 1
    ror:
- - name: Laboratoire Lagrange, Observatoire de la Cote d'Azur, Université Cote d'Azur, CNRS
+ - name: Université Côte d'Azur, Observatoire de la Côte d'Azur, CNRS, Laboratoire Lagrange, Nice, France
    index: 2
    ror:
  - name: Space Telescope Science Institute, United States
