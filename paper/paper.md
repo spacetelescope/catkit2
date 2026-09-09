@@ -66,7 +66,7 @@ affiliations:
  - name: Space Telescope Science Institute, United States
    index: 3
    ror:
- - name: Max Planck Institute for Astrophysics,  Heidelberg, Germany
+ - name: Max Planck Institute for Astronomy, Heidelberg, Germany
    index: 4
    ror:
  - name: Laboratoire d'Astrophysique de Marseille, Marseille, France
