@@ -40,6 +40,18 @@ Commit or push only if explicitly requested.
 
 Replace the bracketed text before use. For a question or analysis-only task, the result is an explanation or findings; code changes are unnecessary.
 
+### Updating the atlas
+
+Update the atlas when a canonical implementation moves, ownership changes, or an important interface, test route or documentation reference changes. Follow the full [maintenance recipe](docs/agent/REPO_ATLAS.md#maintaining-this-atlas). Paste this prompt into an agent from the repository checkout:
+
+```text
+Update the agent context for [change, PR, commit or commit range]. Follow the
+“Maintaining this atlas” section in docs/agent/REPO_ATLAS.md. Inspect the
+specified changes and current source, callers, documentation and tests.
+Update only affected concepts, regenerate and check repo_index.json, show the
+documentation diff, and leave the changes uncommitted for review.
+```
+
 Python permissions
 ------------------
 

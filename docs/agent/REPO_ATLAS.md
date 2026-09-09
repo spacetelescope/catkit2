@@ -287,3 +287,29 @@ Git supports Emiel authorship of config.py/CameraProxy and substantial DM-base/O
 House style is small purpose-built classes, NumPy-style scientific docs, properties/closures for concrete repeated operations, explicit stream types, cooperative loops, and tests near runtime contracts. Sparse annotations, mixed quote/import/logging styles and lingering mechanical comments are observations. Prefer following the relevant canonical file over enforcing a generic Python style guide. The PROPOSED agent behavior in AGENTS should remain identifiable as policy proposed for adoption.
 
 Update concept status/paths/tests from reviewed source, then regenerate JSON. Existing RST remains authoritative. AGENTS + atlas + index suffice; Sphinx lacks a Markdown parser, so adding Markdown to its toctree is separate work.
+
+## Maintaining this atlas
+
+Update an entry when a canonical implementation moves, its ownership changes, or an important interface, test route or documentation reference changes. Routine internal edits do not require an atlas update. Edit the Markdown first; `repo_index.json` is generated and must not be edited independently. The source snapshot records the last full forensic review, so a focused update does not need to change it.
+
+For public CATKit2, use only evidence available in this repository and its public documentation/history. Describe generic laboratory infrastructure without importing knowledge or terminology from private downstream projects.
+
+Use this prompt when asking an agent to refresh the map:
+
+```text
+Update the CATKit2 agent context for [change, PR, commit or commit range].
+Read AGENTS.md and docs/agent/REPO_ATLAS.md. Inspect the specified diff,
+current source, callers, documentation and tests. Update only concepts whose
+canonical paths, ownership, interfaces or important caveats changed. Preserve
+the ENFORCED, DOCUMENTED, ESTABLISHED, LEGACY / EXCEPTION and PROPOSED
+distinctions. Use public CATKit2 evidence only.
+
+Run:
+python tools/agent_context.py generate
+python tools/agent_context.py check
+
+Review the Markdown and generated JSON diff, report uncertain claims, and
+leave changes uncommitted unless explicitly asked to commit.
+```
+
+The generator verifies concept structure, related-concept links, referenced files, relative Markdown links and exact JSON derivation. Human review is still required for architectural meaning, canonical-example quality and whether an observed pattern deserves its classification.
