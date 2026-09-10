@@ -7,11 +7,17 @@ def get_version():
 		The version of the catkit2 package.
 	'''
 	if get_version._version is None:
-		from pkg_resources import get_distribution, DistributionNotFound
+		try:
+			# Python 3.8+: importlib.metadata is in the standard library.
+			from importlib.metadata import version, PackageNotFoundError
+		except ImportError:
+			# Python 3.7: importlib.metadata is not in the stdlib, use the
+			# importlib_metadata backport.
+			from importlib_metadata import version, PackageNotFoundError
 
 		try:
-			get_version._version = get_distribution('catkit2').version
-		except DistributionNotFound:
+			get_version._version = version('catkit2')
+		except PackageNotFoundError:
 			# package is not installed
 			pass
 
