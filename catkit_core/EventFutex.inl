@@ -1,5 +1,6 @@
 #include "EventBase.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <ctime>
@@ -12,6 +13,11 @@
 #include <unistd.h>
 #include <linux/futex.h>
 #endif // __linux__
+
+#if defined(__APPLE__)
+#include <cerrno>
+#include <os/os_sync_wait_on_address.h>
+#endif // defined(__APPLE__)
 
 using EventFutex = EventImpl<EventImplementationType::Futex>;
 
