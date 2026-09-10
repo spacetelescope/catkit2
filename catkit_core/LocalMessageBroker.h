@@ -24,6 +24,7 @@ const size_t MAX_NUM_MESSAGES = 65536;
 const size_t MAX_NUM_BLOCKS = 8192;
 const size_t MEMORY_ALIGNMENT = 32;
 const size_t MIN_SIZE_POOL = 1024;
+const size_t EVENT_POOL_SIZE = 128;
 
 struct TopicHeader
 {
@@ -34,6 +35,9 @@ struct TopicHeader
 	double frame_rate;
 
 	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
+
+	// Pre-computed event index for this topic (hash of topic name % EVENT_POOL_SIZE)
+	std::uint32_t event_index;
 
 	bool IsMessageAvailable(std::size_t frame_id);
 	bool WillMessageBeAvailable(std::size_t frame_id);
@@ -65,7 +69,7 @@ private:
 		MessageBrokerHeader *header,
 		std::shared_ptr<HashMap> topic_headers,
 		std::shared_ptr<PoolAllocator> message_header_allocator,
-		std::shared_ptr<Event> event,
+		std::array<std::shared_ptr<Event>, EVENT_POOL_SIZE> event_pool,
 		std::vector<std::shared_ptr<HybridPoolAllocator>> allocators,
 		std::vector<std::shared_ptr<Memory>> memory_blocks,
 		std::shared_ptr<Memory> header_memory
@@ -134,6 +138,8 @@ private:
 
 	std::shared_ptr<PoolAllocator> m_MessageHeaderAllocator;
 	MessageHeader *m_MessageHeaders;
+
+	std::array<std::shared_ptr<Event>, EVENT_POOL_SIZE> m_EventPool;
 
 	std::vector<std::shared_ptr<HybridPoolAllocator>> m_Allocators;
 	std::vector<std::shared_ptr<Memory>> m_MemoryBlocks;

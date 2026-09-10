@@ -1,4 +1,5 @@
 #include "HashMap.h"
+#include "Util.h"
 
 #include <algorithm>
 #include <cstring>
@@ -6,61 +7,6 @@
 
 //#define DEBUG_PRINT(a) std::cout << a << std::endl
 #define DEBUG_PRINT(a)
-
-// MurmurHash3 32-bit version
-uint32_t murmurhash3(std::string_view key, uint32_t seed = 0)
-{
-	const uint8_t *data = reinterpret_cast<const uint8_t *>(key.data());
-	size_t len = key.size();
-
-	uint32_t h = seed;
-	const uint32_t c1 = 0xcc9e2d51;
-	const uint32_t c2 = 0x1b873593;
-
-	// Partition in blocks of 4 bytes.
-	const size_t nblocks = len / 4;
-	const uint32_t* blocks = reinterpret_cast<const uint32_t *>(data);
-	for (size_t i = 0; i < nblocks; i++)
-	{
-		uint32_t k = blocks[i];
-		k *= c1;
-		k = (k << 15) | (k >> 17);
-		k *= c2;
-
-		h ^= k;
-		h = (h << 13) | (h >> 19);
-		h = h * 5 + 0xe6546b64;
-	}
-
-	// Process leftover bytes.
-	const uint8_t* tail = data + nblocks * 4;
-	uint32_t k1 = 0;
-
-	switch (len & 3)
-	{
-		case 3:
-			k1 ^= tail[2] << 16;
-		case 2:
-			k1 ^= tail[1] << 8;
-		case 1:
-			k1 ^= tail[0];
-			k1 *= c1;
-			k1 = (k1 << 15) | (k1 >> 17);
-			k1 *= c2;
-			h ^= k1;
-		case 0:
-			; // Do nothing.
-	}
-
-	h ^= len;
-	h ^= (h >> 16);
-	h *= 0x85ebca6b;
-	h ^= (h >> 13);
-	h *= 0xc2b2ae35;
-	h ^= (h >> 16);
-
-	return h;
-}
 
 std::string to_hex(unsigned char c)
 {

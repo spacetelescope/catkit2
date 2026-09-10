@@ -1,11 +1,16 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <cstdint>
 #include <string>
+#include <string_view>
 #include <functional>
 
 int GetProcessId();
 int GetThreadId();
+
+// MurmurHash3 32-bit version for topic hashing
+uint32_t murmurhash3(std::string_view key, uint32_t seed = 0);
 
 template<typename ProtoClass>
 std::string Serialize(const ProtoClass &obj);
