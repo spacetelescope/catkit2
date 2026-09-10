@@ -46,7 +46,7 @@ Update the atlas when a canonical implementation moves, ownership changes, or an
 
 ```text
 Update the agent context for [change, PR, commit or commit range]. Follow the
-“Maintaining this atlas” section in docs/agent/REPO_ATLAS.md. Inspect the
+"Maintaining this atlas" section in docs/agent/REPO_ATLAS.md. Inspect the
 specified changes and current source, callers, documentation and tests.
 Update only affected concepts. Preserve the exact required concept template
 and field labels, including at least one **Read first:** entry per concept.

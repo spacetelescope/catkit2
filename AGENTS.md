@@ -4,9 +4,9 @@ CATKit2 owns reusable laboratory device control and synchronization: native shar
 
 This proposed guide was checked against `19023206433b14a2f0a1428129d954c5dc6433b2`. Source and configuration take precedence when the checkout changes. Read [the atlas](docs/agent/REPO_ATLAS.md) by concept; use [the derived index](docs/agent/repo_index.json) for quick path lookup. Neither replaces task-specific source inspection.
 
-## Working defaults — PROPOSED unless noted
+## Working defaults - PROPOSED unless noted
 
-1. Identify the owning layer and the smallest coherent change. Keep reusable device/framework behavior here; keep an individual instrument's service instances, calibration products and operating procedure in its own package. Existing optical-model and experiment bases already live here; use the actual tree rather than an absolute “hardware only” slogan.
+1. Identify the owning layer and the smallest coherent change. Keep reusable device/framework behavior here; keep an individual instrument's service instances, calibration products and operating procedure in its own package. Existing optical-model and experiment bases already live here; use the actual tree rather than an absolute "hardware only" slogan.
 2. Start with the matching atlas concept, authoritative docs and a current implementation. Read its caller and test, then expand the search for a specific unresolved question. Reuse the established extension point before adding a new abstraction.
 3. Keep changes focused and preserve existing working behavior. [Contribution guidance](docs/contribution.rst) explicitly documents small PR scope, separate unrelated changes and updates to tests/docs where needed. Avoid opportunistic restructuring while fixing a device or algorithm boundary.
 4. Let clear code explain mechanics. Keep comments concise and concentrate on scientific intent, synchronization, hardware constraints, units, ownership and non-obvious assumptions. Existing mechanical comments are examples of current code, not a requirement to narrate every statement.
@@ -35,6 +35,7 @@ This proposed guide was checked against `19023206433b14a2f0a1428129d954c5dc6433b
 * **ESTABLISHED:** Python is mostly unannotated; no root typing gate, formatter or pre-commit configuration was found. Add useful annotations locally when needed; avoid converting the project wholesale. Relative internal imports and absolute package/device imports coexist. Root exports deliberately use `__all__` and wildcard imports.
 * **ESTABLISHED:** use existing `self.log`/module logging and small helpers, closures and properties. `NotImplementedError` marks extension hooks; explicit exceptions report invalid configuration and unsupported operations. Broad device/timeout catches exist; inspect their purpose before imitating them.
 * **ESTABLISHED:** native code uses tabs, next-line braces, PascalCase methods and `m_` members. Match the native file and binding conventions rather than applying Python formatting rules.
+* **PROPOSED:** write documentation in ASCII punctuation: straight `"` and `'` quotes, `-` or `--` for dashes, `->` for arrows. Reserve non-ASCII for content that needs it, such as accented names in citations and mathematical symbols. Any code that reads a documentation file must pass `encoding="utf-8"` explicitly: a bare `open()` uses the platform locale encoding and raises `UnicodeDecodeError` on Windows (cp1252) for typographic quotes and dashes. Packaging reads README.md through `readme` in pyproject.toml, which setuptools decodes as UTF-8, but downstream tooling and the cookiecutter template are not guaranteed to.
 
 ## Interfaces to preserve
 
@@ -52,6 +53,6 @@ Read [installation docs](docs/installation.rst), environment.yml and CMake files
 
 Current caveats: old and v2 cameras coexist; `dummy_camera_v2` is incomplete; `camera_sim` still directly inherits Service; `simple_simulator` has stale callback calls. The protocol page's all-TCP description predates local-broker service communication. `CameraProxy.take_exposures` is a deprecation wrapper: use `take_raw_exposures`. Generic Experiment's `post_experiment` is a success-path hook, not guaranteed failure cleanup. Consult the atlas's caveats before choosing a template.
 
-## Keeping navigation current — PROPOSED
+## Keeping navigation current - PROPOSED
 
 If a reference is missing, search the current symbol, import and callers before adding replacement code; use git history to resolve renames. Update the affected atlas entry when canonical paths, ownership or important contracts change, then regenerate the JSON index from the atlas. Treat this guide as the stable operational entry point and load atlas sections according to the task.
