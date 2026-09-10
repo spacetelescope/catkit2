@@ -125,7 +125,7 @@ inline void EventFutex::Signal()
 
 	if (futex_wake(&m_SharedState->m_Futex, INT32_MAX) < 0)
 	{
-		throw std::runtime_error("Futex wake failed.");
+		throw std::runtime_error("Futex wake failed: " + std::to_string(errno));
 	}
 }
 
