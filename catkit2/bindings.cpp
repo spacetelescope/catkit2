@@ -907,6 +907,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		})
 		.def_property_readonly("filename", &SharedMemory::GetFileName);
 
+	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker");
+
 	py::class_<LocalMemory, Memory, std::shared_ptr<LocalMemory>>(m, "LocalMemory")
 		.def_static("create", [](size_t num_bytes)
 		{
@@ -987,15 +989,33 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 	py::class_<Message>(m, "Message")
 		.def_property_readonly("topic", &Message::GetTopic)
+		.def_property_readonly("topic_depth", &Message::GetTopicDepth)
 		.def_property_readonly("trace_id", &Message::GetTraceId)
-		.def_property_readonly("frame_id", &Message::GetFrameId)
-		.def_property_readonly("partial_frame_id", &Message::GetPartialFrameId)
+		.def_property_readonly("message_id", [](const Message& m)
+		{
+			// GetMessageId() is an overloaded function so cannot use function pointer.
+			return m.GetMessageId();
+		})
+		.def_property_readonly("message_ids", [](const Message& m)
+		{
+			size_t depth = m.GetTopicDepth();
+			py::tuple result(depth + 1);
+
+			for (size_t i = 0; i <= depth; ++i)
+			{
+				result[i] = m.GetMessageId(i);
+			}
+
+			return result;
+		})
+		.def_property_readonly("partial_message_id", &Message::GetPartialMessageId)
 		.def_property_readonly("payload_id", &Message::GetPayloadId)
 		.def_property_readonly("producer_hostname", &Message::GetProducerHostname)
 		.def_property_readonly("producer_pid", &Message::GetProducerPid)
 		.def_property_readonly("producer_timestamp", &Message::GetProducerTimestamp)
 		.def_property("array_info", &Message::GetArrayInfo, &Message::SetArrayInfo)
-		.def_property("payload", [](const Message& m) {
+		.def_property("payload", [](const Message& m)
+		{
 			return ToPython(m.GetPayload());
 		},
 		[](Message &m, py::buffer data)
@@ -1094,7 +1114,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 			return py::none();
 		});
 
-	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
+	py::class_<LocalMessageBroker, Shareable, MessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
 		{
 			auto stream = StructStream(header);
@@ -1109,12 +1129,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return std::shared_ptr<LocalMessageBroker>(std::move(broker));
 		})
-		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, std::uint8_t memory_block_id)
-		{
-			auto message = broker->PrepareMessage(topic, payload_size, memory_block_id);
-
-			return message;
-		}, py::arg("topic"), py::arg("payload_size"), py::arg("memory_block_id") = 0)
 		.def("prepare_message", [](std::shared_ptr<LocalMessageBroker> broker, const std::string& topic, size_t payload_size, py::object trace_id, std::uint8_t memory_block_id)
 		{
 			if (trace_id.is_none())
@@ -1128,7 +1142,7 @@ PYBIND11_MODULE(catkit_bindings, m)
 		}, py::arg("topic"), py::arg("payload_size"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
 		.def("publish_message", [](std::shared_ptr<LocalMessageBroker> broker, Message& message, bool is_final)
 		{
-			broker->PublishMessage(message, is_final);
+			return broker->PublishMessage(message, is_final);
 		}, py::arg("message"), py::arg("is_final") = true)
 		.def("publish_data", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::bytes data, py::object trace_id, std::uint8_t memory_block_id)
 		{
@@ -1175,14 +1189,6 @@ PYBIND11_MODULE(catkit_bindings, m)
 				broker->PublishArray(topic, array_view, py::cast<Uuid>(trace_id), memory_block_id);
 			}
 		}, py::arg("topic"), py::arg("array"), py::arg("trace_id") = py::none(), py::arg("memory_block_id") = 0)
-		.def("try_get_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic, size_t frame_id) -> py::object
-		{
-			auto res = broker->TryGetMessage(topic, frame_id);
-			if (res)
-				return py::cast(res.value());
-
-			return py::none();
-		}, py::arg("topic"), py::arg("frame_id"))
 		.def("get_current_message", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
 		{
 			auto res = broker->GetCurrentMessage(topic);
@@ -1191,25 +1197,30 @@ PYBIND11_MODULE(catkit_bindings, m)
 
 			return py::none();
 		}, py::arg("topic"))
-		.def("is_message_available", &LocalMessageBroker::IsMessageAvailable)
-		.def("will_message_be_available", &LocalMessageBroker::WillMessageBeAvailable)
-		.def("get_newest_message_id", &LocalMessageBroker::GetNewestMessageId)
-		.def("get_oldest_message_id", &LocalMessageBroker::GetOldestMessageId)
+		.def("get_current_message_id", [](std::shared_ptr<LocalMessageBroker> broker, std::string_view topic) -> py::object
+		{
+			auto res = broker->GetCurrentMessageId(topic);
+
+			if (res)
+				return py::cast(res.value());
+
+			return py::none();
+		}, py::arg("topic"))
 		.def("get_message_rate", &LocalMessageBroker::GetMessageRate)
 		.def("get_all_message_topics", &LocalMessageBroker::GetAllMessageTopics)
 		.def("print_debug_info", &LocalMessageBroker::PrintDebugInfo)
-		.def("subscribe", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::object preferred_next_frame_id, MessageSubscriptionMode mode)
+		.def("subscribe", [](std::shared_ptr<LocalMessageBroker> broker, std::string topic, py::object preferred_next_message_id, MessageSubscriptionMode mode)
 		{
-			// Check if the starting frame ID is a number or None.
-			if (preferred_next_frame_id.is_none())
+			// Check if the starting message ID is a number or None.
+			if (preferred_next_message_id.is_none())
 			{
 				return broker->Subscribe(topic, mode);
 			}
 			else
 			{
-				return broker->Subscribe(topic, py::cast<std::uint64_t>(preferred_next_frame_id), mode);
+				return broker->Subscribe(topic, py::cast<std::uint64_t>(preferred_next_message_id), mode);
 			}
-		}, py::arg("topic"), py::arg("preferred_next_frame_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
+		}, py::arg("topic"), py::arg("preferred_next_message_id") = py::none(), py::arg("mode") = MessageSubscriptionMode::NewestOnly);
 
 	py::class_<PoolAllocator, std::shared_ptr<PoolAllocator>>(m, "PoolAllocator")
 		.def_static("create", [](std::shared_ptr<Memory> memory, std::uint32_t capacity)

@@ -15,12 +15,13 @@
 #include <optional>
 
 const size_t TOPIC_MAX_KEY_SIZE = 127;
+const size_t TOPIC_MAX_DEPTH = 7;
 const size_t HOST_NAME_SIZE = 64;
 const size_t METADATA_MAX_STRLEN = 8;
 const size_t METADATA_MAX_KEYLEN = 7;
 const size_t MAX_NUM_METADATA_ENTRIES = 12;
 
-const std::uint64_t INVALID_FRAME_ID = 0xFFFFFFFFFFFFFFFF;
+const std::uint64_t INVALID_MESSAGE_ID = 0xFFFFFFFFFFFFFFFF;
 
 enum class MetadataType : std::uint8_t
 {
@@ -68,11 +69,14 @@ struct MessageHeader
 	std::uint64_t start_byte;
 	std::uint64_t end_byte;
 
-	std::uint16_t partial_frame_id;
+	std::array<std::uint64_t, TOPIC_MAX_DEPTH> message_ids;
+	std::uint16_t partial_message_id;
 
 	std::uint8_t num_metadata_entries;
 	MetadataEntry metadata_entries[MAX_NUM_METADATA_ENTRIES];
 };
+
+size_t GetTopicDepth(std::string_view topic);
 
 class MessageBroker;
 class LocalMessageBroker;
@@ -83,14 +87,16 @@ class Message
 	friend class MessageBroker;
 
 private:
-	Message(MessageHeader *header, void *payload, std::uint64_t frame_id, bool has_been_published = false);
+	Message(MessageHeader *header, void *payload);
 
 public:
 	std::string_view GetTopic() const;
+	std::size_t GetTopicDepth() const;
 
 	const Uuid &GetPayloadId() const;
-	std::uint64_t GetFrameId() const;
-	std::uint16_t GetPartialFrameId() const;
+	std::uint64_t GetMessageId() const;
+	std::uint64_t GetMessageId(std::size_t depth) const;
+	std::uint16_t GetPartialMessageId() const;
 
 	const Uuid &GetTraceId() const;
 
@@ -120,9 +126,6 @@ public:
 private:
 	MessageHeader *m_Header;
 	void *m_Payload;
-
-	std::uint64_t m_FrameId;
-	bool m_HasBeenPublished;
 };
 
 enum class MessageSubscriptionMode
@@ -142,24 +145,28 @@ public:
 	std::optional<Message> TryGetNextMessage();
 
 private:
-	MessageSubscription(std::shared_ptr<MessageBroker> broker, std::string_view topic, std::uint64_t preferred_next_frame_id, MessageSubscriptionMode mode);
+	MessageSubscription(std::shared_ptr<MessageBroker> broker, std::string_view topic, std::uint64_t preferred_next_message_id, MessageSubscriptionMode mode);
 
 	std::shared_ptr<MessageBroker> m_MessageBroker;
 
 	std::string m_Topic;
-	std::uint64_t m_PreferredNextFrameId;
+	std::size_t m_TopicDepth;
+	std::uint64_t m_PreferredNextMessageId;
 	MessageSubscriptionMode m_SubscriptionMode;
 };
 
 class MessageBroker : public std::enable_shared_from_this<MessageBroker>
 {
+	friend class MessageSubscription;
+
 public:
+	virtual ~MessageBroker() = default;
+
 	virtual Message PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0) = 0;
 	virtual Message PublishMessage(Message message, bool is_final = true) = 0;
 
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) = 0;
-	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) = 0;
-	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) = 0;
+	virtual std::optional<size_t> GetCurrentMessageId(std::string_view topic);
 
 	virtual std::vector<std::string> GetAllMessageTopics() = 0;
 	virtual double GetMessageRate(std::string_view topic) = 0;
@@ -174,9 +181,13 @@ public:
 	Message PublishArray(std::string_view topic, ArrayView array, Uuid trace_id, uint8_t memory_block_id = 0);
 
 	MessageSubscription Subscribe(std::string_view topic, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
-	MessageSubscription Subscribe(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
+	MessageSubscription Subscribe(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly);
 
 	virtual void PrintDebugInfo() const;
+
+protected:
+	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) = 0;
+	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) = 0;
 };
 
 #endif // MESSAGE_BROKER_H

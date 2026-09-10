@@ -98,6 +98,7 @@ def generate_data(broker):
             'pid': message.producer_pid,
             'last_updated': HumanReadableTime(message.producer_timestamp),
             'frame_rate': f'{broker.get_message_rate(topic):.1f}',
+            'message_id': str(message.message_id),
             'shape': message.array_info.shape,
             'dtype': np.dtype(message.array_info.dtype).name,
             'value': value
@@ -120,6 +121,7 @@ class MTopApp(App):
         'pid': 'PID',
         'last_updated': 'Last Updated',
         'frame_rate': 'Frame Rate',
+        'message_id': 'Message ID',
         'shape': 'Shape',
         'dtype': 'Dtype',
         'value': 'Value',

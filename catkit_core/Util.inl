@@ -1,4 +1,20 @@
+#include "Util.h"
+
 #include <limits>
+#include <cstdint>
+#include <type_traits>
+
+#if __has_include(<bit>)
+	#include <bit>
+#endif
+
+#if defined(_MSC_VER)
+	#include <intrin.h>
+#endif
+
+#if defined(__cpp_lib_bitops) && __cpp_lib_bitops >= 201907L
+	#define HAS_STD_BIT
+#endif
 
 template<typename ProtoClass>
 std::string Serialize(const ProtoClass &obj)
@@ -18,11 +34,9 @@ ProtoClass Deserialize(const std::string &data)
 	return obj;
 }
 
-template <typename UnsignedType>
-constexpr UnsignedType round_up_to_power_of_2(UnsignedType v)
+template <typename T, enable_uint<T>>
+constexpr T round_up_to_power_of_2(T v) noexcept
 {
-	static_assert(std::is_unsigned_v<UnsignedType>);
-
 	v--;
 
 	for (std::size_t i = 1; i < sizeof(v) * 8; i *= 2)
@@ -33,58 +47,130 @@ constexpr UnsignedType round_up_to_power_of_2(UnsignedType v)
 	return ++v;
 }
 
-template <typename UnsignedType>
-constexpr UnsignedType round_down_to_power_of_2(UnsignedType v)
+template <typename T, enable_uint<T>>
+constexpr T round_down_to_power_of_2(T v) noexcept
 {
-	static_assert(std::is_unsigned_v<UnsignedType>);
+	for (size_t i = 1; i < sizeof(v) * 8; i *= 2)
+		v |= v >> i;
 
-    for (size_t i = 1; i < sizeof(v) * 8; i *= 2)
-        v |= v >> i;
-
-    return v - (v >> 1);
+	return v - (v >> 1);
 }
 
-// Note: this function is defined in C++20, but we need to support C++17.
-template <typename T>
-constexpr int bit_width(T x)
+// The number of bits needed to store the value x.
+template <typename T, enable_uint<T>>
+inline constexpr int bit_width(T x) noexcept
 {
-	static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>, "bit_width requires an unsigned integral type");
+	constexpr unsigned BW = std::numeric_limits<T>::digits;
+	return BW - countl_zero(x);
+}
 
-	if (x == 0)
-		return 0;
-
-#if defined(__GNUC__) || defined(__clang__)
-	if constexpr (sizeof(T) == 8)
-	{
-		return std::numeric_limits<unsigned long long>::digits - __builtin_clzll(x);
-	}
-	else
-	{
-		return std::numeric_limits<unsigned int>::digits - __builtin_clz((unsigned int) x);
-	}
+/// Count trailing zeros in the binary representation of x.
+template <typename T, enable_uint<T>>
+inline unsigned countr_zero(T x) noexcept
+{
+#ifdef HAS_STD_BIT
+	return std::countr_zero(x);
 #elif defined(_MSC_VER)
-	unsigned long index;
-
+	unsigned long idx;
 	if constexpr (sizeof(T) == 8)
 	{
-		_BitScanReverse64(&index, x);
-		return index + 1;
+		return _BitScanForward64(&idx, x) ? idx : 64;
+	}
+	else if constexpr (sizeof(T) == 4)
+	{
+		return _BitScanForward(&idx, static_cast<unsigned long>(x)) ? idx : 32;
 	}
 	else
 	{
-		_BitScanReverse(&index, (unsigned int) x);
-		return index + 1;
+		// For 1-byte and 2-byte integers, use the 4-byte version
+		return _BitScanForward(&idx, static_cast<unsigned long>(x)) ? idx : (sizeof(T) * 8);
+	}
+#elif defined(__GNUC__) || defined(__clang__)
+	if constexpr (sizeof(T) == 8)
+	{
+		return x ? __builtin_ctzll(x) : 64;
+	}
+	else if constexpr (sizeof(T) == 4)
+	{
+		return x ? __builtin_ctz(x) : 32;
+	}
+	else
+	{
+		// For 1-byte and 2-byte integers, zero-extend to 4 bytes
+		return x ? __builtin_ctz(static_cast<unsigned int>(x)) : (sizeof(T) * 8);
 	}
 #else
 	// Portable fallback
-	int width = 0;
+	if (x == 0)
+		return sizeof(T) * 8;
 
-	while (x)
+	unsigned count = 0;
+	while ((x & 1) == 0)
 	{
 		x >>= 1;
-		++width;
+		++count;
 	}
 
-	return width;
+	return count;
+#endif
+}
+
+/// Count leading zeros in the binary representation of x.
+template <typename T, enable_uint<T>>
+inline unsigned countl_zero(T x) noexcept
+{
+#ifdef HAS_STD_BIT
+	return std::countl_zero(x);
+#elif defined(_MSC_VER)
+	unsigned long idx;
+	if constexpr (sizeof(T) == 8)
+	{
+		return _BitScanReverse64(&idx, x) ? (63 - idx) : 64;
+	}
+	else if constexpr (sizeof(T) == 4)
+	{
+		return _BitScanReverse(&idx, static_cast<unsigned long>(x)) ? (31 - idx) : 32;
+	}
+	else
+	{
+		// For 1-byte and 2-byte integers, adjust result from 4-byte scan
+		if (!_BitScanReverse(&idx, static_cast<unsigned long>(x)))
+			return sizeof(T) * 8;
+		// Calculate how many bits the value was shifted left
+		constexpr unsigned shift = (sizeof(unsigned long) - sizeof(T)) * 8;
+		return (31 - idx) - shift;
+	}
+#elif defined(__GNUC__) || defined(__clang__)
+	if constexpr (sizeof(T) == 8)
+	{
+		return x ? __builtin_clzll(x) : 64;
+	}
+	else if constexpr (sizeof(T) == 4)
+	{
+		return x ? __builtin_clz(x) : 32;
+	}
+	else
+	{
+		// For 1-byte and 2-byte integers, adjust result from 4-byte builtin
+		if (x == 0)
+			return sizeof(T) * 8;
+		constexpr unsigned shift = (sizeof(unsigned int) - sizeof(T)) * 8;
+		return __builtin_clz(static_cast<unsigned int>(x)) - shift;
+	}
+#else
+	// Portable fallback
+	if (x == 0)
+		return sizeof(T) * 8;
+
+	unsigned count = 0;
+	T mask = T(1) << (sizeof(T) * 8 - 1);
+
+	while ((x & mask) == 0)
+	{
+		mask >>= 1;
+		++count;
+	}
+
+	return count;
 #endif
 }

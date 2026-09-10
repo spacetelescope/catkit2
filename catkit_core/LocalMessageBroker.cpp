@@ -12,8 +12,8 @@
 // Decay rate for the frame rate estimate in 1/sec.
 const double FRAMERATE_DECAY = 2.5;
 
-//#define DEBUG_PRINT(a) std::cout << a << std::endl
-#define DEBUG_PRINT(a)
+#define DEBUG_PRINT(a) std::cout << a << std::endl
+//#define DEBUG_PRINT(a)
 
 template<typename T>
 T fetch_max(std::atomic<T> &atom, T value)
@@ -111,34 +111,271 @@ private:
 	char m_Delimiter;
 };
 
-bool TopicHeader::IsMessageAvailable(std::size_t frame_id)
-{
-	size_t first = first_frame_id.load(std::memory_order_relaxed);
-	size_t last = last_frame_id.load(std::memory_order_relaxed);
+constexpr std::uint64_t AVAILABILITY_BITMAP_MASK = (1 << TOPIC_MAX_NUM_MESSAGES) - 1;
 
-	return (frame_id >= first) && (frame_id < last);
+std::tuple<std::size_t, std::uint16_t> unpack_availability(std::uint64_t availability)
+{
+	return std::make_tuple(availability >> TOPIC_MAX_NUM_MESSAGES, availability & AVAILABILITY_BITMAP_MASK);
 }
 
-bool TopicHeader::WillMessageBeAvailable(std::size_t frame_id)
+std::uint64_t pack_availability(std::size_t last_id, std::uint16_t bitmap)
 {
-	size_t first = first_frame_id.load(std::memory_order_relaxed);
-
-	return frame_id >= first;
+	return (last_id << TOPIC_MAX_NUM_MESSAGES) | bitmap;
 }
 
-std::size_t TopicHeader::GetOldestMessageId()
+bool TopicHeader::IsMessageAvailable(std::size_t frame_id) const
 {
-	return first_frame_id.load(std::memory_order_relaxed);
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+
+	// Compute how many messages back from last this frame_id is.
+	// last-1 is the newest message, so offset 0 is last-1.
+	if (frame_id >= last)
+		return false;
+
+	std::size_t offset = last - 1 - frame_id;
+	if (offset >= TOPIC_MAX_NUM_MESSAGES)
+		return false;
+
+	return (bitmap >> offset) & 1;
 }
 
-std::size_t TopicHeader::GetNewestMessageId()
+bool TopicHeader::WillMessageBeAvailable(std::size_t frame_id) const
 {
-	size_t last = last_frame_id.load(std::memory_order_relaxed);
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
 
-	if (last == 0)
+	// A message will be available if it's in the future (>= last) or currently in the buffer.
+	if (frame_id >= last)
+		return true;
+
+	// Check if it's currently in the buffer.
+	std::size_t offset = last - 1 - frame_id;
+	return offset < TOPIC_MAX_NUM_MESSAGES;
+}
+
+std::size_t TopicHeader::GetBegin() const
+{
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+
+	// Compute first (oldest message ID) from last and bitmap.
+	// If last < 16, buffer not full, so first = 0.
+	// Otherwise, first = last - 16 + countl_zero(bitmap).
+	if (last < TOPIC_MAX_NUM_MESSAGES)
 		return 0;
 
-	return last - 1;
+	return last - TOPIC_MAX_NUM_MESSAGES + countl_zero((uint16_t) bitmap);
+}
+
+std::size_t TopicHeader::GetEnd() const
+{
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+
+	// With relative bitmap:
+	// Bit 0 = last - 1 (newest), bit 1 = last - 2, etc.
+	// countr_zero(bitmap) = number of trailing zeros = how many newest messages are unavailable
+	// end = last - countr_zero(bitmap) = first ID beyond the newest available message
+	// Check for underflow: if countr_zero > last, return 0.
+	auto trailing_zeros = countr_zero((uint16_t) bitmap);
+	if (trailing_zeros > last)
+		return 0;
+
+	return last - trailing_zeros;
+}
+
+std::size_t TopicHeader::GetNextMessageId(size_t preferred_next_frame_id, MessageSubscriptionMode mode) const
+{
+	auto [last, bitmap] = unpack_availability(availability.load(std::memory_order_relaxed));
+
+	size_t frame_id = preferred_next_frame_id;
+
+	// Compute oldest and newest from last and bitmap.
+	size_t newest_frame_id = (last == 0) ? 0 : last - 1;
+	size_t oldest_frame_id;
+	if (last < TOPIC_MAX_NUM_MESSAGES)
+		oldest_frame_id = 0;
+	else
+		oldest_frame_id = last - TOPIC_MAX_NUM_MESSAGES + countl_zero((uint16_t) bitmap);
+
+	switch (mode)
+	{
+		case MessageSubscriptionMode::NewestOnly:
+
+		// If the frame we are aiming to read is not the newest,
+		// return the newest frame instead.
+		if (newest_frame_id >= frame_id)
+			frame_id = newest_frame_id;
+
+		break;
+
+		case MessageSubscriptionMode::Sequential:
+
+		// If the frame was discarded already,
+		// return the oldest available frame instead.
+		if (frame_id < oldest_frame_id)
+			frame_id = oldest_frame_id;
+
+		break;
+	}
+
+	return frame_id;
+}
+
+TopicHeader::ReserveResult TopicHeader::TryReserve(std::size_t message_id)
+{
+	while (true)
+	{
+		auto current_availability = availability.load(std::memory_order_relaxed);
+		auto [last, bitmap] = unpack_availability(current_availability);
+
+		// Check if the message id is too old (already evicted).
+		if (last > TOPIC_MAX_NUM_MESSAGES && message_id < last - TOPIC_MAX_NUM_MESSAGES)
+			return TopicHeader::ReserveResult{false, false, false, 0, message_id};
+
+		// Check if we need to advance last to include this message.
+		if (message_id >= last)
+		{
+			// We can only advance one step at a time since we can only return one evicted header.
+			// Check if the message is immediately next (message_id == last).
+			if (message_id > last)
+			{
+				// Message is further ahead. We need to advance step by step.
+				// Return failure but indicate caller should retry.
+				return TopicHeader::ReserveResult{false, true, false, 0, message_id};
+			}
+
+			// message_id == last, we can advance by one.
+			// Check if we need to evict a message.
+			bool was_available = bitmap & (1 << (TOPIC_MAX_NUM_MESSAGES - 1));
+			std::size_t slot = last % TOPIC_MAX_NUM_MESSAGES;
+			PoolAllocator::BlockHandle message_header = message_headers[slot];
+
+			// Update bitmap and last.
+			bitmap <<= 1;
+			last++;
+
+			// Try to set the new availability.
+			auto new_availability = pack_availability(last, bitmap);
+			if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
+			{
+				// We failed, try again.
+				continue;
+			}
+
+			// We succeeded. Check if we reached the target message_id.
+			bool success = (last - 1) == message_id;
+			return TopicHeader::ReserveResult{success, true, was_available, message_header, last - 1};
+		}
+		else
+		{
+			// Message is in the current window.
+			// Compute the bit position for this message.
+			std::size_t offset = last - 1 - message_id;
+
+			// Check if this message is already marked.
+			if (bitmap & (1 << offset))
+			{
+				// Message already exists.
+				return TopicHeader::ReserveResult{false, false, false, 0, message_id};
+			}
+
+			// Set the bit for this message.
+			bitmap |= (1 << offset);
+
+			// Try to set the new availability.
+			auto new_availability = pack_availability(last, bitmap);
+			if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
+			{
+				// We failed, try again.
+				continue;
+			}
+
+			// We succeeded so the frame is marked.
+			return TopicHeader::ReserveResult{true, false, false, 0, message_id};
+		}
+	}
+}
+
+TopicHeader::ReserveResult TopicHeader::TryReserveNext()
+{
+	while (true)
+	{
+		auto current_availability = availability.load(std::memory_order_relaxed);
+		auto [last, bitmap] = unpack_availability(current_availability);
+
+		// Check if the message in the slot that we're about to evict was available.
+		bool was_available = bitmap & (1 << (TOPIC_MAX_NUM_MESSAGES - 1));
+		auto slot = last % TOPIC_MAX_NUM_MESSAGES;
+		PoolAllocator::BlockHandle message_header = message_headers[slot];
+
+		// Increment last and update bitmap.
+		bitmap <<= 1;
+		last++;
+
+		// Try to set the new availability.
+		auto new_availability = pack_availability(last, bitmap);
+		if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
+		{
+			// We failed, try again.
+			continue;
+		}
+
+		// We succeeded so the frame is marked.
+		return TopicHeader::ReserveResult{true, true, was_available, message_header, last - 1};
+	}
+}
+
+bool TopicHeader::TryMakeAvailable(std::size_t message_id)
+{
+	DEBUG_PRINT("TryMakeAvailable " << message_id);
+
+	while (true)
+	{
+		auto current_availability = availability.load(std::memory_order_relaxed);
+		auto [last, bitmap] = unpack_availability(current_availability);
+
+		// If the message is in the future or too old, we cannot make it available (it needs to be reserved first).
+		if (message_id >= last)
+			return false;
+
+		std::size_t offset = last - 1 - message_id;
+
+		// If the message is too old, we cannot make it available either.
+		if (offset >= TOPIC_MAX_NUM_MESSAGES)
+			return false;
+
+		// Mark the bit on the bitmap.
+		bitmap |= (1 << offset);
+
+		// Try to set the new availability.
+		auto new_availability = pack_availability(last, bitmap);
+		if (!availability.compare_exchange_strong(current_availability, new_availability, std::memory_order_acq_rel))
+		{
+			// We failed, try again.
+			continue;
+		}
+
+		return true;
+	}
+}
+
+void TopicHeader::UpdateMessageRate(std::uint64_t timestamp)
+{
+	double time_delta = double(std::int64_t(timestamp) - std::int64_t(last_update)) * 1e-9;
+
+	if (time_delta < 0)
+		time_delta = 0;
+
+	last_update = timestamp;
+	message_rate = message_rate * std::exp(-FRAMERATE_DECAY * time_delta) + FRAMERATE_DECAY;
+}
+
+double TopicHeader::GetMessageRate(std::uint64_t current_timestamp) const
+{
+	double time_delta = double(std::int64_t(current_timestamp) - std::int64_t(last_update)) * 1e-9;
+
+	if (time_delta < 0)
+		time_delta = 0;
+
+	return message_rate * std::exp(-FRAMERATE_DECAY * time_delta);
 }
 
 LocalMessageBroker::LocalMessageBroker(
@@ -267,12 +504,23 @@ std::size_t LocalMessageBroker::CalculateBufferSize()
 
 Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id)
 {
+	// Validate topic.
+	if (topic.size() > TOPIC_MAX_KEY_SIZE)
+	{
+		throw std::runtime_error("Invalid topic: topic is too long.");
+	}
+
+	if (GetTopicDepth(topic) > TOPIC_MAX_DEPTH)
+	{
+		throw std::runtime_error("Invalid topic: topic is too deep.");
+	}
+
 	// Allocate a payload.
 	auto allocator = GetAllocator(memory_block_id);
 
 	if (allocator == nullptr)
 	{
-		throw std::runtime_error("Invalid device ID.");
+		throw std::runtime_error("Invalid device ID: " + std::to_string(memory_block_id));
 	}
 
 	DEBUG_PRINT("Gotten allocator.");
@@ -335,7 +583,8 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 	header->producer_pid = GetProcessId();
 	header->producer_timestamp = 0;
 
-	header->partial_frame_id = 0;
+	header->message_ids.fill(INVALID_MESSAGE_ID);
+	header->partial_message_id = 0;
 	header->start_byte = 0;
 	header->end_byte = payload_size;
 
@@ -344,117 +593,118 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 
 	DEBUG_PRINT("Header set");
 
-	return Message(header, payload, INVALID_FRAME_ID, false);
+	return Message(header, payload);
 }
 
 Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 {
 	DEBUG_PRINT("Publishing message.");
 
-	if (message.m_HasBeenPublished)
-		throw std::runtime_error("Message has already been published.");
+	if (message.m_Header == nullptr || message.m_Payload == nullptr)
+		throw std::runtime_error("Message is invalid. Use PrepareMessage() to create a valid message.");
 
 	// Set the timestamp.
-	message.m_Header->producer_timestamp = GetTimeStamp();
+	auto timestamp = GetTimeStamp();
+	message.m_Header->producer_timestamp = timestamp;
+
+	// Save the message header index for later.
+	PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
 
 	DEBUG_PRINT("Starting to publish the message.");
 
 	auto topic = std::string_view(message.m_Header->topic);
 	auto allocator = GetAllocator(message.m_Header->payload_info.memory_block_id);
 
-	// Publish the message to all subtopics.
+	size_t topic_depth = message.GetTopicDepth();
+	size_t i = topic_depth;
+
+	// Reserve a message ID for all subtopics.
 	for (const auto &subtopic : SubtopicRange(topic))
 	{
 		auto topic_header = GetTopicHeader(subtopic);
 
-		DEBUG_PRINT("Publishing to subtopic \"" << subtopic << "\".");
+		DEBUG_PRINT("Reserving ID for topic \"" << subtopic << "\".");
 
-		std::uint64_t first_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
-
-		std::uint64_t frame_id;
-		if (message.m_Header->partial_frame_id == 0)
+		while (true)
 		{
-			// Get a frame ID.
-			frame_id = topic_header->next_frame_id.fetch_add(1, std::memory_order_relaxed);
-		}
-		else
-		{
-			frame_id = topic_header->last_frame_id.load(std::memory_order_relaxed) - 1;
-			message.m_Header->partial_frame_id++;
-		}
+			TopicHeader::ReserveResult reserve_result;
 
-		// Check if we need to remove an old frame from the topic.
-		if (frame_id - first_id >= TOPIC_MAX_NUM_MESSAGES)
-		{
-			DEBUG_PRINT("We need to remove a frame.");
-
-			while (true)
+			if (message.m_Header->message_ids[i] == INVALID_MESSAGE_ID)
 			{
-				auto frame_to_remove = topic_header->first_frame_id.load(std::memory_order_relaxed);
+				reserve_result = topic_header->TryReserveNext();
+			}
+			else
+			{
+				reserve_result = topic_header->TryReserve(message.m_Header->message_ids[i]);
+			}
 
-				auto message_handle = topic_header->message_headers[frame_to_remove % TOPIC_MAX_NUM_MESSAGES];
+			DEBUG_PRINT("ReserveResult: ");
+			DEBUG_PRINT("  success: " << reserve_result.success);
+			DEBUG_PRINT("  has_old_message_header: " << reserve_result.has_old_message_header);
+			DEBUG_PRINT("  can_try_again: " << reserve_result.can_try_again);
+			DEBUG_PRINT("  old_message_header: " << reserve_result.old_message_header);
+			DEBUG_PRINT("  message_id: " << reserve_result.message_id);
 
-				if (!topic_header->first_frame_id.compare_exchange_weak(frame_to_remove, frame_to_remove + 1))
-				{
-					// We failed, so someone else interrupted us while we were trying to deallocate
-					// the message. We need to try again.
-					continue;
-				}
-
-				DEBUG_PRINT("Removing frame " << frame_to_remove << " from topic " << topic);
+			// Check if we were given a message header to deallocate.
+			if (reserve_result.has_old_message_header)
+			{
+				// Deallocate the old message meader.
+				DEBUG_PRINT("Evicting message from topic " << topic);
 
 				// Deallocate the payload.
-				auto header = m_MessageHeaders[message_handle];
+				auto header = m_MessageHeaders[reserve_result.old_message_header];
 				auto removal_allocator = GetAllocator(header.payload_info.memory_block_id);
 				removal_allocator->Release(header.payload_info.block_handle);
 
 				// Deallocate the MessageHeader itself.
-				m_MessageHeaderAllocator->Release(message_handle);
+				m_MessageHeaderAllocator->Release(reserve_result.old_message_header);
 
-				DEBUG_PRINT("Frame deleted.");
-
-				break;
+				DEBUG_PRINT("Message evicted successfully.");
 			}
+
+			if (!reserve_result.success)
+			{
+				if (reserve_result.can_try_again)
+				{
+					// We were not successful and since we cannot try again,
+					// we will never be successful. This is only an error if this
+					// is the deepest topic.
+					if (i == 0)
+						throw std::runtime_error("Cannot reserve slot in topic.");
+
+					break;
+				}
+			}
+
+			// We successfully reserved the slot. We can now proceed to publish it.
+			message.m_Header->message_ids[i] = reserve_result.message_id;
+
+			// Copy over the message header reference.
+			PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
+			topic_header->message_headers[reserve_result.message_id % TOPIC_MAX_NUM_MESSAGES] = message_header_index;
+
+			m_MessageHeaderAllocator->Acquire(message_header_index);
+			allocator->Acquire(message.m_Header->payload_info.block_handle);
+
+			// Note: if something goes wrong, we ignore.
+			topic_header->TryMakeAvailable(reserve_result.message_id);
+
+			break;
 		}
 
-		// Copy over message header reference.
-		PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
-		topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES] = message_header_index;
-
-		m_MessageHeaderAllocator->Acquire(message_header_index);
-		allocator->Acquire(message.m_Header->payload_info.block_handle);
-
-		// Make the message available.
-		fetch_max(topic_header->last_frame_id, frame_id + 1);
-
-		// Update the framerate counter for this topic.
+		// Update framerate on the topic.
 		// TODO: put this after the event signaling, since we don't want this in the
 		// critical path.
-		if (frame_id > 0)
-		{
-			auto prev_message_header_id = topic_header->message_headers[(frame_id - 1) % TOPIC_MAX_NUM_MESSAGES];
+		topic_header->UpdateMessageRate(timestamp);
 
-			std::uint64_t last_timestamp = m_MessageHeaders[prev_message_header_id].producer_timestamp;
-			double time_delta = double(std::int64_t(message.m_Header->producer_timestamp) - std::int64_t(last_timestamp)) * 1e-9;
-
-			if (time_delta < 0)
-				time_delta = 0;
-
-			topic_header->frame_rate = topic_header->frame_rate * std::exp(-FRAMERATE_DECAY * time_delta) + FRAMERATE_DECAY;
-		}
-
-		// If the message is not final, only the bottom-level topic is updated.
+		// Only publish on the bottom-most topic when it's a partial message.
 		if (!is_final)
 			break;
+
+		i--;
 	}
 
 	m_Event->Signal();
-
-	// Deallocate the message header and payload.
-	PoolAllocator::BlockHandle message_header_index = message.m_Header - m_MessageHeaders;
-	m_MessageHeaderAllocator->Release(message_header_index);
-
-	allocator->Release(message.m_Header->payload_info.block_handle);
 
 	if (!is_final)
 	{
@@ -475,98 +725,78 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		DEBUG_PRINT("Copied message header.");
 	}
 
-	message.m_HasBeenPublished = is_final;
+	// Deallocate the old message header and payload.
+	m_MessageHeaderAllocator->Release(message_header_index);
+	allocator->Release(message.m_Header->payload_info.block_handle);
 
-	return message;
+	// Return either no message or a new message.
+	if (is_final)
+	{
+		return Message(nullptr, nullptr);
+	}
+	else
+	{
+		return message;
+	}
 }
 
-std::optional<Message> LocalMessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
+Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t message_id)
 {
-	auto topic_header = GetTopicHeader(topic);
+	if (message_id == INVALID_MESSAGE_ID)
+		throw std::runtime_error("Message ID is not valid.");
 
-	if (!topic_header->IsMessageAvailable(frame_id))
-		return std::nullopt;
-
-	return FetchMessage(topic_header, frame_id);
-}
-
-Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame_id)
-{
 	// Assume that the frame is available.
-	auto header = &m_MessageHeaders[topic_header->message_headers[frame_id % TOPIC_MAX_NUM_MESSAGES]];
+	auto header = &m_MessageHeaders[topic_header->message_headers[message_id % TOPIC_MAX_NUM_MESSAGES]];
 	auto offset = header->payload_info.offset_in_buffer;
 	auto memory = GetMemory(header->payload_info.memory_block_id);
 	auto payload = memory->GetAddress(offset);
 
-	return Message(header, payload, frame_id, true);
-}
-
-std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, size_t preferred_next_frame_id, MessageSubscriptionMode mode)
-{
-	size_t frame_id = preferred_next_frame_id;
-	size_t newest_frame_id = topic_header->last_frame_id.load(std::memory_order_relaxed);
-	size_t oldest_frame_id = topic_header->first_frame_id.load(std::memory_order_relaxed);
-
-	if (newest_frame_id != 0)
-		newest_frame_id--;
-
-	switch (mode)
-	{
-		case MessageSubscriptionMode::NewestOnly:
-
-		// If the frame we are aiming to read is not the newest,
-		// return the newest frame instead.
-		if (newest_frame_id > frame_id)
-			frame_id = newest_frame_id;
-
-		break;
-
-		case MessageSubscriptionMode::Sequential:
-
-		// If the frame was discarded already,
-		// return the oldest available frame instead.
-		if (frame_id < oldest_frame_id)
-			frame_id = oldest_frame_id;
-
-		break;
-	}
-
-	return frame_id;
+	return Message(header, payload);
 }
 
 std::optional<Message> LocalMessageBroker::GetCurrentMessage(std::string_view topic)
 {
+	DEBUG_PRINT("getting current message for " << topic);
+
 	auto topic_header = GetTopicHeader(topic);
 
-	if (topic_header->last_frame_id == 0)
+	DEBUG_PRINT("topic header: " << topic_header);
+
+	auto last_message_id = topic_header->GetEnd();
+	DEBUG_PRINT("last message id: " << last_message_id);
+
+	if (last_message_id == 0)
 		return std::nullopt;
 
-	auto frame_id = topic_header->last_frame_id - 1;
-
-	return FetchMessage(topic_header, frame_id);
+	return FetchMessage(topic_header, last_message_id - 1);
 }
 
-std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode, double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
+std::optional<Message> LocalMessageBroker::GetNextMessage(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode, double timeout_in_seconds, EventWaitMethod wait_type, void (*error_check)())
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	std::uint64_t new_frame_id = GetNextMessageId(topic_header, preferred_next_frame_id, mode);
+	std::uint64_t new_message_id = topic_header->GetNextMessageId(preferred_next_message_id, mode);
+
+	DEBUG_PRINT("GetNextMessageId: " << new_message_id);
 
 	// Check if the frame is available.
-	if (topic_header->IsMessageAvailable(new_frame_id))
-		return FetchMessage(topic_header, new_frame_id);
+	if (topic_header->IsMessageAvailable(new_message_id))
+	{
+		std::cout << "Message is available so returning it." << std::endl;
+		return FetchMessage(topic_header, new_message_id);
+	}
 
 	// Otherwise, wait for it.
-	m_Event->Wait(timeout_in_seconds, [topic_header, new_frame_id]() { return topic_header->last_frame_id > new_frame_id; }, wait_type, error_check);
+	m_Event->Wait(timeout_in_seconds, [topic_header, new_message_id]() { return topic_header->IsMessageAvailable(new_message_id); }, wait_type, error_check);
 
-	return FetchMessage(topic_header, new_frame_id);
+	return FetchMessage(topic_header, new_message_id);
 }
 
-std::optional<Message> LocalMessageBroker::TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode)
+std::optional<Message> LocalMessageBroker::TryGetNextMessage(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode)
 {
 	auto topic_header = GetTopicHeader(topic);
 
-	std::uint64_t frame_id = GetNextMessageId(topic_header, preferred_next_frame_id, mode);
+	std::uint64_t frame_id = topic_header->GetNextMessageId(preferred_next_message_id, mode);
 
 	// Check if the frame is available.
 	if (!topic_header->IsMessageAvailable(frame_id))
@@ -590,48 +820,12 @@ std::shared_ptr<HybridPoolAllocator> LocalMessageBroker::GetAllocator(uint8_t me
 	return m_Allocators[memory_block_id];
 }
 
-bool LocalMessageBroker::IsMessageAvailable(std::string_view topic, size_t frame_id)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->IsMessageAvailable(frame_id);
-}
-
-bool LocalMessageBroker::WillMessageBeAvailable(std::string_view topic, size_t frame_id)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->WillMessageBeAvailable(frame_id);
-}
-
-size_t LocalMessageBroker::GetNewestMessageId(std::string_view topic)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->GetNewestMessageId();
-}
-
-size_t LocalMessageBroker::GetOldestMessageId(std::string_view topic)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->GetOldestMessageId();
-}
-
 double LocalMessageBroker::GetMessageRate(std::string_view topic)
 {
 	auto topic_header = GetTopicHeader(topic);
-	auto last_message_header_id = topic_header->message_headers[(topic_header->last_frame_id - 1) % TOPIC_MAX_NUM_MESSAGES];
-	auto last_timestamp = m_MessageHeaders[last_message_header_id].producer_timestamp;
-
 	auto timestamp = GetTimeStamp();
 
-	double time_delta = double(std::int64_t(timestamp) - std::int64_t(last_timestamp)) * 1e-9;
-
-	if (time_delta < 0)
-		time_delta = 0;
-
-	return topic_header->frame_rate * std::exp(-FRAMERATE_DECAY * time_delta);
+	return topic_header->GetMessageRate(timestamp);
 }
 
 std::vector<std::string> LocalMessageBroker::GetAllMessageTopics()
@@ -666,10 +860,9 @@ TopicHeader *LocalMessageBroker::GetTopicHeader(std::string_view topic)
 	// The topic header doesn't exist, so create it.
 	TopicHeader temp_topic_header;
 
-	temp_topic_header.next_frame_id = 0;
-	temp_topic_header.first_frame_id = 0;
-	temp_topic_header.last_frame_id = 0;
-	temp_topic_header.frame_rate = 0.0;
+	temp_topic_header.availability = pack_availability(0, 0);
+	temp_topic_header.message_rate = 0.0;
+	temp_topic_header.last_update = 0;
 
 	topic_header = (TopicHeader *) m_TopicHeaders->Insert(topic, &temp_topic_header);
 

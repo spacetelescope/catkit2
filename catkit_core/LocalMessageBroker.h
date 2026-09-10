@@ -19,7 +19,7 @@
 const std::array<std::uint8_t, 4> MESSAGE_BROKER_VERSION = {0, 1, 0, 0};
 
 const size_t TOPIC_HASH_MAP_SIZE = 16384;
-const size_t TOPIC_MAX_NUM_MESSAGES = 32;
+const size_t TOPIC_MAX_NUM_MESSAGES = 16;
 const size_t MAX_NUM_MESSAGES = 65536;
 const size_t MAX_NUM_BLOCKS = 8192;
 const size_t MEMORY_ALIGNMENT = 32;
@@ -27,20 +27,36 @@ const size_t MIN_SIZE_POOL = 1024;
 
 struct TopicHeader
 {
-	std::atomic_uint64_t next_frame_id;
-	std::atomic_uint64_t first_frame_id;
-	std::atomic_uint64_t last_frame_id;
-
-	double frame_rate;
+	std::atomic_uint64_t availability;
+	double message_rate;
+	uint64_t last_update;
 
 	std::array<std::uint64_t, TOPIC_MAX_NUM_MESSAGES> message_headers;
 
-	bool IsMessageAvailable(std::size_t frame_id);
-	bool WillMessageBeAvailable(std::size_t frame_id);
-	std::size_t GetOldestMessageId();
-	std::size_t GetNewestMessageId();
+	bool IsMessageAvailable(std::size_t message_id) const;
+	bool WillMessageBeAvailable(std::size_t message_id) const;
 
-	double GetMessageRate();
+	// Begin and End describe a half-open range: [begin, end)
+	std::size_t GetBegin() const;
+	std::size_t GetEnd() const;
+
+	std::size_t GetNextMessageId(std::size_t preferred_next_message_id, MessageSubscriptionMode mode) const;
+
+	struct ReserveResult
+	{
+		bool success;
+		bool can_try_again;
+		bool has_old_message_header;
+		std::uint64_t old_message_header;
+		std::size_t message_id;
+	};
+
+	ReserveResult TryReserve(std::size_t message_id);
+	ReserveResult TryReserveNext();
+	bool TryMakeAvailable(std::size_t message_id);
+
+	void UpdateMessageRate(std::uint64_t timestamp);
+	double GetMessageRate(std::uint64_t current_timetamp) const;
 };
 
 struct MessageBrokerHeader
@@ -86,40 +102,25 @@ public:
 	// Get the newest message for a topic.
 	virtual std::optional<Message> GetCurrentMessage(std::string_view topic) override;
 
-	// Get the next message for a topic.
-	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
-
-	// Try to get the next message for a topic.
-	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_frame_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
-
 	// Get the message rate for a topic.
 	virtual double GetMessageRate(std::string_view topic) override;
 
 	// Get the message topics for all messages in this broker.
 	virtual std::vector<std::string> GetAllMessageTopics() override;
 
-	// Try to get a message by topic and frame ID.
-	std::optional<Message> TryGetMessage(std::string_view topic, size_t frame_id);
-
-	// Check for message availability.
-	bool IsMessageAvailable(std::string_view topic, size_t frame_id);
-
-	// Check if a message will be available in the future.
-	bool WillMessageBeAvailable(std::string_view topic, size_t frame_id);
-
-	// Get the newest message ID for a topic.
-	size_t GetNewestMessageId(std::string_view topic);
-
-	// Get the oldest message ID for a topic.
-	size_t GetOldestMessageId(std::string_view topic);
-
 	ShareableType GetType() const override;
 
 	virtual void PrintDebugInfo() const override;
 
+protected:
+	// Get the next message for a topic.
+	virtual std::optional<Message> GetNextMessage(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly, double timeout_in_seconds = -1, EventWaitMethod wait_type = EventWaitMethod::Default, void (*error_check)() = nullptr) override;
+
+	// Try to get the next message for a topic.
+	virtual std::optional<Message> TryGetNextMessage(std::string_view topic, size_t preferred_next_message_id, MessageSubscriptionMode mode = MessageSubscriptionMode::NewestOnly) override;
+
 private:
-	Message FetchMessage(TopicHeader *topic_header, size_t frame_id);
-	std::uint64_t GetNextMessageId(TopicHeader *topic_header, size_t preferred_next_frame_id, MessageSubscriptionMode mode);
+	Message FetchMessage(TopicHeader *topic_header, size_t message_id);
 
 	std::shared_ptr<HybridPoolAllocator> GetAllocator(uint8_t memory_block_id);
 	std::shared_ptr<Memory> GetMemory(uint8_t memory_block_id);
