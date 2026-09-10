@@ -72,7 +72,9 @@ inline void EventFutex::Wait(double timeout_in_sec, std::function<bool()> condit
 			timeout.tv_nsec -= 1'000'000'000;
 		}
 
-		if (futex_wait(&m_SharedState->m_Futex, expected, &timeout) < 0)
+		int result = futex_wait(&m_SharedState->m_Futex, expected, &timeout);
+
+		if (result < 0)
 		{
 			if (errno == EAGAIN)
 			{
@@ -86,7 +88,20 @@ inline void EventFutex::Wait(double timeout_in_sec, std::function<bool()> condit
 
 			if (errno == ETIMEDOUT)
 			{
-				// The futex timed out. We should check the condition and futex_wait() again.
+				// The futex timed out. Run the error check (e.g. to detect Python
+				// KeyboardInterrupts) periodically, then check the condition and
+				// futex_wait() again.
+				if (error_check != nullptr)
+					error_check();
+
+				continue;
+			}
+
+			if (errno == EINTR)
+			{
+				// The wait was interrupted by a signal. Refresh the expected value and
+				// try waiting again.
+				expected = m_SharedState->m_Futex.load(std::memory_order_acquire);
 				continue;
 			}
 
