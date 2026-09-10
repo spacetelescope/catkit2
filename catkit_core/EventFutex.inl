@@ -109,6 +109,10 @@ inline void EventFutex::Wait(double timeout_in_sec, std::function<bool()> condit
 			throw std::runtime_error("Futex wait failed: " + std::to_string(errno));
 		}
 
+		// The futex was woken. Refresh the expected value before checking the
+		// condition and waiting again.
+		expected = m_SharedState->m_Futex.load(std::memory_order_acquire);
+
 		if (error_check != nullptr)
 			error_check();
 	}
