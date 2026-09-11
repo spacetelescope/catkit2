@@ -58,15 +58,6 @@ public:
 	std::string GetHost();
 	int GetPort();
 
-	int GetLoggingIngressPort();
-	int GetLoggingEgressPort();
-
-	int GetDataLoggingIngressPort();
-	int GetDataLoggingEgressPort();
-
-	int GetTracingIngressPort();
-	int GetTracingEgressPort();
-
 	std::string GetMode();
 
 	std::vector<std::string> GetActiveServices();
@@ -81,15 +72,6 @@ private:
 
 	std::string m_Host;
 	int m_Port;
-
-	int m_LoggingIngressPort;
-	int m_LoggingEgressPort;
-
-	int m_DataLoggingIngressPort;
-	int m_DataLoggingEgressPort;
-
-	int m_TracingIngressPort;
-	int m_TracingEgressPort;
 
 	bool m_HasGottenInfo;
 
