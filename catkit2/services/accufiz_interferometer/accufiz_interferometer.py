@@ -83,12 +83,9 @@ class AccufizInterferometer(Service):
         self.log.info(f'Set binning to {self.binning}')
 
         # Set the 4D timeout.
-        if self.new_software:
-            self.html_prefix = f"http://{self.ip}"
-        else:
-            self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
-            set_timeout_string = f"{self.html_prefix}/SetTimeout?timeOut={self.timeout}"
-            self.get(set_timeout_string)
+        self.html_prefix = f"http://{self.ip}/WebService4D/WebService4D.asmx"
+        set_timeout_string = f"{self.html_prefix}/SetTimeout?timeOut={self.timeout}"
+        self.get(set_timeout_string)
 
         # Set the mask
         self.set_mask()
@@ -138,6 +135,7 @@ class AccufizInterferometer(Service):
         filemask = self.mask
         typeofmask = "Detector"
         parammask = {"maskType": typeofmask, "fileName": filemask}
+        set_mask_string = f"{self.html_prefix}/SetMask"
 
         resp = self.post(set_mask_string, data=parammask)
 
@@ -285,25 +283,12 @@ class AccufizInterferometer(Service):
         server_file_path = server_file_path.replace('/', '\\\\')
 
         # Send request to save data.
-        if self.new_software:
-            data = server_file_path + ".csv"
-            dumped_data = json.dumps(data)
-            encoded_data = dumped_data.encode('utf-8')
-            self.post(f"{self.html_prefix}/DataService/SaveDataToDisk/", data=encoded_data, headers={'Content-type': 'application/json'})
+        self.post(f"{self.html_prefix}/SaveMeasurement", data={"fileName": server_file_path})
 
-        else:
-            self.post(f"{self.html_prefix}/SaveMeasurement", data={"fileName": server_file_path})
-
-        if not glob(f"{local_file_path}.h5") and not glob(f"{local_file_path}.csv"):
+        if not glob(f"{local_file_path}.h5"):
             raise RuntimeError(f"{self.config_id}: Failed to save measurement data to '{local_file_path}'.")
 
-        if self.new_software:
-            local_file_path = local_file_path if local_file_path.endswith(".csv") else f"{local_file_path}.csv"
-        else:
-            local_file_path = local_file_path if local_file_path.endswith(".h5") else f"{local_file_path}.h5"
-            mask = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('Detectormask', 1))
-            img = np.array(h5py.File(local_file_path, 'r').get('measurement0').get('genraw').get('data')) * mask
-
+        local_file_path = local_file_path if local_file_path.endswith(".h5") else f"{local_file_path}.h5"
         self.log.info(f"{self.config_id}: Succeeded to save measurement data to '{local_file_path}'")
 
         num_tries = 0
@@ -418,85 +403,6 @@ class AccufizInterferometer(Service):
             fits_hdu.writeto(fits_filepath, overwrite=True)
 
         return image
-
-    @staticmethod
-    def convert_csv_to_fits(filepath, rotate, fliplr, wavelength=632.8,
-                            create_fits=False):
-        """
-        Convert CSV data to FITS format and process image data.
-
-        Parameters
-        ----------
-        filepath : str
-            Filepath for the CSV data.
-        rotate : int
-            Rotation angle in degrees.
-        fliplr : bool
-            If True, flip the image horizontally.
-        wavelength : float, optional
-            Wavelength for scaling, default is 632.8 nm.
-        create_fits : bool, optional
-            If True, save the processed image as a FITS file.
-
-        Returns
-        -------
-        numpy.ndarray
-            Processed image data.
-        """
-        filepath = filepath if filepath.endswith(".csv") else f"{filepath}.csv"
-        fits_filepath = f"{os.path.splitext(filepath)[0]}.fits"
-
-        image = []
-        with open(filepath, 'r') as csvfile:
-            reader = csv.reader(csvfile)
-            header_dict = {}
-
-            # Iterate over each row in the CSV file
-            for i, row in enumerate(reader):
-                final_row = []
-                # First 12 rows contain header information.
-                if i < 12:
-                    try:
-                        hkey, _, hval = row[0].partition(': ')
-                        header_dict[hkey] = float(hval)
-                    except ValueError:
-                        header_dict[hkey] = hval
-                    except IndexError:
-                        pass
-                else:
-                    for item in row:
-                        try:
-                            final_row.append(float(item.strip()))
-                        except ValueError:
-                            final_row.append(np.nan)
-                    image.append(final_row)
-
-            image = np.array(image)
-
-            # Remove all masked rows and columns (NaNs)
-            mask_rows = np.all(np.isnan(image), axis=1)
-            image = image[~mask_rows]
-
-            mask_cols = np.all(np.isnan(image), axis=0)
-            image = image[:, ~mask_cols]
-
-            # Apply the rotation and flips.
-            image = rotate_and_flip_image(image, rotate, fliplr)
-
-            # Convert waves to nanometers.
-            image = image * wavelength
-
-            if create_fits:
-                hdu = fits.PrimaryHDU(data=image)
-                for key, value in header_dict.items():
-                    try:
-                        hdu.header[key.capitalize()[:8]] = value
-                    except ValueError:
-                        hdu.header[key.capitalize()[:8]] = str(value)
-
-                hdu.writeto(fits_filepath, overwrite=True)
-
-            return image
 
     def main(self):
         """
