@@ -22,7 +22,7 @@ const double TIMEOUT_EXECUTE_COMMAND = 120;  // seconds
 // fast. This timeout is therefore much shorter than the one for setting a property or
 // executing a command. On timeout we do not throw, but fall back to the last value that was
 // published by the service, so a busy service degrades to a stale reading rather than an error.
-const double TIMEOUT_GET_PROPERTY = 5;  // seconds
+const double TIMEOUT_GET_PROPERTY = 30;  // seconds
 
 namespace
 {
