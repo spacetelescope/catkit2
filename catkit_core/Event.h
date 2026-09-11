@@ -19,7 +19,7 @@ enum class EventWaitMethod
 #elif defined(__linux__)
 	Default = Futex
 #elif defined(__APPLE__)
-	Default = ConditionVariable
+	Default = Futex
 #endif
 };
 
