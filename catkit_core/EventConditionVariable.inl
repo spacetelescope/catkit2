@@ -4,13 +4,13 @@
 
 #include <string>
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
 	#include <pthread.h>
-#endif
+#endif // defined(__linux__)
 
 using EventConditionVariable = EventImpl<EventImplementationType::ConditionVariable>;
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
 
 template<>
 struct is_event_implemented<EventImplementationType::ConditionVariable> : std::true_type
@@ -112,4 +112,4 @@ inline void EventConditionVariable::OpenImpl(std::string_view id, EventCondition
 	// Nothing to do.
 }
 
-#endif
+#endif // defined(__linux__)
