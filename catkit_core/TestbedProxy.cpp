@@ -9,7 +9,6 @@
 #include <regex>
 
 using namespace std;
-using namespace zmq;
 using json = nlohmann::json;
 using namespace std::string_literals;
 
