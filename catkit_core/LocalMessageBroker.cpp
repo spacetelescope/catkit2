@@ -284,7 +284,7 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 
 	if (allocator == nullptr)
 	{
-		throw std::runtime_error("Invalid device ID.");
+		throw std::runtime_error("Invalid device ID: " + std::to_string(memory_block_id));
 	}
 
 	DEBUG_PRINT("Gotten allocator.");
@@ -356,15 +356,15 @@ Message LocalMessageBroker::PrepareMessageImpl(std::string_view topic, size_t pa
 
 	DEBUG_PRINT("Header set");
 
-	return Message(header, payload, INVALID_FRAME_ID, false);
+	return Message(header, payload, INVALID_FRAME_ID);
 }
 
 Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 {
 	DEBUG_PRINT("Publishing message.");
 
-	if (message.m_HasBeenPublished)
-		throw std::runtime_error("Message has already been published.");
+	if (message.m_Header == nullptr || message.m_Payload == nullptr)
+		throw std::runtime_error("Message is invalid. Use PrepareMessage() to create a valid message.");
 
 	// Set the timestamp.
 	message.m_Header->producer_timestamp = GetTimeStamp();
@@ -499,19 +499,14 @@ Message LocalMessageBroker::PublishMessage(Message message, bool is_final)
 		DEBUG_PRINT("Copied message header.");
 	}
 
-	message.m_HasBeenPublished = is_final;
-
-	return message;
-}
-
-std::optional<Message> LocalMessageBroker::TryGetMessage(std::string_view topic, size_t frame_id)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	if (!topic_header->IsMessageAvailable(frame_id))
-		return std::nullopt;
-
-	return FetchMessage(topic_header, frame_id);
+	if (is_final)
+	{
+		return Message(nullptr, nullptr, 0);
+	}
+	else
+	{
+		return message;
+	}
 }
 
 Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame_id)
@@ -522,7 +517,7 @@ Message LocalMessageBroker::FetchMessage(TopicHeader* topic_header, size_t frame
 	auto memory = GetMemory(header->payload_info.memory_block_id);
 	auto payload = memory->GetAddress(offset);
 
-	return Message(header, payload, frame_id, true);
+	return Message(header, payload, frame_id);
 }
 
 std::uint64_t LocalMessageBroker::GetNextMessageId(TopicHeader *topic_header, size_t preferred_next_frame_id, MessageSubscriptionMode mode)
@@ -612,34 +607,6 @@ std::shared_ptr<HybridPoolAllocator> LocalMessageBroker::GetAllocator(uint8_t me
 	}
 
 	return m_Allocators[memory_block_id];
-}
-
-bool LocalMessageBroker::IsMessageAvailable(std::string_view topic, size_t frame_id)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->IsMessageAvailable(frame_id);
-}
-
-bool LocalMessageBroker::WillMessageBeAvailable(std::string_view topic, size_t frame_id)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->WillMessageBeAvailable(frame_id);
-}
-
-size_t LocalMessageBroker::GetNewestMessageId(std::string_view topic)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->GetNewestMessageId();
-}
-
-size_t LocalMessageBroker::GetOldestMessageId(std::string_view topic)
-{
-	auto topic_header = GetTopicHeader(topic);
-
-	return topic_header->GetOldestMessageId();
 }
 
 double LocalMessageBroker::GetMessageRate(std::string_view topic)
