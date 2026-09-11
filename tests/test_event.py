@@ -3,19 +3,19 @@ import threading
 import pytest
 import time
 
-def event_wait(event, signaled, waiting, condition):
+def event_wait(event, signaled, waiting, condition, wait_method):
     waiting.set()
 
-    event.wait(lambda: condition[0] != 0, 2)
+    event.wait(lambda: condition[0] != 0, 2, wait_method)
 
     signaled.set()
 
 @pytest.mark.parametrize("wait_method", [
-    EventWaitMethod.Default,
-    EventWaitMethod.Semaphore,
-    EventWaitMethod.ConditionVariable,
-    EventWaitMethod.Futex,
-    EventWaitMethod.SpinLock])
+    pytest.param(EventWaitMethod.Default, id="default"),
+    pytest.param(EventWaitMethod.Semaphore, id="semaphore"),
+    pytest.param(EventWaitMethod.ConditionVariable, id="condition_variable"),
+    pytest.param(EventWaitMethod.Futex, id="futex"),
+    pytest.param(EventWaitMethod.SpinLock, id="spinlock")])
 def test_event(wait_method):
     if not is_wait_method_implemented(wait_method):
         pytest.skip(f"Wait method {wait_method} is not implemented.")
@@ -29,7 +29,7 @@ def test_event(wait_method):
     # The condition that the threads will wait on. This needs to be a mutable object.
     condition = [0]
 
-    thread = threading.Thread(target=event_wait, args=(event, signaled, waiting, condition))
+    thread = threading.Thread(target=event_wait, args=(event, signaled, waiting, condition, wait_method))
     thread.start()
 
     # Ensure that the waiting thread has started waiting.
