@@ -18,6 +18,7 @@ Catkit2
    configuration
    protocol
    services
+   message_broker
    benchmarks
    safety
 
