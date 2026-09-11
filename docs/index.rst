@@ -18,6 +18,7 @@ Catkit2
    configuration
    protocol
    services
+   writing_services
    benchmarks
    safety
 

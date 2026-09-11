@@ -186,6 +186,12 @@ void Service::Run(void (*error_check)())
 		m_IsRunning = true;
 		UpdateState(ServiceState::RUNNING);
 
+		LOG_INFO("Starting slots.");
+		for (auto& [name, slot] : m_Slots)
+		{
+			slot->Start();
+		}
+
 		LOG_INFO("Starting service main function.");
 
 		// Start the main function.
@@ -201,6 +207,12 @@ void Service::Run(void (*error_check)())
 			LOG_CRITICAL("Shutting down service.");
 
 			crashed = true;
+		}
+
+		LOG_INFO("Stopping slots.");
+		for (auto& [name, slot] : m_Slots)
+		{
+			slot->Stop();
 		}
 	}
 
@@ -250,6 +262,7 @@ void Service::CleanupAttributes()
 	m_Properties.clear();
 	m_Commands.clear();
 	m_DataStreams.clear();
+	m_Slots.clear();
 }
 
 void Service::MonitorSafety()
@@ -358,7 +371,7 @@ void Service::MonitorHeartbeats()
 void Service::MonitorPropertiesAndCommands()
 {
 	auto broker = m_Testbed->GetMessageBroker();
-	auto subscription = broker->Subscribe(m_ServiceId);
+	auto subscription = broker->Subscribe(m_ServiceId, MessageSubscriptionMode::Sequential);
 
 	while (!ShouldShutDown())
 	{
@@ -590,6 +603,66 @@ std::shared_ptr<DataStream> Service::ReuseDataStream(std::string stream_name, st
 	return stream;
 }
 
+std::shared_ptr<Slot> Service::MakeJsonSlot(std::string slot_name)
+{
+	LOG_DEBUG("Making JSON slot \"" + slot_name + "\".");
+
+	std::shared_ptr<Slot> slot = std::make_shared<Slot>(GetId(), m_Testbed->GetMessageBroker(), slot_name, SlotDataType::Json);
+	m_Slots[slot_name] = slot;
+
+	return slot;
+}
+
+std::shared_ptr<Slot> Service::MakeJsonSlot(std::string slot_name, SlotSetterJsonFunc setter)
+{
+	LOG_DEBUG("Making writable JSON slot \"" + slot_name + "\".");
+
+	std::shared_ptr<Slot> slot = std::make_shared<Slot>(GetId(), m_Testbed->GetMessageBroker(), slot_name, SlotDataType::Json, setter);
+	m_Slots[slot_name] = slot;
+
+	return slot;
+}
+
+std::shared_ptr<Slot> Service::MakeRawSlot(std::string slot_name)
+{
+	LOG_DEBUG("Making raw slot \"" + slot_name + "\".");
+
+	std::shared_ptr<Slot> slot = std::make_shared<Slot>(GetId(), m_Testbed->GetMessageBroker(), slot_name, SlotDataType::Raw);
+	m_Slots[slot_name] = slot;
+
+	return slot;
+}
+
+std::shared_ptr<Slot> Service::MakeRawSlot(std::string slot_name, SlotSetterRawFunc setter)
+{
+	LOG_DEBUG("Making writable raw slot \"" + slot_name + "\".");
+
+	std::shared_ptr<Slot> slot = std::make_shared<Slot>(GetId(), m_Testbed->GetMessageBroker(), slot_name, SlotDataType::Raw, setter);
+	m_Slots[slot_name] = slot;
+
+	return slot;
+}
+
+std::shared_ptr<Slot> Service::MakeArraySlot(std::string slot_name)
+{
+	LOG_DEBUG("Making array slot \"" + slot_name + "\".");
+
+	std::shared_ptr<Slot> slot = std::make_shared<Slot>(GetId(), m_Testbed->GetMessageBroker(), slot_name, SlotDataType::Array);
+	m_Slots[slot_name] = slot;
+
+	return slot;
+}
+
+std::shared_ptr<Slot> Service::MakeArraySlot(std::string slot_name, SlotSetterArrayFunc setter)
+{
+	LOG_DEBUG("Making writable array slot \"" + slot_name + "\".");
+
+	std::shared_ptr<Slot> slot = std::make_shared<Slot>(GetId(), m_Testbed->GetMessageBroker(), slot_name, SlotDataType::Array, setter);
+	m_Slots[slot_name] = slot;
+
+	return slot;
+}
+
 std::shared_ptr<TestbedProxy> Service::GetTestbed()
 {
 	return m_Testbed;
@@ -649,6 +722,7 @@ string Service::GetInfo()
 		{"property_names", json::array()},
 		{"command_names", json::array()},
 		{"datastream_ids", json::object()},
+		{"slots", json::object()},
 		{"heartbeat_stream_id", m_Heartbeat->GetStreamId()}
 	};
 
@@ -660,6 +734,14 @@ string Service::GetInfo()
 
 	for (auto& [key, value] : m_DataStreams)
 		reply["datastream_ids"][key] = value->GetStreamId();
+
+	for (auto& [key, value] : m_Slots)
+	{
+		reply["slots"][key] = {
+			{"data_type", value->GetDataType()},
+			{"read_only", value->IsReadOnly()}
+		};
+	}
 
 	return reply.dump();
 }
