@@ -96,3 +96,11 @@ def test_graph_is_independent_of_state():
 
     assert dependencies == ['camera']
     assert set(nodes.keys()) == {'camera', 'controller'}
+
+
+def test_resolve_service_type():
+    service_info = {'service_type': 'camera', 'simulated_service_type': 'camera_sim'}
+
+    assert Testbed._resolve_service_type(service_info, is_simulated=False) == 'camera'
+    assert Testbed._resolve_service_type(service_info, is_simulated=True) == 'camera_sim'
+    assert Testbed._resolve_service_type({'service_type': 'camera'}, is_simulated=True) == 'camera'
