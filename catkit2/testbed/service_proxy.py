@@ -107,7 +107,7 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         if interface_name is None:
             return ServiceProxy
 
-        entry_points = importlib_metadata.entry_points()['catkit2.proxies']
+        entry_points = importlib_metadata.entry_points(group='catkit2.proxies')
         for entry_point in entry_points:
             if entry_point.name == interface_name:
                 return entry_point.load()
