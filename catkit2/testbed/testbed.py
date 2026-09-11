@@ -311,7 +311,7 @@ class Testbed:
 
         # Fill in services dictionary.
         for service_id, service_info in self.config['services'].items():
-            service_type = self._resolve_service_type(service_info)
+            service_type = self._resolve_service_type(service_info, self.is_simulated)
             dependencies = service_info.get('depends_on', [])
             requires_safety = service_info.get('requires_safety', False)
 
@@ -665,13 +665,16 @@ class Testbed:
         '''
         self.service_type_paths[service_type] = path
 
-    def _resolve_service_type(self, service_info):
+    @staticmethod
+    def _resolve_service_type(service_info, is_simulated):
         '''Resolve the service type for a service, honoring simulated overrides.
 
         Parameters
         ----------
         service_info : dict
             The service's configuration entry.
+        is_simulated : bool
+            Whether the testbed runs in simulated mode.
 
         Returns
         -------
@@ -681,7 +684,7 @@ class Testbed:
         '''
         service_type = service_info['service_type']
 
-        if self.is_simulated and 'simulated_service_type' in service_info:
+        if is_simulated and 'simulated_service_type' in service_info:
             service_type = service_info['simulated_service_type']
 
         return service_type
@@ -848,7 +851,7 @@ class Testbed:
                 # A removed but still-running service stays in the graph until it has shut down.
                 prospective_nodes[service_id] = (reference.dependencies, reference.requires_safety)
 
-        depended_on_by = self._compute_reverse_dependencies(prospective_nodes, self._get_safety_service_id(new_config))
+        self._compute_reverse_dependencies(prospective_nodes, self._get_safety_service_id(new_config))
 
         # The new configuration is valid. Apply it.
         self.config = new_config
@@ -862,7 +865,7 @@ class Testbed:
             self.log.info(f'New service in config: {service_id}')
 
             service_info = new_config['services'][service_id]
-            service_type = self._resolve_service_type(service_info)
+            service_type = self._resolve_service_type(service_info, self.is_simulated)
             dependencies = service_info.get('depends_on', [])
             requires_safety = service_info.get('requires_safety', False)
 
@@ -880,24 +883,15 @@ class Testbed:
                 self.services.pop(service_id, None)
                 self.log.info(f'Service removed from config: {service_id}')
 
-        # Update references for services that remain in the config. Running services
-        # keep the configuration they were started with; the new configuration is
-        # applied when they are restarted (see start_service()).
+        # Service references describe the process that was (or will be) spawned, so
+        # they are only synchronized with the configuration when a service is started
+        # (see start_service()). Here we just report which running services are affected.
         for service_id in common:
-            service_info = new_config['services'][service_id]
-            reference = self.services[service_id]
+            if self.services[service_id].is_alive and old_config['services'][service_id] != new_config['services'][service_id]:
+                self.log.info(f'Configuration for running service "{service_id}" has changed. Restart the service to apply the new configuration.')
 
-            if reference.is_alive:
-                if old_config['services'][service_id] != service_info:
-                    self.log.info(f'Configuration for running service "{service_id}" has changed. Restart the service to apply the new configuration.')
-            else:
-                reference.service_type = self._resolve_service_type(service_info)
-                reference.dependencies = service_info.get('depends_on', [])
-                reference.requires_safety = service_info.get('requires_safety', False)
-
-        # Install the new dependency graph so shutdown ordering stays correct.
-        for service_id, reference in self.services.items():
-            reference.depended_on_by = depended_on_by[service_id]
+        # Rebuild the dependency graph from the service references so shutdown ordering stays correct.
+        self._build_dependency_graph()
 
         # Update startup services list
         self.startup_services = []
@@ -941,13 +935,12 @@ class Testbed:
             self.log.debug(f'Service "{service_id}" was already started.')
             return
 
-        # Apply any configuration changes that were deferred while the service was
-        # running (see reload_config()).
+        # Synchronize the service reference with the current configuration before spawning.
         if service_id in self.config['services']:
             service_info = self.config['services'][service_id]
             reference = self.services[service_id]
 
-            service_type = self._resolve_service_type(service_info)
+            service_type = self._resolve_service_type(service_info, self.is_simulated)
             dependencies = service_info.get('depends_on', [])
             requires_safety = service_info.get('requires_safety', False)
 
@@ -956,7 +949,6 @@ class Testbed:
                 reference.dependencies = dependencies
                 reference.requires_safety = requires_safety
 
-                # Rebuild the dependency graph so shutdown ordering stays correct.
                 self._build_dependency_graph()
 
         service_type = self.services[service_id].service_type
