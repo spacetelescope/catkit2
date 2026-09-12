@@ -23,7 +23,7 @@ This proposed guide was checked against `19023206433b14a2f0a1428129d954c5dc6433b
 | Motor | [PI stage docs](docs/services/physik_stage_controller.rst), matching driver and `_sim` modules; the service guide explicitly recommends this example |
 | Config / registration | [configuration docs](docs/configuration.rst), `catkit2/config.py`, `pyproject.toml`, `catkit2/testbed/testbed.py` |
 | Stream / transport | `tests/test_datastream.py`, `catkit2/bindings.cpp`, `catkit_core/DataStream.h/.cpp`; for commands also `ServiceProxy.cpp`, `Service.cpp`, `LocalMessageBroker.cpp` |
-| Simulation | `catkit2/simulator/simulator.py`, `optical_model.py`, `simple_optical_model.py`, `tests/test_optical_model.py` |
+| Simulation (service orchestration) vs. optical model (field propagation) | `catkit2/simulator/simulator.py` (Simulator: catkit2 service, schedules simulated time, forwards simulated-service calls to an owned OpticalModel); `catkit2/simulator/optical_model.py`, `simple_optical_model.py` (OpticalModel: plane sequence, field propagation only, no service/testbed knowledge); `tests/test_optical_model.py` |
 | Experiment outputs / logging | `catkit2/testbed/experiment.py`, `catkit2/testbed/logging.py`, `catkit2/testbed/tracing.py` |
 | New downstream package | [testbed guide](docs/testbed_implementation.rst), `cookiecutter-testbed/`; template tooling is scoped to that subtree |
 

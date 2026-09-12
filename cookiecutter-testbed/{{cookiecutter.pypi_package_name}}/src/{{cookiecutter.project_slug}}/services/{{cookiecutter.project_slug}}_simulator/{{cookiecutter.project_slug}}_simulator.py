@@ -13,7 +13,7 @@ class {{cookiecutter.project_slug.capitalize()}}Simulator(Simulator):
         self.light_source_data = {}
 
     def open(self):
-        self.model = {{cookiecutter.project_slug.capitalize()}}OpticalModel(self.testbed.config['simulator'])
+        self.model = {{cookiecutter.project_slug.capitalize()}}OpticalModel(self.testbed.config['model'])
         wvln = 1
         wavefronts = [hcipy.Wavefront(self.model.pupil_grid.ones() * 1e5, wvln)]
         self.model.set_wavefronts('light_source', wavefronts)
