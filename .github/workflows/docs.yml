@@ -41,7 +41,7 @@ jobs:
         make html
       shell: bash -l {0}
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v5
       with:
         path: ./docs/_build/html
 
