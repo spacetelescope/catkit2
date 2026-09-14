@@ -18,4 +18,8 @@ safety:
 
   check_interval: 5
 
-  safeties: []
+  safeties: {}
+
+dummy_safe_service:
+  service_type: dummy_safe_service
+  requires_safety: true
