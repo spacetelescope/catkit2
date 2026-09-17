@@ -4,17 +4,17 @@
 #include "Timing.h"
 #include "Finally.h"
 #include "Util.h"
+#include "Networking.h"
 
-#include <zmq_addon.hpp>
-
+#include <zmq.h>
 #include <algorithm>
 #include <chrono>
 #include <thread>
 #include <iostream>
 #include <string>
+#include <vector>
 
 using namespace std;
-using namespace zmq;
 
 Server::Server(int port)
 	: m_Port(port), m_IsRunning(false), m_ShouldShutDown(false)
@@ -63,16 +63,23 @@ void Server::RunInternal()
 {
 	LOG_INFO("Starting server on port "s + to_string(m_Port) + ".");
 
-	zmq::context_t context;
+	context_t *context = (context_t *) zmq_ctx_new();
 
-	zmq::socket_t socket(context, ZMQ_ROUTER);
-	socket.bind("tcp://*:"s + std::to_string(m_Port));
-	socket.set(zmq::sockopt::rcvtimeo, 20);
-	socket.set(zmq::sockopt::linger, 0);
+	socket_t *socket = (socket_t *) zmq_socket(context, ZMQ_ROUTER);
 
-	Finally finally([this, &socket]()
+	if (zmq_bind(socket, ("tcp://*:"s + to_string(m_Port)).c_str()) == -1)
+		throw runtime_error("Failed to bind socket. Error: "s + zmq_strerror(zmq_errno()));
+
+	int recv_timeout = 20;
+	int linger = 0;
+
+	zmq_setsockopt(socket, ZMQ_RCVTIMEO, &recv_timeout, sizeof(int));
+	zmq_setsockopt(socket, ZMQ_LINGER, &linger, sizeof(int));
+
+	Finally finally([this, &socket, &context]()
 	{
-		socket.close();
+		zmq_close(socket);
+		zmq_ctx_destroy(context);
 
 		this->m_ShouldShutDown = true;
 		this->m_IsRunning = false;
@@ -82,12 +89,13 @@ void Server::RunInternal()
 
 	while (!m_ShouldShutDown)
 	{
-		zmq::multipart_t request_msg;
-		auto res = zmq::recv_multipart(socket, std::back_inserter(request_msg));
+		std::vector<std::string> request_msg;
 
-		if (!res.has_value())
+		if (zmq_recv_multipart(socket, std::back_inserter(request_msg)) < 0)
 		{
-			// Server has received no message.
+			if (zmq_errno() != EAGAIN)
+				LOG_ERROR("The server has received an error while receiving a message: "s + zmq_strerror(zmq_errno()));
+
 			continue;
 		}
 
@@ -98,11 +106,11 @@ void Server::RunInternal()
 			continue;
 		}
 
-		std::string client_identity = request_msg.popstr();
-		std::string request_id = request_msg.popstr();
-		std::string empty = request_msg.popstr();
-		std::string request_type = request_msg.popstr();
-		std::string request_data = request_msg.popstr();
+		std::string &client_identity = request_msg[0];
+		std::string &request_id = request_msg[1];
+		std::string &empty = request_msg[2];
+		std::string &request_type = request_msg[3];
+		std::string &request_data = request_msg[4];
 
 		LOG_DEBUG("Request received: "s + request_type);
 
@@ -135,15 +143,11 @@ void Server::RunInternal()
 		}
 
 		// Send reply to the client.
-		multipart_t msg;
-
-		msg.addstr(client_identity);
-		msg.addstr(request_id);
-		msg.addstr("");
-		msg.addstr(reply_type);
-		msg.addstr(reply_data);
-
-		msg.send(socket);
+		zmq_send(socket, client_identity.c_str(), client_identity.size(), ZMQ_SNDMORE);
+		zmq_send(socket, request_id.c_str(), request_id.size(), ZMQ_SNDMORE);
+		zmq_send(socket, "", 0, ZMQ_SNDMORE);
+		zmq_send(socket, reply_type.c_str(), reply_type.size(), ZMQ_SNDMORE);
+		zmq_send(socket, reply_data.c_str(), reply_data.size(), 0);
 
 		LOG_DEBUG("Sent reply: "s + reply_type);
 	}
