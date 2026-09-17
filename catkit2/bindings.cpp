@@ -691,15 +691,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def_property_readonly("config", &TestbedProxy::GetConfig)
 		.def_property_readonly("host", &TestbedProxy::GetHost)
 		.def_property_readonly("port", &TestbedProxy::GetPort)
-		.def_property_readonly("logging_egress_port", &TestbedProxy::GetLoggingEgressPort)
 		.def_property_readonly("active_services", &TestbedProxy::GetActiveServices)
 		.def_property_readonly("inactive_services", &TestbedProxy::GetInactiveServices)
-		.def_property_readonly("logging_ingress_port", &TestbedProxy::GetLoggingIngressPort)
-		.def_property_readonly("logging_egress_port", &TestbedProxy::GetLoggingEgressPort)
-		.def_property_readonly("data_logging_ingress_port", &TestbedProxy::GetDataLoggingIngressPort)
-		.def_property_readonly("data_logging_egress_port", &TestbedProxy::GetDataLoggingEgressPort)
-		.def_property_readonly("tracing_ingress_port", &TestbedProxy::GetTracingIngressPort)
-		.def_property_readonly("tracing_egress_port", &TestbedProxy::GetTracingEgressPort)
 		.def_property_readonly("base_data_path", &TestbedProxy::GetBaseDataPath)
 		.def_property_readonly("support_data_path", &TestbedProxy::GetSupportDataPath)
 		.def_property_readonly("long_term_monitoring_path", &TestbedProxy::GetLongTermMonitoringPath)
@@ -860,8 +853,8 @@ PYBIND11_MODULE(catkit_bindings, m)
 		.def(py::init<>())
 		.def("connect", &LogForwarder::Connect);
 
-	m.def("trace_connect", [](std::string process_name, std::string host, int port) {
-		tracing_proxy.Connect(process_name, host, port);
+	m.def("trace_connect", [](std::string process_name, std::shared_ptr<LocalMessageBroker> broker) {
+		tracing_proxy.Connect(process_name, broker);
 	});
 	m.def("trace_disconnect", []() {
 		tracing_proxy.Disconnect();
@@ -1094,7 +1087,9 @@ PYBIND11_MODULE(catkit_bindings, m)
 			return py::none();
 		});
 
-	py::class_<LocalMessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
+	py::class_<MessageBroker, std::shared_ptr<MessageBroker>>(m, "MessageBroker");
+
+	py::class_<LocalMessageBroker, Shareable, MessageBroker, std::shared_ptr<LocalMessageBroker>>(m, "LocalMessageBroker")
 		.def_static("create", [](std::shared_ptr<Memory> header, std::vector<std::shared_ptr<Memory>> memory_blocks)
 		{
 			auto stream = StructStream(header);

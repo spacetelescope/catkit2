@@ -33,11 +33,11 @@ Service::Service(string service_type, string service_id, int service_port, int t
 	m_Testbed = make_shared<TestbedProxy>("127.0.0.1", testbed_port);
 	m_Config = m_Testbed->GetConfig()["services"][service_id];
 
-	m_LoggerPublish.Connect(service_id, "tcp://127.0.0.1:"s + to_string(m_Testbed->GetLoggingIngressPort()));
+	m_LoggerPublish.Connect(service_id, m_Testbed->GetMessageBroker());
 
 	m_Heartbeat = DataStream::Create("heartbeat", service_id, DataType::DT_UINT64, {1}, 20);
 
-	tracing_proxy.Connect(service_id, "127.0.0.1", m_Testbed->GetTracingIngressPort());
+	tracing_proxy.Connect(service_id, m_Testbed->GetMessageBroker());
 
 	string state_stream_id = m_Testbed->RegisterService(
 		service_id,

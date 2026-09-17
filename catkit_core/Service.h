@@ -10,7 +10,6 @@
 #include <tuple>
 #include <functional>
 
-#include <zmq.hpp>
 #include <nlohmann/json.hpp>
 
 #include "Command.h"

@@ -72,14 +72,14 @@ class Experiment:
 
                 # Set up log forwarder.
                 log_forwarder = LogForwarder()
-                log_forwarder.connect('experiment', f'tcp://{self.testbed.host}:{self.testbed.logging_ingress_port}')
+                log_forwarder.connect('experiment', self.testbed.message_broker)
 
                 # Set up log writer.
-                self._log_writer = LogWriter(self.testbed.host, self.testbed.logging_egress_port)
+                self._log_writer = LogWriter(self.testbed.message_broker)
                 self._log_writer.start()
 
                 # Set up logging to terminal.
-                self._log_terminal = LogTerminal(self.testbed.host, self.testbed.logging_egress_port)
+                self._log_terminal = LogTerminal(self.testbed.message_broker)
                 self._log_terminal.start()
 
             log_writer = Experiment._running_experiments[0]._log_writer
