@@ -4,8 +4,8 @@
 
 #include "LocalMessageBroker.h"
 
-Message::Message(MessageHeader *header, void *payload, std::uint64_t frame_id, bool has_been_published)
-	: m_Header(header), m_Payload(payload), m_FrameId(frame_id), m_HasBeenPublished(has_been_published)
+Message::Message(MessageHeader *header, void *payload, std::uint64_t frame_id)
+	: m_Header(header), m_Payload(payload), m_FrameId(frame_id)
 {
 }
 
@@ -172,6 +172,16 @@ std::optional<Message> MessageSubscription::TryGetNextMessage()
 	m_PreferredNextFrameId = message->GetFrameId() + 1;
 
 	return message;
+}
+
+std::optional<size_t> MessageBroker::GetCurrentMessageId(std::string_view topic)
+{
+	auto message = GetCurrentMessage(topic);
+
+	if (!message.has_value())
+		return std::nullopt;
+
+	return message.value().GetFrameId();
 }
 
 Message MessageBroker::PrepareMessage(std::string_view topic, size_t payload_size, uint8_t memory_block_id)
