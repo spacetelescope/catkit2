@@ -15,6 +15,7 @@ class AlpaoDeformableMirror(DeformableMirrorService):
         self.gain_map_fname = self.config['gain_map_fname']
         self.max_volts = self.config['max_volts']
         self.dac_bit_depth = self.config['dac_bit_depth']
+        self.num_actuators_across_pupil = int(self.config["num_actuators_across_pupil"])
 
         self._surface = None
         self._voltages = None
