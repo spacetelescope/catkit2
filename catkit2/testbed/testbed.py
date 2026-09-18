@@ -111,7 +111,7 @@ class ServiceReference:
     state : ServiceState
         The current state of the service.
     '''
-    def __init__(self, service_id, service_type, state, dependencies, broker):
+    def __init__(self, service_id, service_type, state, dependencies, broker, requires_safety=False):
         self.service_id = service_id
         self.service_type = service_type
         self.broker = broker
@@ -120,6 +120,7 @@ class ServiceReference:
             dependencies = []
 
         self.dependencies = dependencies
+        self.requires_safety = requires_safety
         self.depended_on_by = []
 
         self.state_stream = DataStream.create('state', service_id, 'int8', [1], 20)
@@ -310,47 +311,14 @@ class Testbed:
 
         # Fill in services dictionary.
         for service_id, service_info in self.config['services'].items():
-            service_type = service_info['service_type']
-
-            if self.is_simulated and 'simulated_service_type' in service_info:
-                service_type = service_info['simulated_service_type']
-
+            service_type = self._resolve_service_type(service_info, self.is_simulated)
             dependencies = service_info.get('depends_on', [])
+            requires_safety = service_info.get('requires_safety', False)
 
-            self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED, dependencies, self.message_broker)
+            self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED, dependencies, self.message_broker, requires_safety)
 
-        # Set up dependency management.
-        for service_id, service in self.services.items():
-            for dependency in service.dependencies:
-                self.services[dependency].depended_on_by.append(service_id)
-
-            if self.config['services'][service_id]['requires_safety']:
-                if 'safety' in self.config['testbed']:
-                    self.services[self.config['testbed']['safety']['service_id']].depended_on_by.append(service_id)
-                else:
-                    # Raise an exception if a service requires safety but no safety service is specified.
-                    raise RuntimeError(f'Service "{service_id}" requires safety but no safety service is specified in the configuration file.')
-
-        # Check for circular dependencies.
-        services_to_shut_down = list(self.services.keys())
-        while services_to_shut_down:
-            shut_down_list = []
-
-            for service_id in services_to_shut_down:
-                for dependent in self.services[service_id].depended_on_by:
-                    if dependent in services_to_shut_down:
-                        # Dependent is still alive, so do not shut down this service.
-                        break
-                else:
-                    # All services that depended on us are dead. We can shut down now too.
-                    shut_down_list.append(service_id)
-
-            if not shut_down_list:
-                # No services were shut down this iteration.
-                raise RuntimeError("Circular dependencies detected. Please fix the dependencies in your services.yml config.")
-
-            for service_id in shut_down_list:
-                services_to_shut_down.remove(service_id)
+        # Set up dependency management and verify the dependency graph.
+        self._build_dependency_graph()
 
         # Read in service types.
         self.service_type_paths = {}
@@ -381,6 +349,7 @@ class Testbed:
         self.server.register_request_handler('get_service_info', self.on_get_service_info)
         self.server.register_request_handler('register_service', self.on_register_service)
         self.server.register_request_handler('shut_down', self.on_shut_down)
+        self.server.register_request_handler('reload_config', self.on_reload_config)
 
         self.is_running = False
         self.shutdown_requested = threading.Event()
@@ -668,6 +637,16 @@ class Testbed:
 
         return reply.SerializeToString()
 
+    def on_reload_config(self, data):
+        request = testbed_proto.ReloadConfigRequest()
+        request.ParseFromString(data)
+
+        new_config = json.loads(request.config)
+        self.reload_config(new_config)
+
+        reply = testbed_proto.ReloadConfigReply()
+        return reply.SerializeToString()
+
     def on_shut_down(self, data):
         self.shutdown_requested.set()
 
@@ -685,6 +664,247 @@ class Testbed:
             The path to the Python file to run for this service.
         '''
         self.service_type_paths[service_type] = path
+
+    @staticmethod
+    def _resolve_service_type(service_info, is_simulated):
+        '''Resolve the service type for a service, honoring simulated overrides.
+
+        Parameters
+        ----------
+        service_info : dict
+            The service's configuration entry.
+        is_simulated : bool
+            Whether the testbed runs in simulated mode.
+
+        Returns
+        -------
+        string
+            The service type to use. When the testbed runs in simulated mode and the
+            service defines a ``simulated_service_type``, that type is used instead.
+        '''
+        service_type = service_info['service_type']
+
+        if is_simulated and 'simulated_service_type' in service_info:
+            service_type = service_info['simulated_service_type']
+
+        return service_type
+
+    @staticmethod
+    def _get_safety_service_id(config):
+        '''Return the safety service id from a configuration, or None if there is none.
+
+        Parameters
+        ----------
+        config : dict
+            The configuration dictionary to read the safety service id from.
+
+        Returns
+        -------
+        string or None
+            The id of the safety service, or None if no safety service is configured.
+        '''
+        testbed_section = config.get('testbed', {})
+
+        if 'safety' in testbed_section:
+            return testbed_section['safety']['service_id']
+
+        return None
+
+    @staticmethod
+    def _compute_reverse_dependencies(nodes, safety_service_id):
+        '''Compute the reverse-dependency graph for a set of services and verify it.
+
+        This does not modify any testbed state, so it can also be used to validate a
+        prospective dependency graph before applying a new configuration.
+
+        Parameters
+        ----------
+        nodes : dict
+            A dictionary mapping each service id to a ``(dependencies, requires_safety)``
+            tuple describing that service's outgoing dependencies.
+        safety_service_id : string or None
+            The id of the safety service, or None if no safety service is configured.
+
+        Returns
+        -------
+        dict
+            A dictionary mapping each service id to the list of service ids that depend
+            on it.
+
+        Raises
+        ------
+        RuntimeError
+            If a service requires safety but no (valid) safety service is configured, or
+            if the dependency graph contains circular dependencies.
+        '''
+        depended_on_by = {service_id: [] for service_id in nodes}
+
+        for service_id, (dependencies, requires_safety) in nodes.items():
+            for dependency in dependencies:
+                if dependency in depended_on_by:
+                    depended_on_by[dependency].append(service_id)
+                else:
+                    logging.getLogger(__name__).warning(f'Service "{service_id}" depends on unknown service "{dependency}". Ignoring this dependency.')
+
+            if requires_safety:
+                if safety_service_id is None:
+                    # Raise an exception if a service requires safety but no safety service is specified.
+                    raise RuntimeError(f'Service "{service_id}" requires safety but no safety service is specified in the configuration file.')
+
+                if safety_service_id not in depended_on_by:
+                    raise RuntimeError(f'The safety service "{safety_service_id}" is not present in the services configuration.')
+
+                depended_on_by[safety_service_id].append(service_id)
+
+        # Check for circular dependencies.
+        services_to_shut_down = list(nodes.keys())
+        while services_to_shut_down:
+            shut_down_list = []
+
+            for service_id in services_to_shut_down:
+                for dependent in depended_on_by[service_id]:
+                    if dependent in services_to_shut_down:
+                        # Dependent is still alive, so do not shut down this service.
+                        break
+                else:
+                    # All services that depended on us are dead. We can shut down now too.
+                    shut_down_list.append(service_id)
+
+            if not shut_down_list:
+                # No services were shut down this iteration.
+                raise RuntimeError("Circular dependencies detected. Please fix the dependencies in your services.yml config.")
+
+            for service_id in shut_down_list:
+                services_to_shut_down.remove(service_id)
+
+        return depended_on_by
+
+    def _build_dependency_graph(self):
+        '''(Re)build the reverse-dependency graph and verify it is acyclic.
+
+        Recomputes the ``depended_on_by`` list on every service reference from each
+        service's ``dependencies`` and ``requires_safety`` attributes, after checking
+        that no circular dependencies exist. A correct dependency graph is required for
+        correct shutdown ordering of the testbed. The existing graph is only modified
+        after the new graph has been fully verified.
+
+        This is called both on startup and whenever the configuration is reloaded, so it
+        is robust to service references that are no longer present in the current
+        configuration (for example, a removed service that is still running) and to
+        dependency targets that no longer exist.
+        '''
+        nodes = {service_id: (service.dependencies, service.requires_safety) for service_id, service in self.services.items()}
+
+        depended_on_by = self._compute_reverse_dependencies(nodes, self._get_safety_service_id(self.config))
+
+        for service_id, service in self.services.items():
+            service.depended_on_by = depended_on_by[service_id]
+
+    def reload_config(self, new_config):
+        '''Reload the testbed configuration.
+
+        This updates the configuration without restarting the testbed.
+        Services must be restarted to pick up their new configuration.
+
+        Parameters
+        ----------
+        new_config : dict
+            The new configuration dictionary.
+
+        Raises
+        ------
+        RuntimeError
+            If the new configuration would produce an invalid dependency graph. In that
+            case the new configuration is rejected and the testbed state is unchanged.
+        '''
+        self.log.info('Reloading configuration...')
+
+        old_config = self.config
+
+        # Determine which services were added, removed, or kept.
+        old_services = set(old_config.get('services', {}).keys())
+        new_services = set(new_config.get('services', {}).keys())
+
+        added = new_services - old_services
+        removed = old_services - new_services
+        common = old_services & new_services
+
+        # Compute the dependency graph that this reload would produce, and verify it
+        # before modifying any state, so that an invalid configuration is rejected with
+        # the testbed left untouched. Running services keep the configuration they were
+        # started with until they are restarted, so their current dependencies are used.
+        prospective_nodes = {}
+
+        for service_id in new_services:
+            service_info = new_config['services'][service_id]
+            reference = self.services.get(service_id)
+
+            if reference is not None and reference.is_alive:
+                prospective_nodes[service_id] = (reference.dependencies, reference.requires_safety)
+            else:
+                prospective_nodes[service_id] = (service_info.get('depends_on', []), service_info.get('requires_safety', False))
+
+        for service_id in removed:
+            reference = self.services.get(service_id)
+
+            if reference is not None and reference.is_alive:
+                # A removed but still-running service stays in the graph until it has shut down.
+                prospective_nodes[service_id] = (reference.dependencies, reference.requires_safety)
+
+        self._compute_reverse_dependencies(prospective_nodes, self._get_safety_service_id(new_config))
+
+        # The new configuration is valid. Apply it.
+        self.config = new_config
+
+        # Update simulation mode if it changed.
+        if 'testbed' in new_config and 'simulated' in new_config['testbed']:
+            self.is_simulated = new_config['testbed']['simulated']
+
+        # Add references for newly configured services.
+        for service_id in added:
+            self.log.info(f'New service in config: {service_id}')
+
+            service_info = new_config['services'][service_id]
+            service_type = self._resolve_service_type(service_info, self.is_simulated)
+            dependencies = service_info.get('depends_on', [])
+            requires_safety = service_info.get('requires_safety', False)
+
+            self.services[service_id] = ServiceReference(service_id, service_type, ServiceState.CLOSED, dependencies, self.message_broker, requires_safety)
+
+        # Handle services that were removed from the config.
+        for service_id in removed:
+            reference = self.services.get(service_id)
+
+            if reference is not None and reference.is_alive:
+                # Keep the reference so the still-running service can be shut down
+                # correctly with the testbed; just warn that it is no longer configured.
+                self.log.warning(f'Service "{service_id}" is running but was removed from the config. It will still be shut down with the testbed; consider stopping it.')
+            else:
+                self.services.pop(service_id, None)
+                self.log.info(f'Service removed from config: {service_id}')
+
+        # Service references describe the process that was (or will be) spawned, so
+        # they are only synchronized with the configuration when a service is started
+        # (see start_service()). Here we just report which running services are affected.
+        for service_id in common:
+            if self.services[service_id].is_alive and old_config['services'][service_id] != new_config['services'][service_id]:
+                self.log.info(f'Configuration for running service "{service_id}" has changed. Restart the service to apply the new configuration.')
+
+        # Rebuild the dependency graph from the service references so shutdown ordering stays correct.
+        self._build_dependency_graph()
+
+        # Update startup services list
+        self.startup_services = []
+        if 'safety' in self.config.get('testbed', {}):
+            self.startup_services.append(self.config['testbed']['safety']['service_id'])
+
+        if 'startup_services' in self.config.get('testbed', {}):
+            self.startup_services.extend(self.config['testbed']['startup_services'])
+
+        if self.is_simulated and 'simulator' not in self.startup_services:
+            self.startup_services.append('simulator')
+
+        self.log.info('Configuration reloaded successfully.')
 
     def start_service(self, service_id):
         '''Start a service.
@@ -714,6 +934,22 @@ class Testbed:
         if self.services[service_id].state not in [ServiceState.CLOSED, ServiceState.CRASHED, ServiceState.FAIL_SAFE]:
             self.log.debug(f'Service "{service_id}" was already started.')
             return
+
+        # Synchronize the service reference with the current configuration before spawning.
+        if service_id in self.config['services']:
+            service_info = self.config['services'][service_id]
+            reference = self.services[service_id]
+
+            service_type = self._resolve_service_type(service_info, self.is_simulated)
+            dependencies = service_info.get('depends_on', [])
+            requires_safety = service_info.get('requires_safety', False)
+
+            if (service_type, dependencies, requires_safety) != (reference.service_type, reference.dependencies, reference.requires_safety):
+                reference.service_type = service_type
+                reference.dependencies = dependencies
+                reference.requires_safety = requires_safety
+
+                self._build_dependency_graph()
 
         service_type = self.services[service_id].service_type
 
