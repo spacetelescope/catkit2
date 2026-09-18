@@ -9,7 +9,7 @@ class AlpaoDeformableMirror(DeformableMirrorService):
         super().__init__(service_type)
 
         self.serial_name = self.config['serial_name']
-        
+
         self.device_id = self.config.get('device_id', 0)
         self.flat_map_fname = self.config['flat_map_fname']
         self.gain_map_fname = self.config['gain_map_fname']
