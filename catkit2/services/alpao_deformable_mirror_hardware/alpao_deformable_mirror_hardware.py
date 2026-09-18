@@ -1,11 +1,15 @@
 from catkit2.base_services.deformable_mirror import DeformableMirrorService
 from catkit2.testbed.tracing import trace_interval
+import sys
+import importlib
 
 import numpy as np
-from astropy.io import fits
 
-from alpao.asdk import DM
-
+info = sys.version_info
+python_version = str(info.major) + str(info.minor)
+module_name = "Lib64." + "asdk" + python_version
+module = importlib.import_module(module_name)
+DM = module.DM
 
 class AlpaoDeformableMirror(DeformableMirrorService):
     def __init__(self, service_type='alpao_deformable_mirror'):
