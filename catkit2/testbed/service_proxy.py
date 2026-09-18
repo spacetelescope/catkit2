@@ -1,8 +1,9 @@
 from .. import catkit_bindings
+import sys
 
-try:
+if sys.version_info >= (3, 10):
     import importlib.metadata as importlib_metadata
-except ImportError:
+else:
     import importlib_metadata
 
 
