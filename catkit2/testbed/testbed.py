@@ -20,9 +20,9 @@ from .distributor import ZmqDistributor
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
 
-try:
+if sys.version_info >= (3, 10):
     import importlib.metadata as importlib_metadata
-except ImportError:
+else:
     import importlib_metadata
 
 
