@@ -5,6 +5,7 @@
 #include "DataStream.h"
 #include "ServiceState.h"
 #include "Client.h"
+#include "SlotProxy.h"
 
 #include <zmq.hpp>
 #include <nlohmann/json.hpp>
@@ -27,6 +28,8 @@ public:
 	Value ExecuteCommand(const std::string &name, const Dict &arguments, void (*error_check)() = nullptr);
 
 	std::shared_ptr<DataStream> GetDataStream(const std::string &name, void (*error_check)() = nullptr);
+	std::shared_ptr<SlotProxy> GetSlot(const std::string &name, void (*error_check)() = nullptr);
+	std::vector<std::string> GetSlotNames(void (*error_check)() = nullptr);
 
 	std::shared_ptr<DataStream> GetHeartbeat();
 
@@ -60,7 +63,14 @@ private:
 	std::vector<std::string> m_CommandNames;
 	std::map<std::string, std::string> m_DataStreamIds;
 
+	struct SlotInfo {
+		SlotDataType data_type;
+		bool read_only;
+	};
+	std::map<std::string, SlotInfo> m_SlotInfo;
+
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
+	std::map<std::string, std::shared_ptr<SlotProxy>> m_Slots;
 
 	std::shared_ptr<DataStream> m_Heartbeat;
 	std::shared_ptr<DataStream> m_State;

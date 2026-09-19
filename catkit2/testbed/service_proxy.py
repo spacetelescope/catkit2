@@ -31,7 +31,7 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         return self._testbed
 
     def __getattr__(self, name):
-        '''Get a property, command or data stream.
+        '''Get a property, command, data stream, or slot.
 
         Properties
         ----------
@@ -40,13 +40,13 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
 
         Returns
         -------
-        Property or Command or DataStream object
+        Property or Command or DataStream or SlotProxy object
             The attribute.
 
         Raises
         ------
         AttributeError
-            If the named attribute is not a property, command or data stream.
+            If the named attribute is not a property, command, data stream, or slot.
         '''
         if name in self.property_names:
             # Return property.
@@ -59,11 +59,14 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         elif name in self.data_stream_names:
             # Return datastream.
             return self.get_data_stream(name)
+        elif name in self.slot_names:
+            # Return slot.
+            return self.get_slot(name)
         else:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'.")
 
     def __setattr__(self, name, value):
-        '''Set the property.
+        '''Set the property or slot.
 
         Parameters
         ----------
@@ -76,6 +79,7 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
         ------
         AttributeError
             If the attribute is a command or datastream (both of which are not settable).
+            If the attribute is a read-only slot.
             If the attribute cannot be found on this service.
         '''
         if name in self.property_names:
@@ -85,6 +89,9 @@ class ServiceProxy(catkit_bindings.ServiceProxy):
             raise AttributeError('Cannot set a command.')
         elif name in self.data_stream_names:
             raise AttributeError('Cannot set a data stream. Did you mean .submit_data()?')
+        elif name in self.slot_names:
+            # Set slot value if not read-only.
+            self.get_slot(name).set(value)
         else:
             super().__setattr__(name, value)
 
