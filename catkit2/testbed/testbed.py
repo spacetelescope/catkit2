@@ -20,9 +20,9 @@ from .distributor import ZmqDistributor
 from ..proto import testbed_pb2 as testbed_proto
 from ..proto import service_pb2 as service_proto
 
-try:
+if sys.version_info >= (3, 10):
     import importlib.metadata as importlib_metadata
-except ImportError:
+else:
     import importlib_metadata
 
 
@@ -322,7 +322,7 @@ class Testbed:
 
         # Read in service types.
         self.service_type_paths = {}
-        for entry_point in importlib_metadata.entry_points().get("catkit2.services", []):
+        for entry_point in importlib_metadata.entry_points(group="catkit2.services"):
             try:
                 # grab the module
                 module = entry_point.module
