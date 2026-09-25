@@ -55,7 +55,7 @@ find_package(Protobuf REQUIRED)
 target_include_directories(catkit_core PUBLIC ${PROTOBUF_INCLUDE_DIR})
 target_link_libraries(catkit_core PUBLIC ${PROTOBUF_LIBRARY})
 
-set(PROTO_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/gen/")
+set(PROTO_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto/")
 file(MAKE_DIRECTORY "${PROTO_BINARY_DIR}")
 protobuf_generate(
   TARGET catkit_core
