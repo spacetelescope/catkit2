@@ -514,7 +514,9 @@ typedef std::function<std::string(py::bytes)> PythonRequestHandler;
 PYBIND11_MODULE(catkit_bindings, m)
 {
 	py::class_<Server>(m, "Server")
-		.def(py::init<int>())
+		.def(py::init<int, int>(),
+			py::arg("port"),
+			py::arg("num_workers") = 1)
 		.def("register_request_handler", [](Server &server, std::string type, PythonRequestHandler request_handler)
 		{
 			server.RegisterRequestHandler(type, [request_handler](const std::string &data)
