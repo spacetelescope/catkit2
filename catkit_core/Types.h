@@ -35,6 +35,13 @@ class Dict : public std::map<std::string, Value>
 {
 };
 
+enum class SlotDataType
+{
+	Json,
+	Raw,
+	Array
+};
+
 void ToProto(const Value &value, catkit_proto::Value *proto_value);
 void ToProto(const List &list, catkit_proto::List *proto_list);
 void ToProto(const Dict &dict, catkit_proto::Dict *proto_dict);

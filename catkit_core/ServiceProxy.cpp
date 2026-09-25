@@ -218,6 +218,33 @@ std::shared_ptr<DataStream> ServiceProxy::GetDataStream(const std::string &name,
 	return m_DataStreams[name];
 }
 
+std::shared_ptr<SlotProxy> ServiceProxy::GetSlot(const std::string &name, void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	// Check if the name is a valid slot name.
+	auto slot_info = m_SlotInfo.find(name);
+	if (slot_info == m_SlotInfo.end())
+		throw std::runtime_error("This is not a valid slot name.");
+
+	auto slot = m_Slots.find(name);
+
+	// Check if we already created this slot proxy.
+	if (slot == m_Slots.end())
+	{
+		// Create it now using info from service.
+		m_Slots[name] = std::make_shared<SlotProxy>(
+			m_Testbed->GetMessageBroker(),
+			m_ServiceId,
+			name,
+			slot_info->second.read_only,
+			slot_info->second.data_type);
+	}
+
+	return m_Slots[name];
+}
+
 std::shared_ptr<DataStream> ServiceProxy::GetHeartbeat()
 {
 	return m_Heartbeat;
@@ -379,6 +406,19 @@ void ServiceProxy::Connect()
 	for (auto& [key, value] : info["datastream_ids"].items())
 		m_DataStreamIds[key] = value;
 
+	// Parse slot info
+	m_SlotInfo.clear();
+	if (info.contains("slots"))
+	{
+		for (auto& [key, value] : info["slots"].items())
+		{
+			m_SlotInfo[key] = {
+				value["data_type"].get<SlotDataType>(),
+				value["read_only"].get<bool>()
+			};
+		}
+	}
+
 	m_Heartbeat = DataStream::Open(info["heartbeat_stream_id"].get<std::string>());
 
 	m_TimeLastConnect = frame.m_TimeStamp;
@@ -391,7 +431,9 @@ void ServiceProxy::Disconnect()
 	m_PropertyNames.clear();
 	m_CommandNames.clear();
 	m_DataStreamIds.clear();
+	m_SlotInfo.clear();
 	m_DataStreams.clear();
+	m_Slots.clear();
 
 	m_Heartbeat = nullptr;
 }
@@ -420,6 +462,19 @@ std::vector<std::string> ServiceProxy::GetDataStreamNames(void (*error_check)())
 	std::vector<std::string> names;
 
 	for (auto const &item : m_DataStreamIds)
+		names.push_back(item.first);
+
+	return names;
+}
+
+std::vector<std::string> ServiceProxy::GetSlotNames(void (*error_check)())
+{
+	// Start the service if it has not already been started.
+	Start(TIMEOUT_TO_START, error_check);
+
+	std::vector<std::string> names;
+
+	for (auto const &item : m_SlotInfo)
 		names.push_back(item.first);
 
 	return names;
