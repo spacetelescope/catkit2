@@ -6,7 +6,6 @@
 #include "ServiceState.h"
 #include "Client.h"
 
-#include <zmq.hpp>
 #include <nlohmann/json.hpp>
 
 #include <string>

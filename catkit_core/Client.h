@@ -1,13 +1,13 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+#include "Networking.h"
+
 #include <string>
 #include <mutex>
 #include <functional>
 #include <memory>
 #include <stack>
-
-#include <zmq.hpp>
 
 class Client
 {
@@ -24,13 +24,13 @@ private:
 	std::string m_Host;
 	int m_Port;
 
-	zmq::context_t m_Context;
+	void *m_Context;
 
-	typedef std::unique_ptr<zmq::socket_t, std::function<void(zmq::socket_t *)>> socket_ptr;
+	typedef std::unique_ptr<socket_t, std::function<void(socket_t *)>> socket_ptr;
 	socket_ptr GetSocket();
 
 	std::mutex m_Mutex;
-	std::stack<std::unique_ptr<zmq::socket_t>> m_Sockets;
+	std::stack<socket_t *> m_Sockets;
 };
 
 template<typename ProtoRequest>

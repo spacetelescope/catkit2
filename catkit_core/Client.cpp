@@ -4,81 +4,85 @@
 #include "Timing.h"
 #include "Finally.h"
 
-#include <zmq_addon.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <thread>
 #include <iostream>
 #include <string>
 #include <mutex>
+#include <zmq.h>
 
 using namespace std;
-using namespace zmq;
 
 const int SOCKET_TIMEOUT = 60000;  // milliseconds.
 
 Client::Client(std::string host, int port)
     : m_Host(host), m_Port(port)
 {
+	m_Context = zmq_ctx_new();
 }
 
 Client::~Client()
 {
+	while (!m_Sockets.empty())
+	{
+		zmq_close(m_Sockets.top());
+		m_Sockets.pop();
+	}
+
+	zmq_ctx_term(m_Context);
 }
 
 string Client::MakeRequest(const string &what, const string &request)
 {
     auto socket = GetSocket();
 
-	zmq::multipart_t request_msg;
-
-	request_msg.addstr(what);
-	request_msg.addstr(request);
-
-	request_msg.send(*socket);
+	// Send the request.
+	zmq_send(socket.get(), what.c_str(), what.size(), ZMQ_SNDMORE);
+	zmq_send(socket.get(), request.c_str(), request.size(), 0);
 
 	Timer timer;
+	int more = 1;
+	std::vector<std::string> response;
 
-	try
+	if (zmq_recv_multipart(socket.get(), std::back_inserter(response)) < 0)
 	{
-		zmq::multipart_t reply_msg;
-		auto res = zmq::recv_multipart(*socket, std::back_inserter(reply_msg));
-
-		if (!res.has_value())
+		if (zmq_errno() == EAGAIN)
 		{
 			LOG_ERROR("The server took too long to respond to our request.");
 			throw std::runtime_error("The server did not respond in time. Is it running?");
 		}
-
-		if (reply_msg.size() != 2)
-		{
-			LOG_ERROR("The server responded with " + std::to_string(reply_msg.size()) + " parts rather than 2.");
-			throw std::runtime_error("The server responded in a wrong format.");
-		}
-
-		std::string reply_type = reply_msg.popstr();
-		std::string reply_data = reply_msg.popstr();
-
-		if (reply_type == "OK")
-		{
-			return reply_data;
-		}
-		else if (reply_type == "ERROR")
-		{
-			throw std::runtime_error(reply_data);
-		}
 		else
 		{
-			LOG_ERROR("The server responded with \"" + reply_type + "\" rather than OK or ERROR.");
-			throw std::runtime_error("The server responded in a wrong format.");
+			LOG_ERROR("An error occurred while sending the request to the server: "s + zmq_strerror(zmq_errno()));
+			throw std::runtime_error("An error occurred while sending the request to the server.");
 		}
 	}
-	catch (const zmq::error_t &e)
+
+	if (response.size() != 2)
 	{
-		LOG_ERROR(std::string("ZeroMQ error: ") + e.what());
-		throw;
+		LOG_ERROR("The server did not respond with the expected number of parts.");
+		throw std::runtime_error("The server responded in a wrong format.");
 	}
+
+	const std::string &reply_type(response[0]);
+	const std::string &reply_data(response[1]);
+
+	if (reply_type == "OK")
+	{
+		return reply_data;
+	}
+	else if (reply_type == "ERROR")
+	{
+		throw std::runtime_error(reply_data);
+	}
+	else
+	{
+		LOG_ERROR("The server responded with \"" + reply_type + "\" rather than OK or ERROR.");
+		throw std::runtime_error("The server responded in a wrong format.");
+	}
+
+	return reply_data;
 }
 
 std::string Client::GetHost()
@@ -95,27 +99,37 @@ Client::socket_ptr Client::GetSocket()
 {
 	std::scoped_lock<std::mutex> lock(m_Mutex);
 
-	zmq::socket_t *socket;
+	socket_t *socket;
 	if (m_Sockets.empty())
 	{
 		LOG_DEBUG("Creating new socket.");
 
-		socket = new zmq::socket_t(m_Context, ZMQ_REQ);
+		socket = (socket_t *) zmq_socket(m_Context, ZMQ_REQ);
 
-		socket->set(zmq::sockopt::rcvtimeo, SOCKET_TIMEOUT);
-		socket->set(zmq::sockopt::linger, 0);
-		socket->set(zmq::sockopt::req_relaxed, 1);
-		socket->set(zmq::sockopt::req_correlate, 1);
+		int timeout = SOCKET_TIMEOUT;
+		int linger = 0;
+		int req_relaxed = 1;
+		int req_correlate = 1;
 
-		socket->connect("tcp://"s + m_Host + ":" + to_string(m_Port));
+		zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(int));
+		zmq_setsockopt(socket, ZMQ_LINGER, &linger, sizeof(int));
+		zmq_setsockopt(socket, ZMQ_REQ_RELAXED, &req_relaxed, sizeof(int));
+		zmq_setsockopt(socket, ZMQ_REQ_CORRELATE, &req_correlate, sizeof(int));
+
+		std::string endpoint = "tcp://"s + m_Host + ":" + to_string(m_Port);
+		if (zmq_connect(socket, endpoint.c_str()) == -1)
+		{
+			LOG_ERROR("Failed to connect to " + endpoint);
+			throw std::runtime_error("Failed to connect to " + endpoint);
+		}
 	}
 	else
 	{
-		socket = m_Sockets.top().release();
+		socket = m_Sockets.top();
 		m_Sockets.pop();
 	}
 
-	return socket_ptr(socket, [this](zmq::socket_t *ptr)
+	return socket_ptr(socket, [this](socket_t *ptr)
 		{
 			this->m_Sockets.emplace(ptr);
 		});
