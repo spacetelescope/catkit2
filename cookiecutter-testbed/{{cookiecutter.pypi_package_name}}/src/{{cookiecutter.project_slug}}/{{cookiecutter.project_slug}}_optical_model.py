@@ -6,7 +6,7 @@ import numpy as np
 class {{cookiecutter.project_slug.capitalize()}}OpticalModel(OpticalModel):
     """An example optical model.
     This class simulates a simple pupil mask and simple science camera. All parameters are read from
-    the simulator configuration file, {{cookiecutter.project_slug}}/config/simulator.yml.
+    the model configuration file, {{cookiecutter.project_slug}}/config/model.yml.
     """
     def __init__(self, config, wavelength=700e-9):
         super().__init__()

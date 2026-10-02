@@ -3,7 +3,7 @@
   "visibility": "PUBLIC",
   "source_commit": "19023206433b14a2f0a1428129d954c5dc6433b2",
   "derived_from": "docs/agent/REPO_ATLAS.md",
-  "atlas_sha256": "9b01b068a6a1782b825cbe249cc9e9456977371551e7e3286cece15fd7de5761",
+  "atlas_sha256": "e2f231ca53600582933b2bac53894667495611e4b2bb57d3ce6f939db69820d1",
   "authority": "Source/docs/history -> evidence -> Markdown atlas -> this derived index. Read section caveats and current source before implementing.",
   "concepts": {
     "service_lifecycle": {"summary":"Native Service runtime owns state transitions and monitoring; Python subclasses implement device-specific lifecycle hooks.","owner":"catkit2","status":"current","atlas_section":"concept-service_lifecycle","canonical_examples":[{"path":"catkit2/testbed/service.py","symbol":"Service","why":"Python wrapper, argument parsing, logger and extended testbed proxy."},{"path":"catkit_core/Service.cpp","symbol":"Service::Run","why":"Authoritative lifecycle, state, safety, thread and error behavior."},{"path":"catkit2/services/empty_service/empty_service.py","symbol":"EmptyService","why":"Minimal executable service shape and cooperative main loop."}],"docs":["docs/services.rst","docs/services/empty_service.rst","docs/safety.rst"],"tests":["tests/test_service.py","tests/services/dummy_service/dummy_service.py","tests/conftest.py"],"related_concepts":["orchestration","configuration","logging","camera_service"]},

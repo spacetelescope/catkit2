@@ -29,8 +29,8 @@ Configuration
         default: 0.001
         lyot_theta: 0.01
 
-      # Any update to the values below might require an update in simulator.yml.
-      # Any difference with the values in simulator.yml will cause a misalignment between your hardware and the simulator.
+      # Any update to the values below might require an update in model.yml.
+      # Any difference with the values in model.yml will cause a misalignment between your hardware and the simulator.
       motors:
 
         example_motor:

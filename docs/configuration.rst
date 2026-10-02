@@ -44,10 +44,10 @@ Defines parameters for testbed server operation, including:
 * Output directory paths for experiment data
 * Service types for the simulator and testbed safety services
 
-simulator.yml
+model.yml
 ~~~~~~~~~~~~~
 
-Contains simulator-specific parameters used to align the simulator with testbed hardware (optical magnifications, coronagraph mask parameters, optical element inclinations, camera pixel sizes, focal lengths of mirrors and lenses). This maintains a clear separation between hardware and simulator configurations.
+Contains optical model-specific parameters used to align the optical model with testbed hardware (optical magnifications, coronagraph mask parameters, optical element inclinations, camera pixel sizes, focal lengths of mirrors and lenses). This maintains a clear separation between hardware and optical model configurations.
 
 Distribution
 ------------
