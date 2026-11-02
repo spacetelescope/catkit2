@@ -23,7 +23,8 @@ class S4FC_COM(Enum):
     SET_TARGET_TEMP = "TEMP SET POINT="
     GET_TEMP = "LASER TEMP?"  # float (C)
     GET_POWER = "LD ACTUAL OUTPUT?"  # float (device LD output units)
-
+    GET_LOCK = "LOCK?"
+    SET_LOCK = "LOCK="
 
 def make_setter(command):
     command_prefix = command.value
@@ -97,11 +98,41 @@ class ThorlabsS4fc(Service):
             if not uart_lib_path:
                 raise RuntimeError('CATKIT_THORLABS_S4FC_UART_LIB_PATH is not set for the Windows UART-library backend')
             self.UART_lib = ctypes.cdll.LoadLibrary(uart_lib_path)
+            self._configure_uart_lib_api()
+
+    def _configure_uart_lib_api(self):
+        """Configure the ctypes signatures to match the Thorlabs SDK sample."""
+        lib = self.UART_lib
+
+        for func_name, argtypes in {
+            'common_List': [ctypes.c_void_p],
+            'common_Open': [ctypes.c_char_p, ctypes.c_int, ctypes.c_int],
+            'common_Close': [ctypes.c_int],
+            'GetHandle': [ctypes.c_char_p],
+        }.items():
+            if hasattr(lib, func_name):
+                getattr(lib, func_name).argtypes = argtypes
+                getattr(lib, func_name).restype = ctypes.c_int
+
+        for func_name, argtypes in {
+            's4fc_GetEnable': [ctypes.c_int, ctypes.POINTER(ctypes.c_bool)],
+            's4fc_GetLock': [ctypes.c_int, ctypes.POINTER(ctypes.c_bool)],
+            's4fc_GetActualPower': [ctypes.c_int, ctypes.POINTER(ctypes.c_double)],
+            's4fc_GetLaserTemp': [ctypes.c_int, ctypes.POINTER(ctypes.c_double)],
+            's4fc_GetTempSetPoint': [ctypes.c_int, ctypes.POINTER(ctypes.c_double)],
+            's4fc_SetTempSetPoint': [ctypes.c_int, ctypes.c_double],
+            's4fc_SetLDOutputSetPoint': [ctypes.c_int, ctypes.c_double],
+            's4fc_SetEnable': [ctypes.c_int, ctypes.c_bool],
+            's4fc_SetLock': [ctypes.c_int, ctypes.c_bool],
+            's4fc_SetAdjustCurrentNotmW': [ctypes.c_int, ctypes.c_bool],
+        }.items():
+            if hasattr(lib, func_name):
+                getattr(lib, func_name).argtypes = argtypes
+                getattr(lib, func_name).restype = ctypes.c_int
 
     def _select_backend(self):
         if platform.system().lower().startswith('win'):
             return 'uart_lib'
-
         return 'serial'
 
     def _connect(self):
@@ -124,10 +155,13 @@ class ThorlabsS4fc(Service):
             self.serial_handle = None
 
     def _connect_uart_lib(self):
-        response_buffer = ctypes.create_string_buffer(S4FC_COM.BUFFER_SIZE.value)
-        self.UART_lib.common_List(response_buffer, S4FC_COM.BUFFER_SIZE.value)
+        response_buffer = ctypes.create_string_buffer(4096)
+        try:
+            self.UART_lib.common_List(response_buffer)
+        except TypeError:
+            self.UART_lib.common_List(ctypes.cast(response_buffer, ctypes.c_void_p))
         devices = response_buffer.value.decode(errors='ignore')
-        split = [item.strip() for item in devices.split(',') if item.strip()]
+        split = [item.strip() for item in devices.replace('\0', '').split(',') if item.strip()]
 
         selected_port = None
         if self.vcp_port:
@@ -148,51 +182,59 @@ class ThorlabsS4fc(Service):
         try:
             self.instrument_handle = self.UART_lib.common_Open(selected_port.encode(), self.baud_rate, 3)
         except TypeError:
-            self.instrument_handle = self.UART_lib.GetHandle()
-
-    def _connect_serial(self):
-        serial_module = self._require_pyserial()
-
-        if not self.serial_port:
-            raise RuntimeError('serial_port must be configured for the serial backend')
-
-        self.serial_handle = serial_module.Serial(
-            port=self.serial_port,
-            baudrate=self.baud_rate,
-            timeout=self.serial_timeout,
-            write_timeout=self.serial_timeout,
-        )
-        self.serial_handle.reset_input_buffer()
-        self.serial_handle.reset_output_buffer()
-
-    @staticmethod
-    def _require_pyserial():
-        try:
-            import serial as serial_module
-        except ImportError as exc:
-            raise RuntimeError('pyserial is required for the serial backend but is not installed') from exc
-
-        return serial_module
+            self.instrument_handle = self.UART_lib.GetHandle(selected_port.encode())
 
     def _set_command(self, command_str):
         payload = command_str.encode()
         if self.backend == 'uart_lib':
-            self.UART_lib.common_Set(self.instrument_handle, payload, len(payload))
+            if command_str.startswith('ENABLE='):
+                value = int(command_str[len('ENABLE='):].rstrip('\r'))
+                self.UART_lib.s4fc_SetEnable(self.instrument_handle, bool(value))
+            elif command_str.startswith('LOCK='):
+                value = int(command_str[len('LOCK='):].rstrip('\r'))
+                self.UART_lib.s4fc_SetLock(self.instrument_handle, bool(value))
+            elif command_str.startswith('TEMP SET POINT='):
+                value = float(command_str[len('TEMP SET POINT='):].rstrip('\r'))
+                self.UART_lib.s4fc_SetTempSetPoint(self.instrument_handle, value)
+            elif command_str.startswith('LD OUTPUT SETPOINT='):
+                value = float(command_str[len('LD OUTPUT SETPOINT='):].rstrip('\r'))
+                self.UART_lib.s4fc_SetAdjustCurrentNotmW(self.instrument_handle, False)
+                self.UART_lib.s4fc_SetLDOutputSetPoint(self.instrument_handle, value)
+            else:
+                raise RuntimeError(f'Unsupported S4FC UART command: {command_str!r}')
         elif self.backend == 'serial':
             self.serial_handle.write(payload)
             self.serial_handle.flush()
 
     def _get_command(self, command_str):
-        payload = command_str.encode()
         if self.backend == 'uart_lib':
-            response_buffer = ctypes.create_string_buffer(S4FC_COM.BUFFER_SIZE.value)
-            self.UART_lib.common_Get(self.instrument_handle, payload, response_buffer)
-            return response_buffer.value
-        elif self.backend == 'serial':
-            self.serial_handle.reset_input_buffer()
-            self.serial_handle.write(payload)
-            self.serial_handle.flush()
-            return self.serial_handle.read_until(b'>')
+            if command_str.startswith('ENABLE?'):
+                value = ctypes.c_bool()
+                self.UART_lib.s4fc_GetEnable(self.instrument_handle, ctypes.byref(value))
+                return str(int(value.value)).encode()
+            if command_str.startswith('LOCK?'):
+                value = ctypes.c_bool()
+                self.UART_lib.s4fc_GetLock(self.instrument_handle, ctypes.byref(value))
+                return str(int(value.value)).encode()
+            if command_str.startswith('TEMP SET POINT?'):
+                value = ctypes.c_double()
+                self.UART_lib.s4fc_GetTempSetPoint(self.instrument_handle, ctypes.byref(value))
+                return str(value.value).encode()
+            if command_str.startswith('LASER TEMP?'):
+                value = ctypes.c_double()
+                self.UART_lib.s4fc_GetLaserTemp(self.instrument_handle, ctypes.byref(value))
+                return str(value.value).encode()
+            if command_str.startswith('LD ACTUAL OUTPUT?'):
+                value = ctypes.c_double()
+                self.UART_lib.s4fc_GetActualPower(self.instrument_handle, ctypes.byref(value))
+                return str(value.value).encode()
+            raise RuntimeError(f'Unsupported S4FC UART query: {command_str!r}')
+
+        payload = command_str.encode()
+        self.serial_handle.reset_input_buffer()
+        self.serial_handle.write(payload)
+        self.serial_handle.flush()
+        return self.serial_handle.read_until(b'>')
 
     @staticmethod
     def _parse_response_value(response):
@@ -215,6 +257,7 @@ class ThorlabsS4fc(Service):
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
         self.power = self.make_data_stream('power', 'float32', [1], 20)
+        self.locked = self.make_data_stream('locked', 'uint8', [1], 20)
 
         self._connect()
 
@@ -222,6 +265,7 @@ class ThorlabsS4fc(Service):
             'emission': self.set_emission,
             'power_setpoint': self.set_power_setpoint,
             'target_temperature': self.set_target_temperature,
+            'locked': self.set_locked,
         }
 
         self.getters = [
@@ -264,8 +308,8 @@ class ThorlabsS4fc(Service):
 
     set_emission = make_setter(S4FC_COM.SET_ENABLE)
     set_power_setpoint = make_setter(S4FC_COM.SET_POWER_SETPOINT)
+    set_locked = make_setter(S4FC_COM.SET_LOCK)
     # Backward-compatible alias for older callers.
-    set_current_setpoint = set_power_setpoint
     set_target_temperature = make_setter(S4FC_COM.SET_TARGET_TEMP)
 
     get_temperature = make_getter(S4FC_COM.GET_TEMP, 'temperature')
