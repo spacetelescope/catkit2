@@ -114,7 +114,10 @@ class ThorlabsS4fc(Service):
 
     def _disconnect(self):
         if self.backend == 'uart_lib' and self.instrument_handle is not None:
-            self.UART_lib.fnUART_LIBRARY_close(self.instrument_handle)
+            try:
+                self.UART_lib.common_Close(self.instrument_handle)
+            except TypeError:
+                pass
             self.instrument_handle = None
         elif self.backend == 'serial' and self.serial_handle is not None:
             self.serial_handle.close()
@@ -122,7 +125,7 @@ class ThorlabsS4fc(Service):
 
     def _connect_uart_lib(self):
         response_buffer = ctypes.create_string_buffer(S4FC_COM.BUFFER_SIZE.value)
-        self.UART_lib.fnUART_LIBRARY_list(response_buffer, S4FC_COM.BUFFER_SIZE.value)
+        self.UART_lib.common_List(response_buffer, S4FC_COM.BUFFER_SIZE.value)
         devices = response_buffer.value.decode(errors='ignore')
         split = [item.strip() for item in devices.split(',') if item.strip()]
 
@@ -142,7 +145,10 @@ class ThorlabsS4fc(Service):
         if selected_port is None:
             raise RuntimeError('No UART devices found for Thorlabs S4FC FP source')
 
-        self.instrument_handle = self.UART_lib.fnUART_LIBRARY_open(selected_port.encode(), self.baud_rate, 3)
+        try:
+            self.instrument_handle = self.UART_lib.common_Open(selected_port.encode(), self.baud_rate, 3)
+        except TypeError:
+            self.instrument_handle = self.UART_lib.GetHandle()
 
     def _connect_serial(self):
         serial_module = self._require_pyserial()
@@ -171,7 +177,7 @@ class ThorlabsS4fc(Service):
     def _set_command(self, command_str):
         payload = command_str.encode()
         if self.backend == 'uart_lib':
-            self.UART_lib.fnUART_LIBRARY_Set(self.instrument_handle, payload, len(payload))
+            self.UART_lib.common_Set(self.instrument_handle, payload, len(payload))
         elif self.backend == 'serial':
             self.serial_handle.write(payload)
             self.serial_handle.flush()
@@ -180,7 +186,7 @@ class ThorlabsS4fc(Service):
         payload = command_str.encode()
         if self.backend == 'uart_lib':
             response_buffer = ctypes.create_string_buffer(S4FC_COM.BUFFER_SIZE.value)
-            self.UART_lib.fnUART_LIBRARY_Get(self.instrument_handle, payload, response_buffer)
+            self.UART_lib.common_Get(self.instrument_handle, payload, response_buffer)
             return response_buffer.value
         elif self.backend == 'serial':
             self.serial_handle.reset_input_buffer()
