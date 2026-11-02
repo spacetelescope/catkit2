@@ -9,6 +9,7 @@ __all__ = [
     'NktSuperkFianiumProxy',
     'ThorlabsCubeMotorKinesisProxy',
     'ThorlabsMcls1',
+    'ThorlabsS4fcProxy',
     'WebPowerSwitchProxy',
     'OceanopticsSpectroProxy',
     'OpticalFiberSwitchProxy'
@@ -26,4 +27,5 @@ from .oceanoptics_spectrometer import *
 from .optical_fiber_switch import *
 from .thorlabs_cube_motor_kinesis import *
 from .thorlabs_mcls1 import *
+from .thorlabs_s4fc import *
 from .web_power_switch import *
