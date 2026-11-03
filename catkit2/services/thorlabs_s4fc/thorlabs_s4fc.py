@@ -252,6 +252,7 @@ class ThorlabsS4fc(Service):
 
     def open(self):
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
+        self.current_setpoint = self.power_setpoint # for backwards compatability
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
@@ -263,13 +264,15 @@ class ThorlabsS4fc(Service):
         self.setters = {
             'emission': self.set_emission,
             'power_setpoint': self.set_power_setpoint,
+            'current_setpoint': self.set_power_setpoint,
             'target_temperature': self.set_target_temperature,
             'laser_lock': self.set_laser_lock,
         }
 
         self.getters = [
             self.get_temperature,
-            self.get_power,
+            self.get_power_setpoint,
+            self.get_current_setpoint,
         ]
 
         for key, setter in self.setters.items():
@@ -308,11 +311,13 @@ class ThorlabsS4fc(Service):
     set_emission = make_setter(S4FC_COM.SET_ENABLE)
     set_power_setpoint = make_setter(S4FC_COM.SET_POWER_SETPOINT)
     set_laser_lock = make_setter(S4FC_COM.SET_LASER_LOCK)
+
     # Backward-compatible alias for older callers.
     set_target_temperature = make_setter(S4FC_COM.SET_TARGET_TEMP)
+    get_current_setpoint = make_getter(S4FC_COM.GET_POWER, 'power')
 
     get_temperature = make_getter(S4FC_COM.GET_TEMP, 'temperature')
-    get_power = make_getter(S4FC_COM.GET_POWER, 'power')
+    get_power_setpoint = make_getter(S4FC_COM.GET_POWER, 'power')
 
 
 if __name__ == '__main__':
