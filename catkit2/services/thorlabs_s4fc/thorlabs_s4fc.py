@@ -258,7 +258,6 @@ class ThorlabsS4fc(Service):
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
-        self.power = self.make_data_stream('power', 'float32', [1], 20)
         self.laser_lock = self.make_data_stream('laser_lock', 'uint8', [1], 20)
 
         self._connect()
@@ -273,8 +272,6 @@ class ThorlabsS4fc(Service):
 
         self.getters = [
             self.get_temperature,
-            self.get_power_setpoint,
-            self.get_current_setpoint,
         ]
 
         for key, setter in self.setters.items():
