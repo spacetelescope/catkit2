@@ -25,7 +25,7 @@ Configuration
         interface: thorlabs_s4fc
         requires_safety: false
 
-        # Used by the Windows UART-library backend to find the device in the VCP list.
+        # Used by the Windows UART-library backend to find the device.
         # Can be omitted if not on Windows.
         port: 'TPXXXXXXXX-XXXXX'
 
