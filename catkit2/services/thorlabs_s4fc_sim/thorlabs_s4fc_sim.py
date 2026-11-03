@@ -29,20 +29,22 @@ class ThorlabsS4fcSim(Service):
 
     def open(self):
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
+        self.current_setpoint = self.power_setpoint  # for backwards compatability
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
-        self.power = self.make_data_stream('power', 'float32', [1], 20)
+        self.laser_lock = self.make_data_stream('laser_lock', 'uint8', [1], 20)
 
         self.setters = {
             'emission': self.set_emission,
             'power_setpoint': self.set_power_setpoint,
+            'current_setpoint': self.set_power_setpoint,
             'target_temperature': self.set_target_temperature,
+            'laser_lock': self.set_laser_lock,
         }
 
         self.getters = [
             self.get_temperature,
-            self.get_power,
         ]
 
         for key, setter in self.setters.items():
@@ -58,7 +60,6 @@ class ThorlabsS4fcSim(Service):
         self.emission.submit_data(np.array([int(self.config['emission'])], dtype='uint8'))
         self.power_setpoint.submit_data(np.array([self.initial_power_setpoint], dtype='float32'))
         self.target_temperature.submit_data(np.array([self.config['target_temperature']], dtype='float32'))
-        self._publish_sim_power(self.emission.get()[0], self.power_setpoint.get()[0])
 
     def main(self):
         while not self.should_shut_down:
@@ -77,20 +78,25 @@ class ThorlabsS4fcSim(Service):
 
             self.sleep(1)
 
-    def _publish_sim_power(self, emission, power_setpoint):
-        power = emission * power_setpoint
-        self.testbed.simulator.set_source_power(source_name=self.id, power=power)
-
     def set_emission(self, emission):
-        self._publish_sim_power(emission, self.power_setpoint.get()[0])
+        self.testbed.simulator.set_source_power(
+            source_name=self.id,
+            power=emission * self.power_setpoint.get()[0]
+        )
 
     def set_power_setpoint(self, power_setpoint):
-        self._publish_sim_power(self.emission.get()[0], power_setpoint)
+        self.testbed.simulator.set_source_power(
+            source_name=self.id,
+            power=self.emission.get()[0] * power_setpoint
+        )
 
-    # Backward-compatible alias for older callers.
-    set_current_setpoint = set_power_setpoint
+    def set_current_setpoint(self, value):
+        pass
 
     def set_target_temperature(self, value):
+        pass
+
+    def set_laser_lock(self, laser_lock):
         pass
 
     def get_power(self):
