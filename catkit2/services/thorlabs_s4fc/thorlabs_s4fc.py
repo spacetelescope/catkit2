@@ -197,8 +197,10 @@ class ThorlabsS4fc(Service):
                 self.UART_lib.s4fc_SetTempSetPoint(self.instrument_handle, value)
             elif command_str.startswith('LD OUTPUT SETPOINT='):
                 value = float(command_str[len('LD OUTPUT SETPOINT='):].rstrip('\r'))
+                self.UART_lib.s4fc_SetLock(self.instrument_handle, False)
                 self.UART_lib.s4fc_SetAdjustCurrentNotmW(self.instrument_handle, False)
                 self.UART_lib.s4fc_SetLDOutputSetPoint(self.instrument_handle, value)
+                self.UART_lib.s4fc_SetLock(self.instrument_handle, True)
             else:
                 raise RuntimeError(f'Unsupported S4FC UART command: {command_str!r}')
         elif self.backend == 'serial':
