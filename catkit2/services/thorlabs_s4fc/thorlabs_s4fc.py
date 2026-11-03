@@ -267,7 +267,7 @@ class ThorlabsS4fc(Service):
 
     def open(self):
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
-        self.current_setpoint = self.power_setpoint # for backwards compatability
+        self.current_setpoint = self.power_setpoint  # for backwards compatability
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
