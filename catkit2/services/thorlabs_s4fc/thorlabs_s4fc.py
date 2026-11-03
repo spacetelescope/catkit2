@@ -23,8 +23,8 @@ class S4FC_COM(Enum):
     SET_TARGET_TEMP = "TEMP SET POINT="
     GET_TEMP = "LASER TEMP?"  # float (C)
     GET_POWER = "LD ACTUAL OUTPUT?"  # float (device LD output units)
-    GET_LOCK = "LOCK?"
-    SET_LOCK = "LOCK="
+    GET_LASER_LOCK = "LOCK?"
+    SET_LASER_LOCK = "LOCK="
 
 def make_setter(command):
     command_prefix = command.value
@@ -51,7 +51,7 @@ def make_getter(command, stream_name):
         try:
             stream.submit_data(np.array([value]).astype(stream.dtype))
         except ValueError as exc:
-            raise ValueError('Error likely due to incorrect COM/VCP port after a reboot') from exc
+            raise ValueError('Error likely due to incorrect Port after a reboot') from exc
 
         return value
 
@@ -80,9 +80,8 @@ class ThorlabsS4fc(Service):
         self.serial_handle = None
         self.UART_lib = None
 
-        self.vcp_port = self.config.get('vcp_port', None)
+        self.port = self.config.get('port', None)
         self.serial_port = self.config.get('serial_port', None)
-        self.serial_timeout = self.config.get('serial_timeout', None)
         self.baud_rate = self.config.get('baud_rate', S4FC_COM.BAUD_RATE.value)
         # Keep compatibility with older configs while standardizing the key to power_setpoint (mW).
         self.initial_power_setpoint = self.config.get('power_setpoint', self.config.get('current_setpoint', None))
@@ -101,7 +100,7 @@ class ThorlabsS4fc(Service):
             self._configure_uart_lib_api()
 
     def _configure_uart_lib_api(self):
-        """Configure the ctypes signatures to match the Thorlabs SDK sample."""
+        """Configure the ctypes signatures to match the Thorlabs SDK."""
         lib = self.UART_lib
 
         for func_name, argtypes in {
@@ -164,9 +163,9 @@ class ThorlabsS4fc(Service):
         split = [item.strip() for item in devices.replace('\0', '').split(',') if item.strip()]
 
         selected_port = None
-        if self.vcp_port:
+        if self.port:
             for index, item in enumerate(split):
-                if self.vcp_port in item and index > 0:
+                if self.port in item and index > 0:
                     selected_port = split[index - 1]
                     break
 
@@ -257,7 +256,7 @@ class ThorlabsS4fc(Service):
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
         self.power = self.make_data_stream('power', 'float32', [1], 20)
-        self.locked = self.make_data_stream('locked', 'uint8', [1], 20)
+        self.laser_lock = self.make_data_stream('laser_lock', 'uint8', [1], 20)
 
         self._connect()
 
@@ -265,7 +264,7 @@ class ThorlabsS4fc(Service):
             'emission': self.set_emission,
             'power_setpoint': self.set_power_setpoint,
             'target_temperature': self.set_target_temperature,
-            'locked': self.set_locked,
+            'laser_lock': self.set_laser_lock,
         }
 
         self.getters = [
@@ -308,7 +307,7 @@ class ThorlabsS4fc(Service):
 
     set_emission = make_setter(S4FC_COM.SET_ENABLE)
     set_power_setpoint = make_setter(S4FC_COM.SET_POWER_SETPOINT)
-    set_locked = make_setter(S4FC_COM.SET_LOCK)
+    set_laser_lock = make_setter(S4FC_COM.SET_LASER_LOCK)
     # Backward-compatible alias for older callers.
     set_target_temperature = make_setter(S4FC_COM.SET_TARGET_TEMP)
 
