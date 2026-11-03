@@ -1,8 +1,7 @@
 Thorlabs S4FC Fabry-Perot Laser Source
 ======================================
 
-Thorlabs S4FC Fabry-Perot laser source service for power, emission, and temperature
-control with power and temperature feedback streams.
+Thorlabs S4FC Fabry-Perot laser source contains software for controlling the `Thorlabs S4FC` laser source.
 
 Backend selection is automatic at runtime:
 
@@ -11,6 +10,9 @@ Backend selection is automatic at runtime:
 
 On Windows, the environment variable ``CATKIT_THORLABS_S4FC_UART_LIB_PATH`` must point to the
 Thorlabs UART library file used by this service.
+
+Thorlabs software suite is publicly available at https://www.thorlabs.com/software-pages/s4fc/
+
 
 Configuration
 -------------
@@ -25,19 +27,19 @@ Configuration
 
         # Used by the Windows UART-library backend to find the device in the VCP list.
         # Can be omitted if not on Windows.
-        vcp_port: 'VCP3'
+        port: 'TPXXXXXXXX-XXXXX'
 
-        # Required for non-Windows serial backend.
-        serial_port: '/dev/ttyUSB0'
-        serial_timeout: 1.0
-
-        # Optional metadata for proxy users.
-        center_wavelength: 637
-        bandwidth: 20
+        # Optional for non-Windows serial backend.
+        # serial_port: '/dev/ttyUSB0'
+        # serial_timeout: 1.0
 
         emission: 1
-        power_setpoint: 70
+        power_setpoint: 2
+        low_flux_power_setpoint: 2
         target_temperature: 25
+
+        bandwidth: 1
+        center_wavelength: 637
 
 Properties
 ----------
@@ -51,13 +53,15 @@ None.
 
 Datastreams
 -----------
-``power_setpoint``: (mW) Output power setpoint.
+``power_setpoint``: (mW) Output power.
 
-``emission``: (boolean/int) Source emission status. 0 is OFF, 1 is ON.
+``current_setpoint``: Mirrors ``power setpoint (mW)``. For compatability with other light sources.
 
-``target_temperature``: (Celsius) Target source temperature.
+``emission``: (boolean/int) Source emission status. 0 is OFF, 1 is ON. Used to set up the source.
 
-``temperature``: (Celsius) Source temperature feedback.
+``target_temperature``: (Celsius) Target temperature of the MCLS1. Used to set up the cooling system.
 
-``power``: (mW) Source output power feedback.
+``temperature``: (Celsius) Source temperature. Feedback only.
+
+``laser_lock``: (boolean/int) Laser lock status. 0 is UNLOCKED, 1 is LOCKED.
 
