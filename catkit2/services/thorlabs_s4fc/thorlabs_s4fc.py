@@ -82,6 +82,7 @@ class ThorlabsS4fc(Service):
 
         self.port = self.config.get('port', None)
         self.serial_port = self.config.get('serial_port', None)
+        self.serial_timeout = self.config.get('serial_timeout', None)
         self.baud_rate = self.config.get('baud_rate', S4FC_COM.BAUD_RATE.value)
         # Keep compatibility with older configs while standardizing the key to power_setpoint (mW).
         self.initial_power_setpoint = self.config.get('power_setpoint', self.config.get('current_setpoint', None))
@@ -182,6 +183,18 @@ class ThorlabsS4fc(Service):
             self.instrument_handle = self.UART_lib.common_Open(selected_port.encode(), self.baud_rate, 3)
         except TypeError:
             self.instrument_handle = self.UART_lib.GetHandle(selected_port.encode())
+
+    def _connect_serial(self):
+        serial_module = self._require_pyserial()
+        self.serial_handle = serial_module.Serial(
+            port=self.serial_port,
+            baudrate=self.baud_rate,
+            timeout=self.serial_timeout,
+            write_timeout=self.serial_timeout,
+        )
+        self.serial_handle.reset_input_buffer()
+        self.serial_handle.reset_output_buffer()
+
 
     def _set_command(self, command_str):
         payload = command_str.encode()
