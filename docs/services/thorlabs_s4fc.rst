@@ -55,8 +55,6 @@ Datastreams
 -----------
 ``power_setpoint``: (mW) Output power.
 
-``current_setpoint``: Mirrors ``power setpoint (mW)``. For compatability with other light sources.
-
 ``emission``: (boolean/int) Source emission status. 0 is OFF, 1 is ON. Used to set up the source.
 
 ``target_temperature``: (Celsius) Target temperature of the S4FC. Used to set up the cooling system.
