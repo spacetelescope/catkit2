@@ -58,6 +58,7 @@ Catkit2
    services/watchdog
    services/web_power_switch
    services/zwo_camera
+   services/thorlabs_s4fc
 
 .. toctree::
    :maxdepth: 1

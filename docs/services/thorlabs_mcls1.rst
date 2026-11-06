@@ -33,7 +33,7 @@ Configuration
 
         emission: 1
         current_setpoint: 100
-        low_flux_current_setpoint: 35
+        low_flux_setpoint: 35
         channel: 2
         target_temperature: 25
 

@@ -88,6 +88,8 @@ thorlabs_pm = "catkit2.services.thorlabs_pm.thorlabs_pm"
 thorlabs_pm_sim = "catkit2.services.thorlabs_pm_sim.thorlabs_pm_sim"
 thorlabs_tsp01 = "catkit2.services.thorlabs_tsp01.thorlabs_tsp01"
 thorlabs_tsp01_sim = "catkit2.services.thorlabs_tsp01_sim.thorlabs_tsp01_sim"
+thorlabs_s4fc = "catkit2.services.thorlabs_s4fc.thorlabs_s4fc"
+thorlabs_s4fc_sim = "catkit2.services.thorlabs_s4fc_sim.thorlabs_s4fc_sim"
 watchdog = "catkit2.services.watchdog.watchdog"
 web_power_switch = "catkit2.services.web_power_switch.web_power_switch"
 web_power_switch_sim = "catkit2.services.web_power_switch_sim.web_power_switch_sim"
@@ -108,6 +110,7 @@ optical_fiber_switch = "catkit2.testbed.proxies.optical_fiber_switch:OpticalFibe
 thorlabs_cube_motor_kinesis = "catkit2.testbed.proxies.thorlabs_cube_motor_kinesis:ThorlabsCubeMotorKinesisProxy"
 thorlabs_mcls1 = "catkit2.testbed.proxies.thorlabs_mcls1:ThorlabsMcls1"
 web_power_switch = "catkit2.testbed.proxies.web_power_switch:WebPowerSwitchProxy"
+thorlabs_s4fc = "catkit2.testbed.proxies.thorlabs_s4fc:ThorlabsS4fcProxy"
 
 [project.scripts]
 mtop = "catkit2.tui.mtop:main"
