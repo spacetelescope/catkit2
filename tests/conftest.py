@@ -6,7 +6,7 @@ import pathlib
 import os
 import multiprocessing
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def unused_port():
     def get():
         with socket.socket() as sock:
@@ -50,5 +50,3 @@ def dummy_service(testbed):
     testbed.start_service('dummy_service')
 
     yield testbed.dummy_service
-
-    testbed.stop_service('dummy_service')
