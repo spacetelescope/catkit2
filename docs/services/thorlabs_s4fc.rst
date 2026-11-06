@@ -35,7 +35,7 @@ Configuration
 
         emission: 1
         power_setpoint: 2
-        low_flux_power_setpoint: 2
+        low_flux_setpoint: 2
         target_temperature: 25
 
         bandwidth: 1
