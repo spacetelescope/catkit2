@@ -1,10 +1,10 @@
-from catkit2 import TraceWriter, trace_interval, trace_instant, trace_counter, ZmqDistributor
-from catkit2.catkit_bindings import trace_connect, trace_disconnect
+from catkit2 import TraceWriter, trace_interval, trace_instant, trace_counter
+from catkit2.catkit_bindings import trace_connect, trace_disconnect, LocalMessageBroker, LocalMemory
 
 import time
-import zmq
 import json
 import os
+import pytest
 
 
 PROCESS_NAME = 'our_process_name'
@@ -15,21 +15,20 @@ SERIES_NAME = 'series'
 INTERVAL_NAME_1 = 'a'
 INTERVAL_NAME_2 = 'ab'
 
-def test_trace_writer(unused_port, tmpdir):
-    input_port = unused_port()
-    output_port = unused_port()
+@pytest.fixture(scope='module')
+def broker():
+    header = LocalMemory.create(1024 * 1024 * 512)
+    block = LocalMemory.create(1024 * 1024 * 1024)
+
+    broker = LocalMessageBroker.create(header, [block])
+    yield broker
+
+
+def test_trace_writer(tmpdir, broker):
     fname = os.path.join(tmpdir, FNAME)
 
-    writer = TraceWriter('127.0.0.1', output_port)
-    trace_connect(PROCESS_NAME, '127.0.0.1', input_port)
-
-    context = zmq.Context()
-
-    tracing_distributor = ZmqDistributor(context, input_port, output_port)
-    tracing_distributor.start()
-
-    # Wait for slow-joiner of ZMQ sockets.
-    time.sleep(0.3)
+    writer = TraceWriter(broker)
+    trace_connect(PROCESS_NAME, broker)
 
     try:
         with writer.open(fname):
@@ -49,8 +48,6 @@ def test_trace_writer(unused_port, tmpdir):
 
     finally:
         trace_disconnect()
-
-        tracing_distributor.stop()
 
     # Check the written JSON file.
     with open(fname) as f:

@@ -4,8 +4,7 @@
 #include "Util.h"
 #include "Log.h"
 #include "tracing.pb.h"
-
-#include <zmq.hpp>
+#include "MessageBroker.h"
 
 using namespace std;
 
@@ -21,21 +20,17 @@ TracingProxy::~TracingProxy()
 	Disconnect();
 }
 
-void TracingProxy::Connect(string process_name, string host, int port)
+void TracingProxy::Connect(string process_name, std::shared_ptr<MessageBroker> broker)
 {
 	// Disconnect if we are already running.
 	if (IsConnected())
 	{
-		if (m_Host == host && m_Port == port)
-			return;
-
 		Disconnect();
 	}
 
 	SetProcessName(process_name);
 
-	m_Host = host;
-	m_Port = port;
+	m_Broker = broker;
 	m_ShutDown = false;
 
 	m_MessageLoopThread = std::thread(&TracingProxy::MessageLoop, this);
@@ -52,6 +47,7 @@ void TracingProxy::Disconnect()
 		m_MessageLoopThread.join();
 
 	m_IsConnected = false;
+	m_Broker.reset();
 }
 
 bool TracingProxy::IsConnected()
@@ -161,14 +157,6 @@ struct BuildProtoEvent
 
 void TracingProxy::MessageLoop()
 {
-	zmq::context_t context;
-	zmq::socket_t socket(context, ZMQ_PUSH);
-
-	socket.set(zmq::sockopt::linger, 0);
-	socket.set(zmq::sockopt::sndtimeo, 10);
-
-	socket.connect("tcp://"s + m_Host + ":" + to_string(m_Port));
-
 	TraceEvent event;
 
 	while (!m_ShutDown)
@@ -192,20 +180,13 @@ void TracingProxy::MessageLoop()
 		// Convert the TraceEvent to a ProtoBuf serialized string.
 		string message = std::visit(BuildProtoEvent{}, event);
 
-		// Construct message.
-		zmq::message_t message_zmq(message.size());
-		memcpy(message_zmq.data(), message.c_str(), message.size());
-
-		// Send message to socket.
-		zmq::send_result_t res;
-		do
+		// Publish to MessageBroker
+		if (m_Broker)
 		{
-			res = socket.send(message_zmq, zmq::send_flags::none);
+			std::string topic = "traces";
+			m_Broker->PublishData(topic, message.data(), message.size());
 		}
-		while (!res.has_value() && m_ShutDown);
 	}
-
-	socket.close();
 }
 
 void TracingProxy::SetProcessName(string process_name)
