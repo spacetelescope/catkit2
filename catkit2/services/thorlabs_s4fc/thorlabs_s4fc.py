@@ -84,8 +84,7 @@ class ThorlabsS4fc(Service):
         self.serial_port = self.config.get('serial_port', None)
         self.serial_timeout = self.config.get('serial_timeout', None)
         self.baud_rate = self.config.get('baud_rate', S4FC_COM.BAUD_RATE.value)
-        # Keep compatibility with older configs while standardizing the key to power_setpoint (mW).
-        self.initial_power_setpoint = self.config.get('power_setpoint', self.config.get('current_setpoint', None))
+        self.initial_power_setpoint = self.config.get('power_setpoint', None)
 
         if self.initial_power_setpoint is None:
             raise RuntimeError('Missing required config key: power_setpoint (mW)')
@@ -267,7 +266,6 @@ class ThorlabsS4fc(Service):
 
     def open(self):
         self.power_setpoint = self.make_data_stream('power_setpoint', 'float32', [1], 20)
-        self.current_setpoint = self.power_setpoint  # for backwards compatability
         self.emission = self.make_data_stream('emission', 'uint8', [1], 20)
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
@@ -278,7 +276,6 @@ class ThorlabsS4fc(Service):
         self.setters = {
             'emission': self.set_emission,
             'power_setpoint': self.set_power_setpoint,
-            'current_setpoint': self.set_power_setpoint,
             'target_temperature': self.set_target_temperature,
             'laser_lock': self.set_laser_lock,
         }
@@ -326,7 +323,6 @@ class ThorlabsS4fc(Service):
 
     # Backward-compatible alias for older callers.
     set_target_temperature = make_setter(S4FC_COM.SET_TARGET_TEMP)
-    get_current_setpoint = make_getter(S4FC_COM.GET_POWER, 'power')
 
     get_temperature = make_getter(S4FC_COM.GET_TEMP, 'temperature')
     get_power_setpoint = make_getter(S4FC_COM.GET_POWER, 'power')
