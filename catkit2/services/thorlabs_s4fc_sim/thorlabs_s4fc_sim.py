@@ -22,7 +22,7 @@ class ThorlabsS4fcSim(Service):
         super().__init__('thorlabs_s4fc_sim')
         self.threads = {}
         # Keep compatibility with older configs while standardizing the key to power_setpoint (mW).
-        self.initial_power_setpoint = self.config.get('power_setpoint',None)
+        self.initial_power_setpoint = self.config.get('power_setpoint', None)
 
         if self.initial_power_setpoint is None:
             raise RuntimeError('Missing required config key: power_setpoint (mW)')
