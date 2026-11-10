@@ -40,6 +40,10 @@ Commands
 
 None.
 
+Proxy methods
+-------------
+``turn_on()`` enables emission and ``turn_off()`` disables it, with no startup delay.
+
 Datastreams
 -----------
 ``base_temperature``: Base temperature output by the EVO (Celsius).
