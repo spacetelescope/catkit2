@@ -51,6 +51,10 @@ Commands
 
 None.
 
+Proxy methods
+-------------
+``turn_on()`` enables emission and blocks for 6.5 s, an empirical startup allowance. Do not change the power during this interval, as it can leave the source without optical output. The wait does not prevent other clients from changing power concurrently. ``turn_off()`` disables emission without waiting.
+
 Datastreams
 -----------
 ``power_setpoint``: (mW) Output power.

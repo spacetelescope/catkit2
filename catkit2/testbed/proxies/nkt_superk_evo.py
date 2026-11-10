@@ -68,3 +68,11 @@ class NktSuperkEvoProxy(ServiceProxy):
     @property
     def base_sleep_time(self):
         return self.config['base_sleep_time']
+
+    def turn_on(self):
+        """Enable emission."""
+        self.emission.submit_data(np.array([1], dtype='uint8'))
+
+    def turn_off(self):
+        """Disable emission."""
+        self.emission.submit_data(np.array([0], dtype='uint8'))
