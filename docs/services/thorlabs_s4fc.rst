@@ -48,12 +48,11 @@ None.
 
 Commands
 --------
-
-None.
+``get_enable()``: Return whether the hardware reports the source enabled. This is read from the device, independently of the ``emission`` datastream, and is not a measurement of optical power.
 
 Proxy methods
 -------------
-``turn_on()`` enables emission and blocks for 6.5 s, an empirical startup allowance. Do not change the power during this interval, as it can leave the source without optical output. The wait does not prevent other clients from changing power concurrently. ``turn_off()`` disables emission without waiting.
+``turn_on()`` submits the ON request, then polls ``get_enable()`` every 0.1 s until the hardware reports enabled. After a cold start this took about 5.5 s in one hardware test; it returns immediately if the source is already enabled. It raises ``TimeoutError`` if this does not happen within ``timeout`` (default 30 s) and does not retry or cycle emission. Do not change the power until it returns, as that can leave the source without optical output (issue #472). The wait does not prevent other clients from changing power concurrently. ``turn_off()`` disables emission without waiting.
 
 Datastreams
 -----------
