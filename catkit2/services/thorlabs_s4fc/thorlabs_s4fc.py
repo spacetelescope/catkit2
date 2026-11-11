@@ -273,6 +273,8 @@ class ThorlabsS4fc(Service):
 
         self._connect()
 
+        self.make_command('get_enable', self.get_enable)
+
         self.setters = {
             'emission': self.set_emission,
             'power_setpoint': self.set_power_setpoint,
@@ -316,6 +318,15 @@ class ThorlabsS4fc(Service):
                 getter()
 
             self.sleep(1)
+
+    def get_enable(self):
+        """Read the hardware enable state, independently of the emission command stream."""
+        command_str = S4FC_COM.GET_ENABLE.value + S4FC_COM.TERM_CHAR.value
+
+        with self.lock:
+            response = self._get_command(command_str)
+
+        return bool(int(float(self._parse_response_value(response))))
 
     set_emission = make_setter(S4FC_COM.SET_ENABLE)
     set_power_setpoint = make_setter(S4FC_COM.SET_POWER_SETPOINT)

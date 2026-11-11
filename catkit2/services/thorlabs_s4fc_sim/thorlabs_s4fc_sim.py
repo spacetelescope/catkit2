@@ -23,6 +23,7 @@ class ThorlabsS4fcSim(Service):
         self.threads = {}
         # Keep compatibility with older configs while standardizing the key to power_setpoint (mW).
         self.initial_power_setpoint = self.config.get('power_setpoint', None)
+        self.enabled = False
 
         if self.initial_power_setpoint is None:
             raise RuntimeError('Missing required config key: power_setpoint (mW)')
@@ -33,6 +34,8 @@ class ThorlabsS4fcSim(Service):
         self.target_temperature = self.make_data_stream('target_temperature', 'float32', [1], 20)
         self.temperature = self.make_data_stream('temperature', 'float32', [1], 20)
         self.laser_lock = self.make_data_stream('laser_lock', 'uint8', [1], 20)
+
+        self.make_command('get_enable', self.get_enable)
 
         self.setters = {
             'emission': self.set_emission,
@@ -76,11 +79,15 @@ class ThorlabsS4fcSim(Service):
 
             self.sleep(1)
 
+    def get_enable(self):
+        return self.enabled
+
     def set_emission(self, emission):
         self.testbed.simulator.set_source_power(
             source_name=self.id,
             power=emission * self.power_setpoint.get()[0]
         )
+        self.enabled = bool(emission)
 
     def set_power_setpoint(self, power_setpoint):
         self.testbed.simulator.set_source_power(

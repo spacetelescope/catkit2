@@ -51,6 +51,10 @@ Commands
 
 None.
 
+Proxy methods
+-------------
+``turn_on()`` enables emission and ``turn_off()`` disables it, with no startup delay.
+
 Datastreams
 -----------
 ``current_setpoint``: (mA) Output current level of the MCLS1 (in percent), used to set up the source. 
