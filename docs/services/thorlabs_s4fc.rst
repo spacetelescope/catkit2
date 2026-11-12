@@ -52,7 +52,7 @@ Commands
 
 Proxy methods
 -------------
-``turn_on()`` submits the ON request, then polls ``get_enable()`` every 0.1 s until the hardware reports enabled. After a cold start this took about 5.5 s in one hardware test; it returns immediately if the source is already enabled. It raises ``TimeoutError`` if this does not happen within ``timeout`` (default 30 s) and does not retry or cycle emission. Do not change the power until it returns, as that can leave the source without optical output (issue #472). The wait does not prevent other clients from changing power concurrently. ``turn_off()`` disables emission without waiting.
+``turn_on()`` submits the ON request, then polls ``get_enable()`` every 0.1 s until the hardware reports enabled. After a cold start this took about 5.5 s in one hardware test; it returns immediately if the source is already enabled. It raises ``TimeoutError`` if this does not happen within ``timeout`` (default 30 s) and does not retry or cycle emission. Do not change the power until it returns, as that can leave the source without optical output (issue #472). The wait does not prevent other clients from changing power concurrently. Also implements a ``wait_for_warmup`` argument that optionally waits 30s for the source to stabilize.``turn_off()`` disables emission without waiting.
 
 Datastreams
 -----------

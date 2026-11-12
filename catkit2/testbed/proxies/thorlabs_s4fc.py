@@ -15,7 +15,7 @@ class ThorlabsS4fcProxy(ServiceProxy):
     def bandwidth(self):
         return self.config['bandwidth']
 
-    def turn_on(self, timeout=30, poll_interval=0.1):
+    def turn_on(self, wait_for_warmup=False, timeout=30, poll_interval=0.1):
         """Enable emission and wait until the hardware reports it enabled.
 
         The emission datastream is only the requested state. The wait polls the hardware enable
@@ -23,6 +23,8 @@ class ThorlabsS4fcProxy(ServiceProxy):
 
         Parameters
         ----------
+        wait_for_warmup : bool
+            Whether to wait for the laser to stabilize (adds 30s).
         timeout : float
             Maximum time to wait, in seconds.
         poll_interval : float
@@ -46,6 +48,10 @@ class ThorlabsS4fcProxy(ServiceProxy):
                 raise TimeoutError(f'S4FC did not report enabled within {timeout} s of the ON request.')
 
             time.sleep(poll_interval)
+
+        if wait_for_warmup:
+            self.log.info("Waiting 30s for S4FC to warm up.")
+            time.sleep(30)
 
     def turn_off(self):
         """Disable emission."""
