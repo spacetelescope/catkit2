@@ -22,6 +22,7 @@
 #include "ProcessStats.h"
 #include "Types.h"
 #include "MessageBroker.h"
+#include "Slot.h"
 
 const double SERVICE_LIVELINESS = 5;
 
@@ -59,6 +60,13 @@ public:
 	void MakeCommand(std::string command_name, Command::CommandFunction func);
 	std::shared_ptr<DataStream> MakeDataStream(std::string stream_name, DataType type, std::vector<size_t> dimensions, size_t num_frames_in_buffer);
 	std::shared_ptr<DataStream> ReuseDataStream(std::string stream_name, std::string stream_id);
+
+	std::shared_ptr<Slot> MakeJsonSlot(std::string slot_name);
+	std::shared_ptr<Slot> MakeJsonSlot(std::string slot_name, SlotSetterJsonFunc setter);
+	std::shared_ptr<Slot> MakeRawSlot(std::string slot_name);
+	std::shared_ptr<Slot> MakeRawSlot(std::string slot_name, SlotSetterRawFunc setter);
+	std::shared_ptr<Slot> MakeArraySlot(std::string slot_name);
+	std::shared_ptr<Slot> MakeArraySlot(std::string slot_name, SlotSetterArrayFunc setter);
 
 	std::shared_ptr<TestbedProxy> GetTestbed();
 
@@ -105,6 +113,7 @@ private:
 
 	std::map<std::string, std::shared_ptr<Command>> m_Commands;
 	std::map<std::string, std::shared_ptr<DataStream>> m_DataStreams;
+	std::map<std::string, std::shared_ptr<Slot>> m_Slots;
 
 	LogConsole m_LoggerConsole;
 	LogForwarder m_LoggerPublish;
