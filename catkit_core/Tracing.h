@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <string>
 #include <mutex>
+#include <memory>
 
 struct TraceEventInterval
 {
@@ -44,13 +45,15 @@ struct TraceEventCounter
 
 typedef std::variant<TraceEventInterval, TraceEventInstant, TraceEventCounter> TraceEvent;
 
+class MessageBroker;
+
 class TracingProxy
 {
 public:
 	TracingProxy();
 	~TracingProxy();
 
-	void Connect(std::string process_name, std::string host, int port);
+	void Connect(std::string process_name, std::shared_ptr<MessageBroker> broker);
 	void Disconnect();
 	bool IsConnected();
 
@@ -85,8 +88,7 @@ private:
 	std::mutex m_Mutex;
 	std::condition_variable m_ConditionVariable;
 
-	std::string m_Host;
-	int m_Port;
+	std::shared_ptr<MessageBroker> m_Broker;
 
 	std::string m_ProcessName;
 	std::string m_ThreadName;
