@@ -2,16 +2,9 @@ from catkit2.catkit_bindings import LocalMemory, LocalMessageBroker, MessageSubs
 import numpy as np
 import pytest
 
-# Allocate memory for the header. Doing this in a separate fixture
-# ensures that the memory is not deallocated until the objects inside
-# are.
 @pytest.fixture(scope='module')
-def header_memory():
-    header = LocalMemory.create(1024 * 1024 * 512)
-    yield header
-
-@pytest.fixture(scope='module')
-def broker(header_memory):
+def broker():
+    header_memory = LocalMemory.create(1024 * 1024 * 512)
     block = LocalMemory.create(1024 * 1024 * 1024)
 
     broker = LocalMessageBroker.create(header_memory, [block])
