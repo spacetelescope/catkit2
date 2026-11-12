@@ -1,11 +1,13 @@
 #include "LogForwarder.h"
 
+#include "Networking.h"
+
+#include <zmq.h>
 #include <nlohmann/json.hpp>
 #include <iostream>
-#include <string> 
+#include <string>
 #include <thread>
 
-using namespace zmq;
 using json = nlohmann::json;
 
 LogForwarder::LogForwarder()
@@ -53,12 +55,15 @@ void LogForwarder::AddLogEntry(const LogEntry &entry)
 
 void LogForwarder::MessageLoop()
 {
-	context_t context;
-	socket_t socket(context, ZMQ_PUSH);
+	context_t *context = (context_t *) zmq_ctx_new();
+	socket_t *socket = (socket_t *) zmq_socket(context, ZMQ_PUSH);
 
-	socket.set(zmq::sockopt::linger, 0);
-	socket.set(zmq::sockopt::sndtimeo, 10);
-	socket.connect(m_Host);
+	int linger = 0;
+	int sndtimeo = 10;
+	zmq_setsockopt(socket, ZMQ_LINGER, &linger, sizeof(linger));
+	zmq_setsockopt(socket, ZMQ_SNDTIMEO, &sndtimeo, sizeof(sndtimeo));
+
+	zmq_connect(socket, m_Host.c_str());
 
 	std::string log_message;
 
@@ -81,18 +86,21 @@ void LogForwarder::MessageLoop()
 		}
 
 		// Construct and send message.
-		message_t message_zmq(log_message.size());
-		memcpy(message_zmq.data(), log_message.c_str(), log_message.size());
-
-		send_result_t res;
-		do
+		while (!m_ShutDown)
 		{
-			res = socket.send(message_zmq, zmq::send_flags::none);
+			if (zmq_send(socket, log_message.c_str(), log_message.size(), 0) < 0)
+			{
+				if (zmq_errno() == EAGAIN)
+					continue;
+
+				// There was an error while sending, but we cannot emit log messages here so ignoring it.
+				break;
+			}
 		}
-		while (!res.has_value() && !m_ShutDown);
 	}
 
-	socket.close();
+	zmq_close(socket);
+	zmq_ctx_destroy(context);
 }
 
 void LogForwarder::ShutDown()

@@ -37,10 +37,6 @@ else()
   endif (NOT APPLE)
 endif (WIN32)
 
-# Add includes for cppzmq
-find_package(cppzmq REQUIRED)
-target_include_directories(catkit_core PUBLIC ${CPPZMQ_INCLUDE_DIR})
-
 # Link Eigen
 find_package(Eigen3 REQUIRED NO_MODULE)
 target_link_libraries (catkit_core PUBLIC Eigen3::Eigen)
