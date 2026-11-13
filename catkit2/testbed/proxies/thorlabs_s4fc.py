@@ -1,3 +1,4 @@
+import logging
 import math
 import time
 
@@ -7,6 +8,8 @@ from ..service_proxy import ServiceProxy
 
 
 class ThorlabsS4fcProxy(ServiceProxy):
+    log = logging.getLogger(__name__)
+
     @property
     def center_wavelength(self):
         return self.config['center_wavelength']
