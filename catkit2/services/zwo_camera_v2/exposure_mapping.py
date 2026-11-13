@@ -16,12 +16,23 @@ class ExposureMapping:
     def __init__(self, config, sdk_min, sdk_max):
         if not isinstance(config, Mapping):
             raise ValueError('exposure_calibration must be a mapping, null or false.')
-        if config.get('sdk_readback_same_stair_verified') is not True:
-            raise ValueError('Verify that SDK readbacks map to the commanded stairs before enabling exposure calibration.')
         low, high = (integer(c, 'command_range_us bound') for c in config['command_range_us'])
         self.low, self.high = max(low, sdk_min), min(high, sdk_max)
         if low < 0 or self.low > self.high:
             raise ValueError('Calibrated command range must overlap the ASI exposure control limits.')
+        verified = config.get('sdk_readback_verified_command_range_us')
+        full = config.get('sdk_readback_same_stair_verified')
+        if verified is None:
+            if full is not True:
+                raise ValueError('Verify that SDK readbacks map to the commanded stairs before enabling exposure calibration.')
+        else:
+            if not isinstance(verified, (list, tuple)) or len(verified) != 2:
+                raise ValueError('sdk_readback_verified_command_range_us requires two integer bounds.')
+            start, stop = (integer(c, 'Verified range bound') for c in verified)
+            if not low <= start <= stop <= high or stop < self.low or start > self.high:
+                raise ValueError('Verified range must be inside the model range and overlap the ASI control limits.')
+            if 'sdk_readback_same_stair_verified' in config and (full is not True or (start, stop) != (low, high)):
+                raise ValueError('Conflicting full-domain and explicit-range SDK readback declarations.')
         self.first = float(config['first_boundary_us'])
         self.step = float(config['step_commands_us'])
         self.floor_index = integer(config['floor_index'], 'floor_index')

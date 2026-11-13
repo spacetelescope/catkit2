@@ -78,9 +78,9 @@ bypasses the configured exposure mapping. Without an
 step, base and offset behavior. A null or false mapping also disables it.
 
 The following synthetic example uses a measured floor, a regular grid and one
-command whose stair index differs from the grid. Use an instance-specific map
-only after verifying the SDK readback and the commanded setting represent the
-same stair throughout the declared range for the camera, SDK and ROI in use.
+command whose stair index differs from the grid. The example declares that the SDK readback
+and commanded setting have been verified to represent the same stair over the
+whole command range for the camera, SDK and ROI in use.
 
 .. code-block:: yaml
 
@@ -94,6 +94,14 @@ same stair throughout the declared range for the camera, SDK and ROI in use.
         k0: -2
         duration_scale_us: 3
         sdk_readback_same_stair_verified: true
+
+To test a bounded extrapolation, replace ``sdk_readback_same_stair_verified``
+with ``sdk_readback_verified_command_range_us: [2, 14]``, for example.
+The inclusive integer bounds identify the part of ``command_range_us`` on
+which the SDK readback was verified empirically. The remaining commands are
+explicitly under test. Every calibrated write still checks that the actual
+readback maps to the selected model stair. Passing that check alone does not
+validate detector duration or stair boundaries outside the measured range.
 
 For integer command or readback ``c``, the nominal index is
 ``floor((c - first_boundary_us) / step_commands_us)``. Add the optional

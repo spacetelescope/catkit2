@@ -149,6 +149,36 @@ def test_invalid_calibration_rejected_at_startup(open_camera, overrides):
         open_camera(exposure_calibration=dict(CALIBRATION, **overrides), exposure_time=0)
 
 
+def test_sdk_readback_trial_checks_extrapolated_commands(open_camera):
+    config = dict(CALIBRATION, sdk_readback_verified_command_range_us=[2, 14])
+    del config['sdk_readback_same_stair_verified']
+    cam, device = open_camera(exposure_calibration=config, exposure_time=0)
+    read, write = cam.callbacks['exposure_time']
+    raw = cam.commands['raw_exposure_time']
+    assert raw() == 2  # SDK minimum on the floor
+    write(15)
+    assert (raw(), read()) == (20, 15.)
+    device.apply_exposure = lambda command: 19
+    with pytest.raises(RuntimeError, match='different calibrated stair'):
+        write(15)
+    assert (raw(), published_exposure(cam)) == (19, 12.)
+    with pytest.raises(ValueError, match='outside'):
+        write(16)
+
+
+@pytest.mark.parametrize('verified', [[14, 2], [2, 23], [0, 1], [2.5, 14], [], None])
+def test_sdk_readback_trial_requires_a_valid_measured_interval(verified):
+    config = dict(CALIBRATION, sdk_readback_verified_command_range_us=verified)
+    del config['sdk_readback_same_stair_verified']
+    with pytest.raises(ValueError):
+        ExposureMapping(config, 2, 100)
+
+
+def test_sdk_readback_rejects_conflicting_assertions():
+    with pytest.raises(ValueError, match='Conflicting'):
+        ExposureMapping(dict(CALIBRATION, sdk_readback_verified_command_range_us=[2, 14]), 2, 100)
+
+
 def test_nearest_matches_all_reachable_stairs():
     mapping = ExposureMapping(CALIBRATION, 2, 100)
     commands = range(mapping.low, mapping.high + 1)
