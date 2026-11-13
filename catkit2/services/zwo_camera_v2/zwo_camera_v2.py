@@ -1,8 +1,11 @@
+from contextlib import nullcontext
 import os
 import numpy as np
 import zwoasi
 
 from catkit2.base_services.camera import CameraService, StoppedAcquisition
+from catkit2.proto import core_pb2
+from catkit2.services.zwo_camera_v2.exposure_mapping import ExposureMapping, integer
 
 
 try:
@@ -71,6 +74,17 @@ class ZwoCamera(CameraService):
         # Get all camera controls.
         controls = self.camera.get_controls()
 
+        calibration = self.config.get('exposure_calibration')
+        self.exposure_mapping = None
+        if calibration is not None and calibration is not False:
+            try:
+                exposure = controls['Exposure']
+                self.exposure_mapping = ExposureMapping(calibration, exposure['MinValue'], exposure['MaxValue'])
+                self.exposure_mapping.command(self.config.get('exposure_time', 1000))
+            except Exception:
+                self.camera.close()
+                raise
+
         # Restore all controls to default values, in case any other application modified them.
         for c in controls:
             # Some control values such as Temperature and CoolerPowerPerc are not writable for zwo cool models
@@ -123,11 +137,19 @@ class ZwoCamera(CameraService):
                 self.make_property(name, lambda: getattr(self, name), setter)
 
         # Set up general camera properties.
+        self.make_command('raw_exposure_time', self.raw_exposure_time)
+        if self.exposure_mapping is not None:
+            self.make_property('minimum_calibrated_exposure_time', lambda: self.exposure_mapping.minimum)
+            self.make_property('maximum_calibrated_exposure_time', lambda: self.exposure_mapping.maximum)
         make_property_helper('brightness')
         make_property_helper('device_name', read_only=True)
         make_property_helper('max_bandwidth')
 
-        super().open()
+        try:
+            super().open()
+        except Exception:
+            self.camera.close()
+            raise
 
     def close(self):
         super().close()
@@ -204,11 +226,55 @@ class ZwoCamera(CameraService):
 
         return cam_info['MaxHeight']
 
+    def raw_exposure_time(self, command_us=None):
+        """Read ASI_EXPOSURE live, optionally writing an integer command first."""
+        if command_us is None:
+            return self.camera.get_control_value(zwoasi.ASI_EXPOSURE)[0]
+        command = integer(command_us, 'Raw exposure command')
+        pause = StoppedAcquisition(self) if self.exposure_time_requires_stopped_acquisition else nullcontext()
+        with pause:
+            self.camera.set_control_value(zwoasi.ASI_EXPOSURE, command)
+            raw = self.raw_exposure_time()
+            self._publish_readback(raw)
+            return raw
+
+    def _duration(self, raw):
+        if self.exposure_mapping is None:
+            return raw - self.exposure_time_offset_correction
+        return self.exposure_mapping.duration(raw)
+
+    def _publish_readback(self, raw):
+        # Native transactions refresh the retained property only after a successful property set.
+        try:
+            value = self._duration(raw)
+        except ValueError:
+            message = core_pb2.Value(none_value=core_pb2.NONE)
+        else:
+            if isinstance(value, (int, np.integer)):
+                message = core_pb2.Value(int_value=value)
+            else:
+                message = core_pb2.Value(double_value=value)
+        self.testbed.message_broker.publish_data(f'{self.id}/exposure_time/get', message.SerializeToString())
+
     def get_exposure_time(self):
-        exposure_time, auto = self.camera.get_control_value(zwoasi.ASI_EXPOSURE)
-        return exposure_time - self.exposure_time_offset_correction
+        return self._duration(self.raw_exposure_time())
 
     def set_exposure_time(self, exposure_time):
+        mapping = self.exposure_mapping
+        if mapping is not None:
+            command = mapping.command(exposure_time)
+            self.camera.set_control_value(zwoasi.ASI_EXPOSURE, command)
+            raw = self.raw_exposure_time()
+            try:
+                actual = mapping.duration(raw)
+            except ValueError:
+                self._publish_readback(raw)
+                raise
+            if actual != mapping.duration(command):
+                self._publish_readback(raw)
+                raise RuntimeError(f'Exposure command {command} us returned {raw} us on a different calibrated stair.')
+            return
+
         exposure_time += self.exposure_time_offset_correction
         exposure_time = np.round((exposure_time - self.exposure_time_base_step) / self.exposure_time_step_size)
         exposure_time = np.maximum(exposure_time, 0)

@@ -125,12 +125,14 @@ Distinguish `get_latest_frame`, `get_next_frame`, `get_frame(id, wait_time_in_ms
 - **Read first:** `StoppedAcquisition` in `catkit2/base_services/camera.py` — Temporary stop/restart around properties requiring acquisition pause.
 - **Read first:** `ZwoCamera` in `catkit2/services/zwo_camera_v2/zwo_camera_v2.py` — Concrete initialized hardware, stopped-acquisition flags and base hook implementation.
 - Docs: `docs/services/camera.rst`; `docs/services/zwo_camera.rst`; `docs/services/camera_sim.rst`
-- Tests: None dedicated to the camera base or v2 driver in default tests; DataStream tests cover only the stream substrate.
+- Tests: `tests/test_zwo_exposure.py`
 - Related: service_lifecycle, datastream, configuration, public_api, simulation
 
 For a new camera read those three symbols before any legacy driver. Concrete hooks include capture/start/end acquisition, ROI size and offsets, sensor dimensions, exposure/gain and temperature. Each concrete class supplies `*_requires_stopped_acquisition` flags. Device setup precedes `super().open()` because the base accesses sensor/ROI properties; teardown must respect the base's temperature-thread lifetime. Public commands toggle requested acquisition through underscored helpers; SDK start/end hooks run in the acquisition loop.
 
 **DOCUMENTED/current:** rotate 90 degrees first, then flip_x vertically, then flip_y horizontally. width/height and sensor dimensions account for rotation; offset_x/offset_y currently pass camera coordinates. The base's introductory “all values user coordinates” comment is broader than the implementation and camera documentation. Images are submitted float32; exposure_time is in microseconds at the public camera interface.
+
+ZWO v2 optionally maps exposure requests and actual SDK readbacks through a bounded staircase calibration. Its raw exposure command bypasses the mapping and returns a live SDK readback. See the ZWO service guide for units, reachable limits and the required readback validation.
 
 **LEGACY / EXCEPTION:** old drivers and v2 siblings are both registered. A new extension should start from the current base, but selecting which existing hardware service type to migrate requires its own validation. `dummy_camera_v2` has missing hooks/TODOs and is not a complete tutorial. `camera_sim` still inherits Service directly. ZWO's bandwidth prints, broad catch for already-stopped SDK state and exposure discretization are device-specific context, not universal house style.
 
