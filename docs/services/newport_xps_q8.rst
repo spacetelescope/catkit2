@@ -64,6 +64,26 @@ Configuration
         camera_position:
           nominal: 5.42
 
+Proxy moves
+-----------
+
+``move_absolute(motor_id, position, timeout=None)`` accepts a numeric or named
+position. ``move_relative(motor_id, distance, timeout=None)`` uses the same
+completion rule. Both the service and proxy use
+``np.isclose(current_position, target, atol=axis_atol)``: for finite positions,
+the error must be less than or equal to ``axis_atol + 1e-5 * abs(target)``.
+The service skips physical motion when this condition is already satisfied.
+
+A positive proxy ``timeout`` limits the overall wait in seconds, measured with
+a monotonic clock and checked after each frame read (at most a 1 ms frame wait).
+Expiration raises ``TimeoutError`` with the motor, target and last readback, or
+an indication that no readback was received. It stops waiting without aborting
+controller motion. ``None`` waits indefinitely; zero or negative values submit
+the command without waiting. A replacement command outside the same tolerance
+raises ``RuntimeError``, including when position telemetry continues arriving.
+The proxy timeout is separate from the controller connection timeout in the
+service configuration.
+
 Properties
 ----------
 None.
