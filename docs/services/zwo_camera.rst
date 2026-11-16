@@ -67,6 +67,19 @@ Datastreams
 See the base :doc:`camera` class documentation.
 
 
+Exposure-change synchronization (zwo_camera_v2)
+-----------------------------------------------
+
+The optional service setting ``exposure_time_requires_stopped_acquisition``
+defaults to ``false``. Set it to ``true`` to request a stop, wait for acquisition
+to end, change the exposure, and request a restart if acquisition was running.
+Both the ``exposure_time`` property and ``raw_exposure_time(command_us=...)``
+follow this policy; a read alone does not stop acquisition. A previously stopped
+camera remains stopped. The option permits a synchronization comparison and can
+increase exposure-change latency; it does not assert that either mode eliminates
+all camera transients.
+
+
 Calibrated exposure (zwo_camera_v2)
 -----------------------------------
 

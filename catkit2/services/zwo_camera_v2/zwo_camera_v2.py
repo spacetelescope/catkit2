@@ -121,6 +121,8 @@ class ZwoCamera(CameraService):
         self.exposure_time_step_size = self.config.get('exposure_time_step_size', 1)
         self.exposure_time_offset_correction = self.config.get('exposure_time_offset_correction', 0)
         self.exposure_time_base_step = self.config.get('exposure_time_base_step', 1)
+        self.exposure_time_requires_stopped_acquisition = self.config.get(
+            'exposure_time_requires_stopped_acquisition', self.exposure_time_requires_stopped_acquisition)
 
         def make_property_helper(name, read_only=False, requires_stopped_acquisition=False):
             if read_only:

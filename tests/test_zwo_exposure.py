@@ -57,7 +57,6 @@ def open_camera(monkeypatch, tmp_path, broker):
         id = 'camera'
         config = {'device_name': 'synthetic'}
         testbed = SimpleNamespace(message_broker=broker)
-        exposure_time_requires_stopped_acquisition = True
         callbacks = {}
         commands = {}
 
@@ -128,7 +127,8 @@ def test_calibrated_service(open_camera):
 @pytest.mark.parametrize('calibration', [None, False])
 def test_legacy_and_raw_properties_share_pause_policy(open_camera, calibration):
     cam, _ = open_camera(exposure_calibration=calibration, exposure_time_step_size=4,
-                         exposure_time_base_step=3, exposure_time_offset_correction=2)
+                         exposure_time_base_step=3, exposure_time_offset_correction=2,
+                         exposure_time_requires_stopped_acquisition=True)
     assert 'minimum_calibrated_exposure_time' not in cam.callbacks
     read, write = cam.callbacks['exposure_time']
     raw = cam.commands['raw_exposure_time']
@@ -186,3 +186,36 @@ def test_nearest_matches_all_reachable_stairs():
         target = tick / 4
         expected = min(commands, key=lambda c: (abs(mapping.duration(c) - target), c))
         assert mapping.command(target) == expected
+
+
+@pytest.mark.parametrize('pause', [None, False, True])
+@pytest.mark.parametrize('calibration', [False, CALIBRATION])
+def test_configured_exposure_pause_waits_and_preserves_running_state(open_camera, pause, calibration):
+    settings = dict(exposure_calibration=calibration, exposure_time=6)
+    if pause is not None:
+        settings['exposure_time_requires_stopped_acquisition'] = pause
+    cam, device = open_camera(**settings)
+    assert cam.exposure_time_requires_stopped_acquisition is bool(pause)
+    events, running = [], [1]
+    cam.is_acquiring.get.side_effect = lambda: list(running)
+    cam._end_acquisition = lambda: events.append('stop requested')
+    def wait(seconds):
+        events.append('stopped')
+        running[0] = 0
+    def start():
+        events.append('restart requested')
+        running[0] = 1
+    cam.sleep, cam._start_acquisition = wait, start
+    sdk_set = device.set_control_value.side_effect
+    def set_control(name, value):
+        events.append('set')
+        sdk_set(name, value)
+    device.set_control_value.side_effect = set_control
+    cam.callbacks['exposure_time'][1](6)
+    cam.commands['raw_exposure_time'](command_us=6)
+    expected = ['stop requested', 'stopped', 'set', 'restart requested'] if pause else ['set']
+    assert events == expected * 2 and running == [1]
+    events.clear()
+    running[0] = 0
+    cam.commands['raw_exposure_time'](command_us=6)
+    assert events == ['set'] and running == [0]

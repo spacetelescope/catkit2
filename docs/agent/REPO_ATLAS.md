@@ -132,6 +132,8 @@ For a new camera read those three symbols before any legacy driver. Concrete hoo
 
 **DOCUMENTED/current:** rotate 90 degrees first, then flip_x vertically, then flip_y horizontally. width/height and sensor dimensions account for rotation; offset_x/offset_y currently pass camera coordinates. The base's introductory “all values user coordinates” comment is broader than the implementation and camera documentation. Images are submitted float32; exposure_time is in microseconds at the public camera interface.
 
+ZWO v2 reads the optional `exposure_time_requires_stopped_acquisition` service setting before registering the base exposure property. Its default remains false; enabling it routes both property writes and raw exposure commands through the existing stop/wait/change/restart context. Reads do not pause acquisition, and a stopped camera stays stopped.
+
 ZWO v2 optionally maps exposure requests and actual SDK readbacks through a bounded staircase calibration. Its raw exposure command bypasses the mapping and returns a live SDK readback. See the ZWO service guide for units, reachable limits and the required readback validation.
 
 **LEGACY / EXCEPTION:** old drivers and v2 siblings are both registered. A new extension should start from the current base, but selecting which existing hardware service type to migrate requires its own validation. `dummy_camera_v2` has missing hooks/TODOs and is not a complete tutorial. `camera_sim` still inherits Service directly. ZWO's bandwidth prints, broad catch for already-stopped SDK state and exposure discretization are device-specific context, not universal house style.
