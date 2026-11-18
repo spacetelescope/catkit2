@@ -60,14 +60,14 @@ For installation with an **Apple Silicon chip with python=3.7** (current default
     conda create --name catkit2
     conda activate catkit2
     conda config --env --set subdir osx-64
-    export CONDA_PINNED_PACKAGES="conda-forge::libcxx=23.1.5=h19cb2f5_0"
+    export CONDA_PINNED_PACKAGES="libcxx=23.1.5=h19cb2f5_0"
     conda env update --file environment.yml
 
 For **Intel Macs with Python 3.7**:
 
 .. code-block:: bash
 
-    export CONDA_PINNED_PACKAGES="conda-forge::libcxx=23.1.5=h19cb2f5_0"
+    export CONDA_PINNED_PACKAGES="libcxx=23.1.5=h19cb2f5_0"
     conda env create --file environment.yml
     conda activate catkit2
 
