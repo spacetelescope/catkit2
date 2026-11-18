@@ -67,17 +67,13 @@ Configuration
 Proxy moves
 -----------
 
-``move_absolute(motor_id, position, timeout=None)`` accepts a numeric or named
-position. ``move_relative(motor_id, distance, timeout=None)`` moves by a numeric
-offset from the current position. Both use the service's position tolerance,
-so the motor may stay put if it is already within tolerance of the target.
+``move_absolute()`` accepts a numeric or named position; ``move_relative()``
+accepts an offset. Both wait until the motor is within the service's position
+tolerance; a motor already within tolerance may not move.
 
-A positive proxy ``timeout`` limits the wait in seconds. If it expires, the
-proxy raises ``TimeoutError`` and controller motion can continue. ``None``
-waits indefinitely. Zero or negative values submit the command and return
-immediately. A replacement command outside the position tolerance raises
-``RuntimeError`` while waiting. The service configuration's ``timeout`` applies
-to the controller connection.
+When ``timeout > 0``, the argument limits the wait in seconds. ``timeout=None``
+waits indefinitely; zero or negative values submit without waiting. Expiration
+raises ``TimeoutError`` without stopping controller motion.
 
 Properties
 ----------

@@ -13,17 +13,15 @@ class NewportXpsQ8Proxy(ServiceProxy):
         On TimeoutError, controller motion can continue. While waiting, a
         replacement command outside the position tolerance raises RuntimeError.
         """
-        # Stream names are lowercase even when the configured motor ID is mixed case.
         command_stream = getattr(self, motor_id.lower() + '_command')
         current_position_stream = getattr(self, motor_id.lower() + '_current_position')
 
-        # Compare against the same numeric target that the service receives.
         position = float(self.resolve_position(motor_id.lower(), position))
 
         command_stream.submit_data(np.array([position], dtype='float64'))
 
         if timeout is None or timeout > 0:
-            # Set once: receiving telemetry must not extend the allowed wait.
+            # Set timeout criteria once; receiving position telemetry must not extend the allowed wait.
             deadline = None if timeout is None else time.monotonic() + timeout
             atol = self._get_motor_atol(motor_id)
             # Keep the last readback for diagnostics, including when no frame arrives.
@@ -40,7 +38,7 @@ class NewportXpsQ8Proxy(ServiceProxy):
                     raise TimeoutError(f'Timed out waiting for {motor_id} to reach {position} mm. '
                                        f'Last readback: {last_readback}.')
 
-                # Check for replacement commands even when telemetry keeps arriving.
+                # Check for replacement commands even when position telemetry keeps arriving.
                 current_command = command_stream.get()
                 if not np.allclose(current_command, position, atol=atol):
                     raise RuntimeError(f'Absolute move interrupted or something went wrong when moving {motor_id} to {position} mm. '
