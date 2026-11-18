@@ -33,13 +33,7 @@ message GetInfoReply
     string config = 2;
     bool is_simulated = 3;
     string heartbeat_stream_id = 4;
-    uint32 logging_ingress_port = 5;
-    uint32 logging_egress_port = 6;
-    uint32 data_logging_ingress_port = 7;
-    uint32 data_logging_egress_port = 8;
-    uint32 tracing_ingress_port = 9;
-    uint32 tracing_egress_port = 10;
-    string message_broker_id = 11;
+    string message_broker_id = 5;
 }
 
 message GetServicesRequest

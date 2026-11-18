@@ -154,6 +154,8 @@ private:
 class MessageBroker : public std::enable_shared_from_this<MessageBroker>
 {
 public:
+	virtual ~MessageBroker() = default;
+
 	virtual Message PrepareMessageImpl(std::string_view topic, size_t payload_size, Uuid trace_id, uint8_t memory_block_id = 0) = 0;
 	virtual Message PublishMessage(Message message, bool is_final = true) = 0;
 
