@@ -90,7 +90,7 @@ On Apple Silicon with an Intel Python environment, Command Line Tools 27 can fai
     CXX=/Library/Developer/CommandLineTools/usr/bin/clang++ \
     SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk \
     CMAKE_ARGS="-DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" \
-    python -m pip install -e .
+    pip install -e .
 
 These settings apply only to this command; they do not change the system Xcode selection. This workaround is for Intel Python and should be revisited when moving to a native ARM environment. It is separate from the SciPy runtime constraint above.
 
