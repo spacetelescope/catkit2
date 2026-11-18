@@ -163,13 +163,17 @@ The base initializes channels/startup maps, monitors each stream and co-adds cha
 - Status: specialized-current
 - **Read first:** `PhysikStageController` in `catkit2/services/physik_stage_controller/physik_stage_controller.py` — Explicitly recommended by services documentation; current axis/telemetry/worker example.
 - **Read first:** `PhysikStageControllerSim` in `catkit2/services/physik_stage_controller_sim/physik_stage_controller_sim.py` — Interface counterpart with instantaneous simulated moves.
+- **Read first:** `NewportXpsQ8Proxy` in `catkit2/testbed/proxies/newport_xps.py` — XPS move completion, command interruption and overall timeout.
+- **Read first:** `NewportXpsQ8.set_current_position` in `catkit2/services/newport_xps_q8/newport_xps_q8.py` — XPS physical motion predicate.
 - Docs: `docs/services.rst`; `docs/services/physik_stage_controller.rst`; `docs/services/newport_xps_q8.rst`
-- Tests: None dedicated to this driver in root tests.
+- Tests: No dedicated PI or XPS tests in this repository.
 - Related: service_lifecycle, configuration, datastream, simulation
 
 The driver connects by configured serial/controller, maps named axes, exposes position properties and movement commands, and receives target positions through a stream worker. It serializes SDK access with a mutex and publishes telemetry on movement completion. Compare asynchronous move_to against move_and_wait rather than treating all methods as interchangeable.
 
 This is a current/documented example even though blame credits Lane Meier and MichaelPhilbin rather than Emiel Por. Authorship was not a prerequisite for selection. Inspect sorted axis-name versus axis-number paths if generalizing beyond its current mapping, and examine the broad RuntimeError worker catch and daemon-thread cleanup. Canonical use is “how this device exposes motion,” not “copy every failure-handling choice.” Choose the existing Newport or Thorlabs family instead for a task concerning that SDK/proxy.
+
+XPS service and proxy use the same inclusive np.isclose predicate, including default relative tolerance and the configured motor's absolute tolerance. Positive proxy timeouts bound waiting with a monotonic deadline; None waits indefinitely and nonpositive values submit without waiting. TimeoutError stops the caller's wait, not controller motion.
 
 <a id="concept-simulation"></a>
 

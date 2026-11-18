@@ -64,6 +64,17 @@ Configuration
         camera_position:
           nominal: 5.42
 
+Proxy moves
+-----------
+
+``move_absolute()`` accepts a numeric or named position; ``move_relative()``
+accepts an offset. Both wait until the motor is within the service's position
+tolerance; a motor already within tolerance may not move.
+
+When ``timeout > 0``, the argument limits the wait in seconds. ``timeout=None``
+waits indefinitely; zero or negative values submit without waiting. Expiration
+raises ``TimeoutError`` without stopping controller motion.
+
 Properties
 ----------
 None.

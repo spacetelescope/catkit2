@@ -1,43 +1,55 @@
 from ..service_proxy import ServiceProxy
 
+import time
 import numpy as np
 
 
 class NewportXpsQ8Proxy(ServiceProxy):
     def move_absolute(self, motor_id, position, timeout=None):
+        """Move to a numeric or named position, using the service's tolerance.
+
+        A positive timeout limits the wait in seconds. None waits indefinitely.
+        Zero or negative values submit the command and return immediately.
+        On TimeoutError, controller motion can continue. While waiting, a
+        replacement command outside the position tolerance raises RuntimeError.
+        """
         command_stream = getattr(self, motor_id.lower() + '_command')
         current_position_stream = getattr(self, motor_id.lower() + '_current_position')
 
-        position = self.resolve_position(motor_id.lower(), position)
+        position = float(self.resolve_position(motor_id.lower(), position))
 
-        # Set new position.
         command_stream.submit_data(np.array([position], dtype='float64'))
 
-        # Wait until actuator reaches new position.
         if timeout is None or timeout > 0:
+            # Set timeout criteria once; receiving position telemetry must not extend the allowed wait.
+            deadline = None if timeout is None else time.monotonic() + timeout
+            atol = self._get_motor_atol(motor_id)
+            # Keep the last readback for diagnostics, including when no frame arrives.
+            current_position = None
             while True:
                 try:
-                    wait_time_ms = 1  # TODO: implement better waiting scheme.
-                    if wait_time_ms is not None and wait_time_ms <= 0:
-                        break
-
-                    frame = current_position_stream.get_next_frame(wait_time_ms)
-
-                    if abs(frame.data[0] - position) < self._get_motor_atol(motor_id):
-                        break
+                    current_position = current_position_stream.get_next_frame(1).data[0]
                 except RuntimeError:
-                    # Timed out. First check if the command is still the same as what we commanded.
-                    current_command = command_stream.get()
+                    # A frame timeout does not reset the overall move deadline.
+                    pass
 
-                    if not np.allclose(current_command, position, atol=self._get_motor_atol(motor_id)):
-                        # Someone else interrupted our move. Raise an exception.
-                        raise RuntimeError(f'Absolute move interrupted or something went wrong when moving {motor_id} to {position} mm.')
+                last_readback = 'unavailable' if current_position is None else f'{current_position} mm'
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise TimeoutError(f'Timed out waiting for {motor_id} to reach {position} mm. '
+                                       f'Last readback: {last_readback}.')
 
-                    # Otherwise, continue the wait loop.
-                    continue
+                # Check for replacement commands even when position telemetry keeps arriving.
+                current_command = command_stream.get()
+                if not np.allclose(current_command, position, atol=atol):
+                    raise RuntimeError(f'Absolute move interrupted or something went wrong when moving {motor_id} to {position} mm. '
+                                       f'Last readback: {last_readback}; current command: {current_command[0]} mm.')
+
+                # Match the service's inclusive comparison and default relative tolerance.
+                if current_position is not None and np.isclose(current_position, position, atol=atol):
+                    break
 
     def move_relative(self, motor_id, distance, timeout=None):
-        # Get current position.
+        """Move by a numeric offset from the current position with the same wait as move_absolute."""
         stream = getattr(self, motor_id.lower() + '_current_position')
         current_position = stream.get()[0]
 
@@ -60,6 +72,8 @@ class NewportXpsQ8Proxy(ServiceProxy):
         return {key.lower(): value for key, value in self.config['motors'].items()}
 
     def _get_motor_atol(self, motor_id):
+        # The service looks up tolerance overrides using the configured motor ID.
+        motor_id = next(motor for motor in self.config['motors'] if motor.lower() == motor_id.lower())
         return self.config['atol'].get(motor_id, self.config['atol']['default'])
 
     @property
