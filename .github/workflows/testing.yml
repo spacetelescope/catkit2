@@ -32,12 +32,17 @@ jobs:
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
     - name: Install dependencies
       run: |
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          # Preserve compatibility with the Python 3.7 SciPy binary.
+          export CONDA_PINNED_PACKAGES="libcxx=23.1.5=h19cb2f5_0"
+        fi
         conda env create --name ci-env --file environment.yml
       shell: bash -l {0}
     - name: Print debugging information
       run: |
         conda activate ci-env
         conda list
+        python -c "import scipy.sparse"
       shell: bash -l {0}
     - name: Install catkit2
       run: |
