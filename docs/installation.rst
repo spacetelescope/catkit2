@@ -84,5 +84,16 @@ At this point, all C++ and Python dependencies of catkit2 should have been downl
 
 This will use the default CMake generator to compile catkit_core and its Python bindings. If the default generator doesn't support 64bit compilation, this step will return an error and you will need to specify a default generator to use by setting the ``CMAKE_GENERATOR`` environment variable to your preferred generator. You can list all generators installed on your machine with ``cmake --help``. You will have to restart your terminal after changing your environment variables as usual.
 
+On Apple Silicon with an Intel Python environment, Command Line Tools 27 can fail during CMake's compiler check with ``libxcrun`` reporting a missing ``x86_64`` architecture. The native compiler can still produce Intel binaries. For the standalone Command Line Tools installation, bypass the Intel launchers for this build:
+
+.. code-block:: bash
+
+    CC=/Library/Developer/CommandLineTools/usr/bin/clang \
+    CXX=/Library/Developer/CommandLineTools/usr/bin/clang++ \
+    SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk \
+    CMAKE_ARGS="-DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" \
+    pip install -e .
+
+These settings apply only to this command; they do not change the system Xcode selection. This workaround is for Intel Python and should be revisited when moving to a native ARM environment. It is separate from the SciPy runtime constraint above.
 
 Some services require manual installation of their respective drivers to access the devices that they operate.
