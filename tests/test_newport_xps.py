@@ -1,4 +1,5 @@
 import importlib.util
+from fractions import Fraction
 from pathlib import Path
 import sys
 import threading
@@ -118,6 +119,14 @@ def test_successful_move(clock, timeout):
     np.testing.assert_array_equal(proxy.axis_command.get(), [1])
 
 
+def test_fraction_target(clock):
+    proxy = FakeProxy(clock, [0, 0.5])
+    proxy.move_absolute('Axis', Fraction(1, 2), timeout=0.01)
+    assert len(proxy.axis_current_position.waits) == 2
+    proxy.axis_command.submit_data.assert_called_once()
+    np.testing.assert_array_equal(proxy.axis_command.get(), [0.5])
+
+
 @pytest.mark.parametrize('positions,last_readback', [
     ([0.25], '0.25'),  # Healthy telemetry but stalled motion.
     ([None], 'unavailable'),
@@ -129,7 +138,7 @@ def test_overall_timeout(clock, positions, last_readback):
         proxy.move_absolute('Axis', 1, timeout=0.003)
     assert clock.milliseconds == 3
     assert proxy.axis_current_position.waits == [1, 1, 1]
-    assert 'Axis' in str(exc.value) and '1 mm' in str(exc.value)
+    assert 'Axis' in str(exc.value) and '1.0 mm' in str(exc.value)
     assert last_readback in str(exc.value)
     # Timing out only stops waiting; it does not replace or cancel the command.
     proxy.axis_command.submit_data.assert_called_once()
@@ -159,7 +168,7 @@ def test_interrupted_move(clock, readback):
     proxy.axis_current_position.on_read = lambda: proxy.set_command(np.array([2.0]))
     with pytest.raises(RuntimeError, match='interrupted') as exc:
         proxy.move_absolute('Axis', 1)
-    assert 'Axis' in str(exc.value) and '1 mm' in str(exc.value)
+    assert 'Axis' in str(exc.value) and '1.0 mm' in str(exc.value)
     assert 'current command: 2.0 mm' in str(exc.value)
 
 
@@ -174,8 +183,10 @@ def test_named_position_and_relative_move(clock):
     proxy = FakeProxy(clock, [10.0])
     proxy.move_absolute('AXIS', 'nominal', timeout=0.01)
     np.testing.assert_array_equal(proxy.axis_command.get(), [10.00105])
-    proxy.move_relative('Axis', 0.00105, timeout=0.01)
-    np.testing.assert_array_equal(proxy.axis_command.get(), [10.00105])
+    proxy.axis_current_position.positions = [10.0, 10.5]
+    proxy.move_relative('Axis', 0.5, timeout=0.01)
+    np.testing.assert_array_equal(proxy.axis_command.get(), [10.5])
+    assert proxy.axis_command.submit_data.call_count == 2
 
 
 def test_default_tolerance_matches_service_lookup(clock):

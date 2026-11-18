@@ -15,7 +15,7 @@ class NewportXpsQ8Proxy(ServiceProxy):
         command_stream = getattr(self, motor_id.lower() + '_command')
         current_position_stream = getattr(self, motor_id.lower() + '_current_position')
 
-        position = self.resolve_position(motor_id.lower(), position)
+        position = float(self.resolve_position(motor_id.lower(), position))
 
         # Set new position.
         command_stream.submit_data(np.array([position], dtype='float64'))
