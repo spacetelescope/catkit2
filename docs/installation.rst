@@ -50,6 +50,8 @@ Package installation
 
 The following will create a new Conda environment with the required C++ and Python packages. You will need to install drivers and SDKs for some devices yourself to use those devices.
 
+The macOS Python 3.7 instructions below temporarily constrain ``libcxx`` to keep SciPy compatible with the C++ runtime. This pin applies only to macOS ``osx-64``; do not set it on Windows or Linux. Use the same constraint when updating the environment. Revisit it during the Python/SciPy upgrade and remove it from the installation instructions and CI once a clean macOS installation and the test suite pass without it.
+
 For installation with an **Apple Silicon chip with python=3.7** (current default on catkit2), you need to follow these steps:
 
 .. code-block:: bash
@@ -58,7 +60,16 @@ For installation with an **Apple Silicon chip with python=3.7** (current default
     conda create --name catkit2
     conda activate catkit2
     conda config --env --set subdir osx-64
+    export CONDA_PINNED_PACKAGES="conda-forge::libcxx=23.1.5=h19cb2f5_0"
     conda env update --file environment.yml
+
+For **Intel Macs with Python 3.7**:
+
+.. code-block:: bash
+
+    export CONDA_PINNED_PACKAGES="conda-forge::libcxx=23.1.5=h19cb2f5_0"
+    conda env create --file environment.yml
+    conda activate catkit2
 
 For **all other platforms**, and if running with a newer Python versions, you can use the following command:
 
