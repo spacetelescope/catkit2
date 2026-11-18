@@ -3,8 +3,8 @@
 # or, if you're not wanting to use the default env name:
 # conda env create --name <myEnvName> --file environment.yml
 # conda env update --name <myEnvName--file environment.yml --prune
-# For macOS osx-64 with Python 3.7, set this before creating or updating the environment:
-# export CONDA_PINNED_PACKAGES="libcxx=23.1.5=h19cb2f5_0"
+# For macOS osx-64 with Python 3.7, prefix the create or update command with the pin:
+# CONDA_PINNED_PACKAGES="libcxx=23.1.5=h19cb2f5_0" conda env create --file environment.yml
 # Temporary SciPy compatibility pin; see docs/installation.rst for when to remove it.
 
 name: catkit2
