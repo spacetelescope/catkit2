@@ -11,7 +11,6 @@
 #include "MessageBroker.h"
 #include "SharedMemory.h"
 
-#include <zmq.hpp>
 #include <nlohmann/json.hpp>
 
 #include <string>
