@@ -123,15 +123,52 @@ command-specific index correction and clamp the result to the measured
 ``duration_scale_us * (index - k0)``. The scale and zero are supplied by the
 calibration. A photometric zero alone does not establish an absolute timing scale.
 
+For a nonlinear response, replace ``k0`` and ``duration_scale_us`` with
+``duration_knots`` and ``supported_stair_ranges``. The following alternative
+uses synthetic values:
+
+.. code-block:: yaml
+
+    exposure_time: 0
+    exposure_calibration:
+        command_range_us: [0, 22]
+        first_boundary_us: 8
+        step_commands_us: 4
+        floor_index: -1
+        index_corrections: {"12": -1}
+        duration_knots: [[-1, 2], [1, 8], [3, 20]]
+        supported_stair_ranges: [[-1, 0], [2, 3]]
+        sdk_readback_same_stair_verified: true
+
+Each knot is an ``[integer_stair, equivalent_duration_us]`` pair. At least two
+knots are required; stairs and finite positive durations must both increase
+strictly. The mapping interpolates duration linearly in stair index between
+knots and never extrapolates. The equivalent-duration normalization must be
+established by the calibration; the service does not infer an absolute detector
+integration time from signal measurements. Combining knots with ``k0`` or
+``duration_scale_us`` is an error.
+
+The inclusive integer ``supported_stair_ranges`` must be nonempty, ordered,
+disjoint and inside the knot domain. These ranges identify where the duration
+calibration is supported, independently of SDK readback verification. A knot
+on each side of a gap does not validate the gap: requests between supported
+duration intervals and readbacks on unsupported stairs raise an error. In this
+example stair 1 is unsupported, so a request between 5 and 14 calibrated us is
+rejected. Both interval endpoints remain supported.
+
 With calibration enabled, ``exposure_time`` selects the nearest reachable
 duration. An exact tie selects the shorter duration. The representative is the
 first integer command on that stair within both the calibrated and SDK control
-limits. A zero request selects the minimum. Other requests, including the
+limits and, when using knots, the supported stair ranges. A zero request selects
+the minimum supported legal stair. Other requests, including the
 initial configured exposure, must lie between the read-only
-``minimum_calibrated_exposure_time`` and ``maximum_calibrated_exposure_time``.
+``minimum_calibrated_exposure_time`` and ``maximum_calibrated_exposure_time``
+and outside any unsupported gaps. Selection searches the bounded command
+intervals without constructing a dense command table.
 
 After a write through either interface, the service publishes the exposure
 property from the SDK readback. A calibrated write that lands on a different stair raises an
-error. A raw write can set an exposure outside the mapping, in which case
+error. A raw write can set an exposure outside the mapping or on an unsupported
+stair, in which case
 the proxy reports ``exposure_time`` as ``None`` until a later in-range write.
 Proxy reads return the last published values at startup or a service write.

@@ -14,6 +14,8 @@ from catkit2.services.zwo_camera_v2.exposure_mapping import ExposureMapping
 CALIBRATION = dict(command_range_us=[0, 22], first_boundary_us=8, step_commands_us=4,
                    floor_index=-1, index_corrections={'12': -1}, k0=-2, duration_scale_us=3,
                    sdk_readback_same_stair_verified=True)
+KNOT_CALIBRATION = {key: value for key, value in CALIBRATION.items() if key not in ('k0', 'duration_scale_us')}
+KNOT_CALIBRATION.update(duration_knots=[[-1, 2], [1, 8], [3, 20]], supported_stair_ranges=[[-1, 3]])
 
 
 @pytest.fixture(scope='module')
@@ -186,6 +188,105 @@ def test_nearest_matches_all_reachable_stairs():
         target = tick / 4
         expected = min(commands, key=lambda c: (abs(mapping.duration(c) - target), c))
         assert mapping.command(target) == expected
+
+
+@pytest.mark.parametrize('sdk_min,sdk_max', [(2, 100), (10, 19), (13, 14)])
+def test_nonlinear_nearest_matches_independent_stair_oracle(sdk_min, sdk_max):
+    mapping = ExposureMapping(KNOT_CALIBRATION, sdk_min, sdk_max)
+    # Explicit synthetic command groups and interpolated durations, independent of the implementation.
+    groups = [(range(0, 8), 2), (range(8, 13), 5), (range(13, 16), 8),
+              (range(16, 20), 14), (range(20, 23), 20)]
+    reachable = [(command, duration) for commands, duration in groups for command in commands
+                 if sdk_min <= command <= sdk_max]
+    assert mapping.command(0) == reachable[0][0]
+    assert (mapping.minimum, mapping.maximum) == (reachable[0][1], reachable[-1][1])
+    for command, duration in reachable:
+        assert mapping.duration(command) == duration
+    for tick in range(int(mapping.minimum * 4), int(mapping.maximum * 4) + 1):
+        target = tick / 4
+        expected = min(reachable, key=lambda item: (abs(item[1] - target), item[0]))[0]
+        assert mapping.command(target) == expected
+
+
+def test_supported_ranges_reject_gaps_and_keep_exact_endpoints():
+    config = dict(KNOT_CALIBRATION, supported_stair_ranges=[[-1, 0], [2, 3]])
+    mapping = ExposureMapping(config, 2, 100)
+    assert [mapping.command(target) for target in (0, 2, 5, 14, 20)] == [2, 2, 8, 16, 20]
+    for target in (5.01, 8, 13.99):
+        with pytest.raises(ValueError, match='unsupported.*gap'):
+            mapping.command(target)
+    for command in (13, 14, 15):
+        with pytest.raises(ValueError, match='unsupported.*stair'):
+            mapping.duration(command)
+    # The first supported stair can begin after the SDK minimum.
+    mapping = ExposureMapping(dict(KNOT_CALIBRATION, supported_stair_ranges=[[0, 2]]), 2, 100)
+    assert (mapping.command(0), mapping.minimum, mapping.maximum) == (8, 5, 14)
+    with pytest.raises(ValueError, match='outside'):
+        mapping.command(20)
+    with pytest.raises(ValueError, match='No supported'):
+        ExposureMapping(dict(KNOT_CALIBRATION, supported_stair_ranges=[[3, 3]]), 2, 19)
+
+
+@pytest.mark.parametrize('overrides', [
+    dict(duration_knots=[]), dict(duration_knots=[[0, 1]]), dict(duration_knots=[[0, 1], [0, 2]]),
+    dict(duration_knots=[[0, 1], [-1, 2]]), dict(duration_knots=[[0, 1], [2, 1]]),
+    dict(duration_knots=[[0, 1], [2, 0]]), dict(duration_knots=[[0, 1], [2, float('nan')]]),
+    dict(duration_knots=[[0, 1], [2, float('inf')]]), dict(duration_knots=[[0, None], [2, 3]]),
+    dict(duration_knots=[[0.5, 1], [2, 3]]), dict(duration_knots=[[True, 1], [2, 3]]),
+    dict(duration_knots=[[0, 1, 2], [2, 3]]), dict(k0=-2), dict(duration_scale_us=3),
+    dict(supported_stair_ranges=None), dict(supported_stair_ranges=[]), dict(supported_stair_ranges=[[0]]),
+    dict(supported_stair_ranges=[[-2, 0]]), dict(supported_stair_ranges=[[0, 4]]),
+    dict(supported_stair_ranges=[[2, 0]]), dict(supported_stair_ranges=[[-1, 1], [1, 3]]),
+    dict(supported_stair_ranges=[[2, 3], [-1, 0]]), dict(supported_stair_ranges=[[0.5, 2]]),
+])
+def test_malformed_knot_calibration_is_rejected(overrides):
+    with pytest.raises(ValueError):
+        ExposureMapping(dict(KNOT_CALIBRATION, **overrides), 2, 100)
+
+
+def test_supported_ranges_require_knots():
+    with pytest.raises(ValueError, match='requires duration_knots'):
+        ExposureMapping(dict(CALIBRATION, supported_stair_ranges=[[-1, 3]]), 2, 100)
+
+
+def test_adjacent_supported_ranges_do_not_create_a_duration_gap():
+    mapping = ExposureMapping(dict(KNOT_CALIBRATION, supported_stair_ranges=[[-1, 0], [1, 3]]), 2, 100)
+    assert mapping.command(6.5) == 8
+    assert mapping.command(6.51) == 13
+
+
+def test_nonlinear_service_readback_and_unsupported_raw_publication(open_camera):
+    config = dict(KNOT_CALIBRATION, supported_stair_ranges=[[-1, 0], [2, 3]])
+    cam, device = open_camera(exposure_calibration=config, exposure_time=0)
+    read, write = cam.callbacks['exposure_time']
+    raw = cam.commands['raw_exposure_time']
+    assert (raw(), read()) == (2, 2)
+    assert cam.callbacks['minimum_calibrated_exposure_time'][0]() == 2
+    assert cam.callbacks['maximum_calibrated_exposure_time'][0]() == 20
+    device.apply_exposure = lambda command: command + 1
+    write(17)
+    assert (raw(), read()) == (17, 14)
+    write(17.01)
+    assert (raw(), read()) == (21, 20)
+    assert all(isinstance(call.args[1], int) for call in device.set_control_value.call_args_list
+               if call.args[0] == 'EXPOSURE')
+    with pytest.raises(ValueError, match='unsupported.*gap'):
+        write(8)
+    assert raw() == 21
+    raw(command_us=13)
+    assert raw() == 14 and published_exposure(cam) is None
+    with pytest.raises(ValueError, match='unsupported.*stair'):
+        read()
+    write(0)
+    assert read() == 2
+    device.apply_exposure = lambda command: 20
+    with pytest.raises(RuntimeError, match='different calibrated stair'):
+        write(14)
+    assert (raw(), published_exposure(cam)) == (20, 20)
+    device.apply_exposure = lambda command: 14
+    with pytest.raises(ValueError, match='unsupported.*stair'):
+        write(14)
+    assert published_exposure(cam) is None
 
 
 @pytest.mark.parametrize('pause', [None, False, True])
